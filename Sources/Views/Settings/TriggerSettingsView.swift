@@ -9,7 +9,7 @@ struct TriggerSettingsView: View {
     @State var scanning = false
     @State var tool: TriggerTool = .claude
     @State var selectedID: String?
-    @State var message = "继续"
+    @State var message = Trigger.defaultMessage
     @State var mode: TriggerMode = .afterReset
     @State var hours = 5
 
@@ -158,7 +158,7 @@ struct TriggerSettingsView: View {
                 }
 
                 field("Message") {
-                    TextField("继续", text: $message)
+                    TextField(L10n.tr("Continue"), text: $message)
                         .textFieldStyle(.plain)
                         .font(Typography.label)
                         .foregroundStyle(.white.opacity(0.92))

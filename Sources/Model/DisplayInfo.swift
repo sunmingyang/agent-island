@@ -16,6 +16,13 @@ struct DisplayInfo {
     let isBuiltin: Bool
     let notch: NotchInfo
 
+    var displayName: String {
+        if isBuiltin {
+            return L10n.tr("This Mac's screen")
+        }
+        return name
+    }
+
     /// All currently-connected displays, in `NSScreen.screens` order.
     /// Drops any screen that doesn't expose a `CGDirectDisplayID` (rare;
     /// would happen for genuinely unidentifiable headless devices).

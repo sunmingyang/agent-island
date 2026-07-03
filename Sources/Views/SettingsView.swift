@@ -71,6 +71,7 @@ struct SettingsView: View {
         .frame(minWidth: 440, minHeight: 420)
         .background(Color(red: 0.020, green: 0.020, blue: 0.027))
         .preferredColorScheme(.dark)
+        .id(appLanguage.language)
     }
 
     // MARK: - Tabs
@@ -685,9 +686,9 @@ struct SettingsView: View {
 
     private var displayModeSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Display mode")
+            sectionLabel("Top bar")
             SettingsRow(
-                title: "Mac mode",
+                title: "Mac type",
                 subtitle: displayModeSubtitle
             ) {
                 displayModeSegmented
@@ -699,29 +700,7 @@ struct SettingsView: View {
     }
 
     private var displayModeSubtitle: String {
-        let currentMode = L10n.tr(spacing.mode.displayLabel)
-        let targetName = DisplayInfo.currentTarget()?.name ?? L10n.tr("current display")
-        switch spacing.mode {
-        case .compact:
-            guard DisplayInfo.currentTarget()?.notch.hasNotch == true else {
-                return L10n.tr(
-                    "Current mode: %@ on %@. Narrower top bar for non-notch Macs and external displays.",
-                    currentMode,
-                    targetName
-                )
-            }
-            return L10n.tr(
-                "Current mode: %@ on %@. Uses the narrower layout, but the hardware notch still sets the minimum width.",
-                currentMode,
-                targetName
-            )
-        case .notchStyle:
-            return L10n.tr(
-                "Current mode: %@ on %@. Wider top bar that visually matches MacBooks with a camera notch.",
-                currentMode,
-                targetName
-            )
-        }
+        L10n.tr("Pick Notch for MacBooks with a camera notch. No notch suits Macs and external displays without one — the top bar gets narrower.")
     }
 
     private var displayModeSegmented: some View {
@@ -729,15 +708,15 @@ struct SettingsView: View {
             items: [IslandSpacingStore.Mode.compact, .notchStyle],
             selected: $spacing.mode,
             label: { $0.displayLabel },
-            accessibilityPrefix: "Display mode"
+            accessibilityPrefix: "Mac type"
         )
     }
 
     private var targetDisplaySection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Target Display")
+            sectionLabel("Screen")
             SettingsRow(
-                title: "Show on",
+                title: "Position",
                 subtitle: targetDisplaySubtitle
             ) {
                 targetDisplayPicker
@@ -755,9 +734,9 @@ struct SettingsView: View {
         switch targetDisplay.choice {
         case .auto:
             if let resolved = DisplayInfo.currentTarget() {
-                return L10n.tr("Auto — currently on %@.", resolved.name)
+                return L10n.tr("Auto — showing on %@.", resolved.displayName)
             }
-            return L10n.tr("Auto — picks a notched display when available.")
+            return L10n.tr("Auto — picks the best available screen.")
         case .stable:
             return L10n.tr("Pinned to a specific display. Falls back to Auto if unplugged.")
         }
@@ -769,14 +748,14 @@ struct SettingsView: View {
         return Picker("", selection: pickerSelection) {
             Text(L10n.tr("Auto")).tag(autoTag)
             ForEach(displays, id: \.stableID) { d in
-                Text(d.isBuiltin ? L10n.tr("%@ (built-in)", d.name) : d.name)
+                Text(d.displayName)
                     .tag(d.stableID)
             }
         }
         .labelsHidden()
         .pickerStyle(.menu)
         .frame(maxWidth: 220)
-        .accessibilityLabel(L10n.tr("Target display"))
+        .accessibilityLabel(L10n.tr("Screen position"))
     }
 
     /// Bridges the enum `Choice` to a `String` selection that SwiftUI's

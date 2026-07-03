@@ -23,6 +23,8 @@ enum TriggerMode: String, Codable, CaseIterable {
 /// One auto-trigger: resume `sessionId` in `tool` with `message` when `mode`
 /// is satisfied. Persisted as JSON in UserDefaults by `TriggerStore`.
 struct Trigger: Codable, Identifiable, Equatable {
+    static var defaultMessage: String { L10n.tr("Continue") }
+
     var id: String
     var tool: TriggerTool
     var sessionId: String
@@ -40,7 +42,7 @@ struct Trigger: Codable, Identifiable, Equatable {
         sessionId: String,
         label: String,
         cwd: String,
-        message: String = "继续",
+        message: String = Self.defaultMessage,
         mode: TriggerMode = .afterReset,
         everyHours: Int = 5,
         enabled: Bool = true,

@@ -13,7 +13,10 @@ enum L10n {
                 return fallback.localizedString(forKey: key, value: key, table: nil)
             }
         }
-        return NSLocalizedString(key, comment: "")
+        if AppLanguageResolver.current == .auto {
+            return NSLocalizedString(key, comment: "")
+        }
+        return AppLanguageResolver.englishBundle?.localizedString(forKey: key, value: key, table: nil) ?? key
     }
 
     static func tr(_ key: String, _ arguments: CVarArg...) -> String {

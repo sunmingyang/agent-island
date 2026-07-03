@@ -19,7 +19,7 @@ extension TriggerSettingsView {
             sessionId: session.sessionId,
             label: session.label,
             cwd: session.cwd,
-            message: message.isEmpty ? "继续" : message,
+            message: message.isEmpty ? Trigger.defaultMessage : message,
             mode: mode,
             everyHours: hours,
             enabled: true,
