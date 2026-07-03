@@ -53,13 +53,13 @@ Works with both notched and non-notched Macs: use the notch-style top bar on Mac
 
 ## Why
 
-Running Claude Code or Codex in more than one terminal means three small, constant losses:
+Agent Island was built by a heavy Claude Code + Codex user, out of two everyday realities:
 
-- A turn finishes in a background window and sits there for an hour before you notice it's waiting for one reply.
-- You can't tell at a glance whether a session is still working, done, or stuck on a login / rate limit.
-- The quota resets at 3 a.m. and the long task stays paused until you wake up.
+**Squeeze every token.** Running both tools daily means juggling two quota clocks — when does the 5-hour window reset, which tool has headroom right now. Cross-using them well is how you get the most out of what you pay for. So: live usage, cost, and reset countdowns for both, one glance in the top bar.
 
-Agent Island keeps all three visible from the notch — and can handle the third one for you.
+**Start the run, then go live your life.** You brief the agent for one round — then you should be able to walk away: play with your kids, hit the gym, watch a movie. The agent doesn't need you while it runs; it needs you when it stops. Agent Island watches for that exact moment — rings you when it's your turn, resumes chosen sessions when the quota comes back — so coding doesn't own your evening.
+
+That's the whole point: maximum throughput from the machines, and your life back from the loop.
 
 ## Features
 
