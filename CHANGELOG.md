@@ -4,6 +4,14 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.3.2] - 2026-07-04
+
+### Fixed
+- Subagent storm: dozens of orchestrated child sessions finishing no longer queue dozens of alarm popups — bursts collapse to one alarm for the newest turn, the rest are recorded silently.
+
+### Changed
+- Faster alerts: FSEvents latency 0.2s → 0.05s, scan throttle 1s → 0.5s, confirm buffer 2.5s → 1s. A finished turn now pops its alarm in ~1.2-1.7s.
+
 ## [1.3.1] - 2026-07-03
 
 ### Fixed
