@@ -4,6 +4,23 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.3.1] - 2026-07-03
+
+### Fixed
+- Turn alarms are reliable: per-turn delivery keys (no more repeat pop-ups from metadata writes), Claude Desktop's post-turn bookkeeping no longer randomly swallows "your turn", confirm re-checks against a fresh scan, and alarms auto-dismiss once you reply in the thread.
+- Alarm window: first click acts even when unfocused, Esc closes, minimize removed (no stranded ringing panel), fixed size.
+- A stalled session no longer masks a finished turn; acknowledged turns stop pinning the logo so a running sibling spins again.
+- Usage-API errors (rate limit/offline) no longer silently swallow turn alarms.
+
+### Added
+- Event-driven scanning (FSEvents): the logo starts/stops with the run within ~1s; alarms land ~3s after a turn finishes.
+- Two alarms queue instead of silently replacing each other; dismissing one recalls the next.
+- "Open thread" on Claude Desktop sessions deep-links via claude://resume; several finished turns each get their own reminder.
+
+### Changed
+- Settings wording: width is now explained by Mac type (Notch / No notch); auto-resume naming unified (自动续跑) to match the README.
+- verify.sh smoke launch runs in demo mode so it can never fire a real resume or touch the keychain.
+
 ## [0.1.4] - 2026-05-09
 
 A polish + hardening release. One user-visible fix in Settings; the rest

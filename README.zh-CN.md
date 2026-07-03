@@ -87,7 +87,7 @@ Codex Island 是个**被动电表** —— 给你看用量。Agent Island 是**�
 
 下载当前 DMG，把 AgentIsland 拖进 Applications，然后打开：
 
-[**下载 AgentIsland-1.2.5.dmg**](https://github.com/tristan666666/agent-island/releases/download/v1.2.5/AgentIsland-1.2.5.dmg)
+[**下载最新版 AgentIsland.dmg**](https://github.com/tristan666666/agent-island/releases/latest)
 
 macOS 13+，通用二进制（Apple 芯片 + Intel）。
 
