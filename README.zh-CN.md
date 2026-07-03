@@ -8,6 +8,8 @@
 
 它住在你 MacBook 的刘海里。logo 旋转 = agent 在跑；闹钟响 = 该你了；变红 = 有事要你处理。
 
+有刘海和无刘海 Mac 都能用：MacBook 可用刘海风格顶部条，外接显示器、iMac、Mac mini、旧款 MacBook 可用紧凑顶部条。
+
 [English](README.md)
 
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
@@ -31,6 +33,7 @@
 <p>
   <a href="#安装"><strong>安装</strong></a> ·
   <a href="https://github.com/tristan666666/agent-island/releases/latest">最新 release</a> ·
+  <a href="docs/roadmap.md">路线图</a> ·
   <a href="CONTRIBUTING.md">参与贡献</a>
 </p>
 
@@ -60,7 +63,7 @@
 
 ## 功能
 
-### ⚡ 刘海条上的实时状态
+### ⚡ 顶部条上的实时状态
 
 Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
 
@@ -71,6 +74,15 @@ Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动
 | logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
 
 <img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
+
+### 🖥️ 有刘海和无刘海 Mac 都能用
+
+Agent Island 不只适合有摄像头刘海的 MacBook。你可以在设置里选择：
+
+- **宽版顶部条**：适合 MacBook 的刘海风格布局。
+- **紧凑顶部条**：适合无刘海 Mac、外接显示器、iMac、Mac mini 和旧款 MacBook。
+
+两种模式都保持原生轻量的顶部状态伴侣体验。
 
 ### 🔔 到你回复提醒
 
@@ -105,6 +117,8 @@ Claude / Codex 的 5 小时与周用量、成本、重置倒计时 —— 刘海
 ### 🌏 原生、双语
 
 原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
+
+Windows 版本在路线图中，会在 macOS 的状态提醒和自动继续体验稳定后推进。见 [路线图](docs/roadmap.md)。
 
 <!-- launch video: coming soon -->
 

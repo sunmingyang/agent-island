@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a useful Agent Island improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+      placeholder: I miss completed Codex turns when...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      placeholder: Agent Island should...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Turn alarms
+        - Live status
+        - Usage and limits
+        - Auto-continue
+        - Non-notched Mac layout
+        - Windows roadmap
+        - Install and updates
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Links, screenshots, or examples from your workflow.

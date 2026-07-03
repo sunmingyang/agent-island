@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a broken Agent Island behavior.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include enough detail to reproduce it on a Mac.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the visible behavior and what you expected instead.
+      placeholder: Agent Island showed an alarm for the wrong thread...
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - Claude Desktop
+        - Claude Code CLI
+        - Codex app
+        - Codex CLI
+        - Both Claude and Codex
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Agent Island version
+      placeholder: v1.3.1
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac model
+      placeholder: macOS 15.5, MacBook Pro M3 Pro
+    validations:
+      required: true
+  - type: dropdown
+    id: display
+    attributes:
+      label: Display setup
+      options:
+        - Notched MacBook screen
+        - Non-notched Mac screen
+        - External display
+        - Multiple displays
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a Claude Code run.
+        2. Let it finish in the background.
+        3. Click Open thread.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Screenshots help. Please remove private project paths or content if needed.
+      render: shell

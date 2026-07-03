@@ -8,6 +8,8 @@
 
 It lives in your MacBook's notch. Spinning logo = agent working. Alarm = your turn. Red = something needs you.
 
+Works with both notched and non-notched Macs: use the notch-style top bar on MacBooks, or the compact top bar on external displays, iMac, Mac mini, and older MacBooks.
+
 [简体中文](README.zh-CN.md)
 
 [![Latest release](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
@@ -31,6 +33,7 @@ It lives in your MacBook's notch. Spinning logo = agent working. Alarm = your tu
 <p>
   <a href="#install"><strong>Install</strong></a> ·
   <a href="https://github.com/tristan666666/agent-island/releases/latest">Latest release</a> ·
+  <a href="docs/roadmap.md">Roadmap</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
@@ -60,7 +63,7 @@ Agent Island keeps all three visible from the notch — and can handle the third
 
 ## Features
 
-### ⚡ Live status in the notch bar
+### ⚡ Live status in the top bar
 
 The Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
 
@@ -71,6 +74,15 @@ The Claude and Codex logos mirror what your sessions are actually doing. Detecti
 | Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
 
 <img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
+
+### 🖥️ Notched and non-notched Mac layouts
+
+Agent Island is not limited to MacBooks with a camera notch. In Settings you can choose:
+
+- **Wide top bar** for MacBook notch-style layouts.
+- **Compact top bar** for non-notched Macs, external displays, iMac, Mac mini, and older MacBooks.
+
+The app still runs as a lightweight native top-bar companion either way.
 
 ### 🔔 "It's your turn" alarms
 
@@ -105,6 +117,8 @@ Live Claude & Codex 5-hour and weekly usage, cost, and reset countdowns — swip
 ### 🌏 Native and bilingual
 
 Native SwiftUI — no Electron. English and 简体中文, switchable in Settings. macOS 13+, universal binary (Apple Silicon + Intel).
+
+Windows is on the roadmap after the macOS status, alarm, and auto-resume flow is stable. See [Roadmap](docs/roadmap.md).
 
 <!-- launch video: coming soon -->
 
