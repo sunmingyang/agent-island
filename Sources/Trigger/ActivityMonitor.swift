@@ -99,14 +99,14 @@ final class ActivityMonitor: ObservableObject {
     private func eventKick() {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastEventKick)
-        if elapsed >= 1.0 {
+        if elapsed >= 0.5 {
             lastEventKick = now
             tick()
             return
         }
         guard pendingKick == nil else { return }
         pendingKick = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64((1.0 - elapsed) * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(max(0.5 - elapsed, 0.05) * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
             self.pendingKick = nil
             self.lastEventKick = Date()

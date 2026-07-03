@@ -11,11 +11,11 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
     private var pendingNeedsYouTasks: [String: Task<Void, Never>] = [:]
     private var observedProviders: Set<String> = []
     private let rememberedKeyLifetime: TimeInterval = 12 * 60 * 60
-    // Scans are event-driven now: a reply appended to the transcript triggers
-    // a rescan within ~1.2s (FSEvents debounce + kick throttle), which cancels
-    // this pending confirm. 2.5s covers that whole path — enough to swallow
-    // an in-flight reply, short enough that the alarm still feels immediate.
-    private let needsYouConfirmationDelay: TimeInterval = 2.5
+    // Scans are event-driven: a reply appended to the transcript triggers a
+    // rescan within ~0.6s (FSEvents debounce + kick throttle) that cancels
+    // this pending confirm; anything that still slips through auto-dismisses.
+    // 1s keeps the popup inside the "it just finished" moment.
+    private let needsYouConfirmationDelay: TimeInterval = 1
     private static let acknowledgedDefaultsKey = "AgentIsland.acknowledgedNeedsYouKeys"
 
     private let startedAt = Date()
@@ -53,6 +53,7 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
             TurnAlarmWindowController.shared.autoDismiss(provider: provider, deliveryKey: staleKey)
         }
         activeNeedsYouKeys[providerKey] = currentKeys
+        var fresh: [(key: String, thread: ActivityMonitor.ActiveThread)] = []
         for (key, thread) in keyed {
             guard acknowledgedNeedsYouKeys[key] == nil,
                   deliveredNeedsYouKeys[key] == nil,
@@ -64,7 +65,17 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
                 baseline(key)
                 continue
             }
-            scheduleDelivery(provider: provider, thread: thread, deliveryKey: key)
+            fresh.append((key, thread))
+        }
+        // Storm collapse: an orchestration fanning out dozens of subagents
+        // finishes them in bursts. To the human that is ONE event — alarm for
+        // the newest turn only and record the rest, or the queue replays a
+        // popup per child.
+        if let first = fresh.first {
+            scheduleDelivery(provider: provider, thread: first.thread, deliveryKey: first.key)
+        }
+        for extra in fresh.dropFirst() {
+            baseline(extra.key)
         }
     }
 

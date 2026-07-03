@@ -53,7 +53,7 @@ final class TranscriptEventStream {
             &context,
             roots as CFArray,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
-            0.2,
+            0.05,
             FSEventStreamCreateFlags(kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer)
         ) else { return }
         stream = created
