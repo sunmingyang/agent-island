@@ -1,17 +1,26 @@
 <div align="center">
 
+<img src="Assets/agent-island-logo.png" alt="Agent Island logo" width="110">
+
 # Agent Island
 
-**Claude Code 和 Codex 的状态伴侣 —— 看用量、看状态，也知道什么时候该你接手。**
+**Claude Code 和 Codex 的状态伴侣。**
+
+它住在你 MacBook 的刘海里。logo 旋转 = agent 在跑；闹钟响 = 该你了；变红 = 有事要你处理。
 
 [English](README.md)
 
-[![已收录 awesome-mac](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--mac-0969da?style=for-the-badge)](https://github.com/jaywcjlove/awesome-mac/blob/master/README-zh.md#%E8%8F%9C%E5%8D%95%E6%A0%8F%E5%B7%A5%E5%85%B7)
-[![已收录 awesome-swift-macos-apps](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--swift--macOS-f97316?style=for-the-badge)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
-[![已收录 awesome-codex-cli](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--codex--cli-10b981?style=for-the-badge)](https://github.com/milisp/awesome-codex-cli)
-[![已收录 awesome-coding-agents](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--coding--agents-7c3aed?style=for-the-badge)](https://github.com/kailiu42/awesome-coding-agents)
-[![已收录 awesome-claude-code-and-skills](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--claude--code--and--skills-8b5cf6?style=for-the-badge)](https://github.com/GetBindu/awesome-claude-code-and-skills)
-[![已收录 awesome-vibe-coding-resources](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--vibe--coding--resources-ec4899?style=for-the-badge)](https://github.com/acvnace/awesome-vibe-coding-resources#desktop-apps)
+[![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
+[![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
+[![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
+[![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
+
+[![已收录 awesome-mac](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README-zh.md#%E8%8F%9C%E5%8D%95%E6%A0%8F%E5%B7%A5%E5%85%B7)
+[![已收录 awesome-swift-macos-apps](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
+[![已收录 awesome-codex-cli](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--codex--cli-10b981?style=flat-square)](https://github.com/milisp/awesome-codex-cli)
+[![已收录 awesome-coding-agents](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--coding--agents-7c3aed?style=flat-square)](https://github.com/kailiu42/awesome-coding-agents)
+[![已收录 awesome-claude-code-and-skills](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--claude--code--and--skills-8b5cf6?style=flat-square)](https://github.com/GetBindu/awesome-claude-code-and-skills)
+[![已收录 awesome-vibe-coding-resources](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--vibe--coding--resources-ec4899?style=flat-square)](https://github.com/acvnace/awesome-vibe-coding-resources#desktop-apps)
 
 <a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
@@ -20,80 +29,94 @@
 <video src="https://github.com/user-attachments/assets/d69b41e0-9298-4f17-b6c9-6014f3bd956b" controls width="900"></video>
 
 <p>
-  <a href="#快速开始"><strong>快速开始</strong></a> ·
+  <a href="#安装"><strong>安装</strong></a> ·
   <a href="https://github.com/tristan666666/agent-island/releases/latest">最新 release</a> ·
   <a href="CONTRIBUTING.md">参与贡献</a>
 </p>
 
 <p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多 Mac 用户找到它。</strong></p>
 
-<img src="Assets/agent-island-auto-trigger.png" alt="Agent Island 自动续跑会话视图" width="900">
-<img src="Assets/agent-island-usage.png" alt="Agent Island 用量规划视图" width="900">
+<table>
+  <tr>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude 线程跑完后的到你回复提醒" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760"></td>
+  </tr>
+</table>
 
 </div>
 
-Agent Island 住在你 MacBook 的刘海里。它是给 Claude Code 和 Codex 用的小工具：
-
-- 在任务能继续时，**自动续跑指定会话**。
-- 把每个会话的**实时状态**直接显示在对应 logo 上。
-
-用量和重置倒计时只是帮你规划任务；核心更简单：把 agent 的状态放在眼前，让你不用打开每个终端也知道什么时候该接手。
-
 ## 为什么做它
 
-重度用 Claude / Codex 有两个很实际的坑：
+同时开好几个终端跑 Claude Code / Codex，会有三个持续的小损耗：
 
-- 长任务暂停后，还得你回来手动发一句「继续」。
-- 你没法一眼看出某个会话还在跑、该你接手了，还是已经卡住。
+- 后台某个窗口一轮跑完了，等你一句回复，你一小时后才发现。
+- 你没法一眼看出某个会话是还在跑、跑完了，还是卡在登录 / 限流上。
+- 额度凌晨三点重置，长任务却一直停到你睡醒。
 
-这两件，Agent Island 在刘海里处理。用量和重置倒计时只是帮助你更精准地安排任务，不是拿来刷重置次数。
+这三件事，Agent Island 都放在刘海里让你看见 —— 第三件它还能替你动手。
 
 ## 功能
 
-### 让长任务接着跑
+### ⚡ 刘海条上的实时状态
 
-Agent Island 可以自动给你选定的 Claude 或 Codex 会话发一句话（`继续`、`OK`，随你设），让任务接着跑，不用你守着。你可以按各家用量 API 给的**真实重置时刻**续跑，也可以在 **设置 → 自动续跑** 里配置"每 N 小时"固定间隔。
+Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
 
-### ⚡ Logo 上的实时状态
+| 表现 | 含义 |
+|---|---|
+| logo **旋转** | 有会话正在跑 |
+| logo **静止** | 没有任务在跑 —— 或者这一轮结束，该你了 |
+| logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
 
-两家的 logo 会跟着 Claude/Codex 会话的真实状态动起来：
+<img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
 
-| 状态 | 怎么判 | 表现 |
-|---|---|---|
-| **正在跑** | 记录文件还在增长 | logo 持续旋转 + 微光 |
-| **该你了** | 一轮跑完、停了 | 弹出前台闹钟窗口，持续响到你关闭 |
-| **需要处理** | 额度、登录、网络或服务异常 | 对应 logo 出现**红色**告警脉冲 |
+### 🔔 到你回复提醒
+
+后台会话一轮跑完时，Agent Island 会弹出前台闹钟窗口、发系统通知、播放提示音（内置几种，也可以用你自己的音频文件）。提醒在轮次真正结束后的几秒内送达。
+
+- **回复了就自动消失** —— 你在线程里接上话，闹钟自己收窗，不留死窗口。
+- **多个完成不互吞** —— 几轮同时跑完会排队提醒，关掉一个，下一个接着来。
+- **「回去处理」直达线程** —— Claude Desktop 走 `claude://resume` 深链，Codex App 走 `codex://threads/…`，CLI 会话则在终端里拉起 resume 命令。
+
+顶部那两张截图就是这个闹钟，两家各一张。
+
+### 🔁 额度重置后自动续跑
+
+给会话挂一条规则：等服务方的用量窗口重置 —— 或者按"每 N 小时"固定间隔 —— Agent Island 自动给它发一句话（`继续`、`OK`，随你设），半夜停住的任务自己接着跑。
+
+<img src="Assets/agent-island-auto-trigger.png" alt="岛内的自动续跑规则页" width="760">
+
+因为这个功能是无人值守运行的，配了几道闸：
+
+- 设置里有**总开关（kill switch）** —— 关掉后，永远不会生成任何 resume 命令。
+- **按项目的允许清单** —— 只有你明确放行的目录才会触发续跑。
+- **运行记录** —— 每次执行或拦截都有记录，从设置里一键打开记录文件夹。
+
+诚实的限制：Mac 必须醒着；每次续跑都会消耗 token。`--dangerously-*` 参数意味着什么，见 [FAQ 与安全](#faq-与安全)。
 
 ### 📊 用量岛
 
-Claude / Codex 的 5 小时、周用量、成本、重置倒计时 —— 刘海里左右滑动的几页。
+Claude / Codex 的 5 小时与周用量、成本、重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。
 
-## 跟 Codex Island 有什么不一样
+<img src="Assets/agent-island-usage.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
 
-Codex Island 是个**被动电表** —— 给你看用量。Agent Island 是**主动的** —— 它盯着你的会话、替你动手。下表第一行以下都是新加的:
+### 🌏 原生、双语
 
-| | Codex Island | Agent Island |
-|---|:---:|:---:|
-| 刘海里看用量 / 成本 / 重置 | ✅ | ✅ *(继承)* |
-| **长任务自动续跑**(给指定会话自动发继续) | — | ✅ Claude & Codex |
-| **Logo 跟着会话状态动** —— 旋转(运行)、闹钟弹窗(该你了)、红色脉冲(需要处理) | — | ✅ |
-| 岛里的 **自动续跑** 页 | — | ✅ |
-| **状态说明** 设置页(实时图例 + 闹钟声音控制) | — | ✅ |
-| 跨工具线程选择,显示真实标题、自动过滤已归档 | — | ✅ |
+原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
 
-一句话:Codex Island 告诉你**用了多少**;Agent Island 把会话状态、用量和交接时刻一起摆在刘海里。
+<!-- launch video: coming soon -->
 
-## 快速开始
+## 安装
 
-下载当前 DMG，把 AgentIsland 拖进 Applications，然后打开：
+下载 DMG，把 AgentIsland 拖进 Applications，打开：
 
 [**下载最新版 AgentIsland.dmg**](https://github.com/tristan666666/agent-island/releases/latest)
 
-macOS 13+，通用二进制（Apple 芯片 + Intel）。
+如果 macOS 第一次启动时提示应用未公证，在 Finder 里右键 AgentIsland，选择一次 **打开** 即可。
 
-如果 macOS 第一次启动时提示应用未公证，请在 Finder 里右键 AgentIsland，选择一次 **打开**。
-
-源码构建：
+或者源码构建：
 
 ```sh
 git clone https://github.com/tristan666666/agent-island.git
@@ -104,26 +127,29 @@ open build/AgentIsland.app
 
 ## 原理
 
-- **重置时间**来自各家真实用量 API。
-- **会话状态**从记录文件读：文件 mtime（还在产出吗）+ 轮次完成标记 —— Claude 的 `stop_reason: end_turn`、Codex 的 `task_complete` 事件。
-- **续跑**执行 `claude --resume … -p "<消息>" --dangerously-skip-permissions` 或 `codex exec resume … "<消息>" --dangerously-bypass-approvals-and-sandbox`，运行日志在 `~/Library/Application Support/AgentIsland/trigger-runs/`。
-- 自动续跑需要 Mac 醒着；每次执行都会消耗 token。
-- ⚠️ 续跑会**无人值守、关掉权限确认**地恢复 agent(上面那些 `--dangerously-*` 参数)。只给你信任的会话挂规则。全程在本机以你的身份运行,不外传任何东西。
+- **会话状态**读自 Claude Code / Claude Desktop / Codex 本来就写在你磁盘上的记录文件：FSEvents 监听写入，再结合轮次完成标记（Claude 的 `stop_reason: end_turn`、Codex 的 `task_complete`）和文件活动，判定旋转 / 闹钟 / 红色。
+- **用量和重置时间**来自各家真实的用量 API，用的是你机器上已有的凭据。
+- **自动续跑**执行 `claude --resume … -p "<消息>" --dangerously-skip-permissions` 或 `codex exec resume … "<消息>" --dangerously-bypass-approvals-and-sandbox`，运行记录在 `~/Library/Application Support/AgentIsland/trigger-runs/`。
+- 全程在本机以你的身份运行，不上传任何东西。
 
 更完整的实现拆解（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
 
-## 仓库结构
+## FAQ 与安全
 
-- `Sources/` —— 原生 macOS App 代码。
-- `Resources/` —— 打进 App 包里的图标、logo 和本地化文件。
-- `Assets/` —— README 和 release 页面用的公开图片。
-- `docs/` —— 面向贡献者和使用者的公开架构、发布、维护文档。
-- `scripts/`、`build.sh`、`release.sh` —— 本地构建、Sparkle 更新和发布脚本。
+**`--dangerously-*` 这些续跑参数到底做了什么？**
+它们让 agent *无人值守、关掉权限确认*地恢复运行 —— 没有人点"允许"，会话才可能自己继续，这是唯一的办法。请相应地对待它：总开关、按项目允许清单、运行记录，都是为了让你把范围收在信得过的会话上。只给你放心无人值守跑的工作挂规则。
 
-官网工作区刻意放在这个 App 仓库外部管理；真正发布官网时应该使用单独的部署项目或仓库。
+**为什么应用没有公证（notarize）？**
+没有付费的 Apple 开发者账号。应用是 ad-hoc 签名的，所以首次启动 macOS 会拦一次，右键 → 打开即可。自动更新有独立校验：Sparkle 在安装前会验证每个更新包的 EdDSA 签名。
+
+**我的数据会离开这台 Mac 吗？**
+不会。Agent Island 读本地记录文件，用你本机已有的 token 调各家用量 API。应用里没有任何遥测。
+
+**跟 codex-island 有什么不一样？**
+[codex-island](https://github.com/ericjypark/codex-island) 是个被动电表 —— 告诉你用了多少。Agent Island 保留了这部分（用量、成本、重置），再加上主动的那一半：logo 上的实时会话状态、到你回复提醒、自动续跑。
 
 ## 致谢与许可
 
-Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入自动续跑、实时状态动效，并重新定义了自己的产品方向。
+Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入自动续跑、到你回复提醒、实时状态动效，并走出了自己的产品方向。
 
 MIT 许可 —— © 2026 Eric Park，本 fork 保留该声明。见 [LICENSE](LICENSE)。
