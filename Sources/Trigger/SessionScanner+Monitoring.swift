@@ -36,7 +36,8 @@ extension SessionScanner {
                 modified: state.modified,
                 status: state.status,
                 transcriptPath: path,
-                turnKey: state.turnKey
+                turnKey: state.turnKey,
+                launchTarget: desktop == nil ? .cli : .claudeDesktop
             )
         }
     }

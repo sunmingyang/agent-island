@@ -6,13 +6,19 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
     static let shared = AgentReminderCenter()
 
     private var deliveredNeedsYouKeys: [String: Date] = [:]
-    private var activeNeedsYouKey: [String: String] = [:]
+    private var activeNeedsYouKeys: [String: Set<String>] = [:]
     private var acknowledgedNeedsYouKeys: [String: Date] = [:]
     private var pendingNeedsYouTasks: [String: Task<Void, Never>] = [:]
     private var observedProviders: Set<String> = []
     private let rememberedKeyLifetime: TimeInterval = 12 * 60 * 60
-    private let needsYouConfirmationDelay: TimeInterval = 2
+    // Scans are event-driven now: a reply appended to the transcript triggers
+    // a rescan within ~1.2s (FSEvents debounce + kick throttle), which cancels
+    // this pending confirm. 2.5s covers that whole path — enough to swallow
+    // an in-flight reply, short enough that the alarm still feels immediate.
+    private let needsYouConfirmationDelay: TimeInterval = 2.5
     private static let acknowledgedDefaultsKey = "AgentIsland.acknowledgedNeedsYouKeys"
+
+    private let startedAt = Date()
 
     private override init() {
         acknowledgedNeedsYouKeys = Self.loadAcknowledgedKeys()
@@ -31,42 +37,47 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func handle(
-        provider: AlertEngine.Provider,
-        old: ActivityMonitor.State,
-        new: ActivityMonitor.State,
-        thread: ActivityMonitor.ActiveThread?
-    ) {
+    func handle(provider: AlertEngine.Provider, needsYouThreads: [ActivityMonitor.ActiveThread]) {
         guard AgentReminderStore.shared.enabled else { return }
         pruneRememberedKeys()
+        let providerKey = provider.rawValue
         let isFirstObservation = markObserved(provider)
-        guard new == .needsYou else {
-            cancelPending(provider)
-            activeNeedsYouKey[provider.rawValue] = nil
-            return
+        let keyed = needsYouThreads.map { thread in
+            (key: deliveryKey(provider: provider, state: .needsYou, thread: thread), thread: thread)
         }
-        let deliveryKey = deliveryKey(provider: provider, state: new, thread: thread)
-        if isFirstObservation {
-            baseline(provider: provider, deliveryKey: deliveryKey)
-            return
+        let currentKeys = Set(keyed.map(\.key))
+        // Turns that left needsYou (the user replied, or they aged out): the
+        // pending confirm is void and a visible panel for them is pure noise.
+        for staleKey in (activeNeedsYouKeys[providerKey] ?? []).subtracting(currentKeys) {
+            cancelPending(staleKey)
+            TurnAlarmWindowController.shared.autoDismiss(provider: provider, deliveryKey: staleKey)
         }
-        guard acknowledgedNeedsYouKeys[deliveryKey] == nil,
-              deliveredNeedsYouKeys[deliveryKey] == nil
-        else {
-            cancelPending(provider)
-            activeNeedsYouKey[provider.rawValue] = deliveryKey
-            return
+        activeNeedsYouKeys[providerKey] = currentKeys
+        for (key, thread) in keyed {
+            guard acknowledgedNeedsYouKeys[key] == nil,
+                  deliveredNeedsYouKeys[key] == nil,
+                  pendingNeedsYouTasks[key] == nil
+            else { continue }
+            // First sighting at launch, and turns finished before this app was
+            // running, are history rather than news — record, don't alarm.
+            if isFirstObservation || thread.modified < startedAt {
+                baseline(key)
+                continue
+            }
+            scheduleDelivery(provider: provider, thread: thread, deliveryKey: key)
         }
-        guard old != .needsYou || activeNeedsYouKey[provider.rawValue] != deliveryKey else { return }
-        scheduleDelivery(provider: provider, state: new, thread: thread, deliveryKey: deliveryKey)
+    }
+
+    func hasAcknowledged(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) -> Bool {
+        acknowledgedNeedsYouKeys[deliveryKey(provider: provider, state: .needsYou, thread: thread)] != nil
     }
 
     func acknowledge(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) {
         let deliveryKey = deliveryKey(provider: provider, state: .needsYou, thread: thread)
-        cancelPending(provider)
+        cancelPending(deliveryKey)
         acknowledgedNeedsYouKeys[deliveryKey] = Date()
+        deliveredNeedsYouKeys[deliveryKey] = Date()
         persistAcknowledgedKeys()
-        activeNeedsYouKey[provider.rawValue] = deliveryKey
     }
 
     private func pruneRememberedKeys() {
@@ -86,10 +97,8 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         return true
     }
 
-    private func baseline(provider: AlertEngine.Provider, deliveryKey: String) {
-        let providerKey = provider.rawValue
+    private func baseline(_ deliveryKey: String) {
         acknowledgedNeedsYouKeys[deliveryKey] = Date()
-        activeNeedsYouKey[providerKey] = deliveryKey
         persistAcknowledgedKeys()
     }
 
@@ -98,60 +107,51 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         state: ActivityMonitor.State,
         thread: ActivityMonitor.ActiveThread?
     ) -> String {
-        let threadKey = threadKey(thread)
-        let turnKey = thread?.turnKey ?? "\(thread?.modified.timeIntervalSince1970 ?? 0)"
-        return "\(provider.rawValue)-\(state.rawValue)-\(threadKey)-\(turnKey)"
-    }
-
-    private func threadKey(_ thread: ActivityMonitor.ActiveThread?) -> String {
-        guard let thread else { return "" }
-        if let transcriptPath = thread.transcriptPath, !transcriptPath.isEmpty { return transcriptPath }
-        if !thread.sessionId.isEmpty { return thread.sessionId }
-        if !thread.cwd.isEmpty { return "\(thread.cwd):\(thread.label)" }
-        return thread.label
+        ReminderDeliveryKey.make(
+            providerRawValue: provider.rawValue,
+            stateRawValue: state.rawValue,
+            transcriptPath: thread?.transcriptPath,
+            sessionId: thread?.sessionId ?? "",
+            cwd: thread?.cwd ?? "",
+            label: thread?.label ?? "",
+            turnKey: thread?.turnKey
+        )
     }
 
     private func scheduleDelivery(
         provider: AlertEngine.Provider,
-        state: ActivityMonitor.State,
-        thread: ActivityMonitor.ActiveThread?,
+        thread: ActivityMonitor.ActiveThread,
         deliveryKey: String
     ) {
-        let providerKey = provider.rawValue
-        cancelPending(provider)
-        activeNeedsYouKey[providerKey] = deliveryKey
-        pendingNeedsYouTasks[providerKey] = Task { @MainActor [weak self] in
+        pendingNeedsYouTasks[deliveryKey] = Task { @MainActor [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(needsYouConfirmationDelay * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            confirmAndDeliver(provider: provider, state: state, originalThread: thread, deliveryKey: deliveryKey)
+            confirmAndDeliver(provider: provider, thread: thread, deliveryKey: deliveryKey)
         }
     }
 
     private func confirmAndDeliver(
         provider: AlertEngine.Provider,
-        state: ActivityMonitor.State,
-        originalThread: ActivityMonitor.ActiveThread?,
+        thread: ActivityMonitor.ActiveThread,
         deliveryKey: String
     ) {
-        let providerKey = provider.rawValue
-        pendingNeedsYouTasks[providerKey] = nil
+        pendingNeedsYouTasks[deliveryKey] = nil
+        // Event-driven scans re-evaluate the active set within ~1.2s of any
+        // transcript write, so by fire time a turn the user already answered
+        // was removed (and this task cancelled) by that fresher scan.
         guard AgentReminderStore.shared.enabled,
-              ActivityMonitor.shared.state(for: provider) == .needsYou,
-              activeNeedsYouKey[providerKey] == deliveryKey,
+              activeNeedsYouKeys[provider.rawValue, default: []].contains(deliveryKey),
               acknowledgedNeedsYouKeys[deliveryKey] == nil,
               deliveredNeedsYouKeys[deliveryKey] == nil
         else { return }
-        let currentThread = ActivityMonitor.shared.thread(for: provider) ?? originalThread
-        guard self.deliveryKey(provider: provider, state: state, thread: currentThread) == deliveryKey else { return }
         deliveredNeedsYouKeys[deliveryKey] = Date()
-        deliver(provider: provider, state: state, thread: currentThread)
+        deliver(provider: provider, state: .needsYou, thread: thread)
     }
 
-    private func cancelPending(_ provider: AlertEngine.Provider) {
-        let providerKey = provider.rawValue
-        pendingNeedsYouTasks[providerKey]?.cancel()
-        pendingNeedsYouTasks[providerKey] = nil
+    private func cancelPending(_ deliveryKey: String) {
+        pendingNeedsYouTasks[deliveryKey]?.cancel()
+        pendingNeedsYouTasks[deliveryKey] = nil
     }
 
     private static func loadAcknowledgedKeys() -> [String: Date] {

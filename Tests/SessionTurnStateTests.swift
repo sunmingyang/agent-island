@@ -134,6 +134,47 @@ private func testClaudeDesktopNewerActivitySuppressesOldEndTurn() throws {
     try expect(old < state.modified, "test fixture must keep transcript older than desktop activity")
 }
 
+private func testDesktopBookkeepingWriteDoesNotSuppressFreshEndTurn() throws {
+    // Desktop stamps lastActivityAt ~2-4s after the final assistant event as
+    // turn-completion bookkeeping. That write must not eat the alarm.
+    let turnDone = try date("2026-07-02T01:15:41.000Z")
+    let bookkeeping = turnDone.addingTimeInterval(3)
+    let now = try date("2026-07-02T01:15:48.000Z")
+    let tmp = try writeTranscript([
+        #"{"type":"user","uuid":"u1","timestamp":"2026-07-02T01:15:00.000Z","message":{"role":"user","content":"run"}}"#,
+        #"{"type":"assistant","uuid":"a1","timestamp":"2026-07-02T01:15:41.000Z","message":{"stop_reason":"end_turn"}}"#
+    ], modified: now)
+    defer { try? FileManager.default.removeItem(at: tmp) }
+    let state = SessionScanner.sessionState(
+        for: tmp.path,
+        now: now,
+        lastWorking: [:],
+        externalActivityDate: bookkeeping,
+        turnState: SessionTurnState.claude
+    )
+    try expect(state.status == .needsYou, "desktop bookkeeping write seconds after end_turn must not suppress needs-you")
+}
+
+private func testDesktopActivityWellAfterEndTurnStillSuppresses() throws {
+    // Past the bookkeeping grace the user genuinely came back — suppress.
+    let turnDone = try date("2026-07-02T01:15:41.000Z")
+    let userReturned = turnDone.addingTimeInterval(120)
+    let now = try date("2026-07-02T01:17:45.000Z")
+    let tmp = try writeTranscript([
+        #"{"type":"user","uuid":"u1","timestamp":"2026-07-02T01:15:00.000Z","message":{"role":"user","content":"run"}}"#,
+        #"{"type":"assistant","uuid":"a1","timestamp":"2026-07-02T01:15:41.000Z","message":{"stop_reason":"end_turn"}}"#
+    ], modified: now)
+    defer { try? FileManager.default.removeItem(at: tmp) }
+    let state = SessionScanner.sessionState(
+        for: tmp.path,
+        now: now,
+        lastWorking: [:],
+        externalActivityDate: userReturned,
+        turnState: SessionTurnState.claude
+    )
+    try expect(state.status == .working, "desktop activity well after end_turn means the user is back — suppress the alarm")
+}
+
 private func testClaudeStreamingAssistantIsWorking() throws {
     let now = try date("2026-07-02T01:15:44.000Z")
     let tmp = try writeTranscript([
@@ -179,6 +220,8 @@ private enum SessionTurnStateTestRunner {
             ("metadata-touched old claude transcript is idle", testMetadataTouchedOldClaudeTranscriptIsIdle),
             ("fresh claude end_turn is immediately needs-you", testFreshClaudeEndTurnIsImmediatelyNeedsYou),
             ("newer claude desktop activity suppresses old end_turn", testClaudeDesktopNewerActivitySuppressesOldEndTurn),
+            ("desktop bookkeeping write does not suppress fresh end_turn", testDesktopBookkeepingWriteDoesNotSuppressFreshEndTurn),
+            ("desktop activity well after end_turn still suppresses", testDesktopActivityWellAfterEndTurnStillSuppresses),
             ("claude streaming assistant is working", testClaudeStreamingAssistantIsWorking)
         ]
 

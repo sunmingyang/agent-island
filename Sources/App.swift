@@ -69,7 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 cwd: NSHomeDirectory() + "/Documents/Agent Island",
                 modified: Date(),
                 transcriptPath: nil,
-                turnKey: "demo"
+                turnKey: "demo",
+                launchTarget: provider == .claude ? .claudeDesktop : .cli
             )
             TurnAlarmWindowController.shared.show(provider: provider, thread: thread)
         }

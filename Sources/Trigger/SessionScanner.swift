@@ -11,6 +11,12 @@ struct ScannedSession: Identifiable, Hashable {
     let status: ActivityMonitor.State
     let transcriptPath: String?
     let turnKey: String?
+    let launchTarget: SessionLaunchTarget
+}
+
+enum SessionLaunchTarget: Hashable {
+    case cli
+    case claudeDesktop
 }
 
 enum SessionScanner {
@@ -19,6 +25,7 @@ enum SessionScanner {
     private static let stallCap: TimeInterval = 15 * 60
     private static let needsYouCap: TimeInterval = 20 * 60
     private static let attentionWindow: TimeInterval = 30 * 60
+    private static let desktopBookkeepingGrace: TimeInterval = 25
 
     static func scan(now: Date = Date(), lastWorking: [String: Date] = [:]) -> [ScannedSession] {
         var out = scanClaude(now: now, lastWorking: lastWorking)
@@ -64,7 +71,8 @@ enum SessionScanner {
                 modified: state.modified,
                 status: state.status,
                 transcriptPath: transcript,
-                turnKey: state.turnKey
+                turnKey: state.turnKey,
+                launchTarget: .claudeDesktop
             ))
         }
         return out
@@ -105,7 +113,8 @@ enum SessionScanner {
                 modified: state.modified,
                 status: state.status,
                 transcriptPath: path,
-                turnKey: state.turnKey
+                turnKey: state.turnKey,
+                launchTarget: .cli
             ))
             if out.count >= limit { break }
         }
@@ -196,7 +205,17 @@ enum SessionScanner {
         let turn = turnState(lines)
         let semanticModified = latestDate(turn.activityDate, externalActivityDate)
         let effectiveModified = semanticModified ?? fileModified
-        let externalIsNewer = isLater(externalActivityDate, than: turn.activityDate)
+        // Claude Desktop writes lastActivityAt a few seconds AFTER the final
+        // assistant event as turn-completion bookkeeping (measured 2.3-4.2s on
+        // real threads). For a finished turn, external activity inside that
+        // window is the bookkeeping write — not the user returning — so it
+        // must not suppress needsYou, or the alarm only fires when the 6s scan
+        // tick happens to land inside the gap. Genuine "user came back"
+        // activity lands minutes later, far past the grace.
+        let externalReference = turn.isDone
+            ? turn.activityDate.map { $0.addingTimeInterval(desktopBookkeepingGrace) }
+            : turn.activityDate
+        let externalIsNewer = isLater(externalActivityDate, than: externalReference)
         let age = now.timeIntervalSince(effectiveModified)
         if age > attentionWindow { return (.idle, turn.key, effectiveModified) }
         if externalIsNewer {

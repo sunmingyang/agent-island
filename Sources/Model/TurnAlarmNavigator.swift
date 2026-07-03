@@ -47,10 +47,37 @@ enum TurnAlarmNavigator {
     }
 
     private static func openClaude(thread: ActivityMonitor.ActiveThread?) {
+        if thread?.launchTarget == .claudeDesktop {
+            openClaudeDesktop(thread: thread)
+            return
+        }
         if let thread, openCLIResume(executable: "claude", arguments: ["--resume", thread.sessionId], thread: thread) {
             return
         }
         activate(bundleIdentifier: "com.anthropic.claudefordesktop")
+    }
+
+    /// Claude Desktop registers a claude://resume deep link that opens a CLI
+    /// session by id (its own error toasts describe exactly this flow). Try
+    /// it so "Open thread" lands on the thread, not just the app; any failure
+    /// falls back to plain activation, which is the pre-deep-link behavior.
+    private static func openClaudeDesktop(thread: ActivityMonitor.ActiveThread?) {
+        let bundleID = "com.anthropic.claudefordesktop"
+        if let id = sanitizedCodexThreadID(thread?.sessionId),
+           let url = URL(string: "claude://resume?sessionId=\(id)"),
+           NSWorkspace.shared.urlForApplication(toOpen: url) != nil {
+            NSWorkspace.shared.open(url, configuration: NSWorkspace.OpenConfiguration()) { app, error in
+                Task { @MainActor in
+                    if let app {
+                        app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                    } else if error != nil {
+                        activate(bundleIdentifier: bundleID)
+                    }
+                }
+            }
+            return
+        }
+        activate(bundleIdentifier: bundleID)
     }
 
     private static func activate(bundleIdentifier: String) {

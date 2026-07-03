@@ -12,6 +12,7 @@ final class ActivityMonitor: ObservableObject {
         let modified: Date
         let transcriptPath: String?
         let turnKey: String?
+        let launchTarget: SessionLaunchTarget
     }
 
     enum State: Int {
@@ -56,6 +57,14 @@ final class ActivityMonitor: ObservableObject {
         return demoCodex ?? codex
     }
 
+    /// Pre-overlay scan state. The turn-alarm confirm gate must read this:
+    /// the usage overlay (rateLimited/authRequired outrank needsYou) would
+    /// otherwise swallow alarms exactly when the quota is exhausted or the
+    /// network is down — the moments a finished turn most needs surfacing.
+    func rawState(for provider: AlertEngine.Provider) -> State {
+        provider == .claude ? rawClaude : rawCodex
+    }
+
     func demo(_ state: State?) {
         demoClaude = state
         demoCodex = state
@@ -66,11 +75,42 @@ final class ActivityMonitor: ObservableObject {
     }
 
     private var timer: Timer?
+    private var eventStream: TranscriptEventStream?
+    private var lastEventKick = Date.distantPast
+    private var pendingKick: Task<Void, Never>?
 
     func start() {
         tick()
         timer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
+        }
+        let stream = TranscriptEventStream { [weak self] in
+            Task { @MainActor in self?.eventKick() }
+        }
+        stream.start()
+        eventStream = stream
+    }
+
+    /// Event-driven rescan, throttled to ~1/s with a guaranteed trailing
+    /// scan: a streaming transcript writes many times per second, but the
+    /// LAST write of a turn (end_turn / task_complete) must never wait for
+    /// the fallback poll — that write is exactly the one that stops the spin
+    /// and raises the alarm.
+    private func eventKick() {
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastEventKick)
+        if elapsed >= 1.0 {
+            lastEventKick = now
+            tick()
+            return
+        }
+        guard pendingKick == nil else { return }
+        pendingKick = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64((1.0 - elapsed) * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            self.pendingKick = nil
+            self.lastEventKick = Date()
+            self.tick()
         }
     }
 
@@ -80,10 +120,12 @@ final class ActivityMonitor: ObservableObject {
         Task.detached(priority: .utility) {
             let sessions = SessionScanner.monitoringScan(now: now, lastWorking: lastWorkingSnapshot)
             await MainActor.run {
-                let oldClaude = self.rawClaude
-                let oldCodex = self.rawCodex
-                let claudeResult = Self.bestSession(in: sessions, tool: .claude)
-                let codexResult = Self.bestSession(in: sessions, tool: .codex)
+                let claudeResult = Self.bestSession(in: sessions, tool: .claude) {
+                    AgentReminderCenter.shared.hasAcknowledged(provider: .claude, thread: $0)
+                }
+                let codexResult = Self.bestSession(in: sessions, tool: .codex) {
+                    AgentReminderCenter.shared.hasAcknowledged(provider: .codex, thread: $0)
+                }
                 let claude = self.overlayUsageAttention(claudeResult.state, usage: UsageStore.shared.claude)
                 let codex = self.overlayUsageAttention(codexResult.state, usage: UsageStore.shared.codex)
                 self.updateLastWorking(from: sessions, now: now)
@@ -91,10 +133,10 @@ final class ActivityMonitor: ObservableObject {
                 self.rawCodex = codexResult.state
                 self.claudeThread = claudeResult.thread
                 self.claude = claude
-                AgentReminderCenter.shared.handle(provider: .claude, old: oldClaude, new: claudeResult.state, thread: claudeResult.thread)
+                AgentReminderCenter.shared.handle(provider: .claude, needsYouThreads: Self.needsYouThreads(in: sessions, tool: .claude))
                 self.codexThread = codexResult.thread
                 self.codex = codex
-                AgentReminderCenter.shared.handle(provider: .codex, old: oldCodex, new: codexResult.state, thread: codexResult.thread)
+                AgentReminderCenter.shared.handle(provider: .codex, needsYouThreads: Self.needsYouThreads(in: sessions, tool: .codex))
             }
         }
     }
@@ -152,30 +194,60 @@ final class ActivityMonitor: ObservableObject {
             || message.contains("tls")
     }
 
+    /// A turn still waiting on the user outranks everything. But once the
+    /// user acknowledged it, the turn is old news: it must not pin the logo
+    /// in a static needsYou (masking a genuinely running sibling, which
+    /// should spin) for the remainder of its 20-minute needsYou window.
+    /// Stalled stays above working so real anomalies surface; below unacked
+    /// needsYou so it can't eat an actionable alarm.
+    private static func selectionPriority(
+        _ session: ScannedSession,
+        isAcknowledged: (ActiveThread) -> Bool
+    ) -> Int {
+        switch session.status {
+        case .needsYou: return isAcknowledged(makeThread(session)) ? 1 : 4
+        case .stalled: return 3
+        case .working: return 2
+        case .idle, .authRequired, .rateLimited: return 0
+        }
+    }
+
     private static func bestSession(
         in sessions: [ScannedSession],
-        tool: TriggerTool
+        tool: TriggerTool,
+        isAcknowledged: (ActiveThread) -> Bool
     ) -> (state: State, thread: ActiveThread?) {
-        guard let session = sessions
-            .filter({ $0.tool == tool })
-            .sorted(by: { lhs, rhs in
-                if lhs.status.rawValue != rhs.status.rawValue {
-                    return lhs.status.rawValue > rhs.status.rawValue
-                }
-                return lhs.modified > rhs.modified
-            })
-            .first
-        else {
-            return (.idle, nil)
-        }
-        let thread = session.status == .idle ? nil : ActiveThread(
+        let ranked = sessions
+            .filter { $0.tool == tool }
+            .map { (session: $0, priority: selectionPriority($0, isAcknowledged: isAcknowledged)) }
+            .sorted { lhs, rhs in
+                if lhs.priority != rhs.priority { return lhs.priority > rhs.priority }
+                return lhs.session.modified > rhs.session.modified
+            }
+        guard let top = ranked.first?.session else { return (.idle, nil) }
+        let thread = top.status == .idle ? nil : makeThread(top)
+        return (top.status, thread)
+    }
+
+    /// Every needsYou session, newest first. The reminder center tracks each
+    /// finished turn separately, so one thread's alarm can never cancel or
+    /// mask another's.
+    private static func needsYouThreads(in sessions: [ScannedSession], tool: TriggerTool) -> [ActiveThread] {
+        sessions
+            .filter { $0.tool == tool && $0.status == .needsYou }
+            .sorted { $0.modified > $1.modified }
+            .map(makeThread)
+    }
+
+    private static func makeThread(_ session: ScannedSession) -> ActiveThread {
+        ActiveThread(
             sessionId: session.sessionId,
             label: session.label,
             cwd: session.cwd,
             modified: session.modified,
             transcriptPath: session.transcriptPath,
-            turnKey: session.turnKey
+            turnKey: session.turnKey,
+            launchTarget: session.launchTarget
         )
-        return (session.status, thread)
     }
 }

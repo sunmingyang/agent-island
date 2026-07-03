@@ -5,7 +5,6 @@ struct TurnAlarmView: View {
     let provider: AlertEngine.Provider
     let providerName: String
     let thread: ActivityMonitor.ActiveThread?
-    @ObservedObject var windowState: TurnAlarmWindowState
     let dismiss: () -> Void
 
     @ObservedObject private var reminders = AgentReminderStore.shared
@@ -51,8 +50,8 @@ struct TurnAlarmView: View {
                 }
 
                 Button {
-                    TurnAlarmNavigator.open(provider: provider, thread: thread)
                     dismiss()
+                    TurnAlarmNavigator.open(provider: provider, thread: thread)
                 } label: {
                     Text(L10n.tr("Open thread"))
                         .font(.system(size: 18, weight: .bold))
@@ -89,8 +88,8 @@ struct TurnAlarmView: View {
             }
             .padding(.horizontal, 28)
         }
-        .frame(width: windowState.size.width, height: windowState.size.height)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
         .background(Color.clear)
         .preferredColorScheme(.dark)
         .onAppear(perform: startAnimations)
@@ -125,12 +124,6 @@ struct TurnAlarmView: View {
                     .frame(height: 210)
                 Spacer(minLength: 0)
             }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 21)
-                .strokeBorder(providerColor.opacity(glowPulse ? 0.56 : 0.30), lineWidth: glowPulse ? 1.25 : 0.8)
-                .shadow(color: providerColor.opacity(glowPulse ? 0.52 : 0.24), radius: glowPulse ? 28 : 16)
-                .padding(0.5)
         }
     }
 
