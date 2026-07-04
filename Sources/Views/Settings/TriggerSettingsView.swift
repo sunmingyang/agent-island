@@ -13,12 +13,14 @@ struct TriggerSettingsView: View {
     @State var mode: TriggerMode = .afterReset
     @State var hours = 5
 
-    static let rel: RelativeDateTimeFormatter = {
+    // Computed, not cached: a `static let` would freeze the locale at first
+    // use and keep formatting dates in the old language after a switch.
+    static var rel: RelativeDateTimeFormatter {
         let f = RelativeDateTimeFormatter()
         f.locale = L10n.locale
         f.unitsStyle = .abbreviated
         return f
-    }()
+    }
 
     var toolSessions: [ScannedSession] {
         allSessions.filter { $0.tool == tool }

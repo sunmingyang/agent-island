@@ -107,7 +107,9 @@
 "Refreshing…" = "Refreshing…";
 "resets in %@" = "resets in %@";
 "Resets in %@" = "Resets in %@";
-"Restart AgentIsland to apply language?" = "Restart AgentIsland to apply language?";
+"Language changed" = "Language changed";
+"The new language applies now. A few date and number labels update after AgentIsland restarts." = "The new language applies now. A few date and number labels update after AgentIsland restarts.";
+"OK" = "OK";
 "Restart now" = "Restart now";
 "Ring" = "Ring";
 "scanning local logs…" = "scanning local logs…";

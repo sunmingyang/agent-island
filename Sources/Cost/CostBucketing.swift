@@ -13,13 +13,15 @@ enum CostBucketing {
         return cal
     }()
 
-    private static let monthFormatter: DateFormatter = {
+    // Computed, not cached: a `static let` would freeze the locale at first
+    // use and keep the month label in the old language after a switch.
+    private static var monthFormatter: DateFormatter {
         let f = DateFormatter()
         f.locale = L10n.locale
         f.timeZone = .current
         f.setLocalizedDateFormatFromTemplate("MMM")
         return f
-    }()
+    }
 
     /// Short month name for the current month in the user's locale, e.g. "Apr".
     static func currentMonthLabel() -> String {

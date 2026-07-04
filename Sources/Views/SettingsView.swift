@@ -464,13 +464,16 @@ struct SettingsView: View {
         )
     }
 
+    /// The switch is live — settings and island text re-render right away.
+    /// Only a few date/number labels sit behind formatters created at app
+    /// launch, so the prompt offers (not demands) a restart.
     private func showLanguageRestartPrompt() {
         let alert = NSAlert()
-        alert.messageText = L10n.tr("Restart AgentIsland to apply language?")
-        alert.informativeText = L10n.tr("Your language change will take effect after AgentIsland restarts.")
+        alert.messageText = L10n.tr("Language changed")
+        alert.informativeText = L10n.tr("The new language applies now. A few date and number labels update after AgentIsland restarts.")
+        alert.addButton(withTitle: L10n.tr("OK"))
         alert.addButton(withTitle: L10n.tr("Restart now"))
-        alert.addButton(withTitle: L10n.tr("Later"))
-        if alert.runModal() == .alertFirstButtonReturn {
+        if alert.runModal() == .alertSecondButtonReturn {
             appLanguage.restartApp()
         }
     }
@@ -602,12 +605,14 @@ struct SettingsView: View {
     /// could meaningfully drift from reality.
     private static let pricingFreshnessThreshold = 60
 
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
+    // Computed, not cached: a `static let` would freeze the locale at first
+    // use and keep formatting dates in the old language after a switch.
+    private static var relativeFormatter: RelativeDateTimeFormatter {
         let f = RelativeDateTimeFormatter()
         f.locale = L10n.locale
         f.unitsStyle = .abbreviated
         return f
-    }()
+    }
 
     private func costSubtitle() -> String {
         let days = Pricing.daysSinceSnapshot

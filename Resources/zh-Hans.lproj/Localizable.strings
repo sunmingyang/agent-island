@@ -107,7 +107,9 @@
 "Refreshing…" = "正在刷新…";
 "resets in %@" = "%@ 后重置";
 "Resets in %@" = "%@ 后重置";
-"Restart AgentIsland to apply language?" = "重启 AgentIsland 以应用语言？";
+"Language changed" = "语言已切换";
+"The new language applies now. A few date and number labels update after AgentIsland restarts." = "新语言立即生效；个别日期和数字标签会在 AgentIsland 重启后更新。";
+"OK" = "好";
 "Restart now" = "立即重启";
 "Ring" = "环形";
 "scanning local logs…" = "正在扫描本地日志…";
