@@ -145,7 +145,6 @@ struct SettingsView: View {
             costStyleSection
             topPanelSection
             targetDisplaySection
-            displayModeSection
         }
     }
 
@@ -683,15 +682,6 @@ struct SettingsView: View {
                     alwaysShow.enabled.toggle()
                 }
             }
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 14)
-    }
-
-    private var displayModeSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Top bar")
             SettingsRow(
                 title: "Mac type",
                 subtitle: displayModeSubtitle
