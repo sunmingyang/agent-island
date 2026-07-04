@@ -138,6 +138,16 @@ enum SessionScanner {
               object["type"] as? String == "session_meta",
               let payload = object["payload"] as? [String: Any]
         else { return nil }
+        // Automation rollouts (orchestrator-spawned subagents, probes, and
+        // `codex exec` runs — e.g. originator "scs-probe") finish constantly;
+        // a human is never "up" in them, so they must not raise turn alarms
+        // or drive the logo. Interactive sessions carry a codex-family
+        // originator; missing originator = old CLI, treat as interactive.
+        let originator = payload["originator"] as? String ?? ""
+        if !originator.isEmpty,
+           !originator.hasPrefix("codex") || originator == "codex_exec" {
+            return nil
+        }
         return (payload["id"] as? String ?? "", payload["cwd"] as? String ?? "")
     }
 
