@@ -711,7 +711,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionLabel("Screen")
             SettingsRow(
-                title: "Position",
+                title: "Show on",
                 subtitle: targetDisplaySubtitle
             ) {
                 targetDisplayPicker

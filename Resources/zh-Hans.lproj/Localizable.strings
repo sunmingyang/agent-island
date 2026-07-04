@@ -190,7 +190,7 @@
 "When your AI limit resets, auto-send a message so a session keeps running." = "用量恢复后，让 Agent Island 自动续跑指定会话。";
 "No triggers yet — add one below." = "还没有规则，在下面加一条。";
 "New trigger" = "新建续跑规则";
-"Session" = "线程";
+"Session" = "会话";
 "Message" = "消息";
 "When" = "时机";
 "After reset" = "额度重置后";
@@ -201,7 +201,7 @@
 "Run now" = "立即运行";
 "Open" = "打开";
 "Scanning…" = "扫描中…";
-"No sessions" = "无可用线程";
+"No sessions" = "无可用会话";
 "Delete trigger" = "删除规则";
 "after reset" = "额度重置后";
 "every %dh" = "每 %d 小时";
@@ -222,9 +222,9 @@
 "Status guide" = "状态说明";
 "Working" = "正在跑";
 "The agent is producing output — its logo gently breathes." = "会话正在运行时，对应 Logo 会持续旋转。";
-"The logo rotates while a session is running." = "线程运行时，图标会持续旋转。";
+"The logo rotates while a session is running." = "会话运行时，图标会持续旋转。";
 "Your turn" = "该你回复";
-"A thread finished — Agent Island opens an alarm window so you can reply." = "线程已经结束时，Agent Island 会像闹钟一样弹出来提醒你回复。";
+"A thread finished — Agent Island opens an alarm window so you can reply." = "会话已经结束时，Agent Island 会像闹钟一样弹出来提醒你回复。";
 "Stalled" = "暂停";
 "A session froze mid-conversation — the logo turns red and beeps." = "这条会话暂时没有新输出。";
 
@@ -262,8 +262,8 @@
 "Mac notifications" = "Mac 通知";
 "Notify when a background run needs you, stalls, needs login, or hits a rate limit." = "后台会话轮到你回复时发送系统通知。";
 "Turn alarm" = "到你回复提醒";
-"Pop up a foreground alarm and system notification when a background run needs you." = "后台线程轮到你回复时，弹出前台提醒窗口并发送系统通知。";
-"Show thread details" = "显示线程详情";
+"Pop up a foreground alarm and system notification when a background run needs you." = "后台会话轮到你回复时，弹出前台提醒窗口并发送系统通知。";
+"Show thread details" = "显示会话详情";
 "Show session and project names in alarms and notifications." = "在提醒和通知里显示会话名、项目名。";
 "Alarm sound" = "提示声音";
 "Keep ringing until you dismiss the turn alarm." = "关闭提醒窗口后停止播放。";
@@ -299,19 +299,19 @@
 "%@ is rate limited" = "%@ 用量查询暂停";
 "A background coding session finished a turn. It is your turn." = "后台编码会话已经完成这一轮，现在该你回复。";
 "A background coding session finished a turn: %@." = "后台编码会话已经完成这一轮：%@。";
-"%@ thread finished" = "%@ 线程已结束";
+"%@ thread finished" = "%@ 会话已结束";
 "“%@” is waiting for your reply." = "「%@」正在等你回复。";
 "It is your turn now." = "现在到你回复。";
 "Project: %@" = "项目：%@";
 "Open %@" = "打开 %@";
-"Demo thread" = "演示线程";
+"Demo thread" = "演示会话";
 "It's your turn" = "现在到你了";
 "%@ is waiting" = "%@ 正在等你";
-"The thread finished. Come back and reply." = "线程已结束，请回来回复。";
+"The thread finished. Come back and reply." = "会话已结束，请回来回复。";
 "Open thread" = "回去处理";
 "I know" = "我知道了";
 "Alarm provider" = "提供商";
-"Alarm thread" = "线程";
+"Alarm thread" = "会话";
 "Alarm project" = "项目";
 "Unknown" = "未知";
 "No output has appeared for a while. Check the session before auto-resuming." = "这条会话暂时没有新输出。";
