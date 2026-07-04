@@ -4,6 +4,18 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.4.1] - 2026-07-05
+
+### Fixed
+- Codex automation rollouts (probes, orchestrator subagents, `codex exec`) no longer raise turn alarms or drive the logo.
+- Forced language now applies everywhere immediately (date formatters no longer freeze the old locale); the misleading "restart required" alert is gone.
+- Display tab: the two "Top bar" sections are merged into one.
+- Alarm sounds preview on click, not on hover; resume commands run off the main thread (first-time Terminal permission no longer freezes the app).
+
+### Changed
+- Native English copy: "Got it", unified session terminology, "Show on" for screen choice.
+- Localization tables cleaned (59 dead keys removed); release CI now runs the test suites before building.
+
 ## [1.3.2] - 2026-07-04
 
 ### Fixed
