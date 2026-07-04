@@ -14,7 +14,12 @@ enum TurnAlarmNavigator {
 
     private static func openCodex(thread: ActivityMonitor.ActiveThread?) {
         let fallback = {
-            if let thread, openCLIResume(executable: "codex", arguments: ["resume", thread.sessionId], thread: thread) {
+            if let thread, openCLIResume(
+                executable: "codex",
+                arguments: ["resume", thread.sessionId],
+                thread: thread,
+                fallbackBundleID: "com.openai.codex"
+            ) {
                 return
             }
             activate(bundleIdentifier: "com.openai.codex")
@@ -51,7 +56,12 @@ enum TurnAlarmNavigator {
             openClaudeDesktop(thread: thread)
             return
         }
-        if let thread, openCLIResume(executable: "claude", arguments: ["--resume", thread.sessionId], thread: thread) {
+        if let thread, openCLIResume(
+            executable: "claude",
+            arguments: ["--resume", thread.sessionId],
+            thread: thread,
+            fallbackBundleID: "com.anthropic.claudefordesktop"
+        ) {
             return
         }
         activate(bundleIdentifier: "com.anthropic.claudefordesktop")
@@ -92,16 +102,27 @@ enum TurnAlarmNavigator {
     private static func openCLIResume(
         executable: String,
         arguments: [String],
-        thread: ActivityMonitor.ActiveThread
+        thread: ActivityMonitor.ActiveThread,
+        fallbackBundleID: String
     ) -> Bool {
         guard !thread.sessionId.isEmpty else { return false }
         let command = resumeCommand(executable: executable, arguments: arguments, cwd: thread.cwd)
-        if runTerminalCommand(command) { return true }
-        if openCommandFile(command: command, executable: executable, sessionId: thread.sessionId) { return true }
-        return false
+        let sessionId = thread.sessionId
+        // osascript blocks until Terminal handles the Apple Event — on the
+        // first run that includes the TCC consent prompt, which can sit for
+        // minutes. waitUntilExit on the main actor froze the whole app, so
+        // the run happens off-main and the fallbacks hop back for AppKit.
+        Task.detached(priority: .userInitiated) {
+            if runTerminalCommand(command) { return }
+            await MainActor.run {
+                if openCommandFile(command: command, executable: executable, sessionId: sessionId) { return }
+                activate(bundleIdentifier: fallbackBundleID)
+            }
+        }
+        return true
     }
 
-    private static func runTerminalCommand(_ command: String) -> Bool {
+    nonisolated private static func runTerminalCommand(_ command: String) -> Bool {
         let script = """
         tell application "Terminal"
             activate
@@ -170,7 +191,7 @@ enum TurnAlarmNavigator {
         return "'" + raw.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    private static func appleScriptString(_ raw: String) -> String {
+    nonisolated private static func appleScriptString(_ raw: String) -> String {
         raw
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
