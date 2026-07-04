@@ -63,6 +63,12 @@ jobs:
           chmod 600 "$key_path"
           echo "SPARKLE_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
+      - name: Run tests
+        run: |
+          ./scripts/test-usage-cache.sh
+          ./scripts/test-session-turn-state.sh
+          ./scripts/test-reminder-delivery-key.sh
+
       - name: Build release assets
         shell: bash
         run: |
