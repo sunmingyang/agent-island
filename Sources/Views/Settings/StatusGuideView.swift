@@ -212,12 +212,7 @@ private struct SoundChoiceRow: View {
         .onTapGesture {
             reminders.selectSoundChoice(choice)
         }
-        .onHover { inside in
-            hovered = inside
-            if inside {
-                reminders.previewSoundChoice(choice)
-            }
-        }
+        .onHover { hovered = $0 }
         .animation(.easeOut(duration: 0.10), value: hovered)
         .animation(.easeOut(duration: 0.10), value: isSelected)
     }
