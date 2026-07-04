@@ -38,7 +38,7 @@ No Xcode project, no SwiftPM. Just `swiftc Sources/**/*.swift`.
 - Multi-monitor support. Right now the app chooses one target screen: the first notched display, otherwise `NSScreen.main`. Users with multiple notched displays should ideally see one panel per screen (or at least an option).
 - Real history for the SparkChart. The synthesized noise is honestly decorative. If either Anthropic or OpenAI exposes a usage time-series, we should switch.
 - Accessibility. VoiceOver labels exist, but a high-contrast variant and a full keyboard/focus pass still need work.
-- Sponsor an Apple Developer ID via [GitHub Sponsors](https://github.com/sponsors/ericjypark) and we'll ship a signed build.
+- An Apple Developer ID. Builds are ad-hoc signed today; a Developer ID would let us ship notarized builds without the Gatekeeper caveats.
 
 ## Code of conduct
 

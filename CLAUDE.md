@@ -15,18 +15,12 @@ git commit -am "chore(release): bump VERSION to X.Y.Z" \
 git push origin main vX.Y.Z                           # 3. Push (fires CI)
 ```
 
-The marketing landing site at `ericjypark/codex-island-landing` has its own
-`VERSION` file (the hero chip + footer read it at build time). Bump it in
-that repo too, in the same release sweep, or the public site keeps showing
-the prior version even after `brew install` ships the new one.
-
 That's it. CI does **everything else** in ~1.5 min:
 
 - Builds the universal DMG
 - Signs it with the EdDSA key from the `SPARKLE_ED_PRIVATE_KEY` secret
 - Generates `appcast.xml` listing the new version
 - Uploads DMG + appcast as release assets
-- Mirrors the cask to `ericjypark/homebrew-tap` with the new version + SHA-256
 
 Watch with `gh run watch --exit-status` if you want confirmation, or just trust it.
 
@@ -34,22 +28,19 @@ Watch with `gh run watch --exit-status` if you want confirmation, or just trust 
 
 1. **`VERSION` must be a single-monotonic version like `0.0.X`, NOT `1` or `100` or anything weird.** `build.sh` uses `$VERSION` as both `CFBundleVersion` and `CFBundleShortVersionString`. Sparkle compares `CFBundleVersion` of the running app against `sparkle:version` in the appcast using Apple's component-wise comparator — so `"1"` parses as `[1]` and is **larger than** `"0.0.99"`. Stay in semver. Always increase.
 
-2. **The Sparkle public key in `build.sh` (`SU_PUBLIC_KEY="bz1g..."`) must NEVER be changed casually.** Every existing install verifies updates against this exact key. Change it and every prior install rejects every future update silently. The matching private key lives in (a) the maintainer's macOS Keychain under service `https://sparkle-project.org` and (b) the `SPARKLE_ED_PRIVATE_KEY` GitHub Actions secret. To rotate, see the migration note in `docs/SPARKLE.md` (TL;DR: don't).
+2. **The Sparkle public key in `build.sh` (`SU_PUBLIC_KEY="6WJH..."`) must NEVER be changed casually.** Every existing install verifies updates against this exact key. Change it and every prior install rejects every future update silently. The matching private key lives in (a) the maintainer's macOS Keychain under service `https://sparkle-project.org` and (b) the `SPARKLE_ED_PRIVATE_KEY` GitHub Actions secret. To rotate, see the migration note in `docs/SPARKLE.md` (TL;DR: don't).
 
-3. **Don't manually edit `Casks/agentisland.rb` for a version bump.** CI rewrites it on the homebrew-tap side at release time. Manual version/SHA edits are overwritten or drift. (Editing unrelated cask metadata — postflight, zap, livecheck — via a normal commit is fine; CI preserves those.)
+3. **Never edit appcast XML files by hand.** The appcast is a release asset built by `release.sh` from the signed DMG. Hand-edits invalidate the EdDSA signature.
 
-4. **Never edit appcast XML files by hand.** The appcast is a release asset built by `release.sh` from the signed DMG. Hand-edits invalidate the EdDSA signature.
-
-5. **Never commit `Vendor/`.** It's gitignored. The `bin/sign_update`, `bin/generate_keys`, etc. binaries live there for local use; CI re-vendors via `scripts/setup-sparkle.sh`.
+4. **Never commit `Vendor/`.** It's gitignored. The `bin/sign_update`, `bin/generate_keys`, etc. binaries live there for local use; CI re-vendors via `scripts/setup-sparkle.sh`.
 
 ### CI secrets (one-time, already configured)
 
-These two GitHub Actions secrets exist on the `codex-island` repo:
+This GitHub Actions secret exists on the `agent-island` repo:
 
 - **`SPARKLE_ED_PRIVATE_KEY`** — the EdDSA private key. Without it CI fails at the signing step.
-- **`HOMEBREW_TAP_TOKEN`** — fine-grained PAT with `contents: write` on `ericjypark/homebrew-tap` only. Without it the cask-sync step warns and skips, but the GitHub Release still ships.
 
-If either is rotated, regenerate via the original instructions in `docs/SPARKLE.md`.
+If it is rotated, regenerate via the original instructions in `docs/SPARKLE.md`.
 
 ### Smoke-testing the update prompt locally
 
