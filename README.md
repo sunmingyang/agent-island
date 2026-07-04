@@ -124,6 +124,12 @@ Windows is on the roadmap after the macOS status, alarm, and auto-resume flow is
 
 ## Install
 
+```sh
+brew install tristan666666/tap/agentisland
+```
+
+or grab the DMG:
+
 Download the DMG, drag AgentIsland into Applications, open it:
 
 [**Download the latest AgentIsland.dmg**](https://github.com/tristan666666/agent-island/releases/latest)

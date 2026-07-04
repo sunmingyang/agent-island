@@ -124,6 +124,12 @@ Windows 版本在路线图中，会在 macOS 的状态提醒和自动继续体�
 
 ## 安装
 
+```sh
+brew install tristan666666/tap/agentisland
+```
+
+或直接下载 DMG:
+
 下载 DMG，把 AgentIsland 拖进 Applications，打开：
 
 [**下载最新版 AgentIsland.dmg**](https://github.com/tristan666666/agent-island/releases/latest)
