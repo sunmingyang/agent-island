@@ -166,6 +166,16 @@ public sealed class SettingsWindow : Window
             StylePreferenceStore.Shared.Style = (ChartStyle)style.SelectedIndex;
         stack.Children.Add(Row(L10n.Tr("Usage charts"), style));
 
+        var costStyle = new ComboBox { Width = 160 };
+        costStyle.Items.Add("USD");
+        costStyle.Items.Add("VALUE");
+        costStyle.Items.Add("TOKENS");
+        costStyle.Items.Add("TREND");
+        costStyle.SelectedIndex = (int)CostStylePreferenceStore.Shared.Style;
+        costStyle.SelectionChanged += (_, _) =>
+            CostStylePreferenceStore.Shared.Style = (CostStyle)costStyle.SelectedIndex;
+        stack.Children.Add(Row(L10n.Tr("Cost display"), costStyle));
+
         stack.Children.Add(Header(L10n.Tr("Top bar")));
         var width = new ComboBox { Width = 160 };
         width.Items.Add(L10n.Tr("Wide (notch style)"));

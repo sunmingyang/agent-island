@@ -11,7 +11,7 @@ namespace AgentIsland.UI;
 /// Year-to-date contribution grid: one cell per day, intensity from token
 /// volume, hue blended between the two providers' shares. Clicking a day
 /// opens the detail strip below the grid.
-public sealed class OverviewPage : Grid
+public sealed class OverviewPage : Border
 {
     private const int Rows = 7;
     private readonly Canvas _gridCanvas = new();
@@ -20,12 +20,14 @@ public sealed class OverviewPage : Grid
 
     public OverviewPage()
     {
-        Margin = new Thickness(22, 12, 22, 6);
-        RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Padding = new Thickness(22, 12, 22, 6);
+        var grid = new Grid();
+        Child = grid;
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        SetRow(_gridCanvas, 0);
-        Children.Add(_gridCanvas);
+        Grid.SetRow(_gridCanvas, 0);
+        grid.Children.Add(_gridCanvas);
 
         _detail = new TextBlock
         {
@@ -36,8 +38,8 @@ public sealed class OverviewPage : Grid
             Margin = new Thickness(2, 8, 0, 0),
             Text = Localization.L10n.Tr("Click a day for details"),
         };
-        SetRow(_detail, 1);
-        Children.Add(_detail);
+        Grid.SetRow(_detail, 1);
+        grid.Children.Add(_detail);
 
         CostStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
         SizeChanged += (_, _) => Rebuild();

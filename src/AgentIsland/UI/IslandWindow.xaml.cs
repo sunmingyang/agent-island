@@ -300,6 +300,7 @@ public partial class IslandWindow : Window
     private void ShowExpandedContent()
     {
         ExpandedContent.Visibility = Visibility.Visible;
+        SettingsGear.Visibility = Visibility.Visible;
         var fade = new DoubleAnimation(1, IslandAnimations.StrongEaseOutDuration)
         {
             BeginTime = TimeSpan.FromMilliseconds(180),
@@ -314,6 +315,7 @@ public partial class IslandWindow : Window
         ContentSlide.BeginAnimation(TranslateTransform.YProperty, slide);
         _claudeTitle?.BeginAnimation(OpacityProperty, fade.Clone());
         _codexTitle?.BeginAnimation(OpacityProperty, fade.Clone());
+        SettingsGear.BeginAnimation(OpacityProperty, fade.Clone());
     }
 
     private void HideExpandedContent()
@@ -327,6 +329,7 @@ public partial class IslandWindow : Window
             if (_model.State == IslandState.Compact)
             {
                 ExpandedContent.Visibility = Visibility.Collapsed;
+                SettingsGear.Visibility = Visibility.Collapsed;
                 ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
                 ContentSlide.Y = -8;
             }
@@ -334,7 +337,20 @@ public partial class IslandWindow : Window
         ExpandedContent.BeginAnimation(OpacityProperty, fade);
         _claudeTitle?.BeginAnimation(OpacityProperty, fade.Clone());
         _codexTitle?.BeginAnimation(OpacityProperty, fade.Clone());
+        SettingsGear.BeginAnimation(OpacityProperty, fade.Clone());
     }
+
+    private void OnSettingsGearClick(object sender, MouseButtonEventArgs e)
+    {
+        SettingsWindow.Open();
+        e.Handled = true;
+    }
+
+    private void OnSettingsGearEnter(object sender, MouseEventArgs e) =>
+        SettingsGear.Foreground = IslandColors.Brush(IslandColors.White(0.9));
+
+    private void OnSettingsGearLeave(object sender, MouseEventArgs e) =>
+        SettingsGear.Foreground = IslandColors.Brush(IslandColors.White(0.45));
 
     // MARK: - Live state visuals
 

@@ -70,6 +70,10 @@ public sealed class PagedContent : Grid
         for (var i = 0; i < _pages.Count; i++)
         {
             var view = _pages[i].View;
+            // Margin on a Canvas child offsets it without shrinking an
+            // explicit Width — the page would shift right and clip. Pages
+            // must own their insets as Padding; enforce margin-free roots.
+            view.Margin = new Thickness(0);
             view.Width = width;
             view.Height = height;
             // Pages sit edge to edge; clip each one so nothing bleeds

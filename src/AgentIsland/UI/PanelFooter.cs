@@ -59,6 +59,8 @@ public sealed class PanelFooter : Grid
             Foreground = IslandColors.Brush(IslandColors.White(0.35)),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Left,
+            // Clear the settings gear that sits in the panel's corner.
+            Margin = new Thickness(18, 0, 0, 0),
         };
         SetColumn(_chip, 0);
         row.Children.Add(_chip);
@@ -109,10 +111,15 @@ public sealed class PanelFooter : Grid
 
     private void Update()
     {
+        // Usage carries no chip (the gear owns that corner, matching macOS);
+        // cost shows the cost style, other pages the chart style.
         var pref = ScreenPref.Shared;
-        _chip.Text = pref.Screen == IslandScreen.Usage
-            ? ""
-            : StylePreferenceStore.Shared.Style.ToString().ToUpperInvariant();
+        _chip.Text = pref.Screen switch
+        {
+            IslandScreen.Usage => "",
+            IslandScreen.Cost => CostStylePreferenceStore.Shared.ChipLabel,
+            _ => StylePreferenceStore.Shared.Style.ToString().ToUpperInvariant(),
+        };
 
         _dots.Children.Clear();
         foreach (var screen in pref.VisibleScreens)

@@ -9,21 +9,24 @@ using AgentIsland.UI.Theme;
 namespace AgentIsland.UI;
 
 /// Cost page: per provider, today's spend as the hero number, a cumulative
-/// sparkline for the day, and month + token context lines.
-public sealed class CostPage : Grid
+/// sparkline for the day, and month + token context lines. The hero swaps
+/// between USD / TOKENS / TREND per the cost style preference.
+public sealed class CostPage : Border
 {
     private readonly CostBlock _claude = new(IslandColors.Claude);
     private readonly CostBlock _codex = new(IslandColors.Codex);
 
     public CostPage()
     {
-        Margin = new Thickness(22, 12, 22, 6);
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Padding = new Thickness(22, 12, 22, 6);
+        var grid = new Grid();
+        Child = grid;
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        SetColumn(_claude, 0);
-        Children.Add(_claude);
+        Grid.SetColumn(_claude, 0);
+        grid.Children.Add(_claude);
         var hairline = new Border
         {
             Width = 1,
@@ -38,12 +41,13 @@ public sealed class CostPage : Grid
                 new Point(0, 0),
                 new Point(0, 1)),
         };
-        SetColumn(hairline, 1);
-        Children.Add(hairline);
-        SetColumn(_codex, 2);
-        Children.Add(_codex);
+        Grid.SetColumn(hairline, 1);
+        grid.Children.Add(hairline);
+        Grid.SetColumn(_codex, 2);
+        grid.Children.Add(_codex);
 
         CostStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
+        CostStylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
         Update();
     }
 
@@ -118,14 +122,54 @@ public sealed class CostBlock : StackPanel
 
     public void Update(ProviderCostSummary summary)
     {
-        _hero.Text = Core.Formatting.Money(summary.TodayDollars);
-        _sparkline.SetSeries(summary.TodayCumulativeDollars);
-        _monthLine.Text = Localization.L10n.TrFormat(
-            "{0} this month", Core.Formatting.Money(summary.MonthDollars));
-        _tokenLine.Text = Localization.L10n.TrFormat(
-            "{0} tokens · {1} billable",
-            Core.Formatting.CompactTokens(summary.TodayTokens),
-            Core.Formatting.CompactTokens(summary.TodayBillableTokens));
+        switch (CostStylePreferenceStore.Shared.Style)
+        {
+            case CostStyle.Tokens:
+                _hero.Text = Core.Formatting.CompactTokens(summary.TodayTokens);
+                _heroCaption.Text = Localization.L10n.Tr("tokens today");
+                _sparkline.SetSeries(summary.TodayCumulativeDollars);
+                _monthLine.Text = Localization.L10n.TrFormat(
+                    "{0} tokens this month", Core.Formatting.CompactTokens(summary.MonthTokens));
+                _tokenLine.Text = Localization.L10n.TrFormat(
+                    "{0} billable", Core.Formatting.CompactTokens(summary.TodayBillableTokens));
+                break;
+            case CostStyle.Trend:
+                _hero.Text = Core.Formatting.Money(summary.MonthDollars);
+                _heroCaption.Text = Localization.L10n.Tr("this month");
+                _sparkline.SetSeries(summary.MonthCumulativeDollars);
+                _monthLine.Text = Localization.L10n.TrFormat(
+                    "{0} today", Core.Formatting.Money(summary.TodayDollars));
+                _tokenLine.Text = Localization.L10n.TrFormat(
+                    "{0} tokens · {1} billable",
+                    Core.Formatting.CompactTokens(summary.MonthTokens),
+                    Core.Formatting.CompactTokens(summary.MonthBillableTokens));
+                break;
+            case CostStyle.Multi:
+                _hero.Text = Core.Formatting.Money(summary.TodayDollars);
+                _heroCaption.Text = Localization.L10n.Tr("today");
+                _sparkline.SetSeries(summary.TodayCumulativeDollars);
+                _monthLine.Text = Localization.L10n.TrFormat(
+                    "{0} this month · {1} tokens",
+                    Core.Formatting.Money(summary.MonthDollars),
+                    Core.Formatting.CompactTokens(summary.MonthTokens));
+                _tokenLine.Text = Localization.L10n.TrFormat(
+                    "{0} tokens · {1} billable",
+                    Core.Formatting.CompactTokens(summary.TodayTokens),
+                    Core.Formatting.CompactTokens(summary.TodayBillableTokens));
+                break;
+            case CostStyle.Dollar:
+            default:
+                _hero.Text = Core.Formatting.Money(summary.TodayDollars);
+                _heroCaption.Text = Localization.L10n.Tr("today");
+                _sparkline.SetSeries(summary.TodayCumulativeDollars);
+                _monthLine.Text = Localization.L10n.TrFormat(
+                    "{0} this month", Core.Formatting.Money(summary.MonthDollars));
+                _tokenLine.Text = Localization.L10n.TrFormat(
+                    "{0} tokens · {1} billable",
+                    Core.Formatting.CompactTokens(summary.TodayTokens),
+                    Core.Formatting.CompactTokens(summary.TodayBillableTokens));
+                break;
+        }
     }
 }
 

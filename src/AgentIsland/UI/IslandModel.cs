@@ -41,8 +41,16 @@ public sealed class IslandModel : INotifyPropertyChanged
     public const double ExpandedCornerRadius = 24;
 
     private IslandState _state = IslandState.Compact;
-    private IslandSpacingMode _spacingMode = IslandSpacingMode.NotchStyle;
+    private IslandSpacingMode _spacingMode;
     private double _expandedContentHeight = UsageContentHeight;
+
+    private IslandModel()
+    {
+        var raw = Core.Preferences.Get<string?>("MacIsland.spacingMode");
+        _spacingMode = raw == nameof(IslandSpacingMode.Compact)
+            ? IslandSpacingMode.Compact
+            : IslandSpacingMode.NotchStyle;
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -65,6 +73,7 @@ public sealed class IslandModel : INotifyPropertyChanged
         {
             if (_spacingMode == value) return;
             _spacingMode = value;
+            Core.Preferences.Set("MacIsland.spacingMode", value.ToString());
             Raise(nameof(SpacingMode));
             Raise(nameof(Size));
         }

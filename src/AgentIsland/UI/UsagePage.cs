@@ -10,25 +10,27 @@ namespace AgentIsland.UI;
 /// The usage data row: one block per provider (5h + week tiles), separated
 /// by a vertical hairline, with an inline Claude re-auth escape hatch when
 /// the stored token can't satisfy the usage endpoint.
-public sealed class UsagePage : Grid
+public sealed class UsagePage : Border
 {
-    private readonly ChartTile _claudeFiveHour = new(IslandColors.Claude, "5h");
-    private readonly ChartTile _claudeWeekly = new(IslandColors.Claude, "week");
-    private readonly ChartTile _codexFiveHour = new(IslandColors.Codex, "5h");
-    private readonly ChartTile _codexWeekly = new(IslandColors.Codex, "week");
+    private readonly ChartTile _claudeFiveHour = new(IslandColors.Claude, "5h", seed: 1);
+    private readonly ChartTile _claudeWeekly = new(IslandColors.Claude, "week", seed: 2);
+    private readonly ChartTile _codexFiveHour = new(IslandColors.Codex, "5h", seed: 3);
+    private readonly ChartTile _codexWeekly = new(IslandColors.Codex, "week", seed: 4);
     private readonly Button _reauth;
 
     public UsagePage()
     {
-        Margin = new Thickness(22, 12, 22, 6);
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Padding = new Thickness(22, 12, 22, 6);
+        var grid = new Grid();
+        Child = grid;
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         _reauth = MakeReauthButton();
         var claudeBlock = MakeBlock(_claudeFiveHour, _claudeWeekly, _reauth);
-        SetColumn(claudeBlock, 0);
-        Children.Add(claudeBlock);
+        Grid.SetColumn(claudeBlock, 0);
+        grid.Children.Add(claudeBlock);
 
         var hairline = new Border
         {
@@ -44,12 +46,12 @@ public sealed class UsagePage : Grid
                 new Point(0, 0),
                 new Point(0, 1)),
         };
-        SetColumn(hairline, 1);
-        Children.Add(hairline);
+        Grid.SetColumn(hairline, 1);
+        grid.Children.Add(hairline);
 
         var codexBlock = MakeBlock(_codexFiveHour, _codexWeekly, extra: null);
-        SetColumn(codexBlock, 2);
-        Children.Add(codexBlock);
+        Grid.SetColumn(codexBlock, 2);
+        grid.Children.Add(codexBlock);
 
         UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
         StylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
@@ -62,8 +64,8 @@ public sealed class UsagePage : Grid
         tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
         tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        SetColumn(fiveHour, 0);
-        SetColumn(weekly, 2);
+        Grid.SetColumn(fiveHour, 0);
+        Grid.SetColumn(weekly, 2);
         tiles.Children.Add(fiveHour);
         tiles.Children.Add(weekly);
 
@@ -93,7 +95,19 @@ public sealed class UsagePage : Grid
             Cursor = System.Windows.Input.Cursors.Hand,
             Visibility = Visibility.Collapsed,
         };
-        button.Click += (_, _) => UsageStore.Shared.ReauthenticateClaude();
+        button.Click += (_, _) =>
+        {
+            if (ClaudeCredentials.CanPromptReauth())
+            {
+                UsageStore.Shared.ReauthenticateClaude();
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    Localization.L10n.Tr("Claude Code CLI not found. Log in from a terminal with: claude /login"),
+                    "Agent Island");
+            }
+        };
         return button;
     }
 
@@ -107,12 +121,12 @@ public sealed class UsagePage : Grid
         _codexWeekly.Update(store.Codex.Weekly, style);
 
         // Keep a manual Claude auth escape hatch available whenever the
-        // Claude usage fetch is unhealthy.
+        // Claude usage fetch is unhealthy — even when the CLI can't be
+        // located, the button explains the manual path instead of stranding
+        // the user with a bare caption.
         var claudeUnhealthy = store.Claude.FiveHour.Error is not null
             || store.Claude.Weekly.Error is not null;
-        _reauth.Visibility = claudeUnhealthy && ClaudeCredentials.CanPromptReauth()
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        _reauth.Visibility = claudeUnhealthy ? Visibility.Visible : Visibility.Collapsed;
         _reauth.Content = store.ClaudeReauthInProgress
             ? Localization.L10n.Tr("waiting for login…")
             : Localization.L10n.Tr("Re-authenticate");

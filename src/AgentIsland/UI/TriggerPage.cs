@@ -13,7 +13,7 @@ namespace AgentIsland.UI;
 /// The auto-resume page: reset countdowns up top, the rules list below.
 /// Each rule shows its message + mode, a run-now action, an enable toggle,
 /// and a trust badge when its project isn't on the allow list yet.
-public sealed class TriggerPage : Grid
+public sealed class TriggerPage : Border
 {
     private readonly TextBlock _countdowns;
     private readonly StackPanel _list;
@@ -21,9 +21,11 @@ public sealed class TriggerPage : Grid
 
     public TriggerPage()
     {
-        Margin = new Thickness(22, 10, 22, 4);
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        Padding = new Thickness(22, 10, 22, 4);
+        var root = new Grid();
+        Child = root;
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -36,7 +38,7 @@ public sealed class TriggerPage : Grid
             Foreground = Brushes.White,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        SetColumn(_countdowns, 0);
+        Grid.SetColumn(_countdowns, 0);
         header.Children.Add(_countdowns);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
@@ -45,10 +47,10 @@ public sealed class TriggerPage : Grid
         manage.Click += (_, _) => OpenManageMenu(manage);
         manage.Margin = new Thickness(8, 0, 0, 0);
         actions.Children.Add(manage);
-        SetColumn(actions, 1);
+        Grid.SetColumn(actions, 1);
         header.Children.Add(actions);
-        SetRow(header, 0);
-        Children.Add(header);
+        Grid.SetRow(header, 0);
+        root.Children.Add(header);
 
         var scroll = new ScrollViewer
         {
@@ -58,8 +60,8 @@ public sealed class TriggerPage : Grid
         };
         _list = new StackPanel { Orientation = Orientation.Vertical };
         scroll.Content = _list;
-        SetRow(scroll, 1);
-        Children.Add(scroll);
+        Grid.SetRow(scroll, 1);
+        root.Children.Add(scroll);
 
         _empty = new TextBlock
         {
@@ -73,8 +75,8 @@ public sealed class TriggerPage : Grid
             TextAlignment = TextAlignment.Center,
             MaxWidth = 420,
         };
-        SetRow(_empty, 1);
-        Children.Add(_empty);
+        Grid.SetRow(_empty, 1);
+        root.Children.Add(_empty);
 
         TriggerStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
         TriggerSafetyStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
@@ -137,7 +139,7 @@ public sealed class TriggerPage : Grid
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 10, 0),
         };
-        SetColumn(dot, 0);
+        Grid.SetColumn(dot, 0);
         row.Children.Add(dot);
 
         var text = new StackPanel();
@@ -178,7 +180,7 @@ public sealed class TriggerPage : Grid
             };
         }
         text.Children.Add(subtitle);
-        SetColumn(text, 1);
+        Grid.SetColumn(text, 1);
         row.Children.Add(text);
 
         var controls = new StackPanel
@@ -201,7 +203,7 @@ public sealed class TriggerPage : Grid
         remove.Margin = new Thickness(10, 0, 0, 0);
         remove.Click += (_, _) => TriggerStore.Shared.Remove(trigger.Id);
         controls.Children.Add(remove);
-        SetColumn(controls, 2);
+        Grid.SetColumn(controls, 2);
         row.Children.Add(controls);
 
         return new Border

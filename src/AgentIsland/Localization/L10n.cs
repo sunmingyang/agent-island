@@ -133,5 +133,13 @@ public static class L10n
         ["Sound"] = "音色",
         ["Volume"] = "音量",
         ["Show session details in alarms"] = "闹钟中显示会话详情",
+        ["Cost display"] = "成本显示",
+        ["tokens today"] = "今日 tokens",
+        ["{0} tokens this month"] = "本月 {0} tokens",
+        ["{0} billable"] = "计费 {0}",
+        ["{0} today"] = "今日 {0}",
+        ["this month"] = "本月",
+        ["{0} this month · {1} tokens"] = "本月 {0} · {1} tokens",
+        ["Claude Code CLI not found. Log in from a terminal with: claude /login"] = "未找到 Claude Code CLI。请在终端中运行 claude /login 登录。",
     };
 }
