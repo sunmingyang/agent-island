@@ -134,6 +134,13 @@ brew install tristan666666/tap/agentisland
 
 Download [`AgentIsland-win-x64.zip`](https://github.com/tristan666666/agent-island/releases/latest) from the latest release, unzip, and run `AgentIsland.exe`.
 
+Or via Scoop:
+
+```powershell
+scoop bucket add agent-island https://github.com/tristan666666/scoop-bucket
+scoop install agent-island/agentisland
+```
+
 or grab the DMG:
 
 Download the DMG, drag AgentIsland into Applications, open it:
