@@ -32,25 +32,24 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Top strip: logos in their 38pt tabs + peek pills outboard of the notch center. -->
-                <Grid Grid.Row="0">
+                <!-- Top strip: logos in their 38pt tabs + peek pills outboard
+                     of the notch center + provider titles when expanded. -->
+                <Grid x:Name="TopStrip" Grid.Row="0">
                     <ui:ProviderLogo x:Name="ClaudeLogo" Width="38" HorizontalAlignment="Left" Margin="9,0,0,0"/>
                     <ui:NotchPeekPill x:Name="ClaudePill" HorizontalAlignment="Left" Margin="52,0,0,0" Opacity="0"/>
                     <ui:NotchPeekPill x:Name="CodexPill" HorizontalAlignment="Right" Margin="0,0,52,0" Opacity="0"/>
                     <ui:ProviderLogo x:Name="CodexLogo" Width="38" HorizontalAlignment="Right" Margin="0,0,9,0"/>
                 </Grid>
 
-                <!-- Expanded panel content (pages arrive with M4). -->
+                <!-- Expanded panel: swipeable pages over a fixed footer. -->
                 <Grid x:Name="ExpandedContent" Grid.Row="1" Opacity="0" Visibility="Collapsed">
                     <Grid.RenderTransform>
                         <TranslateTransform x:Name="ContentSlide" Y="-8"/>
                     </Grid.RenderTransform>
-                    <TextBlock x:Name="ExpandedPlaceholder"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontFamily="Segoe UI Variable Display, Segoe UI"
-                               FontSize="13"
-                               Foreground="#59FFFFFF"/>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                 </Grid>
             </Grid>
         </Border>

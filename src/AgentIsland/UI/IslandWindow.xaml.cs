@@ -17,6 +17,10 @@ public partial class IslandWindow : Window
 {
     private readonly IslandModel _model = IslandModel.Shared;
     private bool _hovering;
+    private System.Windows.Controls.StackPanel? _claudeTitle;
+    private System.Windows.Controls.StackPanel? _codexTitle;
+    private System.Windows.Controls.TextBlock? _claudeChip;
+    private System.Windows.Controls.TextBlock? _codexChip;
 
     public IslandWindow()
     {
@@ -41,12 +45,102 @@ public partial class IslandWindow : Window
         };
 
         ApplySizeInstant();
-        ExpandedPlaceholder.Text = "Usage · Cost · Overview · Triggers";
+        BuildExpandedChrome();
 
         ActivityMonitor.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
         UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePills);
         UpdateActivityVisuals();
         UpdatePills();
+    }
+
+    /// Pages + footer inside the expanded area; provider titles + plan chips
+    /// in the top strip (visible only when expanded, exactly like the macOS
+    /// PanelHeader living beside the notch).
+    private void BuildExpandedChrome()
+    {
+        var pages = new PagedContent();
+        System.Windows.Controls.Grid.SetRow(pages, 0);
+        ExpandedContent.Children.Add(pages);
+
+        var footer = new PanelFooter();
+        System.Windows.Controls.Grid.SetRow(footer, 1);
+        ExpandedContent.Children.Add(footer);
+
+        (_claudeTitle, _claudeChip) = MakeProviderTitle("Claude");
+        _claudeTitle.HorizontalAlignment = HorizontalAlignment.Left;
+        _claudeTitle.Margin = new Thickness(37, 0, 0, 0);
+        TopStrip.Children.Add(_claudeTitle);
+
+        (_codexTitle, _codexChip) = MakeProviderTitle("Codex");
+        _codexTitle.HorizontalAlignment = HorizontalAlignment.Right;
+        _codexTitle.Margin = new Thickness(0, 0, 37, 0);
+        TopStrip.Children.Add(_codexTitle);
+
+        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
+        UpdatePlanChips();
+    }
+
+    private static (System.Windows.Controls.StackPanel Panel, System.Windows.Controls.TextBlock Chip) MakeProviderTitle(string name)
+    {
+        var panel = new System.Windows.Controls.StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = 0,
+            IsHitTestVisible = false,
+        };
+        panel.Children.Add(new System.Windows.Controls.TextBlock
+        {
+            Text = name,
+            FontFamily = Charts.IslandFonts.Ui,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var chip = new System.Windows.Controls.TextBlock
+        {
+            FontFamily = Charts.IslandFonts.Ui,
+            FontSize = 9,
+            FontWeight = FontWeights.Bold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.6)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var chipHost = new System.Windows.Controls.Border
+        {
+            Child = chip,
+            CornerRadius = new CornerRadius(3),
+            Background = IslandColors.Brush(IslandColors.White(0.06)),
+            BorderBrush = IslandColors.Brush(IslandColors.White(0.08)),
+            BorderThickness = new Thickness(0.5),
+            Padding = new Thickness(5, 2, 5, 2),
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        panel.Children.Add(chipHost);
+        return (panel, chip);
+    }
+
+    private void UpdatePlanChips()
+    {
+        var store = UsageStore.Shared;
+        UpdateChip(_claudeChip, store.Claude.Plan);
+        UpdateChip(_codexChip, store.Codex.Plan);
+    }
+
+    private static void UpdateChip(System.Windows.Controls.TextBlock? chip, string? plan)
+    {
+        if (chip is null) return;
+        var host = (System.Windows.Controls.Border)chip.Parent;
+        if (string.IsNullOrEmpty(plan))
+        {
+            host.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            host.Visibility = Visibility.Visible;
+            chip.Text = plan.ToUpperInvariant();
+        }
     }
 
     private void PositionOnScreen()
@@ -173,7 +267,9 @@ public partial class IslandWindow : Window
             EasingFunction = IslandAnimations.StrongEaseOut(),
         };
         ExpandedContent.BeginAnimation(OpacityProperty, fade);
-        ContentSlide.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
+        ContentSlide.BeginAnimation(TranslateTransform.YProperty, slide);
+        _claudeTitle?.BeginAnimation(OpacityProperty, fade.Clone());
+        _codexTitle?.BeginAnimation(OpacityProperty, fade.Clone());
     }
 
     private void HideExpandedContent()
@@ -187,11 +283,13 @@ public partial class IslandWindow : Window
             if (_model.State == IslandState.Compact)
             {
                 ExpandedContent.Visibility = Visibility.Collapsed;
-                ContentSlide.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, null);
+                ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
                 ContentSlide.Y = -8;
             }
         };
         ExpandedContent.BeginAnimation(OpacityProperty, fade);
+        _claudeTitle?.BeginAnimation(OpacityProperty, fade.Clone());
+        _codexTitle?.BeginAnimation(OpacityProperty, fade.Clone());
     }
 
     // MARK: - Live state visuals

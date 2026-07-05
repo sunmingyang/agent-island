@@ -29,6 +29,11 @@ public static class L10n
         return ChineseTable.TryGetValue(key, out var value) ? value : key;
     }
 
+    /// Composite-format lookup: the key is an English format string with
+    /// {0}-style holes; the zh table carries the translated format.
+    public static string TrFormat(string key, params object[] args) =>
+        string.Format(Tr(key), args);
+
     /// Grows as features land; seeded with the strings the shell needs.
     private static readonly Dictionary<string, string> ChineseTable = new()
     {
@@ -46,5 +51,17 @@ public static class L10n
         ["Usage refresh failed"] = "用量刷新失败",
         ["Claude stale"] = "Claude 数据已过期",
         ["Codex stale"] = "Codex 数据已过期",
+        ["5h"] = "5小时",
+        ["week"] = "周",
+        ["resets in {0}"] = "{0} 后重置",
+        ["Re-authenticate"] = "重新登录",
+        ["waiting for login…"] = "等待登录…",
+        ["Synced"] = "已同步",
+        ["Syncing…"] = "同步中…",
+        ["Usage"] = "用量",
+        ["Cost"] = "成本",
+        ["Overview"] = "总览",
+        ["Triggers"] = "自动续跑",
+        ["coming soon"] = "即将上线",
     };
 }

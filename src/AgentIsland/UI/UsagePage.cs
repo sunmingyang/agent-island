@@ -1,0 +1,121 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using AgentIsland.UI.Charts;
+using AgentIsland.UI.Theme;
+using AgentIsland.Usage;
+
+namespace AgentIsland.UI;
+
+/// The usage data row: one block per provider (5h + week tiles), separated
+/// by a vertical hairline, with an inline Claude re-auth escape hatch when
+/// the stored token can't satisfy the usage endpoint.
+public sealed class UsagePage : Grid
+{
+    private readonly ChartTile _claudeFiveHour = new(IslandColors.Claude, "5h");
+    private readonly ChartTile _claudeWeekly = new(IslandColors.Claude, "week");
+    private readonly ChartTile _codexFiveHour = new(IslandColors.Codex, "5h");
+    private readonly ChartTile _codexWeekly = new(IslandColors.Codex, "week");
+    private readonly Button _reauth;
+
+    public UsagePage()
+    {
+        Margin = new Thickness(22, 12, 22, 6);
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        _reauth = MakeReauthButton();
+        var claudeBlock = MakeBlock(_claudeFiveHour, _claudeWeekly, _reauth);
+        SetColumn(claudeBlock, 0);
+        Children.Add(claudeBlock);
+
+        var hairline = new Border
+        {
+            Width = 1,
+            Margin = new Thickness(0, 8, 0, 8),
+            Background = new LinearGradientBrush(
+                new GradientStopCollection
+                {
+                    new GradientStop(Colors.Transparent, 0),
+                    new GradientStop(IslandColors.White(0.06), 0.5),
+                    new GradientStop(Colors.Transparent, 1),
+                },
+                new Point(0, 0),
+                new Point(0, 1)),
+        };
+        SetColumn(hairline, 1);
+        Children.Add(hairline);
+
+        var codexBlock = MakeBlock(_codexFiveHour, _codexWeekly, extra: null);
+        SetColumn(codexBlock, 2);
+        Children.Add(codexBlock);
+
+        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
+        StylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
+        Update();
+    }
+
+    private static StackPanel MakeBlock(ChartTile fiveHour, ChartTile weekly, UIElement? extra)
+    {
+        var tiles = new Grid { Margin = new Thickness(12, 0, 12, 0) };
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        SetColumn(fiveHour, 0);
+        SetColumn(weekly, 2);
+        tiles.Children.Add(fiveHour);
+        tiles.Children.Add(weekly);
+
+        var block = new StackPanel { Orientation = Orientation.Vertical };
+        block.Children.Add(tiles);
+        if (extra is not null)
+        {
+            block.Children.Add(extra);
+        }
+        return block;
+    }
+
+    private Button MakeReauthButton()
+    {
+        var button = new Button
+        {
+            Content = Localization.L10n.Tr("Re-authenticate"),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.White(0.72)),
+            Background = IslandColors.Brush(IslandColors.White(0.04)),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(8, 3, 8, 3),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 6, 0, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Visibility = Visibility.Collapsed,
+        };
+        button.Click += (_, _) => UsageStore.Shared.ReauthenticateClaude();
+        return button;
+    }
+
+    private void Update()
+    {
+        var store = UsageStore.Shared;
+        var style = StylePreferenceStore.Shared.Style;
+        _claudeFiveHour.Update(store.Claude.FiveHour, style);
+        _claudeWeekly.Update(store.Claude.Weekly, style);
+        _codexFiveHour.Update(store.Codex.FiveHour, style);
+        _codexWeekly.Update(store.Codex.Weekly, style);
+
+        // Keep a manual Claude auth escape hatch available whenever the
+        // Claude usage fetch is unhealthy.
+        var claudeUnhealthy = store.Claude.FiveHour.Error is not null
+            || store.Claude.Weekly.Error is not null;
+        _reauth.Visibility = claudeUnhealthy && ClaudeCredentials.CanPromptReauth()
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        _reauth.Content = store.ClaudeReauthInProgress
+            ? Localization.L10n.Tr("waiting for login…")
+            : Localization.L10n.Tr("Re-authenticate");
+        _reauth.IsEnabled = !store.ClaudeReauthInProgress;
+    }
+}
