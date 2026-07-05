@@ -1,0 +1,58 @@
+<Window x:Class="AgentIsland.UI.IslandWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:AgentIsland.UI"
+        Title="AgentIsland"
+        Width="900" Height="360"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize"
+        Focusable="False">
+    <Grid>
+        <Border x:Name="Silhouette"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Center"
+                Width="276"
+                Height="36"
+                CornerRadius="0,0,14,14"
+                Background="#020203"
+                MouseEnter="OnSilhouetteMouseEnter"
+                MouseLeave="OnSilhouetteMouseLeave"
+                MouseLeftButtonUp="OnSilhouetteClick">
+            <Border.Effect>
+                <DropShadowEffect x:Name="Halo" ShadowDepth="0" BlurRadius="14" Opacity="0.35" Color="#000000"/>
+            </Border.Effect>
+            <Grid ClipToBounds="True">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="36"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Top strip: logos in their 38pt tabs + peek pills outboard of the notch center. -->
+                <Grid Grid.Row="0">
+                    <ui:ProviderLogo x:Name="ClaudeLogo" Width="38" HorizontalAlignment="Left" Margin="9,0,0,0"/>
+                    <ui:NotchPeekPill x:Name="ClaudePill" HorizontalAlignment="Left" Margin="52,0,0,0" Opacity="0"/>
+                    <ui:NotchPeekPill x:Name="CodexPill" HorizontalAlignment="Right" Margin="0,0,52,0" Opacity="0"/>
+                    <ui:ProviderLogo x:Name="CodexLogo" Width="38" HorizontalAlignment="Right" Margin="0,0,9,0"/>
+                </Grid>
+
+                <!-- Expanded panel content (pages arrive with M4). -->
+                <Grid x:Name="ExpandedContent" Grid.Row="1" Opacity="0" Visibility="Collapsed">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="ContentSlide" Y="-8"/>
+                    </Grid.RenderTransform>
+                    <TextBlock x:Name="ExpandedPlaceholder"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="Segoe UI Variable Display, Segoe UI"
+                               FontSize="13"
+                               Foreground="#59FFFFFF"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
