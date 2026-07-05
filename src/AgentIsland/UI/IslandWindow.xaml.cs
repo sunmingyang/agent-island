@@ -78,6 +78,23 @@ public partial class IslandWindow : Window
 
         UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
         UpdatePlanChips();
+
+        // Overview needs the taller panel (contribution grid); the size
+        // morphs live when paging while expanded.
+        ScreenPref.Shared.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(ScreenPref.Screen)) return;
+            Dispatcher.BeginInvoke(() =>
+            {
+                _model.ExpandedContentHeight = ScreenPref.Shared.Screen == IslandScreen.Overview
+                    ? IslandModel.OverviewContentHeight
+                    : IslandModel.UsageContentHeight;
+                if (_model.State == IslandState.Expanded)
+                {
+                    AnimateSize(_model.Size, open: true);
+                }
+            });
+        };
     }
 
     private static (System.Windows.Controls.StackPanel Panel, System.Windows.Controls.TextBlock Chip) MakeProviderTitle(string name)
@@ -185,6 +202,27 @@ public partial class IslandWindow : Window
         if (_model.State is IslandState.Peek or IslandState.Compact)
         {
             SetState(IslandState.Expanded);
+            // Take focus so the wheel and arrow keys page the carousel even
+            // when Windows' hover-scroll setting is off.
+            Activate();
+            Focus();
+        }
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (_model.State != IslandState.Expanded) return;
+        switch (e.Key)
+        {
+            case Key.Right:
+                ScreenPref.Shared.ShowNext(1);
+                e.Handled = true;
+                break;
+            case Key.Left:
+                ScreenPref.Shared.ShowNext(-1);
+                e.Handled = true;
+                break;
         }
     }
 

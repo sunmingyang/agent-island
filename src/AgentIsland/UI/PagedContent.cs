@@ -52,6 +52,8 @@ public sealed class PagedContent : Grid
             FrameworkElement view = screen switch
             {
                 IslandScreen.Usage => new UsagePage(),
+                IslandScreen.Cost => new CostPage(),
+                IslandScreen.Overview => new OverviewPage(),
                 _ => new PlaceholderPage(screen),
             };
             _pages.Add((screen, view));

@@ -39,6 +39,7 @@ public partial class App : System.Windows.Application
 
         ActivityMonitor.Shared.Start();
         UsageStore.Shared.StartAutoRefresh();
+        Cost.CostStore.Shared.StartAutoRefresh();
     }
 
     protected override void OnExit(ExitEventArgs e)

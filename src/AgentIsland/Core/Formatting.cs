@@ -13,6 +13,25 @@ public static class Formatting
         return $"{(int)(seconds / 86400)}d";
     }
 
+    /// "$146.61" / "$1,510.80" — invariant thousands separators.
+    public static string Money(double dollars) =>
+        "$" + dollars.ToString("N2", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// "941", "12.4k", "211.2M", "2.17B".
+    public static string CompactTokens(long tokens)
+    {
+        return tokens switch
+        {
+            < 1_000 => tokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            < 1_000_000 => Trim(tokens / 1_000.0) + "k",
+            < 1_000_000_000 => Trim(tokens / 1_000_000.0) + "M",
+            _ => Trim(tokens / 1_000_000_000.0) + "B",
+        };
+
+        static string Trim(double value) =>
+            value.ToString(value >= 100 ? "0" : "0.#", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     /// Relative "synced" label: "just now", "2m ago", "1h ago".
     public static string RelativeAgo(TimeSpan since, bool chinese)
     {

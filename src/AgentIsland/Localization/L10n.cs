@@ -74,5 +74,9 @@ public static class L10n
         ["{0} is waiting for you"] = "{0} 在等你回复",
         ["A background coding session finished a turn: {0}."] = "后台编码会话完成了一轮：{0}。",
         ["A background coding session finished a turn. It is your turn."] = "后台编码会话完成了一轮，该你了。",
+        ["today"] = "今日",
+        ["{0} this month"] = "本月 {0}",
+        ["{0} tokens · {1} billable"] = "{0} tokens · 计费 {1}",
+        ["Click a day for details"] = "点击某天查看明细",
     };
 }

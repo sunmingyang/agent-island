@@ -10,8 +10,7 @@
         Topmost="True"
         ShowInTaskbar="False"
         ShowActivated="False"
-        ResizeMode="NoResize"
-        Focusable="False">
+        ResizeMode="NoResize">
     <Grid>
         <Border x:Name="Silhouette"
                 VerticalAlignment="Top"
