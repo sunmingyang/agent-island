@@ -65,8 +65,24 @@ public sealed class SettingsWindow : Window
         System.Windows.Media.TextOptions.SetTextFormattingMode(
             this, System.Windows.Media.TextFormattingMode.Display);
 
+        // No system title bar: the brand header doubles as the drag strip
+        // and the caption buttons live inside the page (top-right), matching
+        // the macOS integrated-titlebar look.
+        WindowStyle = WindowStyle.None;
+        System.Windows.Shell.WindowChrome.SetWindowChrome(this, new System.Windows.Shell.WindowChrome
+        {
+            CaptionHeight = 58,
+            ResizeBorderThickness = new Thickness(6),
+            GlassFrameThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(0),
+            UseAeroCaptionButtons = false,
+        });
+
         var root = new DockPanel();
-        Content = root;
+        var shell = new Grid();
+        shell.Children.Add(root);
+        shell.Children.Add(BuildWindowButtons());
+        Content = shell;
 
         var header = BuildBrandHeader();
         DockPanel.SetDock(header, Dock.Top);
@@ -103,6 +119,74 @@ public sealed class SettingsWindow : Window
     }
 
     // MARK: - Chrome
+
+    /// Minimize / maximize / close, embedded in the page's top-right corner
+    /// instead of a system title bar.
+    private UIElement BuildWindowButtons()
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+
+        UIElement Make(string glyph, Action click, bool destructive)
+        {
+            var text = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 9.5,
+                Foreground = IslandColors.Brush(IslandColors.White(0.55)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            var host = new Border
+            {
+                Width = 38,
+                Height = 28,
+                Background = Brushes.Transparent,
+                Child = text,
+            };
+            host.MouseEnter += (_, _) =>
+            {
+                host.Background = destructive
+                    ? IslandColors.Brush(System.Windows.Media.Color.FromRgb(0xC4, 0x2B, 0x1C))
+                    : IslandColors.Brush(IslandColors.White(0.08));
+                text.Foreground = Brushes.White;
+            };
+            host.MouseLeave += (_, _) =>
+            {
+                host.Background = Brushes.Transparent;
+                text.Foreground = IslandColors.Brush(IslandColors.White(0.55));
+            };
+            host.MouseLeftButtonUp += (_, args) =>
+            {
+                args.Handled = true;
+                click();
+            };
+            // The strip sits inside the WindowChrome caption area; without
+            // this the drag hit-test swallows every click.
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(host, true);
+            return host;
+        }
+
+        panel.Children.Add(Make("", () => WindowState = WindowState.Minimized, destructive: false));
+        TextBlock? maxGlyph = null;
+        var maximize = Make("", () =>
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            if (maxGlyph is not null)
+            {
+                maxGlyph.Text = WindowState == WindowState.Maximized ? "" : "";
+            }
+        }, destructive: false);
+        maxGlyph = (TextBlock)((Border)maximize).Child;
+        panel.Children.Add(maximize);
+        panel.Children.Add(Make("", Close, destructive: true));
+        return panel;
+    }
 
     private UIElement BuildBrandHeader()
     {

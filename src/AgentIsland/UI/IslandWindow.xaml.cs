@@ -283,7 +283,9 @@ public partial class IslandWindow : Window
         };
         if (_model.State == IslandState.Peek)
         {
-            FadePills(visible: false, delayMs: 0, seconds: 0.08);
+            // With "always show usage" the percentages stay painted on the
+            // compact bar, so nothing fades on the way out.
+            FadePills(visible: AlwaysShowUsageStore.Shared.Enabled, delayMs: 0, seconds: 0.08);
         }
         delay.Start();
     }
@@ -360,7 +362,7 @@ public partial class IslandWindow : Window
                 break;
             case IslandState.Compact:
             default:
-                FadePills(visible: false, delayMs: 0, seconds: 0.08);
+                FadePills(visible: AlwaysShowUsageStore.Shared.Enabled, delayMs: 0, seconds: 0.08);
                 HideExpandedContent();
                 break;
         }
@@ -638,15 +640,21 @@ public partial class IslandWindow : Window
         CodexPill.Update(store.Codex.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Codex));
 
         // In compact, the pills normally hide. "Always show usage" keeps the
-        // visible providers' 5h percent painted on the bare silhouette.
+        // visible providers' 5h percent painted on the bare silhouette. A
+        // finished FadePills animation holds the opacity, so detach it
+        // before assigning or the value silently never lands.
         var alwaysShow = AlwaysShowUsageStore.Shared.Enabled && _model.State == IslandState.Compact;
         if (_model.State == IslandState.Peek || alwaysShow)
         {
+            ClaudePill.BeginAnimation(OpacityProperty, null);
+            CodexPill.BeginAnimation(OpacityProperty, null);
             ClaudePill.Opacity = visibility.ClaudeVisible ? 1 : 0;
             CodexPill.Opacity = visibility.CodexVisible ? 1 : 0;
         }
         else if (_model.State == IslandState.Compact)
         {
+            ClaudePill.BeginAnimation(OpacityProperty, null);
+            CodexPill.BeginAnimation(OpacityProperty, null);
             ClaudePill.Opacity = 0;
             CodexPill.Opacity = 0;
         }
