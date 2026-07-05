@@ -1,13 +1,15 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using AgentIsland.Core;
 using AgentIsland.Usage;
 
 namespace AgentIsland.Alarm;
 
-/// "Open session" routing: Claude Desktop threads go through the claude://
-/// deep link the desktop app registers; CLI sessions reopen the interactive
-/// resume command in a visible terminal.
+/// "Open thread" routing, mirroring the macOS navigator: fire the desktop
+/// app's deep link best-effort AND force its window to the foreground —
+/// on Windows, protocol activation alone never unburies an already-running
+/// app. CLI sessions reopen the interactive resume command in a terminal.
 public static class TurnAlarmNavigator
 {
     public static void Open(TriggerTool provider, ActivityMonitor.ActiveThread thread)
@@ -17,10 +19,14 @@ public static class TurnAlarmNavigator
 
         if (provider == TriggerTool.Claude)
         {
-            if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop
-                && TryOpenUri($"claude://resume?sessionId={sessionId}"))
+            if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop)
             {
-                return;
+                // The deep link lands on the exact thread when the app
+                // handles it; the focus call guarantees the window at least
+                // comes up. Either alone is not enough.
+                var linked = TryOpenUri($"claude://resume?sessionId={sessionId}");
+                var focused = FocusAppWindow("claude");
+                if (linked || focused) return;
             }
             if (Trigger.CLILocator.Locate("claude") is { } claude)
             {
@@ -29,10 +35,9 @@ public static class TurnAlarmNavigator
             return;
         }
 
-        if (TryOpenUri($"codex://threads/{sessionId}"))
-        {
-            return;
-        }
+        var codexLinked = TryOpenUri($"codex://threads/{sessionId}");
+        var codexFocused = FocusAppWindow("Codex");
+        if (codexLinked || codexFocused) return;
         if (Trigger.CLILocator.Locate("codex") is { } codex)
         {
             RunResumeInTerminal(codex, $"resume {sessionId}", thread.Cwd, "Codex resume");
@@ -56,6 +61,39 @@ public static class TurnAlarmNavigator
             return false;
         }
     }
+
+    /// Brings the named app's main window up: restores it when minimized and
+    /// takes the foreground. Works because the click that got us here means
+    /// our own window currently holds focus, so Windows permits the handoff.
+    private static bool FocusAppWindow(string processName)
+    {
+        try
+        {
+            foreach (var process in Process.GetProcessesByName(processName))
+            {
+                var hwnd = process.MainWindowHandle;
+                if (hwnd == IntPtr.Zero) continue;
+                if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+                return true;
+            }
+        }
+        catch
+        {
+        }
+        return false;
+    }
+
+    private const int SW_RESTORE = 9;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
 
     private static void RunResumeInTerminal(string binary, string arguments, string cwd, string title)
     {
