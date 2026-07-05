@@ -30,10 +30,15 @@ public sealed class NotchPeekPill : TextBlock
         set => _tool = value;
     }
 
-    public void Update(WindowUsage usage, bool loading)
+    public void Update(WindowUsage usage, bool loading, Model.AlertSeverity severity = Model.AlertSeverity.None)
     {
         Inlines.Clear();
-        var tint = IslandColors.For(_tool);
+        var tint = severity switch
+        {
+            Model.AlertSeverity.Critical => IslandColors.AlertRed,
+            Model.AlertSeverity.Warning => IslandColors.AlertAmber,
+            _ => IslandColors.For(_tool),
+        };
 
         if (usage.HasError && usage.UsedPercent == 0)
         {
@@ -46,6 +51,10 @@ public sealed class NotchPeekPill : TextBlock
             return;
         }
 
+        if (severity != Model.AlertSeverity.None)
+        {
+            Inlines.Add(new Run("⚠ ") { Foreground = IslandColors.Brush(tint) });
+        }
         var percent = new Run($"{Math.Round(usage.UsedPercent * 100)}%")
         {
             Foreground = IslandColors.Brush(tint),

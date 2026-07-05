@@ -49,6 +49,12 @@ public partial class IslandWindow : Window
 
         ActivityMonitor.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
         UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePills);
+        Model.AlertEngine.Shared.PropertyChanged += (_, args) => Dispatcher.BeginInvoke(() =>
+        {
+            if (args.PropertyName == nameof(Model.AlertEngine.Pulse)) HandleAlertPulse();
+            UpdateHalo();
+            UpdatePills();
+        });
         UpdateActivityVisuals();
         UpdatePills();
     }
@@ -337,42 +343,95 @@ public partial class IslandWindow : Window
         var monitor = ActivityMonitor.Shared;
         ClaudeLogo.SetState(monitor.Claude);
         CodexLogo.SetState(monitor.Codex);
-        UpdateHalo(monitor.Claude.IsAttentionState() || monitor.Codex.IsAttentionState());
+        UpdateHalo();
     }
 
-    private bool _haloAlerting;
-
-    /// The red attention state bleeds through to the silhouette halo so it's
-    /// visible even at compact.
-    private void UpdateHalo(bool alerting)
+    private enum HaloMode
     {
-        if (alerting == _haloAlerting) return;
-        _haloAlerting = alerting;
-        if (alerting)
-        {
-            Halo.Color = IslandColors.AlertRed;
-            Halo.Opacity = 0.55;
-            var pulse = new DoubleAnimation(10, 18, new Duration(TimeSpan.FromSeconds(0.21)))
+        Rest,
+        WarningTint,
+        CriticalTint,
+        AttentionPulse,
+    }
+
+    private HaloMode _haloMode = HaloMode.Rest;
+
+    /// Attention states pulse the halo red; threshold alerts hold a
+    /// sustained amber/red tint. Attention outranks the alert tint.
+    private void UpdateHalo()
+    {
+        var monitor = ActivityMonitor.Shared;
+        var attention = monitor.Claude.IsAttentionState() || monitor.Codex.IsAttentionState();
+        var severity = Model.AlertEngine.Shared.Severity;
+        var mode = attention
+            ? HaloMode.AttentionPulse
+            : severity switch
             {
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever,
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                Model.AlertSeverity.Critical => HaloMode.CriticalTint,
+                Model.AlertSeverity.Warning => HaloMode.WarningTint,
+                _ => HaloMode.Rest,
             };
-            Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, pulse);
-        }
-        else
+        if (mode == _haloMode) return;
+        _haloMode = mode;
+
+        Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, null);
+        switch (mode)
         {
-            Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, null);
-            Halo.Color = Colors.Black;
-            Halo.Opacity = 0.35;
-            Halo.BlurRadius = 14;
+            case HaloMode.AttentionPulse:
+                Halo.Color = IslandColors.AlertRed;
+                Halo.Opacity = 0.55;
+                var pulse = new DoubleAnimation(10, 18, new Duration(TimeSpan.FromSeconds(0.21)))
+                {
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                };
+                Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, pulse);
+                break;
+            case HaloMode.CriticalTint:
+                Halo.Color = IslandColors.AlertRed;
+                Halo.Opacity = 0.5;
+                Halo.BlurRadius = 16;
+                break;
+            case HaloMode.WarningTint:
+                Halo.Color = IslandColors.AlertAmber;
+                Halo.Opacity = 0.5;
+                Halo.BlurRadius = 16;
+                break;
+            case HaloMode.Rest:
+            default:
+                Halo.Color = Colors.Black;
+                Halo.Opacity = 0.35;
+                Halo.BlurRadius = 14;
+                break;
         }
     }
 
     private void UpdatePills()
     {
         var store = UsageStore.Shared;
-        ClaudePill.Update(store.Claude.FiveHour, store.Loading);
-        CodexPill.Update(store.Codex.FiveHour, store.Loading);
+        var engine = Model.AlertEngine.Shared;
+        ClaudePill.Update(store.Claude.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Claude));
+        CodexPill.Update(store.Codex.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Codex));
+    }
+
+    /// First threshold crossing inside a reset window auto-peeks the pills
+    /// for ~4s — the ambient nudge from the macOS design.
+    private void HandleAlertPulse()
+    {
+        if (Model.AlertEngine.Shared.Pulse is null) return;
+        Model.AlertEngine.Shared.ClearPulse();
+        if (_model.State != IslandState.Compact) return;
+        SetState(IslandState.Peek);
+        var collapse = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+        collapse.Tick += (_, _) =>
+        {
+            collapse.Stop();
+            if (!_hovering && _model.State == IslandState.Peek)
+            {
+                SetState(IslandState.Compact);
+            }
+        };
+        collapse.Start();
     }
 }

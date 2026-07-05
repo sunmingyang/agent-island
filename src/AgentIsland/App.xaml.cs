@@ -14,6 +14,7 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
         InstallCrashLogger();
+        Model.AppLanguageStore.ApplyAtStartup();
 
         if (AppEnvironment.IsDemo)
         {
@@ -29,7 +30,7 @@ public partial class App : System.Windows.Application
                 if (_island is null) return;
                 if (_island.IsVisible) _island.Hide(); else _island.Show();
             },
-            openSettings: () => { /* settings window arrives with M8 */ },
+            openSettings: UI.SettingsWindow.Open,
             exit: () =>
             {
                 _tray?.Dispose();
@@ -41,6 +42,14 @@ public partial class App : System.Windows.Application
         UsageStore.Shared.StartAutoRefresh();
         Cost.CostStore.Shared.StartAutoRefresh();
         Trigger.TriggerEngine.Shared.Start();
+        Model.AlertEngine.Shared.Start();
+
+        // Scripted-verification hook, mirroring the demo-only buttons on
+        // macOS: never set in normal use.
+        if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_OPEN_SETTINGS") == "1")
+        {
+            UI.SettingsWindow.Open();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
