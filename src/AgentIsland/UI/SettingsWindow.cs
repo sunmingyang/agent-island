@@ -88,6 +88,13 @@ public sealed class SettingsWindow : Window
 
         var savedTab = Preferences.Get<string?>("Settings.activeTab");
         if (Enum.TryParse<Tab>(savedTab, out var restored)) _active = restored;
+        // Scripted-verification hook: jump straight to a tab.
+        if (Enum.TryParse<Tab>(
+                Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_SETTINGS_TAB"),
+                out var forced))
+        {
+            _active = forced;
+        }
         Select(_active);
     }
 
@@ -477,45 +484,84 @@ public sealed class SettingsWindow : Window
     private UIElement BuildDisplay()
     {
         var stack = TabStack();
-        stack.Children.Add(SectionLabel("Usage display"));
-        var styles = Enum.GetValues<ChartStyle>();
-        var style = new Segmented(
-            styles.Select(s => L10n.Tr(s.ToString())).ToArray(),
-            (int)StylePreferenceStore.Shared.Style);
-        style.SelectionChanged += index => StylePreferenceStore.Shared.Style = (ChartStyle)index;
-        var styleHost = new Border { Child = style, Margin = new Thickness(10, 4, 10, 8), HorizontalAlignment = HorizontalAlignment.Left };
-        stack.Children.Add(styleHost);
 
+        // 用量显示 — the five visual preview tiles, "click to switch" hint.
+        var usageHeader = new Grid { Margin = new Thickness(10, 14, 10, 6) };
+        usageHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        usageHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var usageLabel = SectionLabel("Usage display");
+        usageLabel.Margin = new Thickness(0);
+        Grid.SetColumn(usageLabel, 0);
+        usageHeader.Children.Add(usageLabel);
+        var hint = new TextBlock
+        {
+            Text = L10n.Tr("click to switch"),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 10,
+            Foreground = IslandColors.Brush(IslandColors.White(0.18)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(hint, 1);
+        usageHeader.Children.Add(hint);
+        stack.Children.Add(usageHeader);
+
+        var stylePicker = new ChartStylePickerControl(StylePreferenceStore.Shared.Style)
+        {
+            Margin = new Thickness(10, 2, 2, 8),
+        };
+        stylePicker.StyleSelected += style => StylePreferenceStore.Shared.Style = style;
+        stack.Children.Add(stylePicker);
+
+        // 成本显示 — toggle first; the picker tiles appear only when the
+        // cost page is on, matching the macOS conditional.
         stack.Children.Add(SectionLabel("Cost display"));
+        var costPickerHost = new ContentControl { Margin = new Thickness(10, 2, 2, 8) };
+        void RefreshCostPicker()
+        {
+            if (ScreenPref.Shared.ShowCostPage)
+            {
+                var picker = new CostStylePickerControl(CostStylePreferenceStore.Shared.Style);
+                picker.StyleSelected += style => CostStylePreferenceStore.Shared.Style = style;
+                costPickerHost.Content = picker;
+            }
+            else
+            {
+                costPickerHost.Content = null;
+            }
+        }
         var costPage = new CobaltToggle(ScreenPref.Shared.ShowCostPage);
-        costPage.Toggled += enabled => ScreenPref.Shared.ShowCostPage = enabled;
+        costPage.Toggled += enabled =>
+        {
+            ScreenPref.Shared.ShowCostPage = enabled;
+            RefreshCostPicker();
+        };
         stack.Children.Add(new SettingsRowControl(
             "Show cost page in top panel",
             "Include local token cost/value as a swipe page in the island.",
             costPage));
-        var costStyles = new[] { "USD", "VALUE", "TOKENS", "TREND" };
-        var costStyle = new Segmented(costStyles, (int)CostStylePreferenceStore.Shared.Style);
-        costStyle.SelectionChanged += index => CostStylePreferenceStore.Shared.Style = (CostStyle)index;
-        stack.Children.Add(new Border { Child = costStyle, Margin = new Thickness(10, 4, 10, 8), HorizontalAlignment = HorizontalAlignment.Left });
+        RefreshCostPicker();
+        stack.Children.Add(costPickerHost);
 
+        // 顶部条.
         stack.Children.Add(SectionLabel("Top bar"));
         var alwaysShow = new CobaltToggle(AlwaysShowUsageStore.Shared.Enabled);
         alwaysShow.Toggled += enabled => AlwaysShowUsageStore.Shared.Enabled = enabled;
         stack.Children.Add(new SettingsRowControl(
             "Always show usage in top bar",
-            "Keep the 5-hour percentages beside the logos without hovering.",
+            "Show the 5-hour percentages beside the logos without hovering.",
             alwaysShow));
 
         var width = new Segmented(
-            new[] { L10n.Tr("Compact"), L10n.Tr("Wide") },
+            new[] { L10n.Tr("Compact"), L10n.Tr("Wide (notch style)") },
             IslandModel.Shared.SpacingMode == IslandSpacingMode.Compact ? 0 : 1);
         width.SelectionChanged += index =>
             IslandModel.Shared.SpacingMode = index == 0 ? IslandSpacingMode.Compact : IslandSpacingMode.NotchStyle;
         stack.Children.Add(new SettingsRowControl(
-            "Bar width",
+            "Bar style",
             "Wide mirrors the MacBook notch layout; Compact narrows the top bar.",
             width));
 
+        // 屏幕.
         stack.Children.Add(SectionLabel("Screen"));
         var screens = System.Windows.Forms.Screen.AllScreens;
         var display = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
@@ -533,7 +579,9 @@ public sealed class SettingsWindow : Window
                 ? "auto"
                 : screens[display.SelectedIndex - 1].DeviceName;
         stack.Children.Add(new SettingsRowControl(
-            "Show on", "Auto picks the primary display.", display));
+            "Show on",
+            L10n.TrFormat("Auto — currently on {0}.", L10n.Tr("the primary display")),
+            display));
 
         return stack;
     }
@@ -548,7 +596,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(ProviderRow(TriggerTool.Claude));
         stack.Children.Add(ProviderRow(TriggerTool.Codex));
 
-        stack.Children.Add(SectionLabel("Tokens"));
+        stack.Children.Add(SectionLabel("TOKEN"));
         var mode = new Segmented(
             new[] { L10n.Tr("All tokens"), L10n.Tr("Input + output") },
             TokenCountModeStore.Shared.Mode == TokenCountMode.All ? 0 : 1);
@@ -657,19 +705,41 @@ public sealed class SettingsWindow : Window
     {
         var stack = TabStack();
         stack.Children.Add(SectionLabel("Auto-resume"));
+        stack.Children.Add(new TextBlock
+        {
+            Text = L10n.Tr("After the quota recovers, let Agent Island auto-resume chosen sessions."),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+            Foreground = IslandColors.Brush(IslandColors.White(0.6)),
+            Margin = new Thickness(10, 0, 10, 10),
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        stack.Children.Add(SectionLabel("Execution safety"));
         var kill = new CobaltToggle(TriggerSafetyStore.Shared.ExecutionEnabled);
         kill.Toggled += enabled => TriggerSafetyStore.Shared.ExecutionEnabled = enabled;
         stack.Children.Add(new SettingsRowControl(
-            "Auto-resume enabled (kill switch)",
-            "When off, no resume command is ever spawned.",
+            "Auto-resume master switch",
+            "When off, Agent Island never launches any Claude or Codex resume command.",
             kill));
 
         var records = new PillButtonControl(L10n.Tr("Open"));
         records.Clicked += () => TriggerEngine.Shared.OpenLogsDirectory();
         stack.Children.Add(new SettingsRowControl(
-            "Run records",
-            "Every run, executed or blocked, is logged.",
+            "Run logs",
+            "Open the log folder to review blocked or executed resume runs.",
             records));
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = TriggerStore.Shared.Triggers.Count == 0
+                ? L10n.Tr("No rules yet — add one below.")
+                : L10n.TrFormat("{0} rule(s) — manage them on the island's Triggers page.", TriggerStore.Shared.Triggers.Count),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+            Foreground = IslandColors.Brush(IslandColors.White(0.45)),
+            Margin = new Thickness(10, 12, 10, 6),
+        });
 
         stack.Children.Add(SectionLabel("Trusted projects"));
         if (TriggerSafetyStore.Shared.AllowedRoots.Count == 0)

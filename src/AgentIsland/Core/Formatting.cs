@@ -50,11 +50,18 @@ public static class Formatting
         return $"in {(int)(seconds / 86400)}d";
     }
 
-    /// Relative "synced" label: "just now", "2m ago", "1h ago".
+    /// Relative "synced" label with second granularity under a minute:
+    /// "58秒前", "2 分钟前", "1 小时前" — matching the macOS abbreviated
+    /// relative formatter.
     public static string RelativeAgo(TimeSpan since, bool chinese)
     {
         var seconds = Math.Max(0, since.TotalSeconds);
-        if (seconds < 60) return chinese ? "刚刚" : "just now";
+        if (seconds < 5) return chinese ? "刚刚" : "just now";
+        if (seconds < 60)
+        {
+            var s = (int)seconds;
+            return chinese ? $"{s}秒前" : $"{s}s ago";
+        }
         if (seconds < 3600)
         {
             var m = (int)(seconds / 60);

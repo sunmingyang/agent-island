@@ -56,14 +56,18 @@ public sealed class CobaltToggle : Border
         }
     }
 
+    /// The shipped app renders a vivid filled blue track with a white knob
+    /// when on (see the original settings screenshots), dim gray when off.
+    private static readonly Color TrackBlue = Color.FromRgb(0x2E, 0x7C, 0xF6);
+
     private void Render()
     {
         Background = _isOn
-            ? IslandColors.Brush(IslandColors.Cobalt, 0.32)
-            : IslandColors.Brush(IslandColors.White(0.07));
-        _dot.Fill = _isOn ? IslandColors.Brush(IslandColors.Cobalt) : IslandColors.Brush(IslandColors.White(0.5));
+            ? IslandColors.Brush(TrackBlue)
+            : IslandColors.Brush(IslandColors.White(0.14));
+        _dot.Fill = _isOn ? Brushes.White : IslandColors.Brush(IslandColors.White(0.75));
         _dot.Effect = _isOn
-            ? new DropShadowEffect { ShadowDepth = 0, BlurRadius = 5, Color = IslandColors.Cobalt, Opacity = 0.85 }
+            ? new DropShadowEffect { ShadowDepth = 0, BlurRadius = 4, Color = Colors.Black, Opacity = 0.35 }
             : null;
         _dot.HorizontalAlignment = _isOn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
         _dot.Margin = new Thickness(2, 0, 2, 0);

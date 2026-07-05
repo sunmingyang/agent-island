@@ -51,27 +51,34 @@ public sealed class NotchPeekPill : TextBlock
             return;
         }
 
-        if (severity != Model.AlertSeverity.None)
-        {
-            Inlines.Add(new Run("⚠ ") { Foreground = IslandColors.Brush(tint) });
-        }
-        var percent = new Run($"{Math.Round(usage.UsedPercent * 100)}%")
-        {
-            Foreground = IslandColors.Brush(tint),
-        };
-        Inlines.Add(percent);
-
+        // The right-hand pill mirrors: countdown first, percent hugging the
+        // logo — exactly like the macOS bar.
+        var percentText = $"{Math.Round(usage.UsedPercent * 100)}%";
         var now = DateTimeOffset.Now;
-        if (usage.ResetAt is { } resetAt && resetAt > now)
+        var countdown = usage.ResetAt is { } resetAt && resetAt > now
+            ? CompactCountdown(resetAt - now)
+            : null;
+        var mirrored = _tool == Core.TriggerTool.Codex;
+
+        if (mirrored)
         {
-            Inlines.Add(Dim(" · " + CompactCountdown(resetAt - now), 0.70));
+            if (countdown is not null) Inlines.Add(Dim(countdown + " · ", 0.70));
+            else Inlines.Add(Dim("5h · ", 0.40));
+            Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
+            if (severity != Model.AlertSeverity.None)
+            {
+                Inlines.Add(new Run(" ⚠") { Foreground = IslandColors.Brush(tint) });
+            }
         }
         else
         {
-            // No live countdown: fall back to the window length at reduced
-            // opacity so countdown vs. passive label stays visually distinct
-            // without changing geometry.
-            Inlines.Add(Dim(" · 5h", 0.40));
+            if (severity != Model.AlertSeverity.None)
+            {
+                Inlines.Add(new Run("⚠ ") { Foreground = IslandColors.Brush(tint) });
+            }
+            Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
+            if (countdown is not null) Inlines.Add(Dim(" · " + countdown, 0.70));
+            else Inlines.Add(Dim(" · 5h", 0.40));
         }
     }
 
