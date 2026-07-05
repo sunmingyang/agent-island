@@ -43,5 +43,8 @@ public static class L10n
         ["auth required"] = "需要登录",
         ["Continue"] = "继续",
         ["Command unavailable"] = "命令不可用",
+        ["Usage refresh failed"] = "用量刷新失败",
+        ["Claude stale"] = "Claude 数据已过期",
+        ["Codex stale"] = "Codex 数据已过期",
     };
 }

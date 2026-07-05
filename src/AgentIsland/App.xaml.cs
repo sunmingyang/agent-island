@@ -13,10 +13,11 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        InstallCrashLogger();
 
         if (AppEnvironment.IsDemo)
         {
-            SeedDemoData();
+            ActivityMonitor.Shared.Demo(ActivityState.Working);
         }
 
         _island = new IslandWindow();
@@ -36,29 +37,40 @@ public partial class App : System.Windows.Application
             });
 
         ActivityMonitor.Shared.Start();
-    }
-
-    /// Screenshot-friendly synthetic data, mirroring the macOS demo mode:
-    /// healthy-looking percentages, live countdowns, plan chips, and a
-    /// spinning Claude logo.
-    private static void SeedDemoData()
-    {
-        var now = DateTimeOffset.Now;
-        UsageStore.Shared.Claude = new AppUsage(
-            new WindowUsage(0.73, now.AddMinutes(107), null),
-            new WindowUsage(0.81, now.AddDays(4), null),
-            "max");
-        UsageStore.Shared.Codex = new AppUsage(
-            new WindowUsage(0.67, now.AddMinutes(143), null),
-            new WindowUsage(0.76, now.AddDays(4), null),
-            "pro");
-        UsageStore.Shared.LastUpdated = now;
-        ActivityMonitor.Shared.Demo(ActivityState.Working);
+        UsageStore.Shared.StartAutoRefresh();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         _tray?.Dispose();
         base.OnExit(e);
+    }
+
+    private static void InstallCrashLogger()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            LogCrash(args.ExceptionObject as Exception, "AppDomain");
+        Current.DispatcherUnhandledException += (_, args) =>
+            LogCrash(args.Exception, "Dispatcher");
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            LogCrash(args.Exception, "Task");
+            args.SetObserved();
+        };
+    }
+
+    private static void LogCrash(Exception? error, string source)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(Core.IslandPaths.AppSupportDir);
+            var path = System.IO.Path.Combine(Core.IslandPaths.AppSupportDir, "crash.log");
+            System.IO.File.AppendAllText(
+                path,
+                $"[{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}] {source}: {error}\n\n");
+        }
+        catch
+        {
+        }
     }
 }
