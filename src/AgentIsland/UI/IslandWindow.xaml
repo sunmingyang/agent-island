@@ -31,13 +31,24 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Top strip: logos in their 38pt tabs + peek pills outboard
-                     of the notch center + provider titles when expanded. -->
+                <!-- Top strip, macOS structure: the logo tabs flank the notch
+                     CENTER; peek pills grow OUTBOARD of them (the side
+                     columns animate 0 -> 104); in expanded the side columns
+                     collapse so the logos glide out to the panel corners. -->
                 <Grid x:Name="TopStrip" Grid.Row="0">
-                    <ui:ProviderLogo x:Name="ClaudeLogo" Width="38" HorizontalAlignment="Left" Margin="9,0,0,0"/>
-                    <ui:NotchPeekPill x:Name="ClaudePill" HorizontalAlignment="Left" Margin="52,0,0,0" Opacity="0"/>
-                    <ui:NotchPeekPill x:Name="CodexPill" HorizontalAlignment="Right" Margin="0,0,52,0" Opacity="0"/>
-                    <ui:ProviderLogo x:Name="CodexLogo" Width="38" HorizontalAlignment="Right" Margin="0,0,9,0"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="LeftPillColumn" Width="0"/>
+                        <ColumnDefinition Width="38"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="38"/>
+                        <ColumnDefinition x:Name="RightPillColumn" Width="0"/>
+                    </Grid.ColumnDefinitions>
+                    <ui:NotchPeekPill x:Name="ClaudePill" Grid.Column="0"
+                                      HorizontalAlignment="Right" Margin="10,0,6,0" Opacity="0"/>
+                    <ui:ProviderLogo x:Name="ClaudeLogo" Grid.Column="1"/>
+                    <ui:ProviderLogo x:Name="CodexLogo" Grid.Column="3"/>
+                    <ui:NotchPeekPill x:Name="CodexPill" Grid.Column="4"
+                                      HorizontalAlignment="Left" Margin="6,0,10,0" Opacity="0"/>
                 </Grid>
 
                 <!-- Expanded panel: swipeable pages over a fixed footer. -->

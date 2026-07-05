@@ -73,12 +73,35 @@ public partial class IslandWindow : Window
         AlwaysShowUsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
         {
             _model.NotifyAlwaysShowUsageChanged();
+            if (_model.State != IslandState.Expanded) ApplySizeInstant();
             UpdatePills();
         });
 
         ApplyProviderVisibility();
         UpdateActivityVisuals();
         UpdatePills();
+
+        // Scripted layout diagnosis: dump geometry once a second.
+        if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_LAYOUTLOG") == "1")
+        {
+            var log = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            log.Tick += (_, _) =>
+            {
+                try
+                {
+                    System.IO.File.AppendAllText(
+                        System.IO.Path.Combine(Core.IslandPaths.AppSupportDir, "layout.log"),
+                        $"{DateTime.Now:HH:mm:ss.f} state={_model.State} winLeft={Left:F0} winW={Width:F0} " +
+                        $"silW={Silhouette.Width:F0} silActualW={Silhouette.ActualWidth:F0} " +
+                        $"leftSlot={LeftPillColumn.Width} rightSlot={RightPillColumn.Width} " +
+                        $"modelSize={_model.Size.Width:F0}x{_model.Size.Height:F0}\n");
+                }
+                catch
+                {
+                }
+            };
+            log.Start();
+        }
     }
 
     /// Hidden providers drop their logo, peek pill, and expanded title —
@@ -108,29 +131,34 @@ public partial class IslandWindow : Window
         System.Windows.Controls.Grid.SetRow(footer, 1);
         ExpandedContent.Children.Add(footer);
 
+        // Titles live in the center column, hugging the logo tabs on each
+        // side — the macOS PanelHeader arrangement.
         (_claudeTitle, _claudeChip) = MakeProviderTitle("Claude");
         _claudeTitle.HorizontalAlignment = HorizontalAlignment.Left;
-        _claudeTitle.Margin = new Thickness(37, 0, 0, 0);
+        _claudeTitle.Margin = new Thickness(8, 0, 0, 0);
+        System.Windows.Controls.Grid.SetColumn(_claudeTitle, 2);
         TopStrip.Children.Add(_claudeTitle);
 
         (_codexTitle, _codexChip) = MakeProviderTitle("Codex");
         _codexTitle.HorizontalAlignment = HorizontalAlignment.Right;
-        _codexTitle.Margin = new Thickness(0, 0, 37, 0);
+        _codexTitle.Margin = new Thickness(0, 0, 8, 0);
+        System.Windows.Controls.Grid.SetColumn(_codexTitle, 2);
         TopStrip.Children.Add(_codexTitle);
 
         UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
         UpdatePlanChips();
 
         // Overview needs the taller panel (contribution grid); the size
-        // morphs live when paging while expanded.
+        // morphs live when paging while expanded — and the persisted page
+        // must seed the height at startup, or reopening on Overview squashes
+        // the grid.
+        ApplyPanelHeightForScreen();
         ScreenPref.Shared.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName != nameof(ScreenPref.Screen)) return;
             Dispatcher.BeginInvoke(() =>
             {
-                _model.ExpandedContentHeight = ScreenPref.Shared.Screen == IslandScreen.Overview
-                    ? IslandModel.OverviewContentHeight
-                    : IslandModel.UsageContentHeight;
+                ApplyPanelHeightForScreen();
                 if (_model.State == IslandState.Expanded)
                 {
                     AnimateSize(_model.Size, open: true);
@@ -138,6 +166,11 @@ public partial class IslandWindow : Window
             });
         };
     }
+
+    private void ApplyPanelHeightForScreen() =>
+        _model.ExpandedContentHeight = ScreenPref.Shared.Screen == IslandScreen.Overview
+            ? IslandModel.OverviewContentHeight
+            : IslandModel.UsageContentHeight;
 
     private static (System.Windows.Controls.StackPanel Panel, System.Windows.Controls.TextBlock Chip) MakeProviderTitle(string name)
     {
@@ -277,6 +310,7 @@ public partial class IslandWindow : Window
         var open = state != IslandState.Compact
             && (previous == IslandState.Compact || state == IslandState.Expanded);
         AnimateSize(_model.Size, open);
+        AnimatePillSlots(open);
         Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
 
         switch (state)
@@ -317,6 +351,42 @@ public partial class IslandWindow : Window
         Silhouette.Width = size.Width;
         Silhouette.Height = size.Height;
         Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
+        LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
+        RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
+        var slot = new GridLength(PillSlotTarget());
+        LeftPillColumn.Width = slot;
+        RightPillColumn.Width = slot;
+    }
+
+    /// Pill slots exist in peek — and in compact when "always show usage"
+    /// keeps the percentages painted; they collapse in expanded so the logo
+    /// tabs glide out to the panel corners.
+    private double PillSlotTarget() => _model.State switch
+    {
+        IslandState.Peek => IslandModel.PillSlotWidth,
+        IslandState.Compact when AlwaysShowUsageStore.Shared.Enabled => IslandModel.PillSlotWidth,
+        _ => 0,
+    };
+
+    private void AnimatePillSlots(bool open)
+    {
+        var duration = open ? IslandAnimations.OpenMorphDuration : IslandAnimations.CloseMorphDuration;
+        var animation = new GridLengthAnimation
+        {
+            From = LeftPillColumn.Width,
+            To = new GridLength(PillSlotTarget()),
+            Duration = duration,
+            EasingFunction = open ? IslandAnimations.OpenMorph() : IslandAnimations.CloseMorph(),
+            FillBehavior = FillBehavior.Stop,
+        };
+        animation.Completed += (_, _) =>
+        {
+            var final = new GridLength(PillSlotTarget());
+            LeftPillColumn.Width = final;
+            RightPillColumn.Width = final;
+        };
+        LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, animation);
+        RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, animation.Clone());
     }
 
     private void FadePills(bool visible, int delayMs, double seconds)

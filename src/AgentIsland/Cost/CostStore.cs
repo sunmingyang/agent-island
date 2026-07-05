@@ -76,15 +76,16 @@ public sealed class CostStore : INotifyPropertyChanged
     private void InjectDemoData()
     {
         var now = DateTimeOffset.Now;
-        Claude = DemoSummary(now, 146.61, 211_240_000, 21_120_000, 1_510.80, 2_170_000_000, 217_100_000);
-        Codex = DemoSummary(now, 136.50, 164_120_000, 32_820_000, 1_342.60, 1_610_000_000, 322_860_000);
+        Claude = DemoSummary(now, 146.61, 211_240_000, 21_120_000, 1_510.80, 2_170_000_000, 217_100_000, seed: 7);
+        Codex = DemoSummary(now, 136.50, 164_120_000, 32_820_000, 1_342.60, 1_610_000_000, 322_860_000, seed: 21);
         LastUpdated = now;
     }
 
     private static ProviderCostSummary DemoSummary(
         DateTimeOffset now,
         double todayDollars, long todayTokens, long todayBillable,
-        double monthDollars, long monthTokens, long monthBillable)
+        double monthDollars, long monthTokens, long monthBillable,
+        int seed = 7)
     {
         var hourly = new double[24];
         var progress = Math.Max(1, now.Hour);
@@ -100,10 +101,21 @@ public sealed class CostStore : INotifyPropertyChanged
         {
             dailySeries[d] = monthDollars * (d + 1) / dayCount;
         }
+        // Sparse, believable year: quiet start, dense spring/summer — the
+        // shape the real product screenshots show. Per-provider seeds keep
+        // the two histories from overlapping every day (which would render
+        // the whole grid as split cells).
         var history = new List<DailyTokenBucket>();
-        var random = new Random(7);
+        var random = new Random(seed);
         for (var day = new DateTimeOffset(now.Year, 1, 1, 0, 0, 0, now.Offset); day <= now; day = day.AddDays(1))
         {
+            var density = day.Month switch
+            {
+                <= 2 => 0.05,
+                3 => 0.3,
+                >= 4 => 0.75,
+            };
+            if (random.NextDouble() > density) continue;
             var tokens = (long)(monthTokens / 30.0 * (0.2 + random.NextDouble()));
             history.Add(new DailyTokenBucket(day, tokens, tokens / 10, tokens / 1_500_000.0));
         }
