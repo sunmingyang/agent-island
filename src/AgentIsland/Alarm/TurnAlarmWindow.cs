@@ -39,6 +39,8 @@ public sealed class TurnAlarmWindow : Window
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Title = Localization.L10n.Tr("It's your turn");
+        System.Windows.Media.TextOptions.SetTextFormattingMode(
+            this, System.Windows.Media.TextFormattingMode.Display);
 
         var tint = IslandColors.For(provider);
         Content = BuildContent(tint);

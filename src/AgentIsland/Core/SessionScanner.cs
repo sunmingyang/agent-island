@@ -23,11 +23,15 @@ public static class SessionScanner
 
     // MARK: - Entry points
 
-    /// Picker scan: desktop-titled Claude threads (archived filtered) + one
-    /// Codex entry per project.
+    /// Picker scan: desktop-titled Claude threads (archived filtered) UNION
+    /// transcript-only CLI threads the desktop store has never seen, plus
+    /// one Codex entry per project.
     public static List<ScannedSession> Scan(DateTimeOffset now, IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
     {
         var output = ScanClaudeFromDesktopStore(now, lastWorking);
+        var known = new HashSet<string>(output.Select(s => s.SessionId), StringComparer.Ordinal);
+        output.AddRange(ScanClaudeTranscripts(now, lastWorking, excludeArchived: true)
+            .Where(s => !known.Contains(s.SessionId)));
         output.AddRange(ScanCodex(now, lastWorking, limit: 30, dedupeProjects: true));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         return output;
@@ -82,13 +86,15 @@ public static class SessionScanner
 
     private static List<ScannedSession> ScanClaudeTranscripts(
         DateTimeOffset now,
-        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+        IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
+        bool excludeArchived = false)
     {
         var desktopSessions = ClaudeDesktopIndex();
         var output = new List<ScannedSession>();
         foreach (var (sid, path) in ClaudeTranscriptIndex())
         {
             desktopSessions.TryGetValue(sid, out var desktop);
+            if (excludeArchived && desktop is { IsArchived: true }) continue;
             var cwd = desktop?.Cwd is { Length: > 0 } dc ? dc : ProjectFromClaudeTranscript(path);
             var title = desktop?.Title ?? "";
             var state = SessionState(
@@ -199,10 +205,12 @@ public static class SessionScanner
         // `codex exec` runs) finish constantly; a human is never "up" in
         // them, so they must not raise turn alarms or drive the logo.
         // Interactive sessions carry a codex-family originator; missing
-        // originator = old CLI, treat as interactive.
+        // originator = old CLI, treat as interactive. The prefix check is
+        // case-insensitive: the Windows desktop app stamps "Codex Desktop".
         var originator = Jsonl.GetString(payload, "originator") ?? "";
         if (originator.Length > 0
-            && (!originator.StartsWith("codex", StringComparison.Ordinal) || originator == "codex_exec"))
+            && (!originator.StartsWith("codex", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(originator, "codex_exec", StringComparison.OrdinalIgnoreCase)))
         {
             return null;
         }

@@ -9,18 +9,23 @@ namespace AgentIsland.UI;
 
 /// Horizontal page carousel. Pages sit side by side on a canvas track that
 /// slides with the pageSwipe curve; edge-clamped, no wrap-around. Mouse
-/// wheel (and the footer dots) drive paging on Windows, standing in for the
-/// macOS trackpad swipe.
+/// drag, mouse wheel, and the footer dots drive paging on Windows, standing
+/// in for the macOS trackpad swipe.
 public sealed class PagedContent : Grid
 {
     private readonly Canvas _track = new();
     private readonly TranslateTransform _slide = new();
     private readonly List<(IslandScreen Screen, FrameworkElement View)> _pages = new();
     private int _wheelAccumulator;
+    private bool _pressed;
+    private bool _dragging;
+    private Point _dragOrigin;
+    private double _dragOriginX;
 
     public PagedContent()
     {
         ClipToBounds = true;
+        Background = Brushes.Transparent;
         _track.RenderTransform = _slide;
         Children.Add(_track);
         BuildPages();
@@ -41,6 +46,103 @@ public sealed class PagedContent : Grid
             }
         };
         MouseWheel += OnWheel;
+        // Drag-to-swipe. Preview events so a press anywhere in a page starts
+        // a potential drag; nothing is hijacked until clear horizontal
+        // intent, so buttons still click and lists still scroll vertically.
+        PreviewMouseLeftButtonDown += OnDragPress;
+        PreviewMouseMove += OnDragMove;
+        PreviewMouseLeftButtonUp += OnDragRelease;
+        LostMouseCapture += (_, _) => { if (_dragging) SettleDrag(); };
+    }
+
+    private void OnDragPress(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (_pages.Count < 2 || ActualWidth <= 0) return;
+        _pressed = true;
+        _dragging = false;
+        _dragOrigin = e.GetPosition(this);
+    }
+
+    private void OnDragMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_pressed) return;
+        var pos = e.GetPosition(this);
+        var dx = pos.X - _dragOrigin.X;
+        var dy = pos.Y - _dragOrigin.Y;
+        if (!_dragging)
+        {
+            if (Math.Abs(dx) < 14 || Math.Abs(dx) < Math.Abs(dy) * 1.2) return;
+            // Horizontal intent confirmed: take over from wherever the track
+            // currently sits (mid-animation included) and re-anchor there.
+            _dragOriginX = _slide.X;
+            _slide.BeginAnimation(TranslateTransform.XProperty, null);
+            _slide.X = _dragOriginX;
+            _dragOrigin = pos;
+            _dragging = true;
+            CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+        var width = ActualWidth;
+        var raw = _dragOriginX + (pos.X - _dragOrigin.X);
+        var min = -(_pages.Count - 1) * width;
+        // Rubber-band past the first/last page instead of hard-stopping.
+        if (raw > 0) raw /= 3;
+        else if (raw < min) raw = min + (raw - min) / 3;
+        _slide.X = raw;
+        e.Handled = true;
+    }
+
+    private void OnDragRelease(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var wasDragging = _dragging;
+        _pressed = false;
+        if (!wasDragging) return;
+        SettleDrag();
+        e.Handled = true;
+    }
+
+    /// Chooses the landing page after a drag: nearest page, nudged one step
+    /// in the drag direction when the displacement passes 18% of a page.
+    private void SettleDrag()
+    {
+        _dragging = false;
+        _pressed = false;
+        if (IsMouseCaptured) ReleaseMouseCapture();
+        var width = ActualWidth;
+        if (width <= 0 || _pages.Count == 0) return;
+
+        var originIndex = (int)Math.Clamp(Math.Round(-_dragOriginX / width), 0, _pages.Count - 1);
+        var displacement = _slide.X - -originIndex * width;
+        if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_LAYOUTLOG") == "1")
+        {
+            try
+            {
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(Core.IslandPaths.AppSupportDir, "drag.log"),
+                    $"{DateTime.Now:HH:mm:ss.fff} settle originX={_dragOriginX:F0} slideX={_slide.X:F0} " +
+                    $"width={width:F0} originIndex={originIndex} displacement={displacement:F0} pages={_pages.Count}\n");
+            }
+            catch
+            {
+            }
+        }
+        var target = originIndex;
+        if (Math.Abs(displacement) > width * 0.18)
+        {
+            target = originIndex + (displacement < 0 ? 1 : -1);
+        }
+        target = Math.Clamp(target, 0, _pages.Count - 1);
+
+        var screen = _pages[target].Screen;
+        if (ScreenPref.Shared.Screen == screen)
+        {
+            Relayout(animate: true);
+        }
+        else
+        {
+            ScreenPref.Shared.Screen = screen;
+        }
     }
 
     private void BuildPages()

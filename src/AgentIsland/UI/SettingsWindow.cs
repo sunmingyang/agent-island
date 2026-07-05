@@ -60,6 +60,10 @@ public sealed class SettingsWindow : Window
         MinHeight = 420;
         Background = IslandColors.Brush(IslandColors.AlarmBackground);
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        // Pixel-snapped glyphs: the 10-13px settings copy is blurry in WPF's
+        // default Ideal mode.
+        System.Windows.Media.TextOptions.SetTextFormattingMode(
+            this, System.Windows.Media.TextFormattingMode.Display);
 
         var root = new DockPanel();
         Content = root;
@@ -551,17 +555,9 @@ public sealed class SettingsWindow : Window
             "Keep the 5-hour and weekly percentages beside the logos without hovering.",
             alwaysShow));
 
-        var width = new Segmented(
-            new[] { L10n.Tr("Compact"), L10n.Tr("Notched Mac") },
-            IslandModel.Shared.SpacingMode == IslandSpacingMode.Compact ? 0 : 1);
-        width.SelectionChanged += index =>
-            IslandModel.Shared.SpacingMode = index == 0 ? IslandSpacingMode.Compact : IslandSpacingMode.NotchStyle;
-        stack.Children.Add(new SettingsRowControl(
-            "Bar style",
-            "Wide mirrors the MacBook notch layout; Compact narrows the top bar.",
-            width));
-
-        // 屏幕.
+        // 屏幕. (The macOS bar-style choice — Compact vs Notched Mac — is
+        // meaningless on Windows, where no display has a notch; the bar is
+        // always the wide layout.)
         stack.Children.Add(SectionLabel("Screen"));
         var screens = System.Windows.Forms.Screen.AllScreens;
         var display = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };

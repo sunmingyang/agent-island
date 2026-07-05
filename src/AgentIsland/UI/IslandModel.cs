@@ -46,10 +46,10 @@ public sealed class IslandModel : INotifyPropertyChanged
 
     private IslandModel()
     {
-        var raw = Core.Preferences.Get<string?>("MacIsland.spacingMode");
-        _spacingMode = raw == nameof(IslandSpacingMode.Compact)
-            ? IslandSpacingMode.Compact
-            : IslandSpacingMode.NotchStyle;
+        // Windows displays have no notch, so the macOS Compact/Notched-Mac
+        // bar-style choice is gone: the bar is always the wide layout
+        // (any previously persisted choice is ignored).
+        _spacingMode = IslandSpacingMode.NotchStyle;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

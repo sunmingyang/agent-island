@@ -10,7 +10,8 @@
         Topmost="True"
         ShowInTaskbar="False"
         ShowActivated="False"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"
+        TextOptions.TextFormattingMode="Display">
     <Grid x:Name="RootHost">
         <!-- Rotating comet ring hugging the island edge (LoadingSweep on
              macOS). Sized +4 over the silhouette so half the 4px stroke

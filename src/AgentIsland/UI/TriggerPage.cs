@@ -341,6 +341,8 @@ public sealed class SessionPickerWindow : Window
         Title = Localization.L10n.Tr("Add & enable");
         Width = 460;
         Height = 400;
+        System.Windows.Media.TextOptions.SetTextFormattingMode(
+            this, System.Windows.Media.TextFormattingMode.Display);
         WindowStyle = WindowStyle.ToolWindow;
         Background = IslandColors.Brush(IslandColors.AlarmBackground);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
