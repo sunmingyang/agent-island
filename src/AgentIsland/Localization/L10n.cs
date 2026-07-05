@@ -63,5 +63,16 @@ public static class L10n
         ["Overview"] = "总览",
         ["Triggers"] = "自动续跑",
         ["coming soon"] = "即将上线",
+        ["It's your turn"] = "该你了",
+        ["{0} is waiting"] = "{0} 在等你",
+        ["The session finished. Come back and reply."] = "会话已完成，回来接手吧。",
+        ["Open session"] = "打开会话",
+        ["Got it"] = "知道了",
+        ["Provider"] = "提供方",
+        ["Session"] = "会话",
+        ["Project"] = "项目",
+        ["{0} is waiting for you"] = "{0} 在等你回复",
+        ["A background coding session finished a turn: {0}."] = "后台编码会话完成了一轮：{0}。",
+        ["A background coding session finished a turn. It is your turn."] = "后台编码会话完成了一轮，该你了。",
     };
 }

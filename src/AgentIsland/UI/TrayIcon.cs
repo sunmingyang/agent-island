@@ -7,6 +7,10 @@ namespace AgentIsland.UI;
 /// presence. Hosts the quit action and a visibility toggle for the island.
 public sealed class TrayIcon : IDisposable
 {
+    /// Set by App at startup; the reminder center routes its system
+    /// notification (balloon) through here.
+    public static TrayIcon? Current { get; set; }
+
     private readonly System.Windows.Forms.NotifyIcon _icon;
 
     public TrayIcon(Action toggleIsland, Action openSettings, Action exit)
@@ -44,8 +48,21 @@ public sealed class TrayIcon : IDisposable
         }
     }
 
+    /// Windows toast-equivalent for the turn alarm's system notification.
+    public void ShowBalloon(string title, string body)
+    {
+        try
+        {
+            _icon.ShowBalloonTip(5000, title, body, System.Windows.Forms.ToolTipIcon.None);
+        }
+        catch
+        {
+        }
+    }
+
     public void Dispose()
     {
+        if (ReferenceEquals(Current, this)) Current = null;
         _icon.Visible = false;
         _icon.Dispose();
     }

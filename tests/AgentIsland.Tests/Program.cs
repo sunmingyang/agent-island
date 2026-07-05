@@ -18,6 +18,7 @@ public static class Program
         {
             SessionTurnStateTests.RunAll();
             UsageCachePolicyTests.RunAll();
+            ReminderDeliveryKeyTests.RunAll();
             Console.WriteLine("ALL GREEN");
             return 0;
         }

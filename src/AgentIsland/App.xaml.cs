@@ -35,6 +35,7 @@ public partial class App : System.Windows.Application
                 _tray?.Dispose();
                 Shutdown();
             });
+        TrayIcon.Current = _tray;
 
         ActivityMonitor.Shared.Start();
         UsageStore.Shared.StartAutoRefresh();
