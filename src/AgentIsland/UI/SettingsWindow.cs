@@ -374,9 +374,9 @@ public sealed class SettingsWindow : Window
             autoCheck));
 
         var check = new PillButtonControl(L10n.Tr("Check"));
-        check.Clicked += () => MessageBox.Show(this,
-            L10n.Tr("You're on the latest version. (Auto-update channel for Windows ships with a later release.)"),
-            "Agent Island");
+        check.Clicked += () => IslandDialog.ShowApp(
+            "Agent Island",
+            L10n.Tr("You're on the latest version. (Auto-update channel for Windows ships with a later release.)"));
         stack.Children.Add(new SettingsRowControl(
             "Check now", "Look for a new version immediately.", check));
 
@@ -645,20 +645,13 @@ public sealed class SettingsWindow : Window
         var visible = ProviderVisibilityStore.Shared.IsVisible(tool);
 
         var trailing = new StackPanel { Orientation = Orientation.Horizontal };
-        var canReauth = tool == TriggerTool.Claude
-            ? ClaudeCredentials.CanPromptReauth()
-            : CodexCredentials.CanPromptReauth();
-        if (canReauth)
-        {
-            var reauth = new PillButtonControl(L10n.Tr("Re-authenticate"));
-            reauth.Margin = new Thickness(0, 0, 8, 0);
-            reauth.Clicked += () =>
-            {
-                if (tool == TriggerTool.Claude) store.ReauthenticateClaude();
-                else store.ReauthenticateCodex();
-            };
-            trailing.Children.Add(reauth);
-        }
+        // Always offered: the click spawns the login terminal directly, and
+        // the branded dialog (with Retry) covers a genuinely missing CLI —
+        // hiding the button just strands people mid CLI update.
+        var reauth = new PillButtonControl(L10n.Tr("Re-authenticate"));
+        reauth.Margin = new Thickness(0, 0, 8, 0);
+        reauth.Clicked += () => ReauthFlow.Run(tool);
+        trailing.Children.Add(reauth);
         var toggle = new CobaltToggle(visible);
         toggle.Toggled += enabled =>
         {

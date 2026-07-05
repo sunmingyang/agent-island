@@ -116,19 +116,7 @@ public sealed class UsagePage : Border
             Cursor = System.Windows.Input.Cursors.Hand,
             Visibility = Visibility.Collapsed,
         };
-        button.Click += (_, _) =>
-        {
-            if (ClaudeCredentials.CanPromptReauth())
-            {
-                UsageStore.Shared.ReauthenticateClaude();
-            }
-            else
-            {
-                System.Windows.MessageBox.Show(
-                    Localization.L10n.Tr("Claude Code CLI not found. Log in from a terminal with: claude /login"),
-                    "Agent Island");
-            }
-        };
+        button.Click += (_, _) => ReauthFlow.Run(Core.TriggerTool.Claude);
         return button;
     }
 

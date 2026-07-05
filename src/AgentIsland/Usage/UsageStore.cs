@@ -218,11 +218,11 @@ public sealed class UsageStore : INotifyPropertyChanged
     /// then hit the usage API once when credentials actually change; polling
     /// the endpoint itself can trip Anthropic's rate limit and hide the real
     /// auth recovery behind a fresh `rate limited` error.
-    public void ReauthenticateClaude()
+    public bool ReauthenticateClaude()
     {
-        if (ClaudeReauthInProgress) return;
+        if (ClaudeReauthInProgress) return true;
         var initialStamp = ClaudeCredentials.CredentialsModificationStamp();
-        if (!ClaudeCredentials.SpawnReauth()) return;
+        if (!ClaudeCredentials.SpawnReauth()) return false;
         ClaudeReauthInProgress = true;
         _claudeReauthCts?.Cancel();
         var cts = new CancellationTokenSource();
@@ -241,13 +241,14 @@ public sealed class UsageStore : INotifyPropertyChanged
             }
             await FinishClaudeReauth(dispatcher);
         });
+        return true;
     }
 
-    public void ReauthenticateCodex()
+    public bool ReauthenticateCodex()
     {
-        if (CodexReauthInProgress) return;
+        if (CodexReauthInProgress) return true;
         var initialStamp = CodexCredentials.AuthModificationStamp();
-        if (!CodexCredentials.SpawnReauth()) return;
+        if (!CodexCredentials.SpawnReauth()) return false;
         CodexReauthInProgress = true;
         _codexReauthCts?.Cancel();
         var cts = new CancellationTokenSource();
@@ -266,6 +267,7 @@ public sealed class UsageStore : INotifyPropertyChanged
             }
             await FinishCodexReauth(dispatcher);
         });
+        return true;
     }
 
     private async Task FinishClaudeReauth(Dispatcher dispatcher)

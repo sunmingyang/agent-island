@@ -14,6 +14,14 @@ public static class Program
         {
             return LiveScan();
         }
+        if (args.Length > 0 && args[0] == "locate")
+        {
+            foreach (var name in new[] { "claude", "codex", "wt" })
+            {
+                Console.WriteLine($"{name} -> {Trigger.CLILocator.Locate(name) ?? "(null)"}");
+            }
+            return 0;
+        }
         try
         {
             SessionTurnStateTests.RunAll();

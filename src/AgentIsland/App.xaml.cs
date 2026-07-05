@@ -46,11 +46,26 @@ public partial class App : System.Windows.Application
         Trigger.TriggerEngine.Shared.Start();
         Model.AlertEngine.Shared.Start();
 
-        // Scripted-verification hook, mirroring the demo-only buttons on
+        // Scripted-verification hooks, mirroring the demo-only buttons on
         // macOS: never set in normal use.
         if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_OPEN_SETTINGS") == "1")
         {
             UI.SettingsWindow.Open();
+        }
+        if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_DIALOG") == "1")
+        {
+            IslandDialog.Show(
+                TriggerTool.Claude,
+                Localization.L10n.Tr("Re-authenticate"),
+                Localization.L10n.Tr("Claude Code CLI not found. Log in from a terminal with: claude /login"),
+                meta: new[]
+                {
+                    (Localization.L10n.Tr("Alarm provider"), "Claude"),
+                    (Localization.L10n.Tr("Alarm thread"), "Agent Island Windows"),
+                    (Localization.L10n.Tr("Alarm project"), "AgentIsland"),
+                },
+                primaryLabel: Localization.L10n.Tr("Retry"),
+                secondaryLabel: Localization.L10n.Tr("I know"));
         }
     }
 
