@@ -46,10 +46,10 @@ public static class IslandAnimations
     /// Working-logo spin: one revolution per 3.8s, linear.
     public static readonly Duration SpinDuration = new(TimeSpan.FromSeconds(3.8));
 
-    /// Working breath: scale 0.97-1.06 over a 1.7s ease-in-out cycle.
+    /// Working breath: scale 1.0-1.05, ease-in-out, 1.7s each direction.
     public static readonly Duration WorkingBreathDuration = new(TimeSpan.FromSeconds(1.7));
 
-    /// Attention pulse: scale 0.97-1.14 over a 0.42s cycle.
+    /// Attention pulse: scale 1.0-1.16, ease-in-out, 0.42s each direction.
     public static readonly Duration AttentionPulseDuration = new(TimeSpan.FromSeconds(0.42));
 
     private static IEasingFunction MakeBezier(double x1, double y1, double x2, double y2) =>

@@ -68,9 +68,13 @@ public sealed class ProviderLogo : Grid
         ApplyTint();
     }
 
+    /// The attention tint is a brighter alarm red than the chart alertRed —
+    /// Color(0.96, 0.34, 0.29) in LogoOverlay.
+    private static readonly Color AlarmRed = Color.FromRgb(0xF5, 0x57, 0x4A);
+
     private void ApplyTint()
     {
-        var color = _state.IsAttentionState() ? IslandColors.AlertRed : IslandColors.For(_tool);
+        var color = _state.IsAttentionState() ? AlarmRed : IslandColors.For(_tool);
         _path.Fill = IslandColors.Brush(color);
         _glow.Color = color;
     }
@@ -78,21 +82,22 @@ public sealed class ProviderLogo : Grid
     public void SetState(ActivityState state)
     {
         if (_state == state) return;
+        var wasWorking = _state == ActivityState.Working;
         _state = state;
         ApplyTint();
-        StopAnimations();
+        StopAnimations(unwindSpin: wasWorking);
         switch (state)
         {
             case ActivityState.Working:
                 StartSpin();
-                StartBreath(from: 0.97, to: 1.06, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan / 2);
-                StartGlow(from: 5, to: 2, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan / 2);
+                StartBreath(from: 1.0, to: 1.05, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan);
+                StartGlow(radiusFrom: 2, radiusTo: 5, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan);
                 break;
             case ActivityState.Stalled:
             case ActivityState.RateLimited:
             case ActivityState.AuthRequired:
-                StartBreath(from: 0.97, to: 1.14, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan / 2);
-                StartGlow(from: 10, to: 3, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan / 2);
+                StartBreath(from: 1.0, to: 1.16, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
+                StartGlow(radiusFrom: 4, radiusTo: 11, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
                 break;
             case ActivityState.Idle:
             case ActivityState.NeedsYou:
@@ -103,7 +108,9 @@ public sealed class ProviderLogo : Grid
 
     private void StartSpin()
     {
-        var spin = new DoubleAnimation(0, 360, IslandAnimations.SpinDuration)
+        // The marks counter-rotate: Claude clockwise, Codex the other way.
+        var to = _tool == TriggerTool.Claude ? 360d : -360d;
+        var spin = new DoubleAnimation(0, to, IslandAnimations.SpinDuration)
         {
             RepeatBehavior = RepeatBehavior.Forever,
         };
@@ -122,25 +129,48 @@ public sealed class ProviderLogo : Grid
         _scale.BeginAnimation(ScaleTransform.ScaleYProperty, breath);
     }
 
-    private void StartGlow(double from, double to, TimeSpan halfCycle)
+    private void StartGlow(double radiusFrom, double radiusTo, TimeSpan halfCycle)
     {
-        _glow.Opacity = 0.55;
-        var pulse = new DoubleAnimation(from, to, new Duration(halfCycle))
+        // Radius and strength breathe together — shadow(tint.opacity(pulse
+        // ? 0.9 : 0.25), radius: ...) on macOS.
+        var radius = new DoubleAnimation(radiusFrom, radiusTo, new Duration(halfCycle))
         {
             AutoReverse = true,
             RepeatBehavior = RepeatBehavior.Forever,
             EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
         };
-        _glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulse);
+        var strength = new DoubleAnimation(0.25, 0.9, new Duration(halfCycle))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+        _glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, radius);
+        _glow.BeginAnimation(DropShadowEffect.OpacityProperty, strength);
     }
 
-    private void StopAnimations()
+    private void StopAnimations(bool unwindSpin = false)
     {
+        // Capture the live angle before detaching the animation so a
+        // finished spin can settle back to upright instead of snapping.
+        var angle = _rotate.Angle % 360;
+        if (angle > 180) angle -= 360;
+        if (angle < -180) angle += 360;
         _rotate.BeginAnimation(RotateTransform.AngleProperty, null);
         _scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         _scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         _glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
+        _glow.BeginAnimation(DropShadowEffect.OpacityProperty, null);
         _rotate.Angle = 0;
+        if (unwindSpin && Math.Abs(angle) > 0.5 && _state != ActivityState.Working)
+        {
+            var settle = new DoubleAnimation(angle, 0, new Duration(TimeSpan.FromSeconds(0.35)))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+                FillBehavior = FillBehavior.Stop,
+            };
+            _rotate.BeginAnimation(RotateTransform.AngleProperty, settle);
+        }
         _scale.ScaleX = 1;
         _scale.ScaleY = 1;
         _glow.BlurRadius = 0;

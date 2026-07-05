@@ -133,7 +133,7 @@ public sealed class TurnAlarmWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = Localization.L10n.Tr("The session finished. Come back and reply."),
+            Text = Localization.L10n.Tr("The thread finished. Come back and reply."),
             FontFamily = IslandFonts.Ui,
             FontSize = 14,
             FontWeight = FontWeights.Medium,
@@ -148,7 +148,7 @@ public sealed class TurnAlarmWindow : Window
         }
 
         var open = MakeButton(
-            Localization.L10n.Tr("Open session"),
+            Localization.L10n.Tr("Open thread"),
             foreground: Colors.White,
             background: tint,
             bold: true);
@@ -161,7 +161,7 @@ public sealed class TurnAlarmWindow : Window
         stack.Children.Add(open);
 
         var gotIt = MakeButton(
-            Localization.L10n.Tr("Got it"),
+            Localization.L10n.Tr("I know"),
             foreground: IslandColors.White(0.85),
             background: IslandColors.White(0.06),
             bold: false);
@@ -178,12 +178,12 @@ public sealed class TurnAlarmWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        AddMeta(grid, 0, Localization.L10n.Tr("Provider"), Provider.Display(), tint);
-        AddMeta(grid, 1, Localization.L10n.Tr("Session"), thread.Label, null);
+        AddMeta(grid, 0, Localization.L10n.Tr("Alarm provider"), Provider.Display(), tint);
+        AddMeta(grid, 1, Localization.L10n.Tr("Alarm thread"), thread.Label, null);
         var project = string.IsNullOrEmpty(thread.Cwd)
             ? "—"
             : System.IO.Path.GetFileName(thread.Cwd.TrimEnd('\\', '/'));
-        AddMeta(grid, 2, Localization.L10n.Tr("Project"), project, null);
+        AddMeta(grid, 2, Localization.L10n.Tr("Alarm project"), project, null);
         return grid;
     }
 

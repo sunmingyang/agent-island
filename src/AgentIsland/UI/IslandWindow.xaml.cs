@@ -35,6 +35,15 @@ public partial class IslandWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         PositionOnScreen();
+
+        // The sweep ring tracks the silhouette through every spring morph
+        // (+4 so half its stroke rides outside the edge).
+        Silhouette.SizeChanged += (_, args) =>
+        {
+            Sweep.Width = args.NewSize.Width + 4;
+            Sweep.Height = args.NewSize.Height + 4;
+        };
+        Model.LowPowerModeStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateHalo);
         SystemParameters.StaticPropertyChanged += (_, args) =>
         {
             if (args.PropertyName is nameof(SystemParameters.WorkArea)
@@ -48,7 +57,12 @@ public partial class IslandWindow : Window
         BuildExpandedChrome();
 
         ActivityMonitor.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePills);
+        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            UpdatePills();
+            // Loading is a glow event: it wakes the sweep in Low Power mode.
+            UpdateHalo();
+        });
         Model.AlertEngine.Shared.PropertyChanged += (_, args) => Dispatcher.BeginInvoke(() =>
         {
             if (args.PropertyName == nameof(Model.AlertEngine.Pulse)) HandleAlertPulse();
@@ -246,6 +260,7 @@ public partial class IslandWindow : Window
     private void OnSilhouetteMouseEnter(object sender, MouseEventArgs e)
     {
         _hovering = true;
+        UpdateHalo();
         if (_model.State == IslandState.Compact)
         {
             SetState(IslandState.Peek);
@@ -255,6 +270,7 @@ public partial class IslandWindow : Window
     private void OnSilhouetteMouseLeave(object sender, MouseEventArgs e)
     {
         _hovering = false;
+        UpdateHalo();
         // Pills fade first (~80ms), then the silhouette springs back.
         var delay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
         delay.Tick += (_, _) =>
@@ -312,6 +328,23 @@ public partial class IslandWindow : Window
         AnimateSize(_model.Size, open);
         AnimatePillSlots(open);
         Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
+        Sweep.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius + 2, _model.CornerRadius + 2);
+
+        // Expanded panel gains the hairline stroke and grounding shadow of
+        // the macOS GlowLayer; both drop on collapse.
+        var expanded = state == IslandState.Expanded;
+        Silhouette.BorderBrush = expanded ? IslandColors.Brush(IslandColors.White(0.12)) : null;
+        Silhouette.BorderThickness = new Thickness(expanded ? 0.5 : 0);
+        RootHost.Effect = expanded
+            ? new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = Colors.Black,
+                Opacity = 0.5,
+                BlurRadius = 20,
+                ShadowDepth = 10,
+                Direction = 270,
+            }
+            : null;
 
         switch (state)
         {
@@ -351,6 +384,7 @@ public partial class IslandWindow : Window
         Silhouette.Width = size.Width;
         Silhouette.Height = size.Height;
         Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
+        Sweep.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius + 2, _model.CornerRadius + 2);
         LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
         RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
         var slot = new GridLength(PillSlotTarget());
@@ -477,9 +511,14 @@ public partial class IslandWindow : Window
     }
 
     private HaloMode _haloMode = HaloMode.Rest;
+    private readonly RotateTransform _sweepRotate = new() { CenterX = 0.5, CenterY = 0.5 };
+    private Color _sweepTint;
+    private bool _sweepActive;
+    private bool _sweepSpinning;
 
-    /// Attention states pulse the halo red; threshold alerts hold a
-    /// sustained amber/red tint. Attention outranks the alert tint.
+    /// Attention states pulse the halo red (opacity and radius breathe
+    /// together, macOS GlowLayer numbers); threshold alerts hold a sustained
+    /// amber/red tint; at rest the island keeps a soft cobalt aura.
     private void UpdateHalo()
     {
         var monitor = ActivityMonitor.Shared;
@@ -493,39 +532,100 @@ public partial class IslandWindow : Window
                 Model.AlertSeverity.Warning => HaloMode.WarningTint,
                 _ => HaloMode.Rest,
             };
-        if (mode == _haloMode) return;
-        _haloMode = mode;
-
-        Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, null);
-        switch (mode)
+        if (mode != _haloMode)
         {
-            case HaloMode.AttentionPulse:
-                Halo.Color = IslandColors.AlertRed;
-                Halo.Opacity = 0.55;
-                var pulse = new DoubleAnimation(10, 18, new Duration(TimeSpan.FromSeconds(0.21)))
-                {
-                    AutoReverse = true,
-                    RepeatBehavior = RepeatBehavior.Forever,
-                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-                };
-                Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, pulse);
-                break;
-            case HaloMode.CriticalTint:
-                Halo.Color = IslandColors.AlertRed;
-                Halo.Opacity = 0.5;
-                Halo.BlurRadius = 16;
-                break;
-            case HaloMode.WarningTint:
-                Halo.Color = IslandColors.AlertAmber;
-                Halo.Opacity = 0.5;
-                Halo.BlurRadius = 16;
-                break;
-            case HaloMode.Rest:
-            default:
-                Halo.Color = Colors.Black;
-                Halo.Opacity = 0.35;
-                Halo.BlurRadius = 14;
-                break;
+            _haloMode = mode;
+            Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, null);
+            Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, null);
+            switch (mode)
+            {
+                case HaloMode.AttentionPulse:
+                    Halo.Color = IslandColors.AlertRed;
+                    var half = IslandAnimations.AttentionPulseDuration.TimeSpan;
+                    var radius = new DoubleAnimation(14, 22, new Duration(half))
+                    {
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever,
+                        EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                    };
+                    var strength = new DoubleAnimation(0.35, 0.85, new Duration(half))
+                    {
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever,
+                        EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                    };
+                    Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, radius);
+                    Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, strength);
+                    break;
+                case HaloMode.CriticalTint:
+                    Halo.Color = IslandColors.AlertRed;
+                    Halo.Opacity = 0.35;
+                    Halo.BlurRadius = 14;
+                    break;
+                case HaloMode.WarningTint:
+                    Halo.Color = IslandColors.AlertAmber;
+                    Halo.Opacity = 0.35;
+                    Halo.BlurRadius = 14;
+                    break;
+                case HaloMode.Rest:
+                default:
+                    Halo.Color = IslandColors.Cobalt;
+                    Halo.Opacity = 0.35;
+                    Halo.BlurRadius = 14;
+                    break;
+            }
+        }
+        // Low Power drops the resting aura until something glows for a reason.
+        if (_haloMode == HaloMode.Rest)
+        {
+            Halo.Opacity = Model.LowPowerModeStore.Shared.Enabled && !GlowEventActive() ? 0 : 0.35;
+        }
+        UpdateSweep();
+    }
+
+    private bool GlowEventActive() =>
+        _hovering
+        || UsageStore.Shared.Loading
+        || Model.AlertEngine.Shared.Severity != Model.AlertSeverity.None;
+
+    /// The rotating comet ring hugging the island edge — always alive unless
+    /// Low Power idles it between glow events. Tint follows the halo.
+    private void UpdateSweep()
+    {
+        var monitor = ActivityMonitor.Shared;
+        var attention = monitor.Claude.IsAttentionState() || monitor.Codex.IsAttentionState();
+        var tint = attention
+            ? IslandColors.AlertRed
+            : Model.AlertEngine.Shared.Severity switch
+            {
+                Model.AlertSeverity.Critical => IslandColors.AlertRed,
+                Model.AlertSeverity.Warning => IslandColors.AlertAmber,
+                _ => IslandColors.Cobalt,
+            };
+        var active = !Model.LowPowerModeStore.Shared.Enabled || GlowEventActive();
+        if (active == _sweepActive && tint == _sweepTint) return;
+        _sweepActive = active;
+        _sweepTint = tint;
+        if (!active)
+        {
+            Sweep.Visibility = Visibility.Collapsed;
+            _sweepRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            _sweepSpinning = false;
+            return;
+        }
+        Sweep.Visibility = Visibility.Visible;
+        // The brush swaps with the tint, but the shared transform keeps the
+        // rotation phase, so recolors never visibly restart the sweep.
+        Sweep.BorderBrush = ConicSweepBrush.Make(tint, _sweepRotate);
+        if (!_sweepSpinning)
+        {
+            _sweepSpinning = true;
+            // 100 degrees per second, same as the macOS TimelineView sweep.
+            var spin = new DoubleAnimation(0, 360, new Duration(TimeSpan.FromSeconds(3.6)))
+            {
+                RepeatBehavior = RepeatBehavior.Forever,
+            };
+            _sweepRotate.BeginAnimation(RotateTransform.AngleProperty, spin);
         }
     }
 

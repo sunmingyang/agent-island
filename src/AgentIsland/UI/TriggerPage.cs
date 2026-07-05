@@ -43,7 +43,7 @@ public sealed class TriggerPage : Border
         header.Children.Add(_countdowns);
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
-        actions.Children.Add(SmallButton("+ " + Localization.L10n.Tr("Add rule"), OpenPicker));
+        actions.Children.Add(SmallButton("+ " + Localization.L10n.Tr("Add & enable"), OpenPicker));
         var manage = SmallButton(Localization.L10n.Tr("Manage"), null);
         manage.Click += (_, _) => OpenManageMenu(manage);
         manage.Margin = new Thickness(8, 0, 0, 0);
@@ -73,7 +73,7 @@ public sealed class TriggerPage : Border
         };
         _empty = new TextBlock
         {
-            Text = Localization.L10n.Tr("No rules yet."),
+            Text = Localization.L10n.Tr("No triggers yet."),
             FontFamily = IslandFonts.Ui,
             FontSize = 12,
             Foreground = IslandColors.Brush(IslandColors.White(0.45)),
@@ -84,7 +84,7 @@ public sealed class TriggerPage : Border
         {
             Child = new TextBlock
             {
-                Text = Localization.L10n.Tr("New rule"),
+                Text = Localization.L10n.Tr("Add a trigger"),
                 FontFamily = IslandFonts.Ui,
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
@@ -183,7 +183,7 @@ public sealed class TriggerPage : Border
         };
         text.Children.Add(title);
         var modeCaption = trigger.Mode == TriggerMode.AfterReset
-            ? Localization.L10n.Tr("after quota reset")
+            ? Localization.L10n.Tr("After reset")
             : Localization.L10n.TrFormat("every {0}h", trigger.EveryHours);
         var subtitle = new TextBlock
         {
@@ -267,7 +267,7 @@ public sealed class TriggerPage : Border
         var menu = new ContextMenu();
         var kill = new MenuItem
         {
-            Header = Localization.L10n.Tr("Auto-resume enabled (kill switch)"),
+            Header = Localization.L10n.Tr("Auto-resume kill switch"),
             IsCheckable = true,
             IsChecked = TriggerSafetyStore.Shared.ExecutionEnabled,
         };
@@ -338,7 +338,7 @@ public sealed class SessionPickerWindow : Window
 {
     public SessionPickerWindow()
     {
-        Title = Localization.L10n.Tr("Add rule");
+        Title = Localization.L10n.Tr("Add & enable");
         Width = 460;
         Height = 400;
         WindowStyle = WindowStyle.ToolWindow;

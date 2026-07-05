@@ -9,6 +9,16 @@ namespace AgentIsland.Alarm;
 /// window shows session details.
 public sealed class AgentReminderStore : INotifyPropertyChanged
 {
+    /// Built-in presets, synthesized to match the character of the macOS
+    /// alert-sound palette (Basso, Blow, Bottle, …). Keys are stable; the
+    /// display names localize (低音, 吹气, 瓶子, …). Declared before Shared:
+    /// static initializers run in declaration order, and the instance ctor
+    /// reads this array.
+    public static readonly string[] SoundPresets =
+    {
+        "Basso", "Blow", "Bottle", "Frog", "Glass", "Hero", "Ping", "Submarine",
+    };
+
     public static AgentReminderStore Shared { get; } = new();
 
     private const string EnabledKey = "AgentIsland.agentReminders";
@@ -17,14 +27,6 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     private const string SoundChoiceKey = "AgentIsland.agentReminderSoundChoice";
     private const string CustomSoundKey = "AgentIsland.agentReminderCustomSound";
     private const string ShowDetailsKey = "AgentIsland.agentReminderShowSessionDetails";
-
-    /// Built-in presets resolved against C:\Windows\Media — the Windows
-    /// counterpart of the macOS system-sound list.
-    public static readonly string[] SoundPresets =
-    {
-        "Alarm01", "Alarm02", "Alarm05", "Alarm10",
-        "Ring01", "Ring05", "chimes", "chord", "notify", "tada",
-    };
 
     public const string CustomSoundChoice = "Custom";
 
@@ -42,7 +44,13 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
         _enabled = Preferences.Get<bool?>(EnabledKey) ?? true;
         _soundEnabled = Preferences.Get<bool?>(SoundEnabledKey) ?? true;
         _volume = Math.Clamp(Preferences.Get<double?>(VolumeKey) ?? 0.8, 0, 1);
-        _soundChoice = Preferences.Get<string?>(SoundChoiceKey) ?? "Alarm01";
+        _soundChoice = Preferences.Get<string?>(SoundChoiceKey) ?? "Glass";
+        // Early builds referenced Windows Media names; fold them into the
+        // synthesized palette.
+        if (_soundChoice != CustomSoundChoice && !SoundPresets.Contains(_soundChoice))
+        {
+            _soundChoice = "Glass";
+        }
         _customSoundPath = Preferences.Get<string?>(CustomSoundKey) ?? "";
         _showSessionDetails = Preferences.Get<bool?>(ShowDetailsKey) ?? false;
     }
@@ -84,16 +92,34 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     }
 
     /// Resolves the current choice to a playable file, or null when nothing
-    /// usable exists (sound then simply stays silent).
+    /// usable exists (sound then simply stays silent). Presets synthesize
+    /// on first use.
     public string? ResolveSoundFile()
     {
         if (_soundChoice == CustomSoundChoice)
         {
             return File.Exists(_customSoundPath) ? _customSoundPath : null;
         }
-        var media = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Media", _soundChoice + ".wav");
-        return File.Exists(media) ? media : null;
+        return SoundSynth.EnsurePreset(_soundChoice);
+    }
+
+    /// Localized display name for a preset key — the zh names mirror the
+    /// macOS sound list (低音, 吹气, 瓶子, …).
+    public static string PresetLabel(string key)
+    {
+        if (!Localization.L10n.IsChinese) return key;
+        return key switch
+        {
+            "Basso" => "低音",
+            "Blow" => "吹气",
+            "Bottle" => "瓶子",
+            "Frog" => "青蛙",
+            "Glass" => "玻璃",
+            "Hero" => "英雄",
+            "Ping" => "叮",
+            "Submarine" => "水下",
+            _ => key,
+        };
     }
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

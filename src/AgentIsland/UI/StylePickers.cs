@@ -94,7 +94,7 @@ public sealed class ChartStylePickerControl : Grid
         ChartStyle.Bar => "Bar",
         ChartStyle.Stepped => "Stepped",
         ChartStyle.Numeric => "Numeric",
-        ChartStyle.Spark => "Spark",
+        ChartStyle.Spark => "Sparkline",
         _ => style.ToString(),
     });
 

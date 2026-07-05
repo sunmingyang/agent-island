@@ -11,7 +11,23 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         ResizeMode="NoResize">
-    <Grid>
+    <Grid x:Name="RootHost">
+        <!-- Rotating comet ring hugging the island edge (LoadingSweep on
+             macOS). Sized +4 over the silhouette so half the 4px stroke
+             peeks outside; the opaque silhouette covers the inner half. -->
+        <Border x:Name="Sweep"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Center"
+                Width="280"
+                Height="38"
+                Margin="0,-2,0,0"
+                CornerRadius="0,0,16,16"
+                BorderThickness="4"
+                IsHitTestVisible="False">
+            <Border.Effect>
+                <BlurEffect Radius="3"/>
+            </Border.Effect>
+        </Border>
         <Border x:Name="Silhouette"
                 VerticalAlignment="Top"
                 HorizontalAlignment="Center"
@@ -43,12 +59,14 @@
                         <ColumnDefinition Width="38"/>
                         <ColumnDefinition x:Name="RightPillColumn" Width="0"/>
                     </Grid.ColumnDefinitions>
+                    <!-- Pills anchor to the OUTER edges (14pt inset), leaving
+                         air between pill and logo — the macOS bar spacing. -->
                     <ui:NotchPeekPill x:Name="ClaudePill" Grid.Column="0"
-                                      HorizontalAlignment="Right" Margin="10,0,6,0" Opacity="0"/>
+                                      HorizontalAlignment="Left" Margin="14,0,6,0" Opacity="0"/>
                     <ui:ProviderLogo x:Name="ClaudeLogo" Grid.Column="1"/>
                     <ui:ProviderLogo x:Name="CodexLogo" Grid.Column="3"/>
                     <ui:NotchPeekPill x:Name="CodexPill" Grid.Column="4"
-                                      HorizontalAlignment="Left" Margin="6,0,10,0" Opacity="0"/>
+                                      HorizontalAlignment="Right" Margin="6,0,14,0" Opacity="0"/>
                 </Grid>
 
                 <!-- Expanded panel: swipeable pages over a fixed footer. -->
