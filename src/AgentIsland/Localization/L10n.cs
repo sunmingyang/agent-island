@@ -204,7 +204,7 @@ public static class L10n
         ["A thread finished — Agent Island opens an alarm window so you can reply."] = "会话已经结束时，Agent Island 会像闹钟一样弹出来提醒你回复。",
         ["Limits, login, network, or provider errors make the logo pulse red."] = "额度、登录、网络或服务异常时，图标会变红并放大提示。",
         ["Reminders"] = "提醒",
-        ["Pop up a foreground alarm and system notification when a background run needs you."] = "后台会话轮到你回复时，弹出前台提醒窗口并发送系统通知。",
+        ["Pop up a foreground alarm when a background run needs you."] = "后台会话轮到你回复时，弹出前台提醒窗口。",
         ["Show thread details"] = "显示会话详情",
         ["Show session and project names in alarms and notifications."] = "在提醒和通知里显示会话名、项目名。",
         ["Choose a built-in sound or use your own file."] = "选择提示音，也可以使用自己的音频文件。",

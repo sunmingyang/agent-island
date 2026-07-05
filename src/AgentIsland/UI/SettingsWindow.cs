@@ -81,7 +81,7 @@ public sealed class SettingsWindow : Window
         var root = new DockPanel();
         var shell = new Grid();
         shell.Children.Add(root);
-        shell.Children.Add(BuildWindowButtons());
+        shell.Children.Add(CaptionButtons.Build(this));
         Content = shell;
 
         var header = BuildBrandHeader();
@@ -119,74 +119,6 @@ public sealed class SettingsWindow : Window
     }
 
     // MARK: - Chrome
-
-    /// Minimize / maximize / close, embedded in the page's top-right corner
-    /// instead of a system title bar.
-    private UIElement BuildWindowButtons()
-    {
-        var panel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-        };
-
-        UIElement Make(string glyph, Action click, bool destructive)
-        {
-            var text = new TextBlock
-            {
-                Text = glyph,
-                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = 9.5,
-                Foreground = IslandColors.Brush(IslandColors.White(0.55)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            var host = new Border
-            {
-                Width = 38,
-                Height = 28,
-                Background = Brushes.Transparent,
-                Child = text,
-            };
-            host.MouseEnter += (_, _) =>
-            {
-                host.Background = destructive
-                    ? IslandColors.Brush(System.Windows.Media.Color.FromRgb(0xC4, 0x2B, 0x1C))
-                    : IslandColors.Brush(IslandColors.White(0.08));
-                text.Foreground = Brushes.White;
-            };
-            host.MouseLeave += (_, _) =>
-            {
-                host.Background = Brushes.Transparent;
-                text.Foreground = IslandColors.Brush(IslandColors.White(0.55));
-            };
-            host.MouseLeftButtonUp += (_, args) =>
-            {
-                args.Handled = true;
-                click();
-            };
-            // The strip sits inside the WindowChrome caption area; without
-            // this the drag hit-test swallows every click.
-            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(host, true);
-            return host;
-        }
-
-        panel.Children.Add(Make("", () => WindowState = WindowState.Minimized, destructive: false));
-        TextBlock? maxGlyph = null;
-        var maximize = Make("", () =>
-        {
-            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            if (maxGlyph is not null)
-            {
-                maxGlyph.Text = WindowState == WindowState.Maximized ? "" : "";
-            }
-        }, destructive: false);
-        maxGlyph = (TextBlock)((Border)maximize).Child;
-        panel.Children.Add(maximize);
-        panel.Children.Add(Make("", Close, destructive: true));
-        return panel;
-    }
 
     private UIElement BuildBrandHeader()
     {
@@ -1070,7 +1002,7 @@ public sealed class SettingsWindow : Window
         enabled.Toggled += value => AgentReminderStore.Shared.Enabled = value;
         stack.Children.Add(new SettingsRowControl(
             "Turn alarm",
-            "Pop up a foreground alarm and system notification when a background run needs you.",
+            "Pop up a foreground alarm when a background run needs you.",
             enabled));
 
         var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);

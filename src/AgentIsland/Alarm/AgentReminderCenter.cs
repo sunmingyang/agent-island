@@ -195,12 +195,8 @@ public sealed class AgentReminderCenter
 
     private void Deliver(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey)
     {
-        var name = provider.Display();
-        var title = Localization.L10n.TrFormat("{0} is waiting for you", name);
-        var body = AgentReminderStore.Shared.ShowSessionDetails && thread is not null
-            ? Localization.L10n.TrFormat("A background coding session finished a turn: {0}.", thread.Label)
-            : Localization.L10n.Tr("A background coding session finished a turn. It is your turn.");
-        UI.TrayIcon.Current?.ShowBalloon(title, body);
+        // The foreground alarm window IS the notification — a system toast
+        // in the corner would just repeat the same message next to it.
         TurnAlarmWindowController.Shared.Show(provider, thread, deliveryKey);
     }
 }

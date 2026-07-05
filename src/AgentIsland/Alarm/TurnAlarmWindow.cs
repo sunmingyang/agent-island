@@ -73,7 +73,14 @@ public sealed class TurnAlarmWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(40, 24, 40, 24),
         };
-        root.Child = stack;
+        var shell = new Grid();
+        shell.Children.Add(stack);
+        // Embedded caption strip; closing counts as acknowledged so the
+        // alarm doesn't redeliver.
+        var captions = (FrameworkElement)UI.CaptionButtons.Build(this, Acknowledge);
+        captions.Margin = new Thickness(0, 8, 8, 0);
+        shell.Children.Add(captions);
+        root.Child = shell;
 
         // Glow-pulsing provider mark inside a faint ring.
         var mark = new System.Windows.Shapes.Path
@@ -181,15 +188,35 @@ public sealed class TurnAlarmWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         AddMeta(grid, 0, Localization.L10n.Tr("Alarm provider"), Provider.Display(), tint);
-        AddMeta(grid, 1, Localization.L10n.Tr("Alarm thread"), thread.Label, null);
-        var project = string.IsNullOrEmpty(thread.Cwd)
-            ? "—"
-            : System.IO.Path.GetFileName(thread.Cwd.TrimEnd('\\', '/'));
-        AddMeta(grid, 2, Localization.L10n.Tr("Alarm project"), project, null);
+        // The headline already carries the label; the thread cell adds the
+        // short session id so two same-named sessions stay tellable apart.
+        var threadValue = thread.Label;
+        if (thread.SessionId is { Length: > 0 } sid)
+        {
+            threadValue = $"{thread.Label} · {(sid.Length > 8 ? sid[..8] : sid)}";
+        }
+        AddMeta(grid, 1, Localization.L10n.Tr("Alarm thread"), threadValue, null, tooltip: thread.SessionId);
+        AddMeta(grid, 2, Localization.L10n.Tr("Alarm project"), ProjectDisplay(thread.Cwd), null,
+            tooltip: string.IsNullOrEmpty(thread.Cwd) ? null : thread.Cwd);
         return grid;
     }
 
-    private static void AddMeta(Grid grid, int column, string caption, string value, Color? dotColor)
+    /// Last two path segments ("Fable5\skill") beat a bare folder name —
+    /// several projects share tail names like src or app.
+    private static string ProjectDisplay(string cwd)
+    {
+        if (string.IsNullOrEmpty(cwd)) return "—";
+        var trimmed = cwd.TrimEnd('\\', '/');
+        var name = System.IO.Path.GetFileName(trimmed);
+        if (string.IsNullOrEmpty(name)) return trimmed;
+        var parentPath = System.IO.Path.GetDirectoryName(trimmed);
+        var parent = string.IsNullOrEmpty(parentPath)
+            ? ""
+            : System.IO.Path.GetFileName(parentPath.TrimEnd('\\', '/'));
+        return string.IsNullOrEmpty(parent) ? name : parent + "\\" + name;
+    }
+
+    private static void AddMeta(Grid grid, int column, string caption, string value, Color? dotColor, string? tooltip = null)
     {
         var cell = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
         cell.Children.Add(new TextBlock
@@ -217,7 +244,7 @@ public sealed class TurnAlarmWindow : Window
                 Margin = new Thickness(0, 0, 6, 0),
             });
         }
-        valueRow.Children.Add(new TextBlock
+        var valueText = new TextBlock
         {
             Text = value,
             FontFamily = IslandFonts.Ui,
@@ -226,7 +253,12 @@ public sealed class TurnAlarmWindow : Window
             Foreground = Brushes.White,
             MaxWidth = 140,
             TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+        };
+        if (tooltip is { Length: > 0 })
+        {
+            valueText.ToolTip = tooltip;
+        }
+        valueRow.Children.Add(valueText);
         cell.Children.Add(valueRow);
         Grid.SetColumn(cell, column);
         grid.Children.Add(cell);
