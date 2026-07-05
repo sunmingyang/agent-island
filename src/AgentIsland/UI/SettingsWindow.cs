@@ -168,7 +168,7 @@ public sealed class SettingsWindow : Window
         {
             Child = new TextBlock
             {
-                Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0"),
+                Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0"),
                 FontFamily = IslandFonts.Mono,
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
@@ -344,9 +344,13 @@ public sealed class SettingsWindow : Window
             AppLanguageStore.Save(chosen);
             L10n.Current = chosen;
             App.Instance.RebuildForLanguageChange();
-            Title = "Agent Island — " + L10n.Tr("Settings");
-            BuildTabBar();
-            Select(_active);
+            // Recreate this window outright: patching just the title, tab
+            // bar, and rows left the brand header and footer in whatever
+            // language the window was BORN in (the "inverted slogan" bug).
+            // Close() raises Closed synchronously, clearing the singleton,
+            // so Open() builds a fresh window on the persisted tab.
+            Close();
+            Open();
         };
         stack.Children.Add(new SettingsRowControl(
             "Language", CurrentLanguageSubtitle(), language));
