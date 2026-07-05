@@ -78,5 +78,14 @@ public static class L10n
         ["{0} this month"] = "本月 {0}",
         ["{0} tokens · {1} billable"] = "{0} tokens · 计费 {1}",
         ["Click a day for details"] = "点击某天查看明细",
+        ["Add rule"] = "添加规则",
+        ["Manage"] = "管理",
+        ["after quota reset"] = "额度重置后",
+        ["every {0}h"] = "每 {0} 小时",
+        ["untrusted — click to trust"] = "未信任——点击信任",
+        ["No rules yet. Add one to auto-resume a session after the quota resets."] = "还没有规则。添加一条，让会话在额度重置后自动续跑。",
+        ["Auto-resume enabled (kill switch)"] = "自动续跑总开关",
+        ["Open run records"] = "打开运行记录",
+        ["Trust this project for auto-resume"] = "信任此项目用于自动续跑",
     };
 }

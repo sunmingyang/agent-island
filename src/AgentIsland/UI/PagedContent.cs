@@ -54,6 +54,7 @@ public sealed class PagedContent : Grid
                 IslandScreen.Usage => new UsagePage(),
                 IslandScreen.Cost => new CostPage(),
                 IslandScreen.Overview => new OverviewPage(),
+                IslandScreen.Triggers => new TriggerPage(),
                 _ => new PlaceholderPage(screen),
             };
             _pages.Add((screen, view));
@@ -71,6 +72,9 @@ public sealed class PagedContent : Grid
             var view = _pages[i].View;
             view.Width = width;
             view.Height = height;
+            // Pages sit edge to edge; clip each one so nothing bleeds
+            // through the seam while a neighbor is showing.
+            view.ClipToBounds = true;
             Canvas.SetLeft(view, i * width);
             Canvas.SetTop(view, 0);
         }
