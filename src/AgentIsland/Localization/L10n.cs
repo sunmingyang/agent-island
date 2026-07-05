@@ -192,5 +192,6 @@ public static class L10n
         ["Repeats until the alarm is dismissed."] = "响铃循环直到闹钟被关闭。",
         ["Preview plays on selection."] = "选中即试听。",
         ["Provider, session, and project fields on the alarm window."] = "闹钟窗口显示提供方、会话与项目字段。",
+        ["{0} active days"] = "{0} 个活跃日",
     };
 }
