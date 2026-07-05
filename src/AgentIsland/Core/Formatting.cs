@@ -32,6 +32,24 @@ public static class Formatting
             value.ToString(value >= 100 ? "0" : "0.#", System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// Long-form "when it happens" countdown: "4小时后"/"3分钟后" in zh,
+    /// "in 4h"/"in 3m" in en — the trigger-page reset caption format.
+    public static string LongCountdown(TimeSpan until, bool chinese)
+    {
+        var seconds = Math.Max(0, until.TotalSeconds);
+        if (chinese)
+        {
+            if (seconds < 60) return "1分钟内";
+            if (seconds < 3600) return $"{(int)(seconds / 60)}分钟后";
+            if (seconds < 86400) return $"{(int)(seconds / 3600)}小时后";
+            return $"{(int)(seconds / 86400)}天后";
+        }
+        if (seconds < 60) return "under 1m";
+        if (seconds < 3600) return $"in {(int)(seconds / 60)}m";
+        if (seconds < 86400) return $"in {(int)(seconds / 3600)}h";
+        return $"in {(int)(seconds / 86400)}d";
+    }
+
     /// Relative "synced" label: "just now", "2m ago", "1h ago".
     public static string RelativeAgo(TimeSpan since, bool chinese)
     {

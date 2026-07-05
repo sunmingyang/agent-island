@@ -17,7 +17,8 @@ public sealed class TriggerPage : Border
 {
     private readonly TextBlock _countdowns;
     private readonly StackPanel _list;
-    private readonly TextBlock _empty;
+    private TextBlock _empty = null!;
+    private StackPanel _emptyHost = null!;
 
     public TriggerPage()
     {
@@ -63,20 +64,48 @@ public sealed class TriggerPage : Border
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);
 
-        _empty = new TextBlock
+        // Empty state matches macOS: quiet caption over a prominent blue
+        // "New rule" action, centered in the page.
+        var emptyStack = new StackPanel
         {
-            Text = Localization.L10n.Tr("No rules yet. Add one to auto-resume a session after the quota resets."),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            Foreground = IslandColors.Brush(IslandColors.White(0.35)),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            MaxWidth = 420,
         };
-        Grid.SetRow(_empty, 1);
-        root.Children.Add(_empty);
+        _empty = new TextBlock
+        {
+            Text = Localization.L10n.Tr("No rules yet."),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+            Foreground = IslandColors.Brush(IslandColors.White(0.45)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        emptyStack.Children.Add(_empty);
+        var newRule = new Border
+        {
+            Child = new TextBlock
+            {
+                Text = Localization.L10n.Tr("New rule"),
+                FontFamily = IslandFonts.Ui,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+            },
+            Background = IslandColors.Brush(Color.FromRgb(0x2E, 0x7C, 0xF6)),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(16, 7, 16, 7),
+            Margin = new Thickness(0, 12, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        newRule.MouseLeftButtonUp += (_, args) =>
+        {
+            OpenPicker();
+            args.Handled = true;
+        };
+        emptyStack.Children.Add(newRule);
+        _emptyHost = emptyStack;
+        Grid.SetRow(emptyStack, 1);
+        root.Children.Add(emptyStack);
 
         TriggerStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
         TriggerSafetyStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
@@ -105,7 +134,7 @@ public sealed class TriggerPage : Border
             Foreground = Brushes.White,
         });
         var caption = resetAt is { } reset && reset > DateTimeOffset.Now
-            ? Localization.L10n.TrFormat("resets in {0}", Core.Formatting.CompactDuration(reset - DateTimeOffset.Now))
+            ? Core.Formatting.LongCountdown(reset - DateTimeOffset.Now, Localization.L10n.IsChinese)
             : "—";
         _countdowns.Inlines.Add(new System.Windows.Documents.Run(caption)
         {
@@ -117,7 +146,7 @@ public sealed class TriggerPage : Border
     {
         _list.Children.Clear();
         var triggers = TriggerStore.Shared.Triggers;
-        _empty.Visibility = triggers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _emptyHost.Visibility = triggers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var trigger in triggers)
         {
             _list.Children.Add(MakeRow(trigger));

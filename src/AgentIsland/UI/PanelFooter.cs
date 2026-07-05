@@ -111,13 +111,15 @@ public sealed class PanelFooter : Grid
 
     private void Update()
     {
-        // Usage carries no chip (the gear owns that corner, matching macOS);
-        // cost shows the cost style, other pages the chart style.
+        // Page-specific corner chip, macOS rules: usage none (the gear owns
+        // that corner), cost the cost style, overview the year, triggers AUTO.
         var pref = ScreenPref.Shared;
         _chip.Text = pref.Screen switch
         {
             IslandScreen.Usage => "",
             IslandScreen.Cost => CostStylePreferenceStore.Shared.ChipLabel,
+            IslandScreen.Overview => DateTime.Now.Year.ToString(),
+            IslandScreen.Triggers => L10n.Tr("AUTO"),
             _ => StylePreferenceStore.Shared.Style.ToString().ToUpperInvariant(),
         };
 
