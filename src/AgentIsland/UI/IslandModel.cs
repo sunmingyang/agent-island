@@ -97,11 +97,19 @@ public sealed class IslandModel : INotifyPropertyChanged
 
     public Size Size => _state switch
     {
+        // "Always show usage" keeps the compact bar at peek width so the
+        // percentages have their outboard slots even without a hover.
+        IslandState.Compact when AlwaysShowUsageStore.Shared.Enabled =>
+            new Size(NotchWidth + (TabWidth + PillSlotWidth) * 2, SilhouetteHeight),
         IslandState.Compact => new Size(NotchWidth + TabWidth * 2, SilhouetteHeight),
         IslandState.Peek => new Size(NotchWidth + (TabWidth + PillSlotWidth) * 2, SilhouetteHeight),
         IslandState.Expanded => new Size(ExpandedWidth, SilhouetteHeight + _expandedContentHeight),
         _ => new Size(NotchWidth + TabWidth * 2, SilhouetteHeight),
     };
+
+    /// Re-emit Size when "always show usage" flips so the compact bar
+    /// widens/narrows immediately.
+    public void NotifyAlwaysShowUsageChanged() => Raise(nameof(Size));
 
     public double CornerRadius => _state == IslandState.Expanded ? ExpandedCornerRadius : CompactCornerRadius;
 

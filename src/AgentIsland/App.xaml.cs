@@ -7,6 +7,8 @@ namespace AgentIsland;
 
 public partial class App : System.Windows.Application
 {
+    public static App Instance => (App)Current;
+
     private IslandWindow? _island;
     private TrayIcon? _tray;
 
@@ -50,6 +52,32 @@ public partial class App : System.Windows.Application
         {
             UI.SettingsWindow.Open();
         }
+    }
+
+    /// Rebuild the island (and its expanded chrome / tray menu) so a language
+    /// change lands everywhere immediately — the stores and monitors keep
+    /// running untouched, only the labels are re-created in the new language.
+    public void RebuildForLanguageChange()
+    {
+        var wasVisible = _island?.IsVisible ?? true;
+        _island?.Close();
+        _island = new IslandWindow();
+        if (wasVisible) _island.Show();
+
+        _tray?.Dispose();
+        _tray = new TrayIcon(
+            toggleIsland: () =>
+            {
+                if (_island is null) return;
+                if (_island.IsVisible) _island.Hide(); else _island.Show();
+            },
+            openSettings: UI.SettingsWindow.Open,
+            exit: () =>
+            {
+                _tray?.Dispose();
+                Shutdown();
+            });
+        TrayIcon.Current = _tray;
     }
 
     protected override void OnExit(ExitEventArgs e)

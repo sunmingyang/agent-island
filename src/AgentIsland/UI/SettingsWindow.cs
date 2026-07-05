@@ -70,6 +70,16 @@ public sealed class SettingsWindow : Window
         Select(0);
     }
 
+    /// Re-label the rail buttons in the current language (used after a live
+    /// language switch); the builders already read L10n at render time.
+    private void RebuildRail()
+    {
+        foreach (var (key, button, _) in _tabs)
+        {
+            button.Content = L10n.Tr(key);
+        }
+    }
+
     private void AddTab(string key, Func<UIElement> builder)
     {
         var button = new Button
@@ -122,15 +132,20 @@ public sealed class SettingsWindow : Window
         };
         language.SelectionChanged += (_, _) =>
         {
-            AppLanguageStore.Save(language.SelectedIndex switch
+            var chosen = language.SelectedIndex switch
             {
                 1 => L10n.Language.English,
                 2 => L10n.Language.SimplifiedChinese,
                 _ => L10n.Language.Auto,
-            });
-            MessageBox.Show(this,
-                L10n.Tr("Language saved. Restart Agent Island to apply everywhere."),
-                "Agent Island");
+            };
+            AppLanguageStore.Save(chosen);
+            L10n.Current = chosen;
+            // Rebuild the island + tray in the new language now; refresh this
+            // settings window too by re-selecting the active tab.
+            App.Instance.RebuildForLanguageChange();
+            Title = "Agent Island — " + L10n.Tr("Settings");
+            RebuildRail();
+            Select(0);
         };
         stack.Children.Add(Row(L10n.Tr("Language"), language));
 
@@ -190,6 +205,10 @@ public sealed class SettingsWindow : Window
         var costPage = new ToggleSwitch(ScreenPref.Shared.ShowCostPage) { VerticalAlignment = VerticalAlignment.Center };
         costPage.Toggled += enabled => ScreenPref.Shared.ShowCostPage = enabled;
         stack.Children.Add(Row(L10n.Tr("Show cost page"), costPage));
+
+        var alwaysShow = new ToggleSwitch(AlwaysShowUsageStore.Shared.Enabled) { VerticalAlignment = VerticalAlignment.Center };
+        alwaysShow.Toggled += enabled => AlwaysShowUsageStore.Shared.Enabled = enabled;
+        stack.Children.Add(Row(L10n.Tr("Always show usage in top bar"), alwaysShow));
         return stack;
     }
 

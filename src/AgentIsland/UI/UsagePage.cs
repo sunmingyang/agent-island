@@ -17,6 +17,10 @@ public sealed class UsagePage : Border
     private readonly ChartTile _codexFiveHour = new(IslandColors.Codex, "5h", seed: 3);
     private readonly ChartTile _codexWeekly = new(IslandColors.Codex, "week", seed: 4);
     private readonly Button _reauth;
+    private readonly UIElement _claudeBlock;
+    private readonly UIElement _codexBlock;
+    private readonly Border _hairline;
+    private readonly TextBlock _bothHidden;
 
     public UsagePage()
     {
@@ -28,11 +32,11 @@ public sealed class UsagePage : Border
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         _reauth = MakeReauthButton();
-        var claudeBlock = MakeBlock(_claudeFiveHour, _claudeWeekly, _reauth);
-        Grid.SetColumn(claudeBlock, 0);
-        grid.Children.Add(claudeBlock);
+        _claudeBlock = MakeBlock(_claudeFiveHour, _claudeWeekly, _reauth);
+        Grid.SetColumn(_claudeBlock, 0);
+        grid.Children.Add(_claudeBlock);
 
-        var hairline = new Border
+        _hairline = new Border
         {
             Width = 1,
             Margin = new Thickness(0, 8, 0, 8),
@@ -46,15 +50,32 @@ public sealed class UsagePage : Border
                 new Point(0, 0),
                 new Point(0, 1)),
         };
-        Grid.SetColumn(hairline, 1);
-        grid.Children.Add(hairline);
+        Grid.SetColumn(_hairline, 1);
+        grid.Children.Add(_hairline);
 
-        var codexBlock = MakeBlock(_codexFiveHour, _codexWeekly, extra: null);
-        Grid.SetColumn(codexBlock, 2);
-        grid.Children.Add(codexBlock);
+        _codexBlock = MakeBlock(_codexFiveHour, _codexWeekly, extra: null);
+        Grid.SetColumn(_codexBlock, 2);
+        grid.Children.Add(_codexBlock);
+
+        _bothHidden = new TextBlock
+        {
+            Text = Localization.L10n.Tr("Both providers are hidden. Enable one in Settings."),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.35)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            MaxWidth = 360,
+            Visibility = Visibility.Collapsed,
+        };
+        Grid.SetColumnSpan(_bothHidden, 3);
+        grid.Children.Add(_bothHidden);
 
         UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
         StylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
+        Model.ProviderVisibilityStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
         Update();
     }
 
@@ -115,6 +136,19 @@ public sealed class UsagePage : Border
     {
         var store = UsageStore.Shared;
         var style = StylePreferenceStore.Shared.Style;
+        var visibility = Model.ProviderVisibilityStore.Shared;
+
+        // Hidden providers vacate their column; the hairline and both-hidden
+        // placeholder track what's left, mirroring the macOS branches.
+        _claudeBlock.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
+        _codexBlock.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
+        _hairline.Visibility = visibility.ClaudeVisible && visibility.CodexVisible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        _bothHidden.Visibility = !visibility.ClaudeVisible && !visibility.CodexVisible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
         _claudeFiveHour.Update(store.Claude.FiveHour, style);
         _claudeWeekly.Update(store.Claude.Weekly, style);
         _codexFiveHour.Update(store.Codex.FiveHour, style);

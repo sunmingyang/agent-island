@@ -55,7 +55,43 @@ public partial class IslandWindow : Window
             UpdateHalo();
             UpdatePills();
         });
+
+        // Bar-width change (Settings → Display) resizes the silhouette live
+        // when it's not expanded; provider visibility hides a side entirely.
+        _model.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(IslandModel.Size))
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    if (_model.State != IslandState.Expanded) ApplySizeInstant();
+                });
+            }
+        };
+        Model.ProviderVisibilityStore.Shared.PropertyChanged += (_, _) =>
+            Dispatcher.BeginInvoke(ApplyProviderVisibility);
+        AlwaysShowUsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            _model.NotifyAlwaysShowUsageChanged();
+            UpdatePills();
+        });
+
+        ApplyProviderVisibility();
         UpdateActivityVisuals();
+        UpdatePills();
+    }
+
+    /// Hidden providers drop their logo, peek pill, and expanded title —
+    /// the balanced peek width is preserved by the model's fixed slots.
+    private void ApplyProviderVisibility()
+    {
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        ClaudeLogo.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
+        CodexLogo.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
+        if (_claudeTitle is not null)
+            _claudeTitle.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
+        if (_codexTitle is not null)
+            _codexTitle.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
         UpdatePills();
     }
 
@@ -427,8 +463,23 @@ public partial class IslandWindow : Window
     {
         var store = UsageStore.Shared;
         var engine = Model.AlertEngine.Shared;
+        var visibility = Model.ProviderVisibilityStore.Shared;
         ClaudePill.Update(store.Claude.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Claude));
         CodexPill.Update(store.Codex.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Codex));
+
+        // In compact, the pills normally hide. "Always show usage" keeps the
+        // visible providers' 5h percent painted on the bare silhouette.
+        var alwaysShow = AlwaysShowUsageStore.Shared.Enabled && _model.State == IslandState.Compact;
+        if (_model.State == IslandState.Peek || alwaysShow)
+        {
+            ClaudePill.Opacity = visibility.ClaudeVisible ? 1 : 0;
+            CodexPill.Opacity = visibility.CodexVisible ? 1 : 0;
+        }
+        else if (_model.State == IslandState.Compact)
+        {
+            ClaudePill.Opacity = 0;
+            CodexPill.Opacity = 0;
+        }
     }
 
     /// First threshold crossing inside a reset window auto-peeks the pills
