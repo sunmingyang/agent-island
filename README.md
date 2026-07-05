@@ -124,7 +124,7 @@ Windows is on the roadmap after the macOS status, alarm, and auto-resume flow is
 
 ## Install
 
-> **On Windows?** Grab [**Agent Island for Windows**](https://github.com/tristan666666/agent-island-windows) — a native WPF port with the same detection engine ([download](https://github.com/tristan666666/agent-island-windows/releases/latest)).
+> **On Windows?** Grab [**Agent Island for Windows**](windows/) — a native WPF port with the same detection engine ([download](https://github.com/tristan666666/agent-island/releases/latest)).
 
 ```sh
 brew install tristan666666/tap/agentisland

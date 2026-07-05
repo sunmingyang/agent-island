@@ -124,7 +124,7 @@ Windows 版本在路线图中，会在 macOS 的状态提醒和自动继续体�
 
 ## 安装
 
-> **用 Windows?** 这里有 [**Agent Island for Windows**](https://github.com/tristan666666/agent-island-windows) —— 同一套检测引擎的原生 WPF 移植([下载](https://github.com/tristan666666/agent-island-windows/releases/latest))。
+> **用 Windows?** 这里有 [**Agent Island for Windows**](windows/) —— 同一套检测引擎的原生 WPF 移植([下载](https://github.com/tristan666666/agent-island/releases/latest))。
 
 ```sh
 brew install tristan666666/tap/agentisland

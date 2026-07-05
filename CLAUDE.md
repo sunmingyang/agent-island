@@ -124,3 +124,17 @@ title and intent. Create it in `notes/` from the start.
 - Strict TypeScript / Swift — no `any`, no force-unwraps without justification.
 - Default to no comments. Only add when the WHY is non-obvious (a constraint, a workaround for a specific bug, behavior that would surprise a reader).
 - Match existing style in the file you're editing, even if you'd do it differently.
+
+## Windows port (windows/)
+
+The WPF port lives in `windows/` (monorepo since v1.4.1-era; history subtree-merged
+from the retired agent-island-windows repo). Rules:
+- One tag releases BOTH platforms: `.github/workflows/windows-release.yml` waits for
+  the macOS job's release (which carries the Sparkle appcast) before attaching
+  `AgentIsland-<version>-win-x64.zip`. Never create a Windows-only non-prerelease
+  release — it would occupy `releases/latest` without appcast.xml and break every
+  Mac user's auto-update.
+- Windows binary version comes from the shared `VERSION` file at release time
+  (`build.ps1 -Version`); the csproj version is only a dev fallback.
+- macOS release flow (build.sh / release.sh / VERSION / Sparkle keys) is unchanged
+  and remains the source of truth for `releases/latest`.
