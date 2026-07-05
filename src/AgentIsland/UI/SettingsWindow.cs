@@ -772,57 +772,256 @@ public sealed class SettingsWindow : Window
     private UIElement BuildStatus()
     {
         var stack = TabStack();
-        stack.Children.Add(SectionLabel("Status legend"));
-        stack.Children.Add(LegendRow(ActivityState.Idle, "idle",
-            "Nothing running — or the turn is over and it's yours."));
-        stack.Children.Add(LegendRow(ActivityState.Working, "running",
-            "A session is working; the logo spins."));
-        stack.Children.Add(LegendRow(ActivityState.NeedsYou, "your turn",
-            "A turn finished; the alarm calls you back."));
-        stack.Children.Add(LegendRow(ActivityState.RateLimited, "needs attention",
-            "Rate limit, login, network, or provider error."));
+        stack.Children.Add(new TextBlock
+        {
+            Text = L10n.Tr("What the island's two logos are telling you."),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.5)),
+            Margin = new Thickness(10, 0, 10, 12),
+            TextWrapping = TextWrapping.Wrap,
+        });
 
-        stack.Children.Add(SectionLabel("Turn alarm"));
+        stack.Children.Add(SectionLabel("Logo states"));
+        stack.Children.Add(LegendRow(ActivityState.Working, "Working",
+            "The logo rotates while a session is running."));
+        stack.Children.Add(LegendRow(ActivityState.NeedsYou, "Your turn",
+            "A thread finished — Agent Island opens an alarm window so you can reply."));
+        stack.Children.Add(LegendRow(ActivityState.AuthRequired, "Needs attention",
+            "Limits, login, network, or provider errors make the logo pulse red."));
+
+        stack.Children.Add(SectionLabel("Reminders"));
         var enabled = new CobaltToggle(AgentReminderStore.Shared.Enabled);
         enabled.Toggled += value => AgentReminderStore.Shared.Enabled = value;
         stack.Children.Add(new SettingsRowControl(
-            "Turn alarms", "Foreground alarm when a background turn finishes.", enabled));
+            "Turn alarm",
+            "Pop up a foreground alarm and system notification when a background run needs you.",
+            enabled));
 
-        var sound = new CobaltToggle(AgentReminderStore.Shared.SoundEnabled);
-        sound.Toggled += value => AgentReminderStore.Shared.SoundEnabled = value;
+        var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
+        details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
         stack.Children.Add(new SettingsRowControl(
-            "Alarm sound", "Repeats until the alarm is dismissed.", sound));
+            "Show thread details",
+            "Show session and project names in alarms and notifications.",
+            details));
 
-        var choice = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var preset in AgentReminderStore.SoundPresets) choice.Items.Add(preset);
-        var selected = Array.IndexOf(AgentReminderStore.SoundPresets, AgentReminderStore.Shared.SoundChoice);
-        choice.SelectedIndex = selected >= 0 ? selected : 0;
-        choice.SelectionChanged += (_, _) =>
+        var soundHost = new StackPanel();
+        var sound = new CobaltToggle(AgentReminderStore.Shared.SoundEnabled);
+        stack.Children.Add(new SettingsRowControl(
+            "Alarm sound",
+            "Choose a built-in sound or use your own file.",
+            sound));
+
+        BuildSoundControls(soundHost);
+        soundHost.Visibility = AgentReminderStore.Shared.SoundEnabled ? Visibility.Visible : Visibility.Collapsed;
+        sound.Toggled += value =>
         {
-            AgentReminderStore.Shared.SoundChoice = AgentReminderStore.SoundPresets[Math.Max(0, choice.SelectedIndex)];
-            PreviewSound();
+            AgentReminderStore.Shared.SoundEnabled = value;
+            soundHost.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
         };
-        stack.Children.Add(new SettingsRowControl("Sound", "Preview plays on selection.", choice));
+        stack.Children.Add(soundHost);
+
+        // Demo buttons — force a state on the island. Visible in demo/debug
+        // launches, exactly like macOS.
+        if (AppEnvironment.IsDemo || AppEnvironment.IsDebug)
+        {
+            stack.Children.Add(SectionLabel("Demo — force a state on the island"));
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 10, 8) };
+            row.Children.Add(DemoButton("Working", ActivityState.Working));
+            row.Children.Add(DemoButton("Your turn", ActivityState.NeedsYou));
+            row.Children.Add(DemoButton("Auth", ActivityState.AuthRequired));
+            row.Children.Add(DemoButton("Rate", ActivityState.RateLimited));
+            row.Children.Add(DemoButton("Live", null));
+            stack.Children.Add(row);
+        }
+
+        return stack;
+    }
+
+    private static UIElement DemoButton(string label, ActivityState? state)
+    {
+        var button = new PillButtonControl(L10n.Tr(label)) { Margin = new Thickness(0, 0, 8, 0) };
+        button.Clicked += () => ActivityMonitor.Shared.Demo(state);
+        return button;
+    }
+
+    /// Expandable sound list with the selected checkmark and the custom-file
+    /// row, plus the volume slider — the macOS SoundPicker.
+    private void BuildSoundControls(StackPanel host)
+    {
+        var list = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(10, 0, 10, 8) };
+
+        var headerLabel = new TextBlock
+        {
+            Text = CurrentSoundLabel(),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.58)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var chevron = new TextBlock
+        {
+            Text = "⌄",
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.42)),
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var headerRow = new Grid();
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var soundTitle = new TextBlock
+        {
+            Text = L10n.Tr("Sound"),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 13,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.White(0.92)),
+        };
+        Grid.SetColumn(soundTitle, 0);
+        headerRow.Children.Add(soundTitle);
+        var headerRight = new StackPanel { Orientation = Orientation.Horizontal };
+        headerRight.Children.Add(headerLabel);
+        headerRight.Children.Add(chevron);
+        Grid.SetColumn(headerRight, 1);
+        headerRow.Children.Add(headerRight);
+        var header = new Border
+        {
+            Child = headerRow,
+            CornerRadius = new CornerRadius(7),
+            Background = IslandColors.Brush(IslandColors.White(0.015)),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(10, 0, 10, 6),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        header.MouseLeftButtonUp += (_, args) =>
+        {
+            list.Visibility = list.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+            chevron.Text = list.Visibility == Visibility.Visible ? "⌃" : "⌄";
+            args.Handled = true;
+        };
+        host.Children.Add(header);
+
+        void RebuildList()
+        {
+            list.Children.Clear();
+            foreach (var preset in AgentReminderStore.SoundPresets)
+            {
+                list.Children.Add(SoundChoiceRow(preset, isCustom: false, RebuildList, headerLabel));
+            }
+            list.Children.Add(SoundChoiceRow(
+                AgentReminderStore.CustomSoundChoice, isCustom: true, RebuildList, headerLabel));
+        }
+        RebuildList();
+        host.Children.Add(list);
 
         var volume = new Slider
         {
-            Width = 130,
+            Width = 120,
             Minimum = 0,
             Maximum = 1,
             Value = AgentReminderStore.Shared.Volume,
             VerticalAlignment = VerticalAlignment.Center,
         };
         volume.ValueChanged += (_, _) => AgentReminderStore.Shared.Volume = volume.Value;
-        stack.Children.Add(new SettingsRowControl("Volume", null, volume));
+        host.Children.Add(new SettingsRowControl(
+            "Volume", "Adjust how loud the alarm sound is.", volume));
+    }
 
-        var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
-        details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
-        stack.Children.Add(new SettingsRowControl(
-            "Show session details in alarms",
-            "Provider, session, and project fields on the alarm window.",
-            details));
+    private static string CurrentSoundLabel()
+    {
+        var store = AgentReminderStore.Shared;
+        if (store.SoundChoice == AgentReminderStore.CustomSoundChoice)
+        {
+            return store.CustomSoundPath.Length > 0
+                ? System.IO.Path.GetFileName(store.CustomSoundPath)
+                : L10n.Tr("Custom file");
+        }
+        return store.SoundChoice;
+    }
 
-        return stack;
+    private UIElement SoundChoiceRow(string choice, bool isCustom, Action rebuild, TextBlock headerLabel)
+    {
+        var store = AgentReminderStore.Shared;
+        var isSelected = store.SoundChoice == choice;
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var label = new TextBlock
+        {
+            Text = isCustom ? L10n.Tr("Custom file") : choice,
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(isSelected ? 0.95 : 0.72)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(label, 0);
+        row.Children.Add(label);
+        if (isCustom)
+        {
+            var action = new TextBlock
+            {
+                Text = store.CustomSoundPath.Length == 0 ? L10n.Tr("Choose") : L10n.Tr("Change"),
+                FontFamily = IslandFonts.Ui,
+                FontSize = 10,
+                Foreground = IslandColors.Brush(IslandColors.White(0.55)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0),
+            };
+            Grid.SetColumn(action, 1);
+            row.Children.Add(action);
+        }
+        if (isSelected)
+        {
+            var check = new TextBlock
+            {
+                Text = "✓",
+                FontFamily = IslandFonts.Ui,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = IslandColors.Brush(IslandColors.Cobalt),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(check, 2);
+            row.Children.Add(check);
+        }
+
+        var host = new Border
+        {
+            Child = row,
+            Height = 34,
+            Padding = new Thickness(12, 0, 12, 0),
+            Background = isSelected ? IslandColors.Brush(IslandColors.White(0.055)) : Brushes.Transparent,
+            BorderBrush = IslandColors.Brush(IslandColors.White(0.045)),
+            BorderThickness = new Thickness(0, 0, 0, 0.5),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        host.MouseLeftButtonUp += (_, args) =>
+        {
+            if (isCustom)
+            {
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "Audio|*.wav;*.mp3;*.wma;*.m4a|All files|*.*",
+                };
+                if (dialog.ShowDialog(this) == true)
+                {
+                    store.CustomSoundPath = dialog.FileName;
+                    store.SoundChoice = AgentReminderStore.CustomSoundChoice;
+                }
+            }
+            else
+            {
+                store.SoundChoice = choice;
+                PreviewSound();
+            }
+            headerLabel.Text = CurrentSoundLabel();
+            rebuild();
+            args.Handled = true;
+        };
+        return host;
     }
 
     private static void PreviewSound()
