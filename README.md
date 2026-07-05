@@ -130,6 +130,10 @@ Windows is on the roadmap after the macOS status, alarm, and auto-resume flow is
 brew install tristan666666/tap/agentisland
 ```
 
+**Windows** (new):
+
+Download [`AgentIsland-win-x64.zip`](https://github.com/tristan666666/agent-island/releases/latest) from the latest release, unzip, and run `AgentIsland.exe`.
+
 or grab the DMG:
 
 Download the DMG, drag AgentIsland into Applications, open it:
