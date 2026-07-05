@@ -139,3 +139,15 @@ big. Per-tag detail for the 0.0.x series lives on the
 - `MacIsland.costCache.v2` → `v3`. First launch on 0.1.0 backfills the
   billable-tokens column with one fresh local-log scan; existing dollar +
   total-tokens rollups remain valid.
+
+## [1.2.x] - 2026-06-28 → 2026-07-02
+
+Reliability series for the turn alarm and quota display: stale-alarm suppression (metadata writes no longer resurrect old turns), immediate turn-state transitions, alarm control polish, quota display fixes, localization and peek-pill layout polish, Sparkle key rotation (1.2.2) and default feed URL fix.
+
+## [1.1.0] - 2026-06-24
+
+Visible Claude re-auth flow, security policy, Product Hunt / awesome-list badges, install-path docs for Chinese users.
+
+## [1.0.0] - 2026-06-21
+
+First public release: usage island (Claude + Codex 5h/weekly usage, cost, reset countdowns in the notch), live logo states (working / your turn / stalled), auto-resume triggers after quota reset, demo mode for filming, bilingual UI, launch video and screenshots.

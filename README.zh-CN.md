@@ -173,3 +173,7 @@ open build/AgentIsland.app
 Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入自动续跑、到你回复提醒、实时状态动效，并走出了自己的产品方向。
 
 MIT 许可 —— © 2026 Eric Park，本 fork 保留该声明。见 [LICENSE](LICENSE)。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tristan666666/agent-island&type=Date)](https://star-history.com/#tristan666666/agent-island&Date)

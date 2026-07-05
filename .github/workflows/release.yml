@@ -86,6 +86,14 @@ jobs:
               --title "$TAG — Agent Island" \
               --notes "Automated Agent Island release."
 
+      - name: Attach changelog notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER="${TAG#v}"
+          awk -v ver="$VER" 'BEGIN{f=0} $0 ~ "^## \\["ver"\\]" {f=1} f==1 && $0 ~ "^## \\[" && $0 !~ ver {exit} f' CHANGELOG.md > /tmp/notes.md
+          if [ -s /tmp/notes.md ]; then gh release edit "$TAG" --notes-file /tmp/notes.md; fi
+
       - name: Upload release assets
         shell: bash
         env:

@@ -173,3 +173,7 @@ No. Agent Island reads local transcript files and calls the providers' usage API
 Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park** — the usage-island and cost-tracking foundation are his work. Agent Island adds auto-resume, turn alarms, live session-state animations, and its own product direction.
 
 MIT licensed — © 2026 Eric Park. This fork retains that notice. See [LICENSE](LICENSE).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tristan666666/agent-island&type=Date)](https://star-history.com/#tristan666666/agent-island&Date)
