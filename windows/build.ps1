@@ -1,14 +1,16 @@
 # Agent Island for Windows — release build.
 # Produces a self-contained single-file exe plus a distributable zip under dist\.
-param([string]$Runtime = "win-x64")
+# -Version comes from the shared VERSION file at release time (CI passes it);
+# the csproj version is only a dev fallback.
+param([string]$Runtime = "win-x64", [string]$Version = "")
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $csproj = "src\AgentIsland\AgentIsland.csproj"
-$version = ([xml](Get-Content $csproj)).Project.PropertyGroup.Version
-if (-not $version) { $version = "0.0.0" }
-$version = "$version".Trim()
+if (-not $Version) { $Version = ([xml](Get-Content $csproj)).Project.PropertyGroup.Version }
+if (-not $Version) { $Version = "0.0.0" }
+$version = "$Version".Trim()
 
 $publishDir = "dist\publish"
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
@@ -19,6 +21,7 @@ if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:Version=$version `
     -o $publishDir
 if ($LASTEXITCODE -ne 0) { throw "publish failed" }
 
