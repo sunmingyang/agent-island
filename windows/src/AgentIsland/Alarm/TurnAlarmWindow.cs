@@ -52,7 +52,17 @@ public sealed class TurnAlarmWindow : Window
         };
         MouseLeftButtonDown += (_, _) => DragMoveSafe();
         Loaded += (_, _) => _sound.Start();
-        Closed += (_, _) => _sound.Stop();
+        // Every close path must notify the controller — including an
+        // OS-initiated close (Alt+F4, taskbar right-click → Close), which
+        // bypasses Acknowledge/DismissSilently. Without this the controller
+        // keeps _current pointing at a dead window and the whole alarm queue
+        // stalls: no further turn ever surfaces. Dismissed is idempotent
+        // (the handler detaches itself), so a normal dismiss won't double-fire.
+        Closed += (_, _) =>
+        {
+            _sound.Stop();
+            Dismissed?.Invoke(this);
+        };
     }
 
     private void DragMoveSafe()

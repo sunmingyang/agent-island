@@ -858,14 +858,31 @@ public sealed class SettingsWindow : Window
 
         void ReloadSessions()
         {
-            sessions = Core.SessionScanner
-                .Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>())
-                .Where(s => s.Tool == tool)
-                .Take(20)
-                .ToList();
+            // Scan tail-reads every transcript; off the UI thread so the tab
+            // build and each provider toggle don't freeze the window. Snapshot
+            // the requested tool so a stale scan can't clobber a newer one.
+            var requestedTool = tool;
             sessionBox.Items.Clear();
-            foreach (var session in sessions) sessionBox.Items.Add(session.Label);
-            if (sessionBox.Items.Count > 0) sessionBox.SelectedIndex = 0;
+            sessionBox.Items.Add(Localization.L10n.Tr("Loading…"));
+            sessionBox.SelectedIndex = 0;
+            System.Threading.Tasks.Task.Run(
+                    () => Core.SessionScanner
+                        .Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>())
+                        .Where(s => s.Tool == requestedTool)
+                        .Take(20)
+                        .ToList())
+                .ContinueWith(task =>
+                {
+                    var scanned = task.Result;
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        if (tool != requestedTool) return;
+                        sessions = scanned;
+                        sessionBox.Items.Clear();
+                        foreach (var session in sessions) sessionBox.Items.Add(session.Label);
+                        if (sessionBox.Items.Count > 0) sessionBox.SelectedIndex = 0;
+                    });
+                }, System.Threading.Tasks.TaskScheduler.Default);
         }
 
         void UpdateResetCaption()

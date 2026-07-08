@@ -126,9 +126,15 @@ public sealed class PanelFooter : Grid
         SetColumn(syncButton, 2);
         row.Children.Add(syncButton);
 
-        ScreenPref.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
-        StylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
+        // A single named handler so every subscription and the timer tear
+        // down on Unloaded — a rebuilt island (e.g. language switch) would
+        // otherwise leave the old footer's 30s timer waking the UI thread and
+        // its store subscriptions pinning the dead instance alive forever.
+        System.ComponentModel.PropertyChangedEventHandler onChanged =
+            (_, _) => Dispatcher.BeginInvoke(Update);
+        ScreenPref.Shared.PropertyChanged += onChanged;
+        StylePreferenceStore.Shared.PropertyChanged += onChanged;
+        UsageStore.Shared.PropertyChanged += onChanged;
 
         // Keep the "2m ago" caption honest while the panel sits open.
         _agoTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -137,6 +143,17 @@ public sealed class PanelFooter : Grid
         };
         _agoTimer.Tick += (_, _) => Update();
         _agoTimer.Start();
+
+        // The footer is discarded (not reparented) when the island rebuilds,
+        // so a one-way teardown is correct.
+        Unloaded += (_, _) =>
+        {
+            _agoTimer.Stop();
+            ScreenPref.Shared.PropertyChanged -= onChanged;
+            StylePreferenceStore.Shared.PropertyChanged -= onChanged;
+            UsageStore.Shared.PropertyChanged -= onChanged;
+        };
+
         Update();
     }
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows.Threading;
 using AgentIsland.Core;
 using AgentIsland.Usage;
@@ -150,6 +151,17 @@ public sealed class TriggerEngine
             LogStatus($"blocked: project is not trusted for auto-resume\n{Preview(trigger)}", trigger);
             return;
         }
+        // The session id is interpolated unquoted into the cmd.exe command
+        // line below. It comes from on-disk session metadata (a Codex
+        // session_meta id, a Claude transcript filename) that a local
+        // attacker can plant, so a value like `x&calc&` would inject a
+        // command. Real ids are UUID/alphanumeric; reject anything else
+        // before it reaches the shell (mirrors TurnAlarmNavigator.Sanitize).
+        if (!SessionIdPattern.IsMatch(trigger.SessionId))
+        {
+            LogStatus("blocked: invalid session id", trigger);
+            return;
+        }
         if (Command(trigger, requireResolvedBinary: true) is not { } command)
         {
             LogStatus($"blocked: {trigger.Tool.RawValue()} binary not found", trigger);
@@ -204,6 +216,8 @@ public sealed class TriggerEngine
         {
         }
     }
+
+    private static readonly Regex SessionIdPattern = new("^[A-Za-z0-9_-]+$", RegexOptions.Compiled);
 
     private static ResumeCommand? Command(Trigger trigger, bool requireResolvedBinary)
     {

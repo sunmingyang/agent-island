@@ -12,7 +12,7 @@ public static class UsageFetcher
     /// Codex usage lives at chatgpt.com/backend-api/wham/usage and accepts
     /// the access_token from ~/.codex/auth.json. The endpoint is reliable
     /// and rarely rate-limited, so this is the easy half of the integration.
-    public static async Task<AppUsage> FetchCodex()
+    public static async Task<AppUsage> FetchCodex(CancellationToken ct = default)
     {
         if (ReadCodexAccessToken() is not { } token)
         {
@@ -24,7 +24,7 @@ public static class UsageFetcher
             using var request = new HttpRequestMessage(
                 HttpMethod.Get, "https://chatgpt.com/backend-api/wham/usage");
             request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
-            using var response = await Http.Client.SendAsync(request);
+            using var response = await Http.Client.SendAsync(request, ct);
             var status = (int)response.StatusCode;
 
             // 401 means the access_token has expired. The Codex CLI rotates
@@ -32,7 +32,7 @@ public static class UsageFetcher
             if (status == 401) return AppUsage.ErrorPair("auth expired — codex login");
             if (status != 200) return AppUsage.ErrorPair($"http {status}");
 
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(ct));
             if (Jsonl.GetObject(doc.RootElement, "rate_limit") is not { } rateLimit)
             {
                 return AppUsage.ErrorPair("parse error");
@@ -79,9 +79,9 @@ public static class UsageFetcher
     /// Anthropic doesn't ship a usage endpoint for end users — Claude Code
     /// itself talks to api.anthropic.com/api/oauth/usage with a beta header
     /// and a User-Agent that identifies as the CLI. We replicate that.
-    public static async Task<AppUsage> FetchClaude()
+    public static async Task<AppUsage> FetchClaude(CancellationToken ct = default)
     {
-        var resolution = await ClaudeCredentials.ResolveUsage(FetchClaudeUsage);
+        var resolution = await ClaudeCredentials.ResolveUsage((token, plan) => FetchClaudeUsage(token, plan, ct));
         return resolution switch
         {
             ClaudeCredentials.Resolution.Usage usage => usage.Value,
@@ -91,7 +91,7 @@ public static class UsageFetcher
         };
     }
 
-    private static async Task<ClaudeCredentials.ProbeOutcome> FetchClaudeUsage(string token, string? plan)
+    private static async Task<ClaudeCredentials.ProbeOutcome> FetchClaudeUsage(string token, string? plan, CancellationToken ct = default)
     {
         try
         {
@@ -104,7 +104,7 @@ public static class UsageFetcher
             // the request 401s even with a valid token.
             request.Headers.TryAddWithoutValidation("User-Agent", "claude-code/2.1.121");
 
-            using var response = await Http.Client.SendAsync(request);
+            using var response = await Http.Client.SendAsync(request, ct);
             var status = (int)response.StatusCode;
             if (status == 401) return new ClaudeCredentials.ProbeOutcome.Unauthorized();
             if (status == 403) return new ClaudeCredentials.ProbeOutcome.ScopeInsufficient();
@@ -113,7 +113,7 @@ public static class UsageFetcher
 
             // The endpoint also returns 200 with a rate_limit_error body
             // sometimes; don't trust the status code alone.
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(ct));
             var root = doc.RootElement;
             if (Jsonl.GetObject(root, "error") is { } error
                 && Jsonl.GetString(error, "type") == "rate_limit_error")
