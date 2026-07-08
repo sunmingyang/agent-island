@@ -37,6 +37,9 @@ public partial class IslandWindow : Window
     {
         ApplyEdgeLayout();
         PositionOnScreen();
+        // Floating mode: drag the silhouette to move (and remember) the
+        // window; a non-drag press still expands.
+        Silhouette.MouseLeftButtonDown += OnSilhouetteMouseDown;
 
         // The sweep ring tracks the silhouette through every spring morph
         // (+4 so half its stroke rides outside the edge).
@@ -272,18 +275,61 @@ public partial class IslandWindow : Window
     /// left/right aligned.
     private const double EdgeInset = 16;
 
+    /// Which screen edge the island's flat side faces. Floating faces none.
+    private enum DockEdge { Top, Bottom, None }
+
+    private DockEdge CurrentEdge() => Model.IslandPositionStore.Shared.Placement switch
+    {
+        Model.IslandPlacement.BottomBar or Model.IslandPlacement.Tray => DockEdge.Bottom,
+        Model.IslandPlacement.Floating => DockEdge.None,
+        _ => DockEdge.Top,
+    };
+
     private void PositionOnScreen()
     {
         var area = WorkAreaDip(Model.IslandTargetDisplayStore.Shared.Resolve());
-        var position = Model.IslandPositionStore.Shared;
-        Left = position.Alignment switch
+        var store = Model.IslandPositionStore.Shared;
+        switch (store.Placement)
         {
-            Model.IslandAlignment.Left => area.Left + EdgeInset - HaloBleed,
-            Model.IslandAlignment.Right => area.Right - Width - EdgeInset + HaloBleed,
-            _ => area.Left + (area.Width - Width) / 2,
-        };
-        Top = position.Edge == Model.IslandEdge.Bottom ? area.Bottom - Height : area.Top;
+            case Model.IslandPlacement.Floating:
+                var pt = store.FloatingPoint;
+                if (pt is { } p)
+                {
+                    // Keep the whole canvas within the work area so the
+                    // island and its downward-growing panel stay reachable.
+                    Left = Math.Clamp(p.X, area.Left, Math.Max(area.Left, area.Right - Width));
+                    Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, area.Bottom - Height));
+                }
+                else
+                {
+                    Left = area.Left + (area.Width - Width) / 2;
+                    Top = area.Top + 72;
+                }
+                break;
+            case Model.IslandPlacement.Tray:
+                // Bottom-right corner beside the notification tray; the
+                // silhouette hugs the corner via its bottom-right alignment.
+                Left = area.Right - Width;
+                Top = area.Bottom - Height;
+                break;
+            case Model.IslandPlacement.BottomBar:
+                Left = HorizontalBarLeft(area);
+                Top = area.Bottom - Height;
+                break;
+            case Model.IslandPlacement.TopBar:
+            default:
+                Left = HorizontalBarLeft(area);
+                Top = area.Top;
+                break;
+        }
     }
+
+    private double HorizontalBarLeft(Rect area) => Model.IslandPositionStore.Shared.Alignment switch
+    {
+        Model.IslandAlignment.Left => area.Left + EdgeInset - HaloBleed,
+        Model.IslandAlignment.Right => area.Right - Width - EdgeInset + HaloBleed,
+        _ => area.Left + (area.Width - Width) / 2,
+    };
 
     /// The chosen monitor's work area (taskbar excluded, so a top-docked
     /// taskbar pushes the island below it) in WPF units. WinForms screens
@@ -306,24 +352,27 @@ public partial class IslandWindow : Window
         Dispatcher.BeginInvoke(PositionOnScreen);
 
     /// Rounded corners face away from the docked edge; the flat side sits
-    /// flush against it.
-    private CornerRadius ShapeRadius(double radius) =>
-        Model.IslandPositionStore.Shared.Edge == Model.IslandEdge.Bottom
-            ? new CornerRadius(radius, radius, 0, 0)
-            : new CornerRadius(0, 0, radius, radius);
+    /// flush against it. A floating island rounds all four corners.
+    private CornerRadius ShapeRadius(double radius) => CurrentEdge() switch
+    {
+        DockEdge.Bottom => new CornerRadius(radius, radius, 0, 0),
+        DockEdge.None => new CornerRadius(radius),
+        _ => new CornerRadius(0, 0, radius, radius),
+    };
 
     /// Hidden panel content parks 8px toward the bar strip so the expand
     /// reveal always slides away from the docked edge.
-    private double PanelRestOffset() =>
-        Model.IslandPositionStore.Shared.Edge == Model.IslandEdge.Bottom ? 8 : -8;
+    private double PanelRestOffset() => CurrentEdge() == DockEdge.Bottom ? 8 : -8;
 
-    /// Re-anchors the silhouette for the docked edge and alignment: bottom
-    /// dock mirrors the whole layout (bar strip against the taskbar, panel
-    /// growing upward); left/right hug a side with a fixed inset.
+    /// Re-anchors the silhouette for the current placement: a bottom edge
+    /// (BottomBar/Tray) mirrors the layout so the strip hugs the taskbar and
+    /// the panel grows upward; Tray pins bottom-right; Floating rounds all
+    /// corners and sits where the user dragged it.
     private void ApplyEdgeLayout()
     {
         var store = Model.IslandPositionStore.Shared;
-        var bottom = store.Edge == Model.IslandEdge.Bottom;
+        var edge = CurrentEdge();
+        var bottom = edge == DockEdge.Bottom;
 
         FirstRow.Height = bottom
             ? new GridLength(1, GridUnitType.Star)
@@ -337,10 +386,17 @@ public partial class IslandWindow : Window
         SettingsGear.VerticalAlignment = bottom ? VerticalAlignment.Top : VerticalAlignment.Bottom;
         SettingsGear.Margin = bottom ? new Thickness(12, 11, 0, 0) : new Thickness(12, 0, 0, 11);
 
-        var horizontal = store.Alignment switch
+        // Where the silhouette sits inside the oversized transparent canvas.
+        var horizontal = store.Placement switch
         {
-            Model.IslandAlignment.Left => HorizontalAlignment.Left,
-            Model.IslandAlignment.Right => HorizontalAlignment.Right,
+            Model.IslandPlacement.Tray => HorizontalAlignment.Right,
+            Model.IslandPlacement.Floating => HorizontalAlignment.Center,
+            Model.IslandPlacement.TopBar or Model.IslandPlacement.BottomBar => store.Alignment switch
+            {
+                Model.IslandAlignment.Left => HorizontalAlignment.Left,
+                Model.IslandAlignment.Right => HorizontalAlignment.Right,
+                _ => HorizontalAlignment.Center,
+            },
             _ => HorizontalAlignment.Center,
         };
         var vertical = bottom ? VerticalAlignment.Bottom : VerticalAlignment.Top;
@@ -407,8 +463,36 @@ public partial class IslandWindow : Window
         delay.Start();
     }
 
+    /// In Floating mode a left-press either drags the window (and persists
+    /// the new spot) or, if it barely moved, counts as the click that
+    /// expands. DragMove swallows the mouse-up, so we drive expand here and
+    /// let OnSilhouetteClick bail for floating.
+    private void OnSilhouetteMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Model.IslandPositionStore.Shared.Placement != Model.IslandPlacement.Floating) return;
+        if (_model.State != IslandState.Compact && _model.State != IslandState.Peek) return;
+        var startLeft = Left;
+        var startTop = Top;
+        try { DragMove(); } catch { }
+        var moved = Math.Abs(Left - startLeft) > 3 || Math.Abs(Top - startTop) > 3;
+        if (moved)
+        {
+            Model.IslandPositionStore.Shared.SetFloatingPoint(Left, Top);
+        }
+        else if (_model.State is IslandState.Peek or IslandState.Compact)
+        {
+            SetState(IslandState.Expanded);
+            Activate();
+            Focus();
+        }
+        e.Handled = true;
+    }
+
     private void OnSilhouetteClick(object sender, MouseButtonEventArgs e)
     {
+        // Floating handles expand in the mouse-down path (DragMove consumes
+        // the up), so ignore the click there to avoid a double expand.
+        if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating) return;
         if (_model.State is IslandState.Peek or IslandState.Compact)
         {
             SetState(IslandState.Expanded);
@@ -462,7 +546,7 @@ public partial class IslandWindow : Window
                 BlurRadius = 20,
                 ShadowDepth = 10,
                 // Grounding shadow falls away from the docked edge.
-                Direction = Model.IslandPositionStore.Shared.Edge == Model.IslandEdge.Bottom ? 90 : 270,
+                Direction = CurrentEdge() == DockEdge.Bottom ? 90 : 270,
             }
             : null;
 

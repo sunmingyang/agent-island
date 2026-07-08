@@ -601,31 +601,76 @@ public sealed class SettingsWindow : Window
                 : L10n.Tr("Pinned to a specific display. Falls back to Auto if unplugged."),
             display));
 
-        // 位置 — no notch reserves the top-center on Windows, so edge and
-        // alignment are user choices (top-center stays the default).
+        // 位置 — no notch reserves the top-center on Windows, so placement is
+        // a user choice with several native-feeling modes.
         stack.Children.Add(SectionLabel("Position"));
         var position = IslandPositionStore.Shared;
-        var edge = new Segmented(
-            new[] { L10n.Tr("Top"), L10n.Tr("Bottom") },
-            position.Edge == IslandEdge.Bottom ? 1 : 0);
-        edge.SelectionChanged += index =>
-            position.Edge = index == 1 ? IslandEdge.Bottom : IslandEdge.Top;
-        stack.Children.Add(new SettingsRowControl(
-            "Island edge",
-            "Dock to the top of the screen like the Mac notch, or to the bottom above the taskbar.",
-            edge));
+
+        var placements = new[]
+        {
+            IslandPlacement.TopBar, IslandPlacement.BottomBar,
+            IslandPlacement.Floating, IslandPlacement.Tray,
+        };
+        var placementBox = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var mode in placements) placementBox.Items.Add(PlacementLabel(mode));
+        placementBox.SelectedIndex = Math.Max(0, Array.IndexOf(placements, position.Placement));
 
         var alignment = new Segmented(
             new[] { L10n.Tr("Left"), L10n.Tr("Center"), L10n.Tr("Right") },
             (int)position.Alignment);
         alignment.SelectionChanged += index => position.Alignment = (IslandAlignment)index;
-        stack.Children.Add(new SettingsRowControl(
+        var alignmentRow = new SettingsRowControl(
             "Alignment",
             "Slide the island along its edge to clear tabs and title-bar buttons.",
-            alignment));
+            alignment);
+
+        void RefreshAlignmentEnabled()
+        {
+            // Left/Center/Right only means something for the top/bottom bars.
+            var isBar = position.Placement is IslandPlacement.TopBar or IslandPlacement.BottomBar;
+            alignmentRow.Opacity = isBar ? 1.0 : 0.4;
+            alignmentRow.IsEnabled = isBar;
+        }
+
+        placementBox.SelectionChanged += (_, _) =>
+        {
+            if (placementBox.SelectedIndex >= 0)
+            {
+                position.Placement = placements[placementBox.SelectedIndex];
+                RefreshAlignmentEnabled();
+            }
+        };
+        stack.Children.Add(new SettingsRowControl(
+            "Island position",
+            "Top or bottom bar, a free-floating widget you drag anywhere, or docked by the tray.",
+            placementBox));
+        stack.Children.Add(alignmentRow);
+        RefreshAlignmentEnabled();
+
+        if (position.Placement == IslandPlacement.Floating)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = L10n.Tr("Drag the island to move it; its spot is remembered."),
+                FontFamily = IslandFonts.Ui,
+                FontSize = 11,
+                Foreground = IslandColors.Brush(IslandColors.White(0.4)),
+                Margin = new Thickness(10, 0, 10, 6),
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
 
         return stack;
     }
+
+    private static string PlacementLabel(IslandPlacement mode) => mode switch
+    {
+        IslandPlacement.TopBar => L10n.Tr("Top bar"),
+        IslandPlacement.BottomBar => L10n.Tr("Bottom bar"),
+        IslandPlacement.Floating => L10n.Tr("Floating window"),
+        IslandPlacement.Tray => L10n.Tr("By the tray"),
+        _ => mode.ToString(),
+    };
 
     // MARK: - Providers
 
