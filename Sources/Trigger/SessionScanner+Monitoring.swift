@@ -19,7 +19,8 @@ extension SessionScanner {
         let desktopSessions = claudeDesktopIndex()
         return claudeTranscriptIndex().map { sid, path in
             let desktop = desktopSessions[sid]
-            let cwd = desktop?.cwd ?? projectFromClaudeTranscript(path)
+            let cwd = desktop.flatMap { $0.cwd.isEmpty ? nil : $0.cwd }
+                ?? cwdFromClaudeTranscript(path)
             let title = desktop?.title ?? ""
             let state = sessionState(
                 for: path,
@@ -64,6 +65,30 @@ extension SessionScanner {
         return out
     }
 
+    /// The transcript itself records the true working directory on nearly
+    /// every entry ("cwd"). The encoded folder name is lossy — dashes that
+    /// belong to the real path (~/agent-island) un-munge into a wrong
+    /// directory, which then breaks `claude --resume` from that cwd.
+    private static func cwdFromClaudeTranscript(_ path: String) -> String {
+        guard let handle = FileHandle(forReadingAtPath: path) else {
+            return projectFromClaudeTranscript(path)
+        }
+        defer { try? handle.close() }
+        let data = handle.readData(ofLength: 65_536)
+        guard let text = String(data: data, encoding: .utf8) else {
+            return projectFromClaudeTranscript(path)
+        }
+        for line in text.split(separator: "\n", maxSplits: 30, omittingEmptySubsequences: true) {
+            guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let cwd = object["cwd"] as? String,
+                  !cwd.isEmpty
+            else { continue }
+            return cwd
+        }
+        return projectFromClaudeTranscript(path)
+    }
+
+    /// Display-only fallback when the transcript carries no cwd.
     private static func projectFromClaudeTranscript(_ path: String) -> String {
         let parent = ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent
         let name = parent.replacingOccurrences(of: "-", with: "/")

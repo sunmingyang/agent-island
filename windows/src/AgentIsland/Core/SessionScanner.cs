@@ -95,7 +95,7 @@ public static class SessionScanner
         {
             desktopSessions.TryGetValue(sid, out var desktop);
             if (excludeArchived && desktop is { IsArchived: true }) continue;
-            var cwd = desktop?.Cwd is { Length: > 0 } dc ? dc : ProjectFromClaudeTranscript(path);
+            var cwd = desktop?.Cwd is { Length: > 0 } dc ? dc : CwdFromClaudeTranscript(path);
             var title = desktop?.Title ?? "";
             var state = SessionState(
                 path,
@@ -391,10 +391,45 @@ public static class SessionScanner
         return basename;
     }
 
-    /// Display-only fallback when the desktop store has no cwd for a
-    /// transcript: reverse the encoded project directory name. The encoding
-    /// is lossy (path separators and ':' both became '-'), so this is a
-    /// best-effort label, same as on macOS.
+    /// The transcript itself records the true working directory on nearly
+    /// every entry ("cwd") — authoritative, unlike the lossy encoded folder
+    /// name, whose dashes un-munge real hyphenated paths into the wrong
+    /// directory and then break `claude --resume` launched from it.
+    private static string CwdFromClaudeTranscript(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            for (var i = 0; i < 30 && reader.ReadLine() is { } line; i++)
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(line);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                        && doc.RootElement.TryGetProperty("cwd", out var cwd)
+                        && cwd.ValueKind == System.Text.Json.JsonValueKind.String
+                        && cwd.GetString() is { Length: > 0 } value)
+                    {
+                        return value;
+                    }
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                }
+            }
+        }
+        catch
+        {
+        }
+        return ProjectFromClaudeTranscript(path);
+    }
+
+    /// Display-only fallback when the transcript carries no cwd: reverse
+    /// the encoded project directory name. The encoding is lossy (path
+    /// separators and ':' both became '-'), so this is a best-effort label,
+    /// same as on macOS.
     private static string ProjectFromClaudeTranscript(string path)
     {
         var parent = Path.GetFileName(Path.GetDirectoryName(path) ?? "");

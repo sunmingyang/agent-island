@@ -35,12 +35,17 @@ public static class TurnAlarmNavigator
             return;
         }
 
-        var codexLinked = TryOpenUri($"codex://threads/{sessionId}");
-        var codexFocused = FocusAppWindow("Codex");
-        if (codexLinked || codexFocused) return;
+        // Codex sessions discovered on disk are CLI sessions — resume them
+        // in a terminal. The desktop deep link is the no-CLI fallback, not
+        // a hijack of a terminal workflow.
         if (Trigger.CLILocator.Locate("codex") is { } codex)
         {
             RunResumeInTerminal(codex, $"resume {sessionId}", thread.Cwd, "Codex resume");
+            return;
+        }
+        if (TryOpenUri($"codex://threads/{sessionId}"))
+        {
+            FocusAppWindow("Codex");
         }
     }
 
@@ -74,8 +79,10 @@ public static class TurnAlarmNavigator
                 var hwnd = process.MainWindowHandle;
                 if (hwnd == IntPtr.Zero) continue;
                 if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-                SetForegroundWindow(hwnd);
-                return true;
+                // SetForegroundWindow is refused when we no longer hold the
+                // foreground — report that honestly so the caller falls
+                // through to the CLI resume instead of a dead click.
+                if (SetForegroundWindow(hwnd)) return true;
             }
         }
         catch
@@ -97,12 +104,25 @@ public static class TurnAlarmNavigator
 
     private static void RunResumeInTerminal(string binary, string arguments, string cwd, string title)
     {
+        var directory = ValidDirectory(cwd);
         try
         {
+            // Prefer Windows Terminal, like TerminalLauncher — a legacy
+            // conhost window reads as broken to anyone who lives in wt.
+            if (Trigger.CLILocator.Locate("wt") is { } wt)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = wt,
+                    Arguments = $"new-tab --title \"{title}\" --startingDirectory \"{directory}\" cmd /k \"{binary}\" {arguments}",
+                    UseShellExecute = false,
+                });
+                return;
+            }
             var startInfo = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = $"/c start \"{title}\" /D \"{ValidDirectory(cwd)}\" cmd /k \"\"{binary}\" {arguments}\"",
+                Arguments = $"/c start \"{title}\" /D \"{directory}\" cmd /k \"\"{binary}\" {arguments}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
@@ -117,8 +137,9 @@ public static class TurnAlarmNavigator
     private static string ValidDirectory(string cwd) =>
         !string.IsNullOrEmpty(cwd) && System.IO.Directory.Exists(cwd) ? cwd : IslandPaths.Home;
 
-    /// Session ids feed deep links and shell commands; restrict to the safe
-    /// alphabet before either.
+    /// Session ids feed deep links and shell commands. Reject anything
+    /// outside the safe alphabet outright — stripping characters would
+    /// silently resume a DIFFERENT session id.
     private static string Sanitize(string sessionId) =>
-        Regex.Replace(sessionId, "[^A-Za-z0-9_-]", "");
+        Regex.IsMatch(sessionId, "^[A-Za-z0-9_-]+$") ? sessionId : "";
 }

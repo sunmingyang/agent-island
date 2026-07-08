@@ -172,7 +172,10 @@ enum TurnAlarmNavigator {
         if isUsableDirectory(cwd) {
             parts.append("cd \(shellQuote(cwd)) || exit 1")
         }
-        parts.append("exec \(shellJoin([executable] + arguments))")
+        // nvm/bun/npm-global installs live outside the exported PATH;
+        // CLILocator already probes those homes for the trigger engine.
+        let binary = CLILocator.path(for: executable == "codex" ? .codex : .claude) ?? executable
+        parts.append("exec \(shellJoin([binary] + arguments))")
         return parts.joined(separator: "; ")
     }
 
