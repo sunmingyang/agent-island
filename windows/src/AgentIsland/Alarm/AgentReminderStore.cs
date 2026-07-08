@@ -10,13 +10,14 @@ namespace AgentIsland.Alarm;
 public sealed class AgentReminderStore : INotifyPropertyChanged
 {
     /// Built-in presets, synthesized to match the character of the macOS
-    /// alert-sound palette (Basso, Blow, Bottle, …). Keys are stable; the
-    /// display names localize (低音, 吹气, 瓶子, …). Declared before Shared:
-    /// static initializers run in declaration order, and the instance ctor
-    /// reads this array.
+    /// alert-sound palette — the full 14-name list the Mac app offers, in
+    /// the same order. Keys are stable; the display names localize
+    /// (低音, 吹气, 瓶子, …). Declared before Shared: static initializers
+    /// run in declaration order, and the instance ctor reads this array.
     public static readonly string[] SoundPresets =
     {
-        "Basso", "Blow", "Bottle", "Frog", "Glass", "Hero", "Ping", "Submarine",
+        "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero",
+        "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink",
     };
 
     public static AgentReminderStore Shared { get; } = new();
@@ -114,10 +115,16 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
             "Blow" => "吹气",
             "Bottle" => "瓶子",
             "Frog" => "青蛙",
+            "Funk" => "放克",
             "Glass" => "玻璃",
             "Hero" => "英雄",
+            "Morse" => "摩斯",
             "Ping" => "叮",
+            "Pop" => "泡泡",
+            "Purr" => "呼噜",
+            "Sosumi" => "嗖咪",
             "Submarine" => "水下",
+            "Tink" => "叮当",
             _ => key,
         };
     }

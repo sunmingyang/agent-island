@@ -36,9 +36,10 @@ public sealed class IslandModel : INotifyPropertyChanged
     public const double UsageContentHeight = 188;
     public const double OverviewContentHeight = 244;
     public const double OverviewDetailHeight = 52;
-    /// Bottom corner radius; top corners stay square against the screen edge.
+    /// Corner radius on the side away from the screen edge. macOS uses a
+    /// fixed 14 for both states (IslandShape.swift).
     public const double CompactCornerRadius = 14;
-    public const double ExpandedCornerRadius = 24;
+    public const double ExpandedCornerRadius = 14;
 
     private IslandState _state = IslandState.Compact;
     private IslandSpacingMode _spacingMode;

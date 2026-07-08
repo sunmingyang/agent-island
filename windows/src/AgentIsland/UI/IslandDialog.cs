@@ -75,6 +75,8 @@ public sealed class IslandDialog : Window
                 Opacity = 0.55,
             },
         };
+        // The slow alarm-family glow breath, scaled down for a dialog.
+        IslandMotion.Breathe((DropShadowEffect)glyph.Effect, DropShadowEffect.BlurRadiusProperty, 14, 24, 1.7);
         stack.Children.Add(new Border
         {
             Width = 72,
@@ -175,6 +177,7 @@ public sealed class IslandDialog : Window
         {
             try { DragMove(); } catch { }
         };
+        IslandMotion.AnimateEntrance(this, root);
     }
 
     /// Provider-tinted dialog (spark for Claude, knot for Codex).
@@ -243,6 +246,7 @@ public sealed class IslandDialog : Window
         presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         factory.AppendChild(presenter);
         button.Template = new ControlTemplate(typeof(Button)) { VisualTree = factory };
+        IslandMotion.AttachPressFeedback(button);
         return button;
     }
 }

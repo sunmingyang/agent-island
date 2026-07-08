@@ -43,7 +43,9 @@ public sealed class TurnAlarmWindow : Window
             this, System.Windows.Media.TextFormattingMode.Display);
 
         var tint = IslandColors.For(provider);
-        Content = BuildContent(tint);
+        var root = BuildContent(tint);
+        Content = root;
+        IslandMotion.AnimateEntrance(this, root);
         KeyDown += (_, args) =>
         {
             if (args.Key == Key.Escape) Acknowledge();
@@ -58,7 +60,7 @@ public sealed class TurnAlarmWindow : Window
         try { DragMove(); } catch { }
     }
 
-    private UIElement BuildContent(Color tint)
+    private FrameworkElement BuildContent(Color tint)
     {
         var root = new Border
         {
@@ -74,6 +76,7 @@ public sealed class TurnAlarmWindow : Window
             Margin = new Thickness(40, 24, 40, 24),
         };
         var shell = new Grid();
+        shell.Children.Add(BuildBackdrop(tint));
         shell.Children.Add(stack);
         // Embedded caption strip; closing counts as acknowledged so the
         // alarm doesn't redeliver.
@@ -82,39 +85,7 @@ public sealed class TurnAlarmWindow : Window
         shell.Children.Add(captions);
         root.Child = shell;
 
-        // Glow-pulsing provider mark inside a faint ring.
-        var mark = new System.Windows.Shapes.Path
-        {
-            Data = Geometry.Parse("F1 " + (Provider == TriggerTool.Claude
-                ? BrandGeometry.ClaudePath
-                : BrandGeometry.OpenAiPath)),
-            Fill = IslandColors.Brush(tint),
-            Width = 96,
-            Height = 96,
-            Stretch = Stretch.Uniform,
-            Effect = new DropShadowEffect
-            {
-                ShadowDepth = 0,
-                BlurRadius = 24,
-                Color = tint,
-                Opacity = 0.6,
-            },
-        };
-        var ring = new Border
-        {
-            Width = 168,
-            Height = 168,
-            CornerRadius = new CornerRadius(84),
-            BorderBrush = IslandColors.Brush(tint, 0.35),
-            BorderThickness = new Thickness(1),
-            Child = mark,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 28),
-        };
-        mark.HorizontalAlignment = HorizontalAlignment.Center;
-        mark.VerticalAlignment = VerticalAlignment.Center;
-        stack.Children.Add(ring);
-        PulseGlow((DropShadowEffect)mark.Effect);
+        stack.Children.Add(BuildMarkCluster(tint));
 
         stack.Children.Add(new TextBlock
         {
@@ -146,7 +117,7 @@ public sealed class TurnAlarmWindow : Window
             FontFamily = IslandFonts.Ui,
             FontSize = 14,
             FontWeight = FontWeights.Medium,
-            Foreground = IslandColors.Brush(IslandColors.White(0.7)),
+            Foreground = IslandColors.Brush(IslandColors.White(0.66)),
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 8, 0, 0),
         });
@@ -156,12 +127,8 @@ public sealed class TurnAlarmWindow : Window
             stack.Children.Add(BuildMetadata(thread, tint));
         }
 
-        var open = MakeButton(
-            Localization.L10n.Tr("Open thread"),
-            foreground: Colors.White,
-            background: tint,
-            bold: true);
-        open.Margin = new Thickness(0, 28, 0, 0);
+        var open = MakePrimaryButton(Localization.L10n.Tr("Open thread"), tint);
+        open.Margin = new Thickness(0, 24, 0, 0);
         open.Click += (_, _) =>
         {
             if (Thread is { } target) TurnAlarmNavigator.Open(Provider, target);
@@ -169,16 +136,166 @@ public sealed class TurnAlarmWindow : Window
         };
         stack.Children.Add(open);
 
-        var gotIt = MakeButton(
-            Localization.L10n.Tr("I know"),
-            foreground: IslandColors.White(0.85),
-            background: IslandColors.White(0.06),
-            bold: false);
-        gotIt.Margin = new Thickness(0, 10, 0, 0);
+        var gotIt = MakeSecondaryButton(Localization.L10n.Tr("I know"));
+        gotIt.Margin = new Thickness(0, 12, 0, 0);
         gotIt.Click += (_, _) => Acknowledge();
         stack.Children.Add(gotIt);
 
         return root;
+    }
+
+    /// The breathing backdrop of the macOS alarm: a radial provider-color
+    /// glow anchored near the top plus a linear tint band, both cycling on
+    /// the slow 1.7s loop.
+    private static UIElement BuildBackdrop(Color tint)
+    {
+        var host = new Grid { IsHitTestVisible = false };
+
+        var radial = new RadialGradientBrush
+        {
+            MappingMode = BrushMappingMode.RelativeToBoundingBox,
+            Center = new Point(0.5, 0.15),
+            GradientOrigin = new Point(0.5, 0.15),
+            RadiusX = 0.42,
+            RadiusY = 0.42,
+        };
+        var core = new GradientStop(IslandColors.Alpha(tint, 0.20), 0);
+        var mid = new GradientStop(IslandColors.Alpha(tint, 0.05), 0.55);
+        radial.GradientStops.Add(core);
+        radial.GradientStops.Add(mid);
+        radial.GradientStops.Add(new GradientStop(IslandColors.Alpha(tint, 0), 1));
+        host.Children.Add(new System.Windows.Shapes.Rectangle
+        {
+            Fill = radial,
+            RadiusX = 18,
+            RadiusY = 18,
+        });
+
+        var band = new System.Windows.Shapes.Rectangle
+        {
+            Height = 210,
+            VerticalAlignment = VerticalAlignment.Top,
+            RadiusX = 18,
+            RadiusY = 18,
+            Opacity = 0.54,
+            Fill = new LinearGradientBrush(
+                new GradientStopCollection
+                {
+                    new GradientStop(IslandColors.Alpha(tint, 0.28), 0),
+                    new GradientStop(IslandColors.Alpha(tint, 0.03), 0.55),
+                    new GradientStop(IslandColors.Alpha(tint, 0), 1),
+                },
+                new Point(0.5, 0),
+                new Point(0.5, 1)),
+        };
+        host.Children.Add(band);
+        IslandMotion.Breathe(band, UIElement.OpacityProperty, 0.54, 1.0, 1.7);
+
+        // Radial glow breath: radius 220→285 of the 520 card and stop
+        // opacities 0.20→0.34 / 0.05→0.11 (Mac numbers).
+        IslandMotion.Breathe(radial, RadialGradientBrush.RadiusXProperty, 0.42, 0.55, 1.7);
+        IslandMotion.Breathe(radial, RadialGradientBrush.RadiusYProperty, 0.42, 0.55, 1.7);
+        BreatheStopAlpha(core, tint, 0.20, 0.34);
+        BreatheStopAlpha(mid, tint, 0.05, 0.11);
+        return host;
+    }
+
+    private static void BreatheStopAlpha(GradientStop stop, Color tint, double from, double to)
+    {
+        var pulse = new System.Windows.Media.Animation.ColorAnimation(
+            IslandColors.Alpha(tint, from),
+            IslandColors.Alpha(tint, to),
+            new Duration(TimeSpan.FromSeconds(1.7)))
+        {
+            AutoReverse = true,
+            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+        stop.BeginAnimation(GradientStop.ColorProperty, pulse);
+    }
+
+    /// The macOS mark cluster: breathing glow blob, two counter-phased
+    /// rings, and the logo with its own fast micro-scale plus a slow
+    /// shadow breath.
+    private UIElement BuildMarkCluster(Color tint)
+    {
+        var cluster = new Grid
+        {
+            Width = 148,
+            Height = 126,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 20),
+        };
+
+        var glow = new System.Windows.Shapes.Ellipse
+        {
+            Width = 138,
+            Height = 138,
+            Fill = IslandColors.Brush(tint),
+            Opacity = 0.20,
+            Effect = new BlurEffect { Radius = 18 },
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        cluster.Children.Add(glow);
+        IslandMotion.Breathe(glow, UIElement.OpacityProperty, 0.20, 0.12, 1.7);
+        IslandMotion.Breathe((BlurEffect)glow.Effect, BlurEffect.RadiusProperty, 18, 28, 1.7);
+        IslandMotion.BreatheScale(glow, 0.92, 1.12, 1.7);
+
+        var ringOuter = new System.Windows.Shapes.Ellipse
+        {
+            Width = 124,
+            Height = 124,
+            Stroke = IslandColors.Brush(tint),
+            StrokeThickness = 1,
+            Opacity = 0.25,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        cluster.Children.Add(ringOuter);
+        IslandMotion.Breathe(ringOuter, UIElement.OpacityProperty, 0.25, 0.03, 1.7);
+        IslandMotion.BreatheScale(ringOuter, 0.82, 1.16, 1.7);
+
+        var ringInner = new System.Windows.Shapes.Ellipse
+        {
+            Width = 92,
+            Height = 92,
+            Stroke = IslandColors.Brush(tint),
+            StrokeThickness = 0.75,
+            Opacity = 0.14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        cluster.Children.Add(ringInner);
+        IslandMotion.Breathe(ringInner, UIElement.OpacityProperty, 0.14, 0.30, 1.7);
+        IslandMotion.BreatheScale(ringInner, 1.08, 0.96, 1.7);
+
+        var mark = new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse("F1 " + (Provider == TriggerTool.Claude
+                ? BrandGeometry.ClaudePath
+                : BrandGeometry.OpenAiPath)),
+            Fill = IslandColors.Brush(tint),
+            Width = 76,
+            Height = 76,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Effect = new DropShadowEffect
+            {
+                ShadowDepth = 0,
+                BlurRadius = 18,
+                Color = tint,
+                Opacity = 0.48,
+            },
+        };
+        cluster.Children.Add(mark);
+        var shadow = (DropShadowEffect)mark.Effect;
+        IslandMotion.Breathe(shadow, DropShadowEffect.BlurRadiusProperty, 18, 30, 1.7);
+        IslandMotion.Breathe(shadow, DropShadowEffect.OpacityProperty, 0.48, 0.86, 1.7);
+        IslandMotion.BreatheScale(mark, 0.985, 1.025, 0.72);
+
+        return cluster;
     }
 
     private Grid BuildMetadata(ActivityMonitor.ActiveThread thread, Color tint)
@@ -264,40 +381,76 @@ public sealed class TurnAlarmWindow : Window
         grid.Children.Add(cell);
     }
 
-    private static Button MakeButton(string text, Color foreground, Color background, bool bold)
+    /// Mac primary action: 396x48, vertical brand gradient (0.96→0.72), a
+    /// colored grounding shadow, and press-scale feedback.
+    private static Button MakePrimaryButton(string text, Color tint)
     {
         var button = new Button
         {
             Content = text,
             FontFamily = IslandFonts.Ui,
-            FontSize = 16,
-            FontWeight = bold ? FontWeights.Bold : FontWeights.SemiBold,
-            Foreground = IslandColors.Brush(foreground),
-            Height = 46,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
+            FontSize = 18,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.White,
+            Width = 396,
+            Height = 48,
             Cursor = Cursors.Hand,
+            Effect = new DropShadowEffect
+            {
+                ShadowDepth = 4,
+                Direction = 270,
+                BlurRadius = 18,
+                Color = tint,
+                Opacity = 0.46,
+            },
         };
-        // Rounded template so the buttons match the macOS pill shape.
+        var fill = new LinearGradientBrush(
+            new GradientStopCollection
+            {
+                new GradientStop(IslandColors.Alpha(tint, 0.96), 0),
+                new GradientStop(IslandColors.Alpha(tint, 0.72), 1),
+            },
+            new Point(0.5, 0),
+            new Point(0.5, 1));
+        fill.Freeze();
         var border = new FrameworkElementFactory(typeof(Border));
         border.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
-        border.SetValue(Border.BackgroundProperty, IslandColors.Brush(background));
+        border.SetValue(Border.BackgroundProperty, fill);
         var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
         presenter.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
         presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         border.AppendChild(presenter);
         button.Template = new ControlTemplate(typeof(Button)) { VisualTree = border };
+        IslandMotion.AttachPressFeedback(button);
         return button;
     }
 
-    private static void PulseGlow(DropShadowEffect glow)
+    /// Mac secondary action: 396x42, faint white fill and hairline stroke.
+    private static Button MakeSecondaryButton(string text)
     {
-        var pulse = new DoubleAnimation(16, 32, new Duration(TimeSpan.FromSeconds(1.1)))
+        var button = new Button
         {
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever,
-            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+            Content = text,
+            FontFamily = IslandFonts.Ui,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.86)),
+            Width = 396,
+            Height = 42,
+            Cursor = Cursors.Hand,
         };
-        glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, pulse);
+        var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+        border.SetValue(Border.BackgroundProperty, IslandColors.Brush(IslandColors.White(0.08)));
+        border.SetValue(Border.BorderBrushProperty, IslandColors.Brush(IslandColors.White(0.12)));
+        border.SetValue(Border.BorderThicknessProperty, new Thickness(0.5));
+        var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+        presenter.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        border.AppendChild(presenter);
+        button.Template = new ControlTemplate(typeof(Button)) { VisualTree = border };
+        IslandMotion.AttachPressFeedback(button);
+        return button;
     }
 
     private void Acknowledge()

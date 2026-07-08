@@ -35,6 +35,15 @@ public sealed class TurnAlarmSoundLooper
             Stop();
             return;
         }
+        // macOS parity: a tick lands while the previous instance is still
+        // sounding (long custom files) — skip it rather than overlap, so
+        // the effective cadence is max(1.8s, sound length).
+        if (_player is { Source: not null } playing
+            && playing.NaturalDuration.HasTimeSpan
+            && playing.Position < playing.NaturalDuration.TimeSpan)
+        {
+            return;
+        }
         if (AgentReminderStore.Shared.ResolveSoundFile() is not { } file) return;
         try
         {

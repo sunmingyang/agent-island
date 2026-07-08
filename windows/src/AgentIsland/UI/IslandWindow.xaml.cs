@@ -221,10 +221,10 @@ public partial class IslandWindow : Window
         });
         var chip = new System.Windows.Controls.TextBlock
         {
-            FontFamily = Charts.IslandFonts.Ui,
+            FontFamily = Charts.IslandFonts.Mono,
             FontSize = 9,
             FontWeight = FontWeights.Bold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.6)),
+            Foreground = IslandColors.Brush(IslandColors.White(0.78)),
             VerticalAlignment = VerticalAlignment.Center,
         };
         var chipHost = new System.Windows.Controls.Border
