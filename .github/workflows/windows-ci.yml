@@ -30,3 +30,16 @@ jobs:
       - name: Test
         working-directory: windows
         run: dotnet run --project tests/AgentIsland.Tests -c Release
+
+      # A downloadable test build for every push — lets a maintainer try the
+      # branch without cutting a release/tag (which would ship to all users
+      # via auto-update). Grab it from the run's Artifacts section.
+      - name: Package test build
+        working-directory: windows
+        run: .\build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AgentIsland-win-x64-test
+          path: windows/dist/AgentIsland-*.zip
+          if-no-files-found: error

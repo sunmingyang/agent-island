@@ -61,6 +61,10 @@ public sealed class ProviderLogo : Grid
         set
         {
             _tool = value;
+            // A tool identity change is instant, not a state crossfade — the
+            // ctor seeds with the default Claude, so reset the seed here or
+            // a Codex logo would fade terracotta→blue on every launch.
+            _tintSeeded = false;
             ApplyTool();
         }
     }

@@ -14,10 +14,6 @@ public enum IslandPlacement
     BottomBar,
     /// A free-floating widget the user drags anywhere; its position sticks.
     Floating,
-    /// A vertical rail hugging the left edge; expands toward screen center.
-    LeftRail,
-    /// A vertical rail hugging the right edge; expands toward screen center.
-    RightRail,
     /// Docked into the bottom-right corner beside the notification tray.
     Tray,
 }
@@ -95,9 +91,6 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Alignment)));
         }
     }
-
-    /// True when the island lays out as a horizontal bar (bar/floating/tray).
-    public bool IsHorizontal => _placement is not (IslandPlacement.LeftRail or IslandPlacement.RightRail);
 
     /// The persisted floating top-left in DIP, or null until first dragged.
     public (double X, double Y)? FloatingPoint =>

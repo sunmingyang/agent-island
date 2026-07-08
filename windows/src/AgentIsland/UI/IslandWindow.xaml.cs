@@ -308,10 +308,17 @@ public partial class IslandWindow : Window
                 var pt = store.FloatingPoint;
                 if (pt is { } p)
                 {
-                    // Keep the whole canvas within the work area so the
-                    // island and its downward-growing panel stay reachable.
-                    Left = Math.Clamp(p.X, area.Left, Math.Max(area.Left, area.Right - Width));
-                    Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, area.Bottom - Height));
+                    // Clamp the VISIBLE silhouette (not the oversized
+                    // transparent canvas) so the island can be parked right
+                    // at a screen edge; the canvas simply overhangs off-screen.
+                    var silW = Silhouette.ActualWidth > 0 ? Silhouette.ActualWidth : 280;
+                    var silH = Silhouette.ActualHeight > 0 ? Silhouette.ActualHeight : IslandModel.SilhouetteHeight;
+                    var insetX = (Width - silW) / 2; // silhouette is centered in the canvas
+                    var minLeft = area.Left - insetX;
+                    var maxLeft = area.Right - silW - insetX;
+                    var maxTop = area.Bottom - silH;
+                    Left = Math.Clamp(p.X, minLeft, Math.Max(minLeft, maxLeft));
+                    Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, maxTop));
                 }
                 else
                 {
@@ -491,6 +498,9 @@ public partial class IslandWindow : Window
         if (moved)
         {
             Model.IslandPositionStore.Shared.SetFloatingPoint(Left, Top);
+            // Settle into the clamped resting spot now, so it matches where a
+            // later reposition (display change / relaunch) would place it.
+            PositionOnScreen();
         }
         else if (_model.State is IslandState.Peek or IslandState.Compact)
         {
