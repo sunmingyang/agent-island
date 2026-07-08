@@ -141,13 +141,26 @@ public partial class IslandWindow : Window
     private void ApplyProviderVisibility()
     {
         var visibility = Model.ProviderVisibilityStore.Shared;
-        ClaudeLogo.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
-        CodexLogo.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
+        // The logo's fixed grid column reserves its slot either way, so we
+        // fade opacity (the macOS openMorph spring) rather than hard-toggle
+        // Visibility — toggling a provider springs the mark in/out.
+        FadeLogo(ClaudeLogo, visibility.ClaudeVisible);
+        FadeLogo(CodexLogo, visibility.CodexVisible);
         if (_claudeTitle is not null)
             _claudeTitle.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
         if (_codexTitle is not null)
             _codexTitle.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
         UpdatePills();
+    }
+
+    private static void FadeLogo(UIElement logo, bool visible)
+    {
+        var fade = new DoubleAnimation(visible ? 1 : 0, IslandAnimations.OpenMorphDuration)
+        {
+            EasingFunction = IslandAnimations.OpenMorph(),
+        };
+        logo.BeginAnimation(OpacityProperty, fade);
+        logo.IsHitTestVisible = visible;
     }
 
     /// Pages + footer inside the expanded area; provider titles + plan chips

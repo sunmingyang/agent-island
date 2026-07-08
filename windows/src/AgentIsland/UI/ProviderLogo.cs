@@ -18,8 +18,12 @@ public sealed class ProviderLogo : Grid
     private readonly RotateTransform _rotate = new();
     private readonly ScaleTransform _scale = new();
     private readonly DropShadowEffect _glow;
+    // Mutable (unfrozen) fill so the state-change tint can crossfade — a
+    // frozen IslandColors.Brush can't be animated.
+    private readonly SolidColorBrush _fill = new(IslandColors.Claude);
     private TriggerTool _tool = TriggerTool.Claude;
     private ActivityState _state = ActivityState.Idle;
+    private bool _tintSeeded;
 
     public const double MarkSize = 20;
 
@@ -34,6 +38,7 @@ public sealed class ProviderLogo : Grid
         };
         _path = new System.Windows.Shapes.Path
         {
+            Fill = _fill,
             Width = MarkSize,
             Height = MarkSize,
             Stretch = Stretch.Uniform,
@@ -75,8 +80,22 @@ public sealed class ProviderLogo : Grid
     private void ApplyTint()
     {
         var color = _state.IsAttentionState() ? AlarmRed : IslandColors.For(_tool);
-        _path.Fill = IslandColors.Brush(color);
-        _glow.Color = color;
+        // First paint is instant; later state changes crossfade over 0.3s,
+        // the macOS LogoOverlay easeInOut(0.3) tint transition (e.g.
+        // working blue → attention red).
+        if (!_tintSeeded)
+        {
+            _tintSeeded = true;
+            _fill.Color = color;
+            _glow.Color = color;
+            return;
+        }
+        var fade = new Duration(TimeSpan.FromSeconds(0.3));
+        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
+        _fill.BeginAnimation(SolidColorBrush.ColorProperty,
+            new ColorAnimation(color, fade) { EasingFunction = ease });
+        _glow.BeginAnimation(DropShadowEffect.ColorProperty,
+            new ColorAnimation(color, fade) { EasingFunction = ease });
     }
 
     public void SetState(ActivityState state)
