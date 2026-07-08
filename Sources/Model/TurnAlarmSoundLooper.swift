@@ -10,7 +10,8 @@ final class TurnAlarmSoundLooper {
         guard AgentReminderStore.shared.soundEnabled else { return }
         play()
         timer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.play() }
+            guard let self else { return }
+            Task { @MainActor in self.play() }
         }
     }
 
