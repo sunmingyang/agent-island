@@ -1,0 +1,32 @@
+# WPF can't compile anywhere but Windows (the Linux/macOS SDKs ship without
+# Microsoft.NET.Sdk.WindowsDesktop), so this is the only pre-tag compile
+# check the Windows port gets.
+name: Windows CI
+
+on:
+  push:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows-ci.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - ".github/workflows/windows-ci.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build
+        working-directory: windows
+        run: dotnet build src/AgentIsland/AgentIsland.csproj -c Release
+
+      - name: Test
+        working-directory: windows
+        run: dotnet run --project tests/AgentIsland.Tests -c Release
