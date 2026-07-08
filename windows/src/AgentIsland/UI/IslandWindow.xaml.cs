@@ -10,9 +10,10 @@ using AgentIsland.Usage;
 namespace AgentIsland.UI;
 
 /// The island itself: a borderless, topmost, per-pixel-transparent window
-/// pinned to the top-center of the screen. Fully transparent pixels pass
-/// clicks through to whatever is behind, so only the black silhouette is
-/// interactive — the WPF equivalent of the macOS hitTest override.
+/// docked to an edge of the chosen screen (top-center by default). Fully
+/// transparent pixels pass clicks through to whatever is behind, so only the
+/// black silhouette is interactive — the WPF equivalent of the macOS hitTest
+/// override.
 public partial class IslandWindow : Window
 {
     private readonly IslandModel _model = IslandModel.Shared;
@@ -34,6 +35,7 @@ public partial class IslandWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ApplyEdgeLayout();
         PositionOnScreen();
 
         // The sweep ring tracks the silhouette through every spring morph
@@ -52,6 +54,19 @@ public partial class IslandWindow : Window
                 Dispatcher.BeginInvoke(PositionOnScreen);
             }
         };
+        // WorkArea/PrimaryScreenWidth only cover the primary display;
+        // plug/unplug or resolution changes on a pinned secondary arrive via
+        // SystemEvents (the didChangeScreenParameters analog).
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        Closed += (_, _) =>
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        Model.IslandTargetDisplayStore.Shared.PropertyChanged += (_, _) =>
+            Dispatcher.BeginInvoke(PositionOnScreen);
+        Model.IslandPositionStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            ApplyEdgeLayout();
+            PositionOnScreen();
+        });
 
         ApplySizeInstant();
         BuildExpandedChrome();
@@ -249,10 +264,112 @@ public partial class IslandWindow : Window
         }
     }
 
+    /// Transparent canvas kept on an anchored side so the halo glow (blur
+    /// radius up to 22 while pulsing) never clips at the window boundary.
+    private const double HaloBleed = 28;
+
+    /// Visual gap between the island and the screen's side edge when
+    /// left/right aligned.
+    private const double EdgeInset = 16;
+
     private void PositionOnScreen()
     {
-        Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
-        Top = 0;
+        var area = WorkAreaDip(Model.IslandTargetDisplayStore.Shared.Resolve());
+        var position = Model.IslandPositionStore.Shared;
+        Left = position.Alignment switch
+        {
+            Model.IslandAlignment.Left => area.Left + EdgeInset - HaloBleed,
+            Model.IslandAlignment.Right => area.Right - Width - EdgeInset + HaloBleed,
+            _ => area.Left + (area.Width - Width) / 2,
+        };
+        Top = position.Edge == Model.IslandEdge.Bottom ? area.Bottom - Height : area.Top;
+    }
+
+    /// The chosen monitor's work area (taskbar excluded, so a top-docked
+    /// taskbar pushes the island below it) in WPF units. WinForms screens
+    /// report physical pixels; TransformFromDevice maps them into this
+    /// window's DIP space.
+    private Rect WorkAreaDip(System.Windows.Forms.Screen screen)
+    {
+        var area = screen.WorkingArea;
+        if (PresentationSource.FromVisual(this)?.CompositionTarget is { } target)
+        {
+            var device = target.TransformFromDevice;
+            return new Rect(
+                device.Transform(new Point(area.Left, area.Top)),
+                device.Transform(new Point(area.Right, area.Bottom)));
+        }
+        return SystemParameters.WorkArea;
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(PositionOnScreen);
+
+    /// Rounded corners face away from the docked edge; the flat side sits
+    /// flush against it.
+    private CornerRadius ShapeRadius(double radius) =>
+        Model.IslandPositionStore.Shared.Edge == Model.IslandEdge.Bottom
+            ? new CornerRadius(radius, radius, 0, 0)
+            : new CornerRadius(0, 0, radius, radius);
+
+    /// Hidden panel content parks 8px toward the bar strip so the expand
+    /// reveal always slides away from the docked edge.
+    private double PanelRestOffset() =>
+        Model.IslandPositionStore.Shared.Edge == Model.IslandEdge.Bottom ? 8 : -8;
+
+    /// Re-anchors the silhouette for the docked edge and alignment: bottom
+    /// dock mirrors the whole layout (bar strip against the taskbar, panel
+    /// growing upward); left/right hug a side with a fixed inset.
+    private void ApplyEdgeLayout()
+    {
+        var store = Model.IslandPositionStore.Shared;
+        var bottom = store.Edge == Model.IslandEdge.Bottom;
+
+        FirstRow.Height = bottom
+            ? new GridLength(1, GridUnitType.Star)
+            : new GridLength(IslandModel.SilhouetteHeight);
+        SecondRow.Height = bottom
+            ? new GridLength(IslandModel.SilhouetteHeight)
+            : new GridLength(1, GridUnitType.Star);
+        System.Windows.Controls.Grid.SetRow(TopStrip, bottom ? 1 : 0);
+        System.Windows.Controls.Grid.SetRow(ExpandedContent, bottom ? 0 : 1);
+        System.Windows.Controls.Grid.SetRow(SettingsGear, bottom ? 0 : 1);
+        SettingsGear.VerticalAlignment = bottom ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        SettingsGear.Margin = bottom ? new Thickness(12, 11, 0, 0) : new Thickness(12, 0, 0, 11);
+
+        var horizontal = store.Alignment switch
+        {
+            Model.IslandAlignment.Left => HorizontalAlignment.Left,
+            Model.IslandAlignment.Right => HorizontalAlignment.Right,
+            _ => HorizontalAlignment.Center,
+        };
+        var vertical = bottom ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+        Silhouette.HorizontalAlignment = horizontal;
+        Silhouette.VerticalAlignment = vertical;
+        Silhouette.Margin = new Thickness(
+            horizontal == HorizontalAlignment.Left ? HaloBleed : 0, 0,
+            horizontal == HorizontalAlignment.Right ? HaloBleed : 0, 0);
+        Sweep.HorizontalAlignment = horizontal;
+        Sweep.VerticalAlignment = vertical;
+        // The ring is 4px larger than the silhouette: -2 keeps it concentric
+        // on anchored sides and rides half its stroke outside the flush edge.
+        Sweep.Margin = new Thickness(
+            horizontal == HorizontalAlignment.Left ? HaloBleed - 2 : 0,
+            bottom ? 0 : -2,
+            horizontal == HorizontalAlignment.Right ? HaloBleed - 2 : 0,
+            bottom ? -2 : 0);
+
+        Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
+        Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
+        if (RootHost.Effect is System.Windows.Media.Effects.DropShadowEffect shadow)
+        {
+            shadow.Direction = bottom ? 90 : 270;
+        }
+        if (_model.State != IslandState.Expanded)
+        {
+            ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
+            ContentSlide.Y = PanelRestOffset();
+        }
     }
 
     // MARK: - State transitions
@@ -329,8 +446,8 @@ public partial class IslandWindow : Window
             && (previous == IslandState.Compact || state == IslandState.Expanded);
         AnimateSize(_model.Size, open);
         AnimatePillSlots(open);
-        Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
-        Sweep.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius + 2, _model.CornerRadius + 2);
+        Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
+        Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
 
         // Expanded panel gains the hairline stroke and grounding shadow of
         // the macOS GlowLayer; both drop on collapse.
@@ -344,7 +461,8 @@ public partial class IslandWindow : Window
                 Opacity = 0.5,
                 BlurRadius = 20,
                 ShadowDepth = 10,
-                Direction = 270,
+                // Grounding shadow falls away from the docked edge.
+                Direction = Model.IslandPositionStore.Shared.Edge == Model.IslandEdge.Bottom ? 90 : 270,
             }
             : null;
 
@@ -385,8 +503,8 @@ public partial class IslandWindow : Window
         var size = _model.Size;
         Silhouette.Width = size.Width;
         Silhouette.Height = size.Height;
-        Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
-        Sweep.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius + 2, _model.CornerRadius + 2);
+        Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
+        Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
         LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
         RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
         var slot = new GridLength(PillSlotTarget());
@@ -473,7 +591,7 @@ public partial class IslandWindow : Window
                 ExpandedContent.Visibility = Visibility.Collapsed;
                 SettingsGear.Visibility = Visibility.Collapsed;
                 ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
-                ContentSlide.Y = -8;
+                ContentSlide.Y = PanelRestOffset();
             }
         };
         ExpandedContent.BeginAnimation(OpacityProperty, fade);

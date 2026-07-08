@@ -43,9 +43,12 @@
                 <DropShadowEffect x:Name="Halo" ShadowDepth="0" BlurRadius="14" Opacity="0.35" Color="#000000"/>
             </Border.Effect>
             <Grid ClipToBounds="True">
+                <!-- Row order flips when the island docks to the bottom edge:
+                     the bar strip always hugs the docked edge and the panel
+                     grows away from it (see ApplyEdgeLayout). -->
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="36"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition x:Name="FirstRow" Height="36"/>
+                    <RowDefinition x:Name="SecondRow" Height="*"/>
                 </Grid.RowDefinitions>
 
                 <!-- Top strip, macOS structure: the logo tabs flank the notch
