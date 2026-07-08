@@ -400,7 +400,7 @@ public static class SessionScanner
         try
         {
             using var stream = new FileStream(
-                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var reader = new StreamReader(stream, Encoding.UTF8);
             for (var i = 0; i < 30 && reader.ReadLine() is { } line; i++)
             {

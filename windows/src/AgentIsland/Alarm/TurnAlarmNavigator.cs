@@ -12,10 +12,19 @@ namespace AgentIsland.Alarm;
 /// app. CLI sessions reopen the interactive resume command in a terminal.
 public static class TurnAlarmNavigator
 {
+    /// The foreground-sensitive work (deep link + SetForegroundWindow) runs
+    /// SYNCHRONOUSLY on the caller's UI thread, which still holds the
+    /// foreground at click time — so the OS permits the window handoff.
+    /// Only the slow CLI fallback (CLILocator probes every PATH directory,
+    /// seconds on a dead network share) is pushed off-thread; spawning a
+    /// terminal doesn't need us to hold the foreground. Backgrounding the
+    /// WHOLE thing raced the alarm's own Close and reintroduced the dead
+    /// click P11 fixed.
     public static void Open(TriggerTool provider, ActivityMonitor.ActiveThread thread)
     {
         var sessionId = Sanitize(thread.SessionId);
         if (sessionId.Length == 0) return;
+        var cwd = thread.Cwd;
 
         if (provider == TriggerTool.Claude)
         {
@@ -28,25 +37,33 @@ public static class TurnAlarmNavigator
                 var focused = FocusAppWindow("claude");
                 if (linked || focused) return;
             }
-            if (Trigger.CLILocator.Locate("claude") is { } claude)
+            System.Threading.Tasks.Task.Run(() =>
             {
-                RunResumeInTerminal(claude, $"--resume {sessionId}", thread.Cwd, "Claude resume");
-            }
+                if (Trigger.CLILocator.Locate("claude") is { } claude)
+                {
+                    RunResumeInTerminal(claude, $"--resume {sessionId}", cwd, "Claude resume");
+                }
+            });
             return;
         }
 
         // Codex sessions discovered on disk are CLI sessions — resume them
         // in a terminal. The desktop deep link is the no-CLI fallback, not
-        // a hijack of a terminal workflow.
-        if (Trigger.CLILocator.Locate("codex") is { } codex)
+        // a hijack of a terminal workflow. Both the CLILocator probe and the
+        // spawn are slow and foreground-independent, so run off-thread; the
+        // rare no-CLI focus fallback tolerates a taskbar flash.
+        System.Threading.Tasks.Task.Run(() =>
         {
-            RunResumeInTerminal(codex, $"resume {sessionId}", thread.Cwd, "Codex resume");
-            return;
-        }
-        if (TryOpenUri($"codex://threads/{sessionId}"))
-        {
-            FocusAppWindow("Codex");
-        }
+            if (Trigger.CLILocator.Locate("codex") is { } codex)
+            {
+                RunResumeInTerminal(codex, $"resume {sessionId}", cwd, "Codex resume");
+                return;
+            }
+            if (TryOpenUri($"codex://threads/{sessionId}"))
+            {
+                FocusAppWindow("Codex");
+            }
+        });
     }
 
     private static bool TryOpenUri(string uri)

@@ -75,9 +75,11 @@ extension SessionScanner {
         }
         defer { try? handle.close() }
         let data = handle.readData(ofLength: 65_536)
-        guard let text = String(data: data, encoding: .utf8) else {
-            return projectFromClaudeTranscript(path)
-        }
+        // Lenient decode: a fixed-size read can split a multi-byte UTF-8
+        // sequence at the tail, and strict decoding would fail the whole
+        // buffer — discarding a valid cwd on line 1. U+FFFD lands only on
+        // the truncated final line, which the loop never reaches.
+        let text = String(decoding: data, as: UTF8.self)
         for line in text.split(separator: "\n", maxSplits: 30, omittingEmptySubsequences: true) {
             guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
                   let cwd = object["cwd"] as? String,

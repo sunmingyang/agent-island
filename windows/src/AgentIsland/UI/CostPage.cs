@@ -155,7 +155,7 @@ public sealed class CostBlock : StackPanel
         switch (CostStylePreferenceStore.Shared.Style)
         {
             case CostStyle.Tokens:
-                _countUp.Animate(summary.TodayTokens,
+                _countUp.Animate(summary.TodayTokens, "tokens",
                     v => Core.Formatting.CompactTokens((long)Math.Round(v)));
                 ApplyGlow(summary.TodayDollars);
                 _heroCaption.Text = Localization.L10n.Tr("tokens today");
@@ -166,7 +166,7 @@ public sealed class CostBlock : StackPanel
                     "{0} billable", Core.Formatting.CompactTokens(summary.TodayBillableTokens));
                 break;
             case CostStyle.Trend:
-                _countUp.Animate(summary.MonthDollars, Core.Formatting.Money);
+                _countUp.Animate(summary.MonthDollars, "money", Core.Formatting.Money);
                 ApplyGlow(summary.MonthDollars);
                 _heroCaption.Text = Localization.L10n.Tr("this month");
                 _sparkline.SetSeries(summary.MonthCumulativeDollars);
@@ -178,7 +178,7 @@ public sealed class CostBlock : StackPanel
                     Core.Formatting.CompactTokens(summary.MonthBillableTokens));
                 break;
             case CostStyle.Multi:
-                _countUp.Animate(summary.TodayDollars, Core.Formatting.Money);
+                _countUp.Animate(summary.TodayDollars, "money", Core.Formatting.Money);
                 ApplyGlow(summary.TodayDollars);
                 _heroCaption.Text = Localization.L10n.Tr("today");
                 _sparkline.SetSeries(summary.TodayCumulativeDollars);
@@ -193,7 +193,7 @@ public sealed class CostBlock : StackPanel
                 break;
             case CostStyle.Dollar:
             default:
-                _countUp.Animate(summary.TodayDollars, Core.Formatting.Money);
+                _countUp.Animate(summary.TodayDollars, "money", Core.Formatting.Money);
                 ApplyGlow(summary.TodayDollars);
                 _heroCaption.Text = Localization.L10n.Tr("today");
                 _sparkline.SetSeries(summary.TodayCumulativeDollars);
@@ -220,14 +220,19 @@ public sealed class CostBlock : StackPanel
 
 /// 0.65s cubic-ease-out numeric count-up — the macOS CountUpDollar
 /// behavior, driven by a 60Hz dispatcher timer only while animating.
+/// The `unit` guards against counting across incompatible scales: switching
+/// the cost style from tokens (millions) to dollars must snap, not tick a
+/// 2,000,000 token count rendered as "$2,000,000" down to "$15".
 internal sealed class CountUp
 {
     private const double Seconds = 0.65;
     private readonly TextBlock _target;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private Func<double, string> _format = _ => "";
+    private string _unit = "";
     private double _from;
     private double _to;
+    private double _current;
     private bool _seeded;
     private DateTime _start;
 
@@ -237,19 +242,43 @@ internal sealed class CountUp
         _timer.Tick += (_, _) => Tick();
     }
 
-    public void Animate(double to, Func<double, string> format)
+    public void Animate(double to, string unit, Func<double, string> format)
     {
         _format = format;
-        if (_seeded && Math.Abs(to - _to) < 0.000001)
+        // First appearance: reveal by counting from zero.
+        if (!_seeded)
+        {
+            _seeded = true;
+            _unit = unit;
+            Run(0, to);
+            return;
+        }
+        // Unit change (tokens <-> dollars): snap, never count across scales.
+        if (unit != _unit)
+        {
+            _unit = unit;
+            _timer.Stop();
+            _to = _current = to;
+            _target.Text = format(to);
+            return;
+        }
+        // Same value already shown: nothing to animate.
+        if (Math.Abs(to - _to) < 0.000001)
         {
             if (!_timer.IsEnabled) _target.Text = format(to);
             return;
         }
-        _from = _seeded ? _to : 0;
+        // Same unit, new value: continue from what's on screen right now.
+        Run(_current, to);
+    }
+
+    private void Run(double from, double to)
+    {
+        _from = from;
         _to = to;
-        _seeded = true;
+        _current = from;
         _start = DateTime.UtcNow;
-        _target.Text = _format(_from);
+        _target.Text = _format(from);
         _timer.Start();
     }
 
@@ -257,7 +286,8 @@ internal sealed class CountUp
     {
         var x = Math.Clamp((DateTime.UtcNow - _start).TotalSeconds / Seconds, 0, 1);
         var eased = 1 - Math.Pow(1 - x, 3);
-        _target.Text = _format(_from + (_to - _from) * eased);
+        _current = _from + (_to - _from) * eased;
+        _target.Text = _format(_current);
         if (x >= 1) _timer.Stop();
     }
 }

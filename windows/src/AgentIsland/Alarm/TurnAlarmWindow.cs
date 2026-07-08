@@ -131,15 +131,11 @@ public sealed class TurnAlarmWindow : Window
         open.Margin = new Thickness(0, 24, 0, 0);
         open.Click += (_, _) =>
         {
-            // Off the UI thread: CLILocator probes every PATH directory and
-            // can stall for seconds (macOS hit the same bug, 873b85c).
-            // Fired before the close so the process still holds the
-            // foreground for the SetForegroundWindow handoff.
-            if (Thread is { } target)
-            {
-                var provider = Provider;
-                System.Threading.Tasks.Task.Run(() => TurnAlarmNavigator.Open(provider, target));
-            }
+            // Open() runs its foreground-sensitive step synchronously (while
+            // this window still holds focus) and backgrounds only the slow
+            // CLI probe itself — so acknowledging/closing right after is safe
+            // and the SetForegroundWindow handoff still lands.
+            if (Thread is { } target) TurnAlarmNavigator.Open(Provider, target);
             Acknowledge();
         };
         stack.Children.Add(open);
