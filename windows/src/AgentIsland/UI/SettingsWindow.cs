@@ -614,51 +614,27 @@ public sealed class SettingsWindow : Window
         var placementBox = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
         foreach (var mode in placements) placementBox.Items.Add(PlacementLabel(mode));
         placementBox.SelectedIndex = Math.Max(0, Array.IndexOf(placements, position.Placement));
-
-        var alignment = new Segmented(
-            new[] { L10n.Tr("Left"), L10n.Tr("Center"), L10n.Tr("Right") },
-            (int)position.Alignment);
-        alignment.SelectionChanged += index => position.Alignment = (IslandAlignment)index;
-        var alignmentRow = new SettingsRowControl(
-            "Alignment",
-            "Slide the island along its edge to clear tabs and title-bar buttons.",
-            alignment);
-
-        void RefreshAlignmentEnabled()
-        {
-            // Left/Center/Right only means something for the top/bottom bars.
-            var isBar = position.Placement is IslandPlacement.TopBar or IslandPlacement.BottomBar;
-            alignmentRow.Opacity = isBar ? 1.0 : 0.4;
-            alignmentRow.IsEnabled = isBar;
-        }
-
         placementBox.SelectionChanged += (_, _) =>
         {
             if (placementBox.SelectedIndex >= 0)
             {
                 position.Placement = placements[placementBox.SelectedIndex];
-                RefreshAlignmentEnabled();
             }
         };
         stack.Children.Add(new SettingsRowControl(
             "Island position",
-            "Top or bottom bar, a free-floating widget you drag anywhere, or docked by the tray.",
+            "Top or bottom bar, a free-floating widget you drag anywhere, or tucked into the taskbar.",
             placementBox));
-        stack.Children.Add(alignmentRow);
-        RefreshAlignmentEnabled();
 
-        if (position.Placement == IslandPlacement.Floating)
+        stack.Children.Add(new TextBlock
         {
-            stack.Children.Add(new TextBlock
-            {
-                Text = L10n.Tr("Drag the island to move it; its spot is remembered."),
-                FontFamily = IslandFonts.Ui,
-                FontSize = 11,
-                Foreground = IslandColors.Brush(IslandColors.White(0.4)),
-                Margin = new Thickness(10, 0, 10, 6),
-                TextWrapping = TextWrapping.Wrap,
-            });
-        }
+            Text = L10n.Tr("Floating: drag the island to move it. Taskbar: sits over the bottom bar by the tray."),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.4)),
+            Margin = new Thickness(10, 2, 10, 6),
+            TextWrapping = TextWrapping.Wrap,
+        });
 
         return stack;
     }

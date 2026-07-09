@@ -284,10 +284,6 @@ public partial class IslandWindow : Window
     /// radius up to 22 while pulsing) never clips at the window boundary.
     private const double HaloBleed = 28;
 
-    /// Visual gap between the island and the screen's side edge when
-    /// left/right aligned.
-    private const double EdgeInset = 16;
-
     /// Which screen edge the island's flat side faces. Floating faces none.
     private enum DockEdge { Top, Bottom, None }
 
@@ -327,29 +323,44 @@ public partial class IslandWindow : Window
                 }
                 break;
             case Model.IslandPlacement.Tray:
-                // Bottom-right corner beside the notification tray; the
-                // silhouette hugs the corner via its bottom-right alignment.
-                Left = area.Right - Width;
-                Top = area.Bottom - Height;
+                // Sit OVER the taskbar (full screen bounds, not the work
+                // area) at the bottom-right, just left of the notification
+                // area — Win11 doesn't allow embedding into the taskbar, so
+                // a topmost overlay is the closest "in the bottom bar" spot.
+                var full = ScreenBoundsDip(Model.IslandTargetDisplayStore.Shared.Resolve());
+                Left = full.Right - Width - TrayNotificationInset;
+                Top = full.Bottom - Height;
                 break;
             case Model.IslandPlacement.BottomBar:
-                Left = HorizontalBarLeft(area);
+                Left = area.Left + (area.Width - Width) / 2;
                 Top = area.Bottom - Height;
                 break;
             case Model.IslandPlacement.TopBar:
             default:
-                Left = HorizontalBarLeft(area);
+                Left = area.Left + (area.Width - Width) / 2;
                 Top = area.Top;
                 break;
         }
     }
 
-    private double HorizontalBarLeft(Rect area) => Model.IslandPositionStore.Shared.Alignment switch
+    /// Room reserved on the right for the Win11 notification area (clock,
+    /// tray icons) so the Tray overlay doesn't cover them.
+    private const double TrayNotificationInset = 200;
+
+    /// Full monitor bounds (taskbar INCLUDED) in DIP — used by Tray mode to
+    /// overlay the bottom bar.
+    private Rect ScreenBoundsDip(System.Windows.Forms.Screen screen)
     {
-        Model.IslandAlignment.Left => area.Left + EdgeInset - HaloBleed,
-        Model.IslandAlignment.Right => area.Right - Width - EdgeInset + HaloBleed,
-        _ => area.Left + (area.Width - Width) / 2,
-    };
+        var b = screen.Bounds;
+        if (PresentationSource.FromVisual(this)?.CompositionTarget is { } target)
+        {
+            var device = target.TransformFromDevice;
+            return new Rect(
+                device.Transform(new Point(b.Left, b.Top)),
+                device.Transform(new Point(b.Right, b.Bottom)));
+        }
+        return new Rect(b.Left, b.Top, b.Width, b.Height);
+    }
 
     /// The chosen monitor's work area (taskbar excluded, so a top-docked
     /// taskbar pushes the island below it) in WPF units. WinForms screens
@@ -407,18 +418,10 @@ public partial class IslandWindow : Window
         SettingsGear.Margin = bottom ? new Thickness(12, 11, 0, 0) : new Thickness(12, 0, 0, 11);
 
         // Where the silhouette sits inside the oversized transparent canvas.
-        var horizontal = store.Placement switch
-        {
-            Model.IslandPlacement.Tray => HorizontalAlignment.Right,
-            Model.IslandPlacement.Floating => HorizontalAlignment.Center,
-            Model.IslandPlacement.TopBar or Model.IslandPlacement.BottomBar => store.Alignment switch
-            {
-                Model.IslandAlignment.Left => HorizontalAlignment.Left,
-                Model.IslandAlignment.Right => HorizontalAlignment.Right,
-                _ => HorizontalAlignment.Center,
-            },
-            _ => HorizontalAlignment.Center,
-        };
+        // Bars center; Tray hugs the right so it lands by the notification area.
+        var horizontal = store.Placement == Model.IslandPlacement.Tray
+            ? HorizontalAlignment.Right
+            : HorizontalAlignment.Center;
         var vertical = bottom ? VerticalAlignment.Bottom : VerticalAlignment.Top;
         Silhouette.HorizontalAlignment = horizontal;
         Silhouette.VerticalAlignment = vertical;

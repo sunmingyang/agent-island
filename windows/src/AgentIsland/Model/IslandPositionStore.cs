@@ -18,31 +18,19 @@ public enum IslandPlacement
     Tray,
 }
 
-/// Where along a horizontal bar edge the island sits (TopBar/BottomBar only).
-/// Center is the signature look; Left/Right clear browser tabs and title-bar
-/// buttons that live in the top-center of maximized windows.
-public enum IslandAlignment
-{
-    Left,
-    Center,
-    Right,
-}
-
 /// Persisted island placement. Windows-only concept, hence the AgentIsland.
 /// key prefix rather than the ported MacIsland. namespace.
 public sealed class IslandPositionStore : INotifyPropertyChanged
 {
     private const string PlacementKey = "AgentIsland.islandPlacement";
-    private const string AlignmentKey = "AgentIsland.islandAlignment";
     private const string FloatXKey = "AgentIsland.floatX";
     private const string FloatYKey = "AgentIsland.floatY";
-    // Legacy key from the first edge/alignment iteration.
+    // Legacy key from the first edge iteration.
     private const string LegacyEdgeKey = "AgentIsland.islandEdge";
 
     public static IslandPositionStore Shared { get; } = new();
 
     private IslandPlacement _placement;
-    private IslandAlignment _alignment;
     private double? _floatX;
     private double? _floatY;
 
@@ -61,9 +49,6 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
                 ? IslandPlacement.BottomBar
                 : IslandPlacement.TopBar;
         }
-        _alignment = Enum.TryParse<IslandAlignment>(Preferences.Get<string?>(AlignmentKey), out var alignment)
-            ? alignment
-            : IslandAlignment.Center;
         _floatX = Preferences.Get<double?>(FloatXKey);
         _floatY = Preferences.Get<double?>(FloatYKey);
     }
@@ -77,18 +62,6 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
             _placement = value;
             Preferences.Set(PlacementKey, value.ToString());
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Placement)));
-        }
-    }
-
-    public IslandAlignment Alignment
-    {
-        get => _alignment;
-        set
-        {
-            if (_alignment == value) return;
-            _alignment = value;
-            Preferences.Set(AlignmentKey, value.ToString());
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Alignment)));
         }
     }
 
