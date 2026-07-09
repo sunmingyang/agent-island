@@ -21,6 +21,13 @@ public sealed class AlertThresholdStore : INotifyPropertyChanged
         _enabled = Preferences.Get<bool?>("MacIsland.alertsEnabled") ?? false;
         _warningPercent = Math.Clamp(Preferences.Get<int?>("MacIsland.alertWarning") ?? 80, 50, 98);
         _criticalPercent = Math.Clamp(Preferences.Get<int?>("MacIsland.alertCritical") ?? 95, 51, 99);
+        // The two setters enforce warning < critical, but a hand-edited or
+        // corrupt settings file can load warning >= critical directly; repair
+        // the invariant at load so the alert ladder stays coherent.
+        if (_warningPercent >= _criticalPercent)
+        {
+            _warningPercent = Math.Clamp(_criticalPercent - 1, 50, 98);
+        }
     }
 
     public bool Enabled

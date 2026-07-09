@@ -103,8 +103,16 @@ public static class SessionTurnState
         {
             foreach (var field in new[] { "completed_at", "started_at" })
             {
+                // FromUnixTimeMilliseconds throws on out-of-range input; a
+                // corrupt or foreign-unit timestamp must not fault the scan.
                 if (Jsonl.GetDouble(payload, field) is { } seconds)
-                    return DateTimeOffset.FromUnixTimeMilliseconds((long)(seconds * 1000));
+                {
+                    var ms = seconds * 1000;
+                    if (ms is >= -62_135_596_800_000 and <= 253_402_300_799_999)
+                    {
+                        return DateTimeOffset.FromUnixTimeMilliseconds((long)ms);
+                    }
+                }
             }
         }
         return null;

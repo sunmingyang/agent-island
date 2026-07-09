@@ -137,16 +137,42 @@ public sealed class TurnAlarmWindow : Window
             stack.Children.Add(BuildMetadata(thread, tint));
         }
 
+        var error = new TextBlock
+        {
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.AlertRed),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 396,
+            Margin = new Thickness(0, 16, 0, 0),
+            Visibility = Visibility.Collapsed,
+        };
+
         var open = MakePrimaryButton(Localization.L10n.Tr("Open thread"), tint);
         open.Margin = new Thickness(0, 24, 0, 0);
-        open.Click += (_, _) =>
+        open.Click += async (_, _) =>
         {
-            // Open() runs its foreground-sensitive step synchronously (while
-            // this window still holds focus) and backgrounds only the slow
-            // CLI probe itself — so acknowledging/closing right after is safe
-            // and the SetForegroundWindow handoff still lands.
-            if (Thread is { } target) TurnAlarmNavigator.Open(Provider, target);
-            Acknowledge();
+            if (Thread is not { } target) { Acknowledge(); return; }
+            // Keep the alarm up and hold focus while the resume launches
+            // (CLILocator can take a beat), then acknowledge/close only on a
+            // real launch. On failure, surface it in place instead of the old
+            // silent vanish with nothing opened.
+            open.IsEnabled = false;
+            error.Visibility = Visibility.Collapsed;
+            var launched = await TurnAlarmNavigator.Open(Provider, target);
+            if (launched)
+            {
+                Acknowledge();
+            }
+            else
+            {
+                open.IsEnabled = true;
+                error.Text = Localization.L10n.Tr("Couldn't open the thread — is the claude/codex CLI on your PATH?");
+                error.Visibility = Visibility.Visible;
+            }
         };
         stack.Children.Add(open);
 
@@ -154,6 +180,7 @@ public sealed class TurnAlarmWindow : Window
         gotIt.Margin = new Thickness(0, 12, 0, 0);
         gotIt.Click += (_, _) => Acknowledge();
         stack.Children.Add(gotIt);
+        stack.Children.Add(error);
 
         return root;
     }

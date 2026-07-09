@@ -119,6 +119,11 @@ public sealed class TriggerEngine
             var interval = TimeSpan.FromHours(Math.Max(1, trigger.EveryHours));
             if (now >= last + interval)
             {
+                // Advance the clock on the ATTEMPT, not only on a successful
+                // spawn — otherwise a fire that Fire() blocks (kill switch,
+                // untrusted project, invalid id/message, binary not found)
+                // leaves LastFired stale and retries every 60s tick forever.
+                TriggerStore.Shared.MarkFired(trigger.Id, now);
                 Fire(trigger);
             }
         }
@@ -160,6 +165,16 @@ public sealed class TriggerEngine
         if (!SessionIdPattern.IsMatch(trigger.SessionId))
         {
             LogStatus("blocked: invalid session id", trigger);
+            return;
+        }
+        // The message is spliced into the cmd.exe command line too, and its
+        // only escaping (Replace("\"","\\\"")) is inert in cmd.exe — a quote
+        // or an &/|/^/%/redirect would break out and run injected commands.
+        // Resume nudges are short natural-language strings; reject any that
+        // carry cmd metacharacters rather than execute them.
+        if (MessageBlocklist.IsMatch(trigger.Message))
+        {
+            LogStatus("blocked: message contains characters unsafe for the shell", trigger);
             return;
         }
         if (Command(trigger, requireResolvedBinary: true) is not { } command)
@@ -218,13 +233,19 @@ public sealed class TriggerEngine
     }
 
     private static readonly Regex SessionIdPattern = new("^[A-Za-z0-9_-]+$", RegexOptions.Compiled);
+    // cmd.exe metacharacters + newlines. `!`/`(`/`)`/backtick are inert under a
+    // plain `cmd /c` (no delayed expansion), so they stay allowed.
+    private static readonly Regex MessageBlocklist = new("[\"&|<>^%\r\n]", RegexOptions.Compiled);
 
     private static ResumeCommand? Command(Trigger trigger, bool requireResolvedBinary)
     {
         var binary = CLILocator.PathFor(trigger.Tool);
         if (requireResolvedBinary && binary is null) return null;
         var displayBinary = binary ?? trigger.Tool.RawValue();
-        var message = trigger.Message.Replace("\"", "\\\"");
+        // The session id and message are both validated before Fire() reaches
+        // the shell (SessionIdPattern / MessageBlocklist), so neither can carry
+        // a cmd metacharacter here.
+        var message = trigger.Message;
         var arguments = trigger.Tool == TriggerTool.Claude
             ? $"--resume {trigger.SessionId} -p \"{message}\" --dangerously-skip-permissions"
             : $"exec resume {trigger.SessionId} \"{message}\" --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check";

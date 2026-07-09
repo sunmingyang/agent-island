@@ -128,16 +128,12 @@ public static class SessionScanner
         var root = IslandPaths.CodexSessionsRoot;
         if (!Directory.Exists(root)) return new List<ScannedSession>();
 
-        List<string> files;
-        try
-        {
-            files = Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories).ToList();
-        }
-        catch
-        {
-            return new List<ScannedSession>();
-        }
-        files.Sort((a, b) => Mtime(b).CompareTo(Mtime(a)));
+        var files = SafeEnumerateFiles(root, "*.jsonl");
+        // Precompute mtimes once — calling Mtime() inside the comparator issues
+        // O(n log n) GetLastWriteTime syscalls over a full recursive tree.
+        var mtimes = new Dictionary<string, DateTimeOffset>(files.Count, StringComparer.Ordinal);
+        foreach (var f in files) mtimes[f] = Mtime(f);
+        files.Sort((a, b) => mtimes[b].CompareTo(mtimes[a]));
 
         var titles = CodexTitleIndex();
         var output = new List<ScannedSession>();
@@ -225,16 +221,7 @@ public static class SessionScanner
         foreach (var root in IslandPaths.ClaudeProjectRoots)
         {
             if (!Directory.Exists(root)) continue;
-            IEnumerable<string> files;
-            try
-            {
-                files = Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories);
-            }
-            catch
-            {
-                continue;
-            }
-            foreach (var path in files)
+            foreach (var path in SafeEnumerateFiles(root, "*.jsonl"))
             {
                 // Subagent transcripts live under <project>/subagents/ and must
                 // not drive alarms or the logo.
@@ -257,17 +244,46 @@ public static class SessionScanner
     private static IEnumerable<string> EnumerateDesktopSessionFiles()
     {
         var root = IslandPaths.ClaudeDesktopSessionsRoot;
-        if (!Directory.Exists(root)) yield break;
-        IEnumerable<string> files;
+        if (!Directory.Exists(root)) return Array.Empty<string>();
+        return SafeEnumerateFiles(root, "local_*.json");
+    }
+
+    /// Recursively lists matching files, surviving a subdirectory that is
+    /// inaccessible OR deleted mid-walk (Claude Code rotates project folders).
+    /// A plain EnumerateFiles(AllDirectories) throws DURING iteration — outside
+    /// any try around the call — which used to fault the whole scan and, with
+    /// it, every turn alarm. Skips reparse points to avoid symlink loops.
+    private static List<string> SafeEnumerateFiles(string root, string pattern)
+    {
+        var result = new List<string>();
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
         try
         {
-            files = Directory.EnumerateFiles(root, "local_*.json", SearchOption.AllDirectories);
+            using var walker = Directory.EnumerateFiles(root, pattern, options).GetEnumerator();
+            while (true)
+            {
+                try
+                {
+                    if (!walker.MoveNext()) break;
+                }
+                catch
+                {
+                    // A directory vanished or turned unreadable mid-walk —
+                    // stop cleanly and keep what we already gathered.
+                    break;
+                }
+                result.Add(walker.Current);
+            }
         }
         catch
         {
-            yield break;
         }
-        foreach (var file in files) yield return file;
+        return result;
     }
 
     private static DesktopSession? ParseDesktopSessionFile(string path)

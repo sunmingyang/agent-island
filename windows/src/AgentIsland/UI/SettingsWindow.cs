@@ -1346,14 +1346,20 @@ public sealed class SettingsWindow : Window
         return host;
     }
 
+    // Held in a field: a local MediaPlayer can be collected mid-playback,
+    // making the preview intermittently silent or clipped.
+    private static MediaPlayer? _previewPlayer;
+
     private static void PreviewSound()
     {
         try
         {
             if (AgentReminderStore.Shared.ResolveSoundFile() is not { } file) return;
-            var player = new MediaPlayer { Volume = AgentReminderStore.Shared.Volume };
-            player.Open(new Uri(file));
-            player.Play();
+            _previewPlayer ??= new MediaPlayer();
+            _previewPlayer.Stop();
+            _previewPlayer.Volume = AgentReminderStore.Shared.Volume;
+            _previewPlayer.Open(new Uri(file));
+            _previewPlayer.Play();
         }
         catch
         {

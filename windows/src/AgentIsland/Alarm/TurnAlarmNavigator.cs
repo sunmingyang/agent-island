@@ -20,41 +20,40 @@ public static class TurnAlarmNavigator
     /// view and never landed on the thread. All of it runs off the UI thread
     /// (CLILocator probes every PATH dir — seconds on a dead share); spawning
     /// a terminal doesn't need us to hold the foreground.
-    public static void Open(TriggerTool provider, ActivityMonitor.ActiveThread thread)
+    /// Returns true only when a terminal (or, as a last resort, the desktop
+    /// app) genuinely launched. Runs off the UI thread — CLILocator probes
+    /// every PATH dir (seconds on a dead share) — so the caller awaits and
+    /// keeps the alarm up until the result, surfacing an error on failure
+    /// instead of vanishing with nothing opened.
+    public static System.Threading.Tasks.Task<bool> Open(TriggerTool provider, ActivityMonitor.ActiveThread thread)
     {
         var sessionId = Sanitize(thread.SessionId);
-        if (sessionId.Length == 0) return;
+        if (sessionId.Length == 0) return System.Threading.Tasks.Task.FromResult(false);
         var cwd = thread.Cwd;
 
         if (provider == TriggerTool.Claude)
         {
-            System.Threading.Tasks.Task.Run(() =>
+            return System.Threading.Tasks.Task.Run(() =>
             {
                 if (Trigger.CLILocator.Locate("claude") is { } claude)
                 {
-                    RunResumeInTerminal(claude, $"--resume {sessionId}", cwd, "Claude resume");
-                    return;
+                    return RunResumeInTerminal(claude, $"--resume {sessionId}", cwd, "Claude resume");
                 }
                 // No CLI on PATH — best effort: bring Claude Desktop forward
                 // (it can't resume by id, but it's better than nothing).
-                FocusAppWindow("claude");
+                return FocusAppWindow("claude");
             });
-            return;
         }
 
         // Codex sessions resume in a terminal via the CLI; the desktop deep
         // link is only the no-CLI fallback.
-        System.Threading.Tasks.Task.Run(() =>
+        return System.Threading.Tasks.Task.Run(() =>
         {
             if (Trigger.CLILocator.Locate("codex") is { } codex)
             {
-                RunResumeInTerminal(codex, $"resume {sessionId}", cwd, "Codex resume");
-                return;
+                return RunResumeInTerminal(codex, $"resume {sessionId}", cwd, "Codex resume");
             }
-            if (TryOpenUri($"codex://threads/{sessionId}"))
-            {
-                FocusAppWindow("Codex");
-            }
+            return TryOpenUri($"codex://threads/{sessionId}") && FocusAppWindow("Codex");
         });
     }
 
@@ -111,35 +110,30 @@ public static class TurnAlarmNavigator
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr hWnd);
 
-    private static void RunResumeInTerminal(string binary, string arguments, string cwd, string title)
+    /// Opens a visible terminal that resumes the session. Uses the cmd.exe
+    /// `start` launcher (reliable, known quoting) rather than Windows Terminal
+    /// — wt's own tokenizer mangles the quoted binary path for paths with
+    /// spaces and, worse, "succeeds" while showing a broken tab, so it can't
+    /// be trusted for the one thing that must work. Returns whether the
+    /// terminal actually launched.
+    private static bool RunResumeInTerminal(string binary, string arguments, string cwd, string title)
     {
         var directory = ValidDirectory(cwd);
         try
         {
-            // Prefer Windows Terminal, like TerminalLauncher — a legacy
-            // conhost window reads as broken to anyone who lives in wt.
-            if (Trigger.CLILocator.Locate("wt") is { } wt)
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = wt,
-                    Arguments = $"new-tab --title \"{title}\" --startingDirectory \"{directory}\" cmd /k \"{binary}\" {arguments}",
-                    UseShellExecute = false,
-                });
-                return;
-            }
-            var startInfo = new ProcessStartInfo
+            Process.Start(new ProcessStartInfo
             {
                 FileName = "cmd.exe",
                 Arguments = $"/c start \"{title}\" /D \"{directory}\" cmd /k \"\"{binary}\" {arguments}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
-            };
-            Process.Start(startInfo);
+            });
+            return true;
         }
         catch (Exception error)
         {
             Debug.WriteLine($"AgentIsland: resume launch failed: {error.Message}");
+            return false;
         }
     }
 

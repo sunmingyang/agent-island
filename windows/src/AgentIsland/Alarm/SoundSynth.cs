@@ -310,25 +310,32 @@ public static class SoundSynth
         foreach (var sample in samples) peak = Math.Max(peak, Math.Abs(sample));
         var gain = peak > 0 ? Math.Min(0.9f / peak, 2.5f) : 1f;
 
-        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
-        using var writer = new BinaryWriter(stream);
-        var dataLength = samples.Length * 2;
-        writer.Write("RIFF"u8);
-        writer.Write(36 + dataLength);
-        writer.Write("WAVE"u8);
-        writer.Write("fmt "u8);
-        writer.Write(16);
-        writer.Write((short)1);            // PCM
-        writer.Write((short)1);            // mono
-        writer.Write(SampleRate);
-        writer.Write(SampleRate * 2);      // byte rate
-        writer.Write((short)2);            // block align
-        writer.Write((short)16);           // bits
-        writer.Write("data"u8);
-        writer.Write(dataLength);
-        foreach (var sample in samples)
+        // Write to a temp file and rename, so an interrupted write (crash /
+        // power loss on first run) never leaves a truncated .wav that
+        // EnsurePreset would then trust forever via File.Exists.
+        var tmp = path + ".tmp";
+        using (var stream = new FileStream(tmp, FileMode.Create, FileAccess.Write))
+        using (var writer = new BinaryWriter(stream))
         {
-            writer.Write((short)(Math.Clamp(sample * gain, -1, 1) * short.MaxValue));
+            var dataLength = samples.Length * 2;
+            writer.Write("RIFF"u8);
+            writer.Write(36 + dataLength);
+            writer.Write("WAVE"u8);
+            writer.Write("fmt "u8);
+            writer.Write(16);
+            writer.Write((short)1);            // PCM
+            writer.Write((short)1);            // mono
+            writer.Write(SampleRate);
+            writer.Write(SampleRate * 2);      // byte rate
+            writer.Write((short)2);            // block align
+            writer.Write((short)16);           // bits
+            writer.Write("data"u8);
+            writer.Write(dataLength);
+            foreach (var sample in samples)
+            {
+                writer.Write((short)(Math.Clamp(sample * gain, -1, 1) * short.MaxValue));
+            }
         }
+        File.Move(tmp, path, overwrite: true);
     }
 }
