@@ -17,6 +17,11 @@ namespace AgentIsland.UI;
 public partial class IslandWindow : Window
 {
     private readonly IslandModel _model = IslandModel.Shared;
+    // Unsubscribe actions for the singleton-store handlers, run on Closed —
+    // the island is discarded and recreated on a language switch, and without
+    // this the dead window stays pinned by the stores and keeps handling
+    // events (placement/usage/alert) forever.
+    private readonly List<Action> _teardown = new();
     private bool _hovering;
     private System.Windows.Controls.StackPanel? _claudeTitle;
     private System.Windows.Controls.StackPanel? _codexTitle;
@@ -48,8 +53,12 @@ public partial class IslandWindow : Window
             Sweep.Width = args.NewSize.Width + 4;
             Sweep.Height = args.NewSize.Height + 4;
         };
-        Model.LowPowerModeStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateHalo);
-        SystemParameters.StaticPropertyChanged += (_, args) =>
+        System.ComponentModel.PropertyChangedEventHandler onLowPower =
+            (_, _) => Dispatcher.BeginInvoke(UpdateHalo);
+        Model.LowPowerModeStore.Shared.PropertyChanged += onLowPower;
+        _teardown.Add(() => Model.LowPowerModeStore.Shared.PropertyChanged -= onLowPower);
+
+        System.ComponentModel.PropertyChangedEventHandler onSysParams = (_, args) =>
         {
             if (args.PropertyName is nameof(SystemParameters.WorkArea)
                 or nameof(SystemParameters.PrimaryScreenWidth))
@@ -57,15 +66,22 @@ public partial class IslandWindow : Window
                 Dispatcher.BeginInvoke(PositionOnScreen);
             }
         };
+        SystemParameters.StaticPropertyChanged += onSysParams;
+        _teardown.Add(() => SystemParameters.StaticPropertyChanged -= onSysParams);
+
         // WorkArea/PrimaryScreenWidth only cover the primary display;
         // plug/unplug or resolution changes on a pinned secondary arrive via
         // SystemEvents (the didChangeScreenParameters analog).
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
-        Closed += (_, _) =>
-            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
-        Model.IslandTargetDisplayStore.Shared.PropertyChanged += (_, _) =>
-            Dispatcher.BeginInvoke(PositionOnScreen);
-        Model.IslandPositionStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        _teardown.Add(() =>
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged);
+
+        System.ComponentModel.PropertyChangedEventHandler onTargetDisplay =
+            (_, _) => Dispatcher.BeginInvoke(PositionOnScreen);
+        Model.IslandTargetDisplayStore.Shared.PropertyChanged += onTargetDisplay;
+        _teardown.Add(() => Model.IslandTargetDisplayStore.Shared.PropertyChanged -= onTargetDisplay);
+
+        System.ComponentModel.PropertyChangedEventHandler onPlacement = (_, _) => Dispatcher.BeginInvoke(() =>
         {
             ApplyEdgeLayout();
             PositionOnScreen();
@@ -74,6 +90,9 @@ public partial class IslandWindow : Window
             if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Tray) Hide();
             else Show();
         });
+        Model.IslandPositionStore.Shared.PropertyChanged += onPlacement;
+        _teardown.Add(() => Model.IslandPositionStore.Shared.PropertyChanged -= onPlacement);
+        Closed += (_, _) => { foreach (var teardown in _teardown) teardown(); };
         // In tray mode, clicking elsewhere dismisses the popped-up island so
         // it behaves like a tray flyout.
         Deactivated += (_, _) =>
@@ -84,23 +103,33 @@ public partial class IslandWindow : Window
         ApplySizeInstant();
         BuildExpandedChrome();
 
-        ActivityMonitor.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        System.ComponentModel.PropertyChangedEventHandler onActivity =
+            (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
+        ActivityMonitor.Shared.PropertyChanged += onActivity;
+        _teardown.Add(() => ActivityMonitor.Shared.PropertyChanged -= onActivity);
+
+        System.ComponentModel.PropertyChangedEventHandler onUsage = (_, _) => Dispatcher.BeginInvoke(() =>
         {
             UpdatePills();
             // Loading is a glow event: it wakes the sweep in Low Power mode.
             UpdateHalo();
         });
-        Model.AlertEngine.Shared.PropertyChanged += (_, args) => Dispatcher.BeginInvoke(() =>
+        UsageStore.Shared.PropertyChanged += onUsage;
+        _teardown.Add(() => UsageStore.Shared.PropertyChanged -= onUsage);
+
+        System.ComponentModel.PropertyChangedEventHandler onAlert = (_, args) => Dispatcher.BeginInvoke(() =>
         {
             if (args.PropertyName == nameof(Model.AlertEngine.Pulse)) HandleAlertPulse();
             UpdateHalo();
             UpdatePills();
         });
+        Model.AlertEngine.Shared.PropertyChanged += onAlert;
+        _teardown.Add(() => Model.AlertEngine.Shared.PropertyChanged -= onAlert);
 
         // Bar-width change (Settings → Display) resizes the silhouette live
         // when it's not expanded; provider visibility hides a side entirely.
-        _model.PropertyChanged += (_, args) =>
+        // _model is the IslandModel singleton, so this too must be torn down.
+        System.ComponentModel.PropertyChangedEventHandler onModel = (_, args) =>
         {
             if (args.PropertyName == nameof(IslandModel.Size))
             {
@@ -110,14 +139,22 @@ public partial class IslandWindow : Window
                 });
             }
         };
-        Model.ProviderVisibilityStore.Shared.PropertyChanged += (_, _) =>
-            Dispatcher.BeginInvoke(ApplyProviderVisibility);
-        AlwaysShowUsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        _model.PropertyChanged += onModel;
+        _teardown.Add(() => _model.PropertyChanged -= onModel);
+
+        System.ComponentModel.PropertyChangedEventHandler onVisibility =
+            (_, _) => Dispatcher.BeginInvoke(ApplyProviderVisibility);
+        Model.ProviderVisibilityStore.Shared.PropertyChanged += onVisibility;
+        _teardown.Add(() => Model.ProviderVisibilityStore.Shared.PropertyChanged -= onVisibility);
+
+        System.ComponentModel.PropertyChangedEventHandler onAlwaysShow = (_, _) => Dispatcher.BeginInvoke(() =>
         {
             _model.NotifyAlwaysShowUsageChanged();
             if (_model.State != IslandState.Expanded) ApplySizeInstant();
             UpdatePills();
         });
+        AlwaysShowUsageStore.Shared.PropertyChanged += onAlwaysShow;
+        _teardown.Add(() => AlwaysShowUsageStore.Shared.PropertyChanged -= onAlwaysShow);
 
         ApplyProviderVisibility();
         UpdateActivityVisuals();
@@ -200,7 +237,10 @@ public partial class IslandWindow : Window
         System.Windows.Controls.Grid.SetColumn(_codexTitle, 2);
         TopStrip.Children.Add(_codexTitle);
 
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
+        System.ComponentModel.PropertyChangedEventHandler onPlanChips =
+            (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
+        UsageStore.Shared.PropertyChanged += onPlanChips;
+        _teardown.Add(() => UsageStore.Shared.PropertyChanged -= onPlanChips);
         UpdatePlanChips();
 
         // Overview needs the taller panel (contribution grid); the size
@@ -208,7 +248,7 @@ public partial class IslandWindow : Window
         // must seed the height at startup, or reopening on Overview squashes
         // the grid.
         ApplyPanelHeightForScreen();
-        ScreenPref.Shared.PropertyChanged += (_, args) =>
+        System.ComponentModel.PropertyChangedEventHandler onScreen = (_, args) =>
         {
             if (args.PropertyName != nameof(ScreenPref.Screen)) return;
             Dispatcher.BeginInvoke(() =>
@@ -220,6 +260,8 @@ public partial class IslandWindow : Window
                 }
             });
         };
+        ScreenPref.Shared.PropertyChanged += onScreen;
+        _teardown.Add(() => ScreenPref.Shared.PropertyChanged -= onScreen);
     }
 
     private void ApplyPanelHeightForScreen() =>
