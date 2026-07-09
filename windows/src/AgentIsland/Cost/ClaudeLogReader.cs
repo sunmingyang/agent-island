@@ -18,13 +18,8 @@ public static class ClaudeLogReader
         foreach (var root in IslandPaths.ClaudeProjectRoots)
         {
             if (!Directory.Exists(root)) continue;
-            try
-            {
-                files.AddRange(Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories));
-            }
-            catch
-            {
-            }
+            // Subagent transcripts stay in: their tokens are real spend.
+            files.AddRange(SessionScanner.SafeEnumerateFiles(root, "*.jsonl"));
         }
         var events = Cache.Walk(files, cutoff, ParseFile);
         return Deduplicate(events);

@@ -18,15 +18,8 @@ public static class CodexLogReader
         var cutoff = DateTimeOffset.Now.AddDays(-lookbackDays);
         var root = IslandPaths.CodexSessionsRoot;
         if (!Directory.Exists(root)) return new List<TokenEvent>();
-        IEnumerable<string> files;
-        try
-        {
-            files = Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories).ToList();
-        }
-        catch
-        {
-            return new List<TokenEvent>();
-        }
+        // Subagent rollouts stay in: their tokens are real spend.
+        var files = SessionScanner.SafeEnumerateFiles(root, "*.jsonl");
         return Cache.Walk(files, cutoff, ParseFile);
     }
 

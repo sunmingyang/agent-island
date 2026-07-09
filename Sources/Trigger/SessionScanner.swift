@@ -148,6 +148,19 @@ enum SessionScanner {
            !originator.hasPrefix("codex") || originator == "codex_exec" {
             return nil
         }
+        // Codex's own fan-out threads share the interactive originator; the
+        // session_meta source field is the only separator. Direct sessions
+        // carry a plain string ("cli", "vscode", …); machine-driven ones an
+        // object — {"subagent": …} for spawned/review/compact threads,
+        // {"internal": …} for probes — and "exec"/"mcp" strings are
+        // automation. Without this every finished subagent raises an alarm.
+        if let source = payload["source"] as? String, source == "exec" || source == "mcp" {
+            return nil
+        }
+        if let source = payload["source"] as? [String: Any],
+           source["subagent"] != nil || source["internal"] != nil {
+            return nil
+        }
         return (payload["id"] as? String ?? "", payload["cwd"] as? String ?? "")
     }
 
@@ -178,7 +191,11 @@ enum SessionScanner {
         guard let enumerator = FileManager.default.enumerator(atPath: root) else { return [:] }
         var out: [String: String] = [:]
         for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
+            // Subagent transcripts: subagents/ dirs (current layout) or
+            // agent-*.jsonl names (flat layouts). Main sessions are always
+            // UUID-named. Machine fan-out must not drive alarms or the logo.
             if rel.contains("/subagents/") { continue }
+            if ((rel as NSString).lastPathComponent).hasPrefix("agent-") { continue }
             let path = root + "/" + rel
             let sid = ((rel as NSString).lastPathComponent as NSString).deletingPathExtension
             out[sid] = path

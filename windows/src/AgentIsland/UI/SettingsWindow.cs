@@ -1072,6 +1072,13 @@ public sealed class SettingsWindow : Window
             "Pop up a foreground alarm when a background run needs you.",
             enabled));
 
+        var subagents = new CobaltToggle(SubagentAlarmStore.Shared.Enabled);
+        subagents.Toggled += value => SubagentAlarmStore.Shared.Enabled = value;
+        stack.Children.Add(new SettingsRowControl(
+            "Subagent alarms",
+            "Also alarm when orchestrated subagents finish. Off: only your own threads alarm.",
+            subagents));
+
         var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
         details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
         stack.Children.Add(new SettingsRowControl(

@@ -223,6 +223,8 @@ public static class L10n
         ["Limits, login, network, or provider errors make the logo pulse red."] = "额度、登录、网络或服务异常时，图标会变红并放大提示。",
         ["Reminders"] = "提醒",
         ["Pop up a foreground alarm when a background run needs you."] = "后台会话轮到你回复时，弹出前台提醒窗口。",
+        ["Subagent alarms"] = "子代理提醒",
+        ["Also alarm when orchestrated subagents finish. Off: only your own threads alarm."] = "并行子代理（subagent）结束时也弹提醒；关闭时只提醒你自己的主会话。",
         ["Show thread details"] = "显示会话详情",
         ["Show session and project names in alarms and notifications."] = "在提醒和通知里显示会话名、项目名。",
         ["Choose a built-in sound or use your own file."] = "选择提示音，也可以使用自己的音频文件。",

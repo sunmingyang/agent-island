@@ -11,13 +11,24 @@ public readonly record struct SessionTurnStatus(bool IsDone, string? Key, DateTi
 /// bookkeeping-grace logic in SessionScanner.
 public static class SessionTurnState
 {
-    public static SessionTurnStatus Claude(IReadOnlyList<string> lines)
+    public static SessionTurnStatus Claude(IReadOnlyList<string> lines) =>
+        ClaudeCore(lines, sidechainIsTheConversation: false);
+
+    /// For agent transcripts, where every line is a sidechain by definition.
+    public static SessionTurnStatus ClaudeAgent(IReadOnlyList<string> lines) =>
+        ClaudeCore(lines, sidechainIsTheConversation: true);
+
+    private static SessionTurnStatus ClaudeCore(IReadOnlyList<string> lines, bool sidechainIsTheConversation)
     {
         for (var i = lines.Count - 1; i >= 0; i--)
         {
             using var doc = Jsonl.TryParseLine(lines[i]);
             if (doc is null) continue;
             var root = doc.RootElement;
+            // Older Claude Code interleaves subagent traffic into the main
+            // transcript marked isSidechain — a subagent's end_turn there is
+            // not the user's turn and must not classify the main session.
+            if (!sidechainIsTheConversation && Jsonl.GetBool(root, "isSidechain") == true) continue;
             var type = Jsonl.GetString(root, "type");
             switch (type)
             {
@@ -30,6 +41,11 @@ public static class SessionTurnState
                     return new SessionTurnStatus(isDone, Key(root, lines[i]), Date(root));
                 }
                 case "user":
+                    // Agent runs usually end on the final tool result (marked
+                    // toolEndsTurn) rather than an assistant stop; without
+                    // this a finished agent never reads as done.
+                    if (sidechainIsTheConversation && Jsonl.GetBool(root, "toolEndsTurn") == true)
+                        return new SessionTurnStatus(true, Key(root, lines[i]), Date(root));
                     return new SessionTurnStatus(false, Key(root, lines[i]), Date(root));
                 default:
                     continue;
