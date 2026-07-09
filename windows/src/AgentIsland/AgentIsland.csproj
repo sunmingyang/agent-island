@@ -18,6 +18,11 @@
     <Resource Include="Assets\**\*.png" />
   </ItemGroup>
 
+  <!-- Let the console test suite reach internal validation/parse helpers. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentIsland.Tests" />
+  </ItemGroup>
+
   <!-- WinForms is referenced only for the tray NotifyIcon; keep its
        namespaces out of the global usings so WPF's Color/Size/Application
        win unqualified. -->

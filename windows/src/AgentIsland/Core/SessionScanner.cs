@@ -411,7 +411,7 @@ public static class SessionScanner
     /// every entry ("cwd") — authoritative, unlike the lossy encoded folder
     /// name, whose dashes un-munge real hyphenated paths into the wrong
     /// directory and then break `claude --resume` launched from it.
-    private static string CwdFromClaudeTranscript(string path)
+    internal static string CwdFromClaudeTranscript(string path)
     {
         try
         {

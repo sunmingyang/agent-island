@@ -143,6 +143,6 @@ public static class TurnAlarmNavigator
     /// Session ids feed deep links and shell commands. Reject anything
     /// outside the safe alphabet outright — stripping characters would
     /// silently resume a DIFFERENT session id.
-    private static string Sanitize(string sessionId) =>
+    internal static string Sanitize(string sessionId) =>
         Regex.IsMatch(sessionId, "^[A-Za-z0-9_-]+$") ? sessionId : "";
 }

@@ -162,7 +162,7 @@ public sealed class TriggerEngine
         // attacker can plant, so a value like `x&calc&` would inject a
         // command. Real ids are UUID/alphanumeric; reject anything else
         // before it reaches the shell (mirrors TurnAlarmNavigator.Sanitize).
-        if (!SessionIdPattern.IsMatch(trigger.SessionId))
+        if (!IsSafeSessionId(trigger.SessionId))
         {
             LogStatus("blocked: invalid session id", trigger);
             return;
@@ -172,7 +172,7 @@ public sealed class TriggerEngine
         // or an &/|/^/%/redirect would break out and run injected commands.
         // Resume nudges are short natural-language strings; reject any that
         // carry cmd metacharacters rather than execute them.
-        if (MessageBlocklist.IsMatch(trigger.Message))
+        if (!IsSafeMessage(trigger.Message))
         {
             LogStatus("blocked: message contains characters unsafe for the shell", trigger);
             return;
@@ -236,6 +236,14 @@ public sealed class TriggerEngine
     // cmd.exe metacharacters + newlines. `!`/`(`/`)`/backtick are inert under a
     // plain `cmd /c` (no delayed expansion), so they stay allowed.
     private static readonly Regex MessageBlocklist = new("[\"&|<>^%\r\n]", RegexOptions.Compiled);
+
+    /// A session id is only ever spliced unquoted into a shell line, so it
+    /// must match the safe alphabet exactly.
+    internal static bool IsSafeSessionId(string sessionId) => SessionIdPattern.IsMatch(sessionId);
+
+    /// A resume message must carry no cmd metacharacters before it reaches
+    /// the shell.
+    internal static bool IsSafeMessage(string message) => !MessageBlocklist.IsMatch(message);
 
     private static ResumeCommand? Command(Trigger trigger, bool requireResolvedBinary)
     {

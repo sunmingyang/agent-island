@@ -27,6 +27,9 @@ public static class Program
             SessionTurnStateTests.RunAll();
             UsageCachePolicyTests.RunAll();
             ReminderDeliveryKeyTests.RunAll();
+            SecurityGuardTests.RunAll();
+            FormattingTests.RunAll();
+            ScannerCwdTests.RunAll();
             Console.WriteLine("ALL GREEN");
             return 0;
         }
