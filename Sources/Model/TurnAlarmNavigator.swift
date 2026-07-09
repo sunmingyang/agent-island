@@ -52,10 +52,15 @@ enum TurnAlarmNavigator {
     }
 
     private static func openClaude(thread: ActivityMonitor.ActiveThread?) {
-        if thread?.launchTarget == .claudeDesktop {
-            openClaudeDesktop(thread: thread)
-            return
-        }
+        // There is NO deep link that resumes a Claude session by id —
+        // `claude://resume?sessionId=…` is not a real endpoint (Claude Desktop
+        // only registers `claude://…/new`, the CLI registers `claude-cli://open`,
+        // both of which start a NEW session). Routing .claudeDesktop sessions
+        // there just surfaced the app on its default view and never resumed the
+        // thread. Resume the way the auto-trigger engine already does and knows
+        // works, for every Claude session regardless of launch target:
+        // `claude --resume <id>` in a terminal from the session's cwd. Bringing
+        // the desktop app forward is only a last resort when no CLI is found.
         if let thread, openCLIResume(
             executable: "claude",
             arguments: ["--resume", thread.sessionId],
@@ -65,29 +70,6 @@ enum TurnAlarmNavigator {
             return
         }
         activate(bundleIdentifier: "com.anthropic.claudefordesktop")
-    }
-
-    /// Claude Desktop registers a claude://resume deep link that opens a CLI
-    /// session by id (its own error toasts describe exactly this flow). Try
-    /// it so "Open thread" lands on the thread, not just the app; any failure
-    /// falls back to plain activation, which is the pre-deep-link behavior.
-    private static func openClaudeDesktop(thread: ActivityMonitor.ActiveThread?) {
-        let bundleID = "com.anthropic.claudefordesktop"
-        if let id = sanitizedCodexThreadID(thread?.sessionId),
-           let url = URL(string: "claude://resume?sessionId=\(id)"),
-           NSWorkspace.shared.urlForApplication(toOpen: url) != nil {
-            NSWorkspace.shared.open(url, configuration: NSWorkspace.OpenConfiguration()) { app, error in
-                Task { @MainActor in
-                    if let app {
-                        app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-                    } else if error != nil {
-                        activate(bundleIdentifier: bundleID)
-                    }
-                }
-            }
-            return
-        }
-        activate(bundleIdentifier: bundleID)
     }
 
     private static func activate(bundleIdentifier: String) {

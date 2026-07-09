@@ -12,14 +12,14 @@ namespace AgentIsland.Alarm;
 /// app. CLI sessions reopen the interactive resume command in a terminal.
 public static class TurnAlarmNavigator
 {
-    /// The foreground-sensitive work (deep link + SetForegroundWindow) runs
-    /// SYNCHRONOUSLY on the caller's UI thread, which still holds the
-    /// foreground at click time — so the OS permits the window handoff.
-    /// Only the slow CLI fallback (CLILocator probes every PATH directory,
-    /// seconds on a dead network share) is pushed off-thread; spawning a
-    /// terminal doesn't need us to hold the foreground. Backgrounding the
-    /// WHOLE thing raced the alarm's own Close and reintroduced the dead
-    /// click P11 fixed.
+    /// Resumes the session in a terminal via the provider's CLI — the same
+    /// mechanism the auto-trigger engine uses and knows works. There is NO
+    /// deep link that resumes a session by id (`claude://resume?sessionId=…`
+    /// is fictional — the registered schemes only ever open NEW sessions), so
+    /// the old .claudeDesktop branch merely surfaced Claude on its default
+    /// view and never landed on the thread. All of it runs off the UI thread
+    /// (CLILocator probes every PATH dir — seconds on a dead share); spawning
+    /// a terminal doesn't need us to hold the foreground.
     public static void Open(TriggerTool provider, ActivityMonitor.ActiveThread thread)
     {
         var sessionId = Sanitize(thread.SessionId);
@@ -28,30 +28,22 @@ public static class TurnAlarmNavigator
 
         if (provider == TriggerTool.Claude)
         {
-            if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop)
-            {
-                // The deep link lands on the exact thread when the app
-                // handles it; the focus call guarantees the window at least
-                // comes up. Either alone is not enough.
-                var linked = TryOpenUri($"claude://resume?sessionId={sessionId}");
-                var focused = FocusAppWindow("claude");
-                if (linked || focused) return;
-            }
             System.Threading.Tasks.Task.Run(() =>
             {
                 if (Trigger.CLILocator.Locate("claude") is { } claude)
                 {
                     RunResumeInTerminal(claude, $"--resume {sessionId}", cwd, "Claude resume");
+                    return;
                 }
+                // No CLI on PATH — best effort: bring Claude Desktop forward
+                // (it can't resume by id, but it's better than nothing).
+                FocusAppWindow("claude");
             });
             return;
         }
 
-        // Codex sessions discovered on disk are CLI sessions — resume them
-        // in a terminal. The desktop deep link is the no-CLI fallback, not
-        // a hijack of a terminal workflow. Both the CLILocator probe and the
-        // spawn are slow and foreground-independent, so run off-thread; the
-        // rare no-CLI focus fallback tolerates a taskbar flash.
+        // Codex sessions resume in a terminal via the CLI; the desktop deep
+        // link is only the no-CLI fallback.
         System.Threading.Tasks.Task.Run(() =>
         {
             if (Trigger.CLILocator.Locate("codex") is { } codex)
