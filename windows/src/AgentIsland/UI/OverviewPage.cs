@@ -111,17 +111,23 @@ public sealed class OverviewPage : Border
             _renderDebounce.Stop();
             RenderGrid();
         };
-        CostStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
-        {
-            RebuildData();
-            ScheduleRender();
-        });
-        TokenCountModeStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
-        {
-            RebuildData();
-            ScheduleRender();
-        });
+        // Detach on Unloaded (PagedContent recreates this page): a leaked
+        // instance would keep the debounce timer alive and repaint forever.
+        System.ComponentModel.PropertyChangedEventHandler onData =
+            (_, _) => Dispatcher.BeginInvoke(() =>
+            {
+                RebuildData();
+                ScheduleRender();
+            });
+        CostStore.Shared.PropertyChanged += onData;
+        TokenCountModeStore.Shared.PropertyChanged += onData;
         SizeChanged += (_, _) => ScheduleRender();
+        Unloaded += (_, _) =>
+        {
+            _renderDebounce.Stop();
+            CostStore.Shared.PropertyChanged -= onData;
+            TokenCountModeStore.Shared.PropertyChanged -= onData;
+        };
         RebuildData();
     }
 

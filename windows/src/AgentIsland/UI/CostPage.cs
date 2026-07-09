@@ -63,9 +63,22 @@ public sealed class CostPage : Border
             Grid.SetColumnSpan(_codex, visibility.ClaudeVisible ? 1 : 3);
         }
 
-        CostStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
-        CostStylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
-        Model.ProviderVisibilityStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(ApplyVisibility);
+        // PagedContent recreates this page on visibility/screen changes;
+        // detach on Unloaded or each dead instance stays pinned by the
+        // singleton stores and keeps running Update forever.
+        System.ComponentModel.PropertyChangedEventHandler onUpdate =
+            (_, _) => Dispatcher.BeginInvoke(Update);
+        System.ComponentModel.PropertyChangedEventHandler onVisibility =
+            (_, _) => Dispatcher.BeginInvoke(ApplyVisibility);
+        CostStore.Shared.PropertyChanged += onUpdate;
+        CostStylePreferenceStore.Shared.PropertyChanged += onUpdate;
+        Model.ProviderVisibilityStore.Shared.PropertyChanged += onVisibility;
+        Unloaded += (_, _) =>
+        {
+            CostStore.Shared.PropertyChanged -= onUpdate;
+            CostStylePreferenceStore.Shared.PropertyChanged -= onUpdate;
+            Model.ProviderVisibilityStore.Shared.PropertyChanged -= onVisibility;
+        };
         ApplyVisibility();
         Update();
     }

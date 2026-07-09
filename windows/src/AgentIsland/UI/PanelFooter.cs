@@ -257,7 +257,12 @@ public sealed class LiveDot : Grid
         };
         Children.Add(_halo);
         Children.Add(_core);
-        Usage.UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(MaybeBump);
+        // Detach on Unloaded — otherwise this dot stays pinned by UsageStore
+        // and defeats PanelFooter's own teardown, keeping the dead footer alive.
+        System.ComponentModel.PropertyChangedEventHandler onSync =
+            (_, _) => Dispatcher.BeginInvoke(MaybeBump);
+        Usage.UsageStore.Shared.PropertyChanged += onSync;
+        Unloaded += (_, _) => Usage.UsageStore.Shared.PropertyChanged -= onSync;
         SetActive(false);
     }
 

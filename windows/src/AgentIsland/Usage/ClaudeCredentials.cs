@@ -84,30 +84,36 @@ public static class ClaudeCredentials
             switch (await probe(creds.AccessToken, plan))
             {
                 case ProbeOutcome.Success success: return new Resolution.Usage(success.Usage);
-                case ProbeOutcome.RateLimited: lastError = "rate limited"; break;
-                case ProbeOutcome.Unauthorized: break;
+                // A 429 is rate limiting, not an expired token — refreshing
+                // wouldn't help and only doubles load on an already-limited
+                // endpoint (and needlessly rotates the refresh token).
+                case ProbeOutcome.RateLimited: return new Resolution.Failed("rate limited");
                 // Refresh hands back tokens with the same scope set, so it
                 // cannot recover from a missing-scope 403.
                 case ProbeOutcome.ScopeInsufficient: return new Resolution.ReauthRequired(ReauthRequiredMessage);
                 case ProbeOutcome.OtherError error: lastError = error.Message; break;
-            }
-
-            if (await RefreshClaudeToken(creds.RefreshToken) is { } refreshed)
-            {
-                // Anthropic's OAuth endpoint rotates the refresh token; the
-                // pair we just used is now invalidated server-side. Persist
-                // the rotated tokens so the credentials file stays in sync
-                // with what the server considers valid.
-                WriteClaudeCreds(creds, refreshed);
-
-                switch (await probe(refreshed.AccessToken, plan))
-                {
-                    case ProbeOutcome.Success success: return new Resolution.Usage(success.Usage);
-                    case ProbeOutcome.RateLimited: lastError = "rate limited"; break;
-                    case ProbeOutcome.Unauthorized: break;
-                    case ProbeOutcome.ScopeInsufficient: return new Resolution.ReauthRequired(ReauthRequiredMessage);
-                    case ProbeOutcome.OtherError error: lastError = error.Message; break;
-                }
+                case ProbeOutcome.Unauthorized:
+                    // Only a 401 means the access token expired; refresh it.
+                    if (await RefreshClaudeToken(creds.RefreshToken) is { } refreshed)
+                    {
+                        // Anthropic rotates the refresh token, invalidating the
+                        // pair we just used. If we can't persist the rotated
+                        // tokens, the on-disk creds are now dead — force a
+                        // re-login instead of 401-ing forever.
+                        if (!WriteClaudeCreds(creds, refreshed))
+                        {
+                            return new Resolution.ReauthRequired(ReauthRequiredMessage);
+                        }
+                        switch (await probe(refreshed.AccessToken, plan))
+                        {
+                            case ProbeOutcome.Success success: return new Resolution.Usage(success.Usage);
+                            case ProbeOutcome.RateLimited: return new Resolution.Failed("rate limited");
+                            case ProbeOutcome.ScopeInsufficient: return new Resolution.ReauthRequired(ReauthRequiredMessage);
+                            case ProbeOutcome.OtherError error2: lastError = error2.Message; break;
+                            case ProbeOutcome.Unauthorized: break;
+                        }
+                    }
+                    break;
             }
         }
 
@@ -144,7 +150,11 @@ public static class ClaudeCredentials
     /// (scopes, subscriptionType, rateLimitTier) and any other top-level
     /// keys in the file. Best-effort: a failure means the next refresh pays
     /// the rotation cost again.
-    private static void WriteClaudeCreds(ClaudeCreds current, RefreshedTokens refreshed)
+    /// Persists the rotated tokens. Returns false if the write ultimately
+    /// fails — Anthropic has already invalidated the OLD refresh token
+    /// server-side, so a lost write means the on-disk credentials are dead
+    /// and the caller must force a re-login rather than 401 forever.
+    private static bool WriteClaudeCreds(ClaudeCreds current, RefreshedTokens refreshed)
     {
         try
         {
@@ -169,11 +179,26 @@ public static class ClaudeCredentials
 
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, root.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
-            File.Move(tmp, path, overwrite: true);
+            // Retry the rename: Claude Code / Claude Desktop may hold a brief
+            // read lock on the creds file, and dropping the rotated token
+            // bricks auth for every consumer.
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    File.Move(tmp, path, overwrite: true);
+                    return true;
+                }
+                catch (IOException) when (attempt < 4)
+                {
+                    System.Threading.Thread.Sleep(40 * (attempt + 1));
+                }
+            }
         }
         catch (Exception error)
         {
             System.Diagnostics.Debug.WriteLine($"AgentIsland: failed to write rotated Claude tokens: {error.Message}");
+            return false;
         }
     }
 
