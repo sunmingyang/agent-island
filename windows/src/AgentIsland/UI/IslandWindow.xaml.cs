@@ -69,7 +69,17 @@ public partial class IslandWindow : Window
         {
             ApplyEdgeLayout();
             PositionOnScreen();
+            // Tray mode is icon-first: the island hides and only pops up on a
+            // tray click. Switching away brings it back.
+            if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Tray) Hide();
+            else Show();
         });
+        // In tray mode, clicking elsewhere dismisses the popped-up island so
+        // it behaves like a tray flyout.
+        Deactivated += (_, _) =>
+        {
+            if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Tray) Hide();
+        };
 
         ApplySizeInstant();
         BuildExpandedChrome();
@@ -512,6 +522,18 @@ public partial class IslandWindow : Window
             Focus();
         }
         e.Handled = true;
+    }
+
+    /// Bring the island up and open it — the tray-icon launcher. Re-positions
+    /// first so a tray/bottom placement lands by the tray where the click was.
+    public void PopUp()
+    {
+        Show();
+        ApplyEdgeLayout();
+        PositionOnScreen();
+        if (_model.State != IslandState.Expanded) SetState(IslandState.Expanded);
+        Activate();
+        Focus();
     }
 
     private void OnSilhouetteClick(object sender, MouseButtonEventArgs e)

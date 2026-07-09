@@ -25,8 +25,15 @@ public partial class App : System.Windows.Application
 
         _island = new IslandWindow();
         _island.Show();
+        // Tray placement is icon-first: keep the island hidden until a tray
+        // click pops it up (the tray icon carries the ambient status).
+        if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Tray)
+        {
+            _island.Hide();
+        }
 
         _tray = new TrayIcon(
+            showIsland: () => _island?.PopUp(),
             toggleIsland: () =>
             {
                 if (_island is null) return;
@@ -81,6 +88,7 @@ public partial class App : System.Windows.Application
 
         _tray?.Dispose();
         _tray = new TrayIcon(
+            showIsland: () => _island?.PopUp(),
             toggleIsland: () =>
             {
                 if (_island is null) return;

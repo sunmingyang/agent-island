@@ -1,10 +1,14 @@
-using System.IO;
-using System.Windows;
+using System.ComponentModel;
+using AgentIsland.Core;
+using AgentIsland.Model;
+using AgentIsland.Usage;
 
 namespace AgentIsland.UI;
 
-/// System tray entry point — the Windows stand-in for the macOS menu-bar
-/// presence. Hosts the quit action and a visibility toggle for the island.
+/// System tray entry point — the Windows-native home for the island's ambient
+/// signal. The icon itself visualizes status (a usage ring that turns amber /
+/// red for approaching-limit and attention states), a left click pops the
+/// island open, and the menu holds show/hide, settings, and quit.
 public sealed class TrayIcon : IDisposable
 {
     /// Set by App at startup; the reminder center routes its system
@@ -12,9 +16,13 @@ public sealed class TrayIcon : IDisposable
     public static TrayIcon? Current { get; set; }
 
     private readonly System.Windows.Forms.NotifyIcon _icon;
+    private readonly System.Windows.Threading.Dispatcher _dispatcher;
+    private System.Drawing.Icon? _rendered;
 
-    public TrayIcon(Action toggleIsland, Action openSettings, Action exit)
+    public TrayIcon(Action showIsland, Action toggleIsland, Action openSettings, Action exit)
     {
+        _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add(Localization.L10n.Tr("Show / Hide island"), null, (_, _) => toggleIsland());
         menu.Items.Add(Localization.L10n.Tr("Settings…"), null, (_, _) => openSettings());
@@ -24,29 +32,71 @@ public sealed class TrayIcon : IDisposable
         _icon = new System.Windows.Forms.NotifyIcon
         {
             Text = "Agent Island",
-            Visible = true,
             ContextMenuStrip = menu,
-            Icon = LoadIcon(),
         };
-        _icon.DoubleClick += (_, _) => toggleIsland();
+        // Left click pops the island up; right-click opens the menu.
+        _icon.MouseClick += (_, e) =>
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left) showIsland();
+        };
+
+        UsageStore.Shared.PropertyChanged += OnDataChanged;
+        ActivityMonitor.Shared.PropertyChanged += OnDataChanged;
+        ProviderVisibilityStore.Shared.PropertyChanged += OnDataChanged;
+        Update();               // paints the first icon
+        _icon.Visible = true;   // then show it
     }
 
-    private static System.Drawing.Icon LoadIcon()
+    private void OnDataChanged(object? sender, PropertyChangedEventArgs e) =>
+        _dispatcher.BeginInvoke(Update);
+
+    private void Update()
     {
-        try
+        var visibility = ProviderVisibilityStore.Shared;
+        var usage = UsageStore.Shared;
+        var monitor = ActivityMonitor.Shared;
+
+        double usage5h = 0;
+        var worst = ActivityState.Idle;
+        string? claudeText = null, codexText = null;
+        if (visibility.ClaudeVisible)
         {
-            var uri = new Uri("pack://application:,,,/Assets/agentisland_logo.png");
-            using var stream = System.Windows.Application.GetResourceStream(uri)!.Stream;
-            using var bitmap = new System.Drawing.Bitmap(stream);
-            using var sized = new System.Drawing.Bitmap(bitmap, 32, 32);
-            var handle = sized.GetHicon();
-            return System.Drawing.Icon.FromHandle(handle);
+            usage5h = Math.Max(usage5h, usage.Claude.FiveHour.UsedPercent);
+            if (monitor.Claude > worst) worst = monitor.Claude;
+            claudeText = "Claude " + Percent(usage.Claude.FiveHour.UsedPercent);
         }
-        catch
+        if (visibility.CodexVisible)
         {
-            return System.Drawing.SystemIcons.Application;
+            usage5h = Math.Max(usage5h, usage.Codex.FiveHour.UsedPercent);
+            if (monitor.Codex > worst) worst = monitor.Codex;
+            codexText = "Codex " + Percent(usage.Codex.FiveHour.UsedPercent);
         }
+
+        var next = TrayIconRenderer.Render(usage5h, worst);
+        _icon.Icon = next;
+        _rendered?.Dispose();
+        _rendered = next;
+
+        var parts = new[] { claudeText, codexText }.Where(p => p is not null);
+        var joined = string.Join(" · ", parts);
+        var status = StatusWord(worst);
+        // NotifyIcon.Text is capped (~127 chars) — this line is always short.
+        _icon.Text = status is null
+            ? (joined.Length == 0 ? "Agent Island" : "Agent Island · " + joined)
+            : $"Agent Island · {status}" + (joined.Length == 0 ? "" : " · " + joined);
     }
+
+    private static string Percent(double fraction) => $"{(int)Math.Round(fraction * 100)}%";
+
+    private static string? StatusWord(ActivityState state) => state switch
+    {
+        ActivityState.AuthRequired => Localization.L10n.Tr("Needs attention"),
+        ActivityState.RateLimited => Localization.L10n.Tr("Needs attention"),
+        ActivityState.Stalled => Localization.L10n.Tr("Needs attention"),
+        ActivityState.NeedsYou => Localization.L10n.Tr("Your turn"),
+        ActivityState.Working => Localization.L10n.Tr("Running"),
+        _ => null,
+    };
 
     /// Windows toast-equivalent for the turn alarm's system notification.
     public void ShowBalloon(string title, string body)
@@ -63,7 +113,11 @@ public sealed class TrayIcon : IDisposable
     public void Dispose()
     {
         if (ReferenceEquals(Current, this)) Current = null;
+        UsageStore.Shared.PropertyChanged -= OnDataChanged;
+        ActivityMonitor.Shared.PropertyChanged -= OnDataChanged;
+        ProviderVisibilityStore.Shared.PropertyChanged -= OnDataChanged;
         _icon.Visible = false;
         _icon.Dispose();
+        _rendered?.Dispose();
     }
 }
