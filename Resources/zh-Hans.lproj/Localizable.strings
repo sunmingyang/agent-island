@@ -270,3 +270,9 @@
 "Refresh usage" = "刷新用量";
 "Open Settings" = "打开设置";
 "Quit Agent Island" = "退出 Agent Island";
+
+/* 1.5.3 quota display mode + Claude clipboard assist */
+"Show remaining instead of used" = "显示剩余而不是已用";
+"Percent readouts count down what's left of each window rather than up what's spent." = "百分比倒着数每个窗口还剩多少，而不是正着数用了多少。";
+"Session name copied" = "会话名已复制";
+"Paste it in Claude's search to jump to “%@”." = "在 Claude 的搜索里粘贴，即可找到「%@」。";

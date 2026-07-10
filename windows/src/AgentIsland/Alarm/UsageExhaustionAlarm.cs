@@ -55,20 +55,34 @@ public sealed class UsageExhaustionAlarm
         // Only once real data has flowed (matches AlertEngine's gate), so a
         // cached/zeroed launch snapshot can't fire anything.
         if (UsageStore.Shared.LastUpdated is null) return;
-        Recompute(UsageStore.Shared.Claude, UsageStore.Shared.Codex, AgentReminderStore.Shared.Enabled);
+        Recompute(
+            UsageStore.Shared.Claude,
+            UsageStore.Shared.Codex,
+            AgentReminderStore.Shared.Enabled,
+            Model.ProviderVisibilityStore.Shared.ClaudeVisible,
+            Model.ProviderVisibilityStore.Shared.CodexVisible);
     }
 
     /// Testable core — the macOS recompute() body with the store reads
     /// lifted out.
-    internal void Recompute(AppUsage claude, AppUsage codex, bool remindersEnabled)
+    internal void Recompute(
+        AppUsage claude,
+        AppUsage codex,
+        bool remindersEnabled,
+        bool claudeVisible = true,
+        bool codexVisible = true)
     {
-        var windows = new (TriggerTool Provider, QuotaWindowKind Window, WindowUsage Usage)[]
+        // Providers switched off in Settings never alarm - same contract
+        // as the island's red attention glow.
+        var all = new (TriggerTool Provider, QuotaWindowKind Window, WindowUsage Usage)[]
         {
             (TriggerTool.Claude, QuotaWindowKind.FiveHour, claude.FiveHour),
             (TriggerTool.Claude, QuotaWindowKind.Weekly, claude.Weekly),
             (TriggerTool.Codex, QuotaWindowKind.FiveHour, codex.FiveHour),
             (TriggerTool.Codex, QuotaWindowKind.Weekly, codex.Weekly),
         };
+        var windows = System.Array.FindAll(all, w =>
+            w.Provider == TriggerTool.Claude ? claudeVisible : codexVisible);
 
         // Prune fired keys whose window has advanced to a new reset cycle.
         // Only prune when the current resetAt is known — an error/nil boundary

@@ -41,6 +41,14 @@ public static class TurnAlarmNavigator
             // session's own cwd; that user lives in a terminal already.
             if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop)
             {
+                // No deep link lands on an existing Claude conversation, so
+                // compensate: put the session title on the clipboard (here,
+                // on the caller's STA/UI thread - Clipboard requires it) so
+                // finding the thread is one paste in Claude's search.
+                if (!string.IsNullOrEmpty(thread.Label))
+                {
+                    try { System.Windows.Clipboard.SetText(thread.Label); } catch { }
+                }
                 return System.Threading.Tasks.Task.Run(() => FocusAppWindow("claude"));
             }
             return System.Threading.Tasks.Task.Run(() =>

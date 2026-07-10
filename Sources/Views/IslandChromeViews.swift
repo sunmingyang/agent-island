@@ -11,6 +11,7 @@ struct GlowLayer: View {
     @ObservedObject private var alerts = AlertEngine.shared
     @ObservedObject private var monitor = ActivityMonitor.shared
     @ObservedObject private var occlusion = WindowOcclusionStore.shared
+    @ObservedObject private var visibility = ProviderVisibilityStore.shared
     @State private var stallPulse = false
 
     var body: some View {
@@ -58,7 +59,12 @@ struct GlowLayer: View {
     }
 
     private var attentionActive: Bool {
-        monitor.claude.isAttentionState || monitor.codex.isAttentionState
+        // A provider hidden in Settings never drives the red island glow —
+        // ActivityMonitor already skips its usage overlay, and this guard
+        // keeps even session-level attention from a switched-off provider
+        // out of the whole-island pulse.
+        (visibility.claudeVisible && monitor.claude.isAttentionState)
+            || (visibility.codexVisible && monitor.codex.isAttentionState)
     }
 }
 

@@ -170,8 +170,17 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
             thread => AgentReminderCenter.Shared.HasAcknowledged(TriggerTool.Claude, thread));
         var codexResult = BestSession(sessions, TriggerTool.Codex,
             thread => AgentReminderCenter.Shared.HasAcknowledged(TriggerTool.Codex, thread));
-        var claude = OverlayUsageAttention(claudeResult.State, UsageStore.Shared.Claude);
-        var codex = OverlayUsageAttention(codexResult.State, UsageStore.Shared.Codex);
+        // Usage-level attention (rate-limited / auth-required red) only
+        // applies to providers switched ON in Settings. Someone who only
+        // runs Claude keeps Codex hidden - its missing login must not
+        // pulse the island red forever.
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        var claude = visibility.ClaudeVisible
+            ? OverlayUsageAttention(claudeResult.State, UsageStore.Shared.Claude)
+            : claudeResult.State;
+        var codex = visibility.CodexVisible
+            ? OverlayUsageAttention(codexResult.State, UsageStore.Shared.Codex)
+            : codexResult.State;
         UpdateLastWorking(sessions, now);
         _rawClaude = claudeResult.State;
         _rawCodex = codexResult.State;

@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 import Foundation
 
 @MainActor
@@ -95,6 +96,16 @@ enum TurnAlarmNavigator {
         //   own cwd. That user lives in a terminal already.
         if thread?.launchTarget == .claudeDesktop {
             activate(bundleIdentifier: claudeBundleID)
+            // Best possible compensation for the missing deep link: put the
+            // session's title on the clipboard and tell the user, so locating
+            // the conversation is one paste in Claude's search instead of a
+            // scroll hunt through the sidebar.
+            if let label = thread?.label, !label.isEmpty, label != L10n.tr("Demo thread") {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(label, forType: .string)
+                postClipboardHint(label: label)
+            }
             return
         }
         if let thread, openCLIResume(
@@ -106,6 +117,21 @@ enum TurnAlarmNavigator {
             return
         }
         activate(bundleIdentifier: claudeBundleID)
+    }
+
+    /// Claude Desktop has no URL that lands on an existing conversation (its
+    /// scheme only registers new-session entry points), so after fronting the
+    /// app we surface a quiet notification explaining the clipboard assist.
+    private static func postClipboardHint(label: String) {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.tr("Session name copied")
+        content.body = L10n.tr("Paste it in Claude's search to jump to “%@”.", label)
+        let request = UNNotificationRequest(
+            identifier: "agent-island-claude-clipboard-hint",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 
     private static func activate(bundleIdentifier: String) {

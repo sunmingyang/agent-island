@@ -120,6 +120,8 @@ public static class L10n
         ["Remove"] = "移除",
         ["needs attention"] = "需要处理",
         ["Turn alarm"] = "到你回复提醒",
+        ["Show remaining instead of used"] = "显示剩余而不是已用",
+        ["Percent readouts count down what's left of each window rather than up what's spent."] = "百分比倒着数每个窗口还剩多少，而不是正着数用了多少。",
         ["Out of quota"] = "额度用完了",
         ["5-hour limit"] = "5 小时额度",
         ["Weekly limit"] = "周额度",

@@ -19,6 +19,7 @@ public static class UsageExhaustionAlarmTests
             ("errored window never fires", TestErroredWindowNeverFires),
             ("reminders off suppresses without consuming the key", TestDisabledSuppressesWithoutConsuming),
             ("alarm key matches the macOS shape", TestAlarmKeyShape),
+            ("hidden provider never fires", TestHiddenProviderNeverFires),
         };
 
         foreach (var (name, test) in tests)
@@ -47,6 +48,20 @@ public static class UsageExhaustionAlarmTests
             (provider, window, resetAt) =>
                 fired.Add(UsageExhaustionAlarm.QuotaAlarmKey(provider, window, resetAt)));
         return (alarm, fired);
+    }
+
+    private static void TestHiddenProviderNeverFires()
+    {
+        var (alarm, fired) = Make();
+        // Warmup with the provider still visible and healthy.
+        alarm.Recompute(Usage(0.5, ResetA), AppUsage.Empty, remindersEnabled: true);
+        // Claude exhausts while hidden in Settings: no alarm, and the key is
+        // not consumed.
+        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true, claudeVisible: false);
+        Expect(fired.Count == 0, "hidden provider must not alarm");
+        // Switching the provider back on lets the same cycle fire normally.
+        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true);
+        Expect(fired.Count == 1, "re-shown provider should fire for the still-exhausted cycle");
     }
 
     private static void TestFiresOncePerCycle()

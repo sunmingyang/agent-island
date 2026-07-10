@@ -18,6 +18,8 @@ struct NotchPeekPill: View {
     let alignment: HorizontalAlignment
     var severity: AlertEngine.Severity = .none
 
+    @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
+
     var body: some View {
         Group {
             if showSpinner {
@@ -109,7 +111,8 @@ struct NotchPeekPill: View {
     }
 
     private var percentText: String {
-        "\(usage.percentInt)%"
+        let value = Int(quotaMode.displayValue(usedPercent: usage.usedPercent).rounded())
+        return "\(value)%"
     }
 
     /// `Nh` when ≥ 1h remaining, `Nm` under 1h. Returns nil if there's no

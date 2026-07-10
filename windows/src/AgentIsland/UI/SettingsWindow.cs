@@ -566,6 +566,13 @@ public sealed class SettingsWindow : Window
         RefreshCostPicker();
         stack.Children.Add(costPickerHost);
 
+        var quotaRemaining = new CobaltToggle(Model.QuotaDisplayModeStore.Shared.ShowsRemaining);
+        quotaRemaining.Toggled += enabled => Model.QuotaDisplayModeStore.Shared.ShowsRemaining = enabled;
+        stack.Children.Add(new SettingsRowControl(
+            "Show remaining instead of used",
+            "Percent readouts count down what's left of each window rather than up what's spent.",
+            quotaRemaining));
+
         // 顶部条.
         stack.Children.Add(SectionLabel("Top bar"));
         var alwaysShow = new CobaltToggle(AlwaysShowUsageStore.Shared.Enabled);

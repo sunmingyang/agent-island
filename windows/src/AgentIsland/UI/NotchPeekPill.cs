@@ -53,7 +53,7 @@ public sealed class NotchPeekPill : TextBlock
 
         // The right-hand pill mirrors: countdown first, percent hugging the
         // logo — exactly like the macOS bar.
-        var percentText = $"{Math.Round(usage.UsedPercent * 100)}%";
+        var percentText = $"{Math.Round(Model.QuotaDisplayModeStore.Shared.DisplayValue(usage.UsedPercent))}%";
         var now = DateTimeOffset.Now;
         var countdown = usage.ResetAt is { } resetAt && resetAt > now
             ? CompactCountdown(resetAt - now)

@@ -146,12 +146,15 @@ struct ChartTile: View {
     let window: WindowUsage
     let seed: Int
 
+    @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
+
     /// Locked tile height across all 5 styles so the panel size is
     /// identical regardless of what the user picks.
     private static let tileHeight: CGFloat = 96
 
     var body: some View {
-        let value = window.usedPercent * 100   // 0-100
+        // 0-100; flips to "percent left" when the user prefers remaining.
+        let value = quotaMode.displayValue(usedPercent: window.usedPercent)
         let sub = subCaption()
         let label = L10n.tr(labelKey)
 

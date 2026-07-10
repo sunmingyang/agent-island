@@ -16,6 +16,7 @@ struct SettingsView: View {
     @ObservedObject private var lowPower = LowPowerModeStore.shared
     @ObservedObject private var alwaysShow = AlwaysShowUsageStore.shared
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
+    @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
     @ObservedObject private var alertPrefs = AlertThresholdStore.shared
     @ObservedObject private var spacing = IslandSpacingStore.shared
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
@@ -639,6 +640,14 @@ struct SettingsView: View {
             ChartStylePicker(selected: $stylePref.style)
                 .padding(.top, 4)
                 .padding(.horizontal, 10)
+            SettingsRow(
+                title: "Show remaining instead of used",
+                subtitle: "Percent readouts count down what's left of each window rather than up what's spent."
+            ) {
+                SettingsToggle(isOn: quotaMode.showsRemaining) {
+                    quotaMode.showsRemaining.toggle()
+                }
+            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 18)

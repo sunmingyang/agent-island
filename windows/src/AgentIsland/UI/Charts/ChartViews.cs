@@ -560,7 +560,8 @@ public sealed class ChartTile : StackPanel
 
     public void Update(WindowUsage window, ChartStyle style)
     {
-        var value = window.UsedPercent * 100;
+        // 0-100; flips to "percent left" when the user prefers remaining.
+        var value = Model.QuotaDisplayModeStore.Shared.DisplayValue(window.UsedPercent);
         var label = Localization.L10n.Tr(_labelKey);
 
         // Ring and Numeric render their own heads; the shared head serves

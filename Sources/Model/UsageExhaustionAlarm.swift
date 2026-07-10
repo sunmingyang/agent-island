@@ -43,12 +43,15 @@ final class UsageExhaustionAlarm {
 
     private func currentWindows() -> [WindowRef] {
         let usage = UsageStore.shared
-        return [
+        let all = [
             WindowRef(provider: .claude, window: .fiveHour, usage: usage.claude.fiveHour),
             WindowRef(provider: .claude, window: .weekly, usage: usage.claude.weekly),
             WindowRef(provider: .codex, window: .fiveHour, usage: usage.codex.fiveHour),
             WindowRef(provider: .codex, window: .weekly, usage: usage.codex.weekly),
         ]
+        // Providers switched off in Settings never alarm — same contract as
+        // the island's red attention glow.
+        return all.filter { ProviderVisibilityStore.shared.effectiveVisible(provider: $0.provider) }
     }
 
     private func key(_ provider: AlertEngine.Provider, _ window: QuotaWindowKind, _ resetAt: Date) -> String {

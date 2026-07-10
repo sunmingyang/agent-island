@@ -262,3 +262,9 @@
 "Refresh usage" = "Refresh usage";
 "Open Settings" = "Open Settings";
 "Quit Agent Island" = "Quit Agent Island";
+
+/* 1.5.3 quota display mode + Claude clipboard assist */
+"Show remaining instead of used" = "Show remaining instead of used";
+"Percent readouts count down what's left of each window rather than up what's spent." = "Percent readouts count down what's left of each window rather than up what's spent.";
+"Session name copied" = "Session name copied";
+"Paste it in Claude's search to jump to “%@”." = "Paste it in Claude's search to jump to “%@”.";

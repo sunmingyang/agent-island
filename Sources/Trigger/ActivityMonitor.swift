@@ -128,8 +128,17 @@ final class ActivityMonitor: ObservableObject {
                 let codexResult = Self.bestSession(in: sessions, tool: .codex) {
                     AgentReminderCenter.shared.hasAcknowledged(provider: .codex, thread: $0)
                 }
-                let claude = self.overlayUsageAttention(claudeResult.state, usage: UsageStore.shared.claude)
-                let codex = self.overlayUsageAttention(codexResult.state, usage: UsageStore.shared.codex)
+                // Usage-level attention (rate-limited / auth-required red)
+                // only applies to providers switched ON in Settings. Someone
+                // who only runs Claude keeps Codex hidden — its missing login
+                // must not pulse the island red forever.
+                let visibility = ProviderVisibilityStore.shared
+                let claude = visibility.claudeVisible
+                    ? self.overlayUsageAttention(claudeResult.state, usage: UsageStore.shared.claude)
+                    : claudeResult.state
+                let codex = visibility.codexVisible
+                    ? self.overlayUsageAttention(codexResult.state, usage: UsageStore.shared.codex)
+                    : codexResult.state
                 self.updateLastWorking(from: sessions, now: now)
                 self.rawClaude = claudeResult.state
                 self.rawCodex = codexResult.state
