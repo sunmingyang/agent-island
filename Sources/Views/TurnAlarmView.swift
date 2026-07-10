@@ -1,10 +1,25 @@
 import AppKit
 import SwiftUI
 
+/// Which rate-limit window a quota-exhausted alarm is about.
+enum QuotaWindowKind: String {
+    case fiveHour
+    case weekly
+}
+
+/// Why the full-screen alarm is showing. `yourTurn` is the thread-finished
+/// alarm; `quotaExhausted` is the distinct "you're out of quota until <time>"
+/// alarm, which has no thread to open — only an acknowledge.
+enum TurnAlarmKind: Equatable {
+    case yourTurn
+    case quotaExhausted(window: QuotaWindowKind, resetAt: Date?)
+}
+
 struct TurnAlarmView: View {
     let provider: AlertEngine.Provider
     let providerName: String
     let thread: ActivityMonitor.ActiveThread?
+    var kind: TurnAlarmKind = .yourTurn
     let dismiss: () -> Void
 
     @ObservedObject private var reminders = AgentReminderStore.shared
@@ -21,7 +36,7 @@ struct TurnAlarmView: View {
                     .padding(.bottom, 20)
 
                 VStack(spacing: 9) {
-                    Text(L10n.tr("It's your turn"))
+                    Text(headline)
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
@@ -31,7 +46,7 @@ struct TurnAlarmView: View {
                         .foregroundStyle(providerColor)
                         .lineLimit(1)
 
-                    Text(L10n.tr("The thread finished. Come back and reply."))
+                    Text(detailText)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.white.opacity(0.66))
                         .multilineTextAlignment(.center)
@@ -39,7 +54,7 @@ struct TurnAlarmView: View {
                 }
                 .padding(.bottom, 24)
 
-                if reminders.showSessionDetails {
+                if !isExhausted, reminders.showSessionDetails {
                     TurnAlarmMetadata(
                         providerName: providerName,
                         threadName: threadName,
@@ -49,21 +64,23 @@ struct TurnAlarmView: View {
                         .padding(.bottom, 22)
                 }
 
-                Button {
-                    dismiss()
-                    TurnAlarmNavigator.open(provider: provider, thread: thread)
-                } label: {
-                    Text(L10n.tr("Open thread"))
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 396, height: 48)
-                        .background {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(buttonGradient)
-                                .shadow(color: providerColor.opacity(0.46), radius: 18, y: 4)
-                        }
+                if !isExhausted {
+                    Button {
+                        dismiss()
+                        TurnAlarmNavigator.open(provider: provider, thread: thread)
+                    } label: {
+                        Text(L10n.tr("Open thread"))
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 396, height: 48)
+                            .background {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(buttonGradient)
+                                    .shadow(color: providerColor.opacity(0.46), radius: 18, y: 4)
+                            }
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 Button {
                     dismiss()
@@ -145,8 +162,48 @@ struct TurnAlarmView: View {
         )
     }
 
+    private var isExhausted: Bool {
+        if case .quotaExhausted = kind { return true }
+        return false
+    }
+
+    private var headline: String {
+        switch kind {
+        case .yourTurn:       return L10n.tr("It's your turn")
+        case .quotaExhausted: return L10n.tr("Out of quota")
+        }
+    }
+
     private var waitingTitle: String {
-        L10n.tr("%@ is waiting", headlineName)
+        switch kind {
+        case .yourTurn:
+            return L10n.tr("%@ is waiting", headlineName)
+        case .quotaExhausted(let window, _):
+            let windowName = window == .fiveHour ? L10n.tr("5-hour limit") : L10n.tr("Weekly limit")
+            return "\(providerName) · \(windowName)"
+        }
+    }
+
+    private var detailText: String {
+        switch kind {
+        case .yourTurn:
+            return L10n.tr("The thread finished. Come back and reply.")
+        case .quotaExhausted(_, let resetAt):
+            guard let resetAt else { return L10n.tr("You're rate-limited for now.") }
+            return Self.resetDetail(resetAt)
+        }
+    }
+
+    /// "Resets at 15:55 (~2h)" — absolute time plus a coarse relative gap.
+    private static func resetDetail(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = L10n.locale
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        let clock = formatter.string(from: date)
+        let minutes = max(1, Int((date.timeIntervalSinceNow / 60).rounded()))
+        let relative = minutes >= 60 ? L10n.tr("~%dh", minutes / 60) : L10n.tr("~%dm", minutes)
+        return L10n.tr("Resets at %@ (%@)", clock, relative)
     }
 
     private var headlineName: String {

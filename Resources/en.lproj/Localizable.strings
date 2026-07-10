@@ -242,6 +242,17 @@
 "The thread finished. Come back and reply." = "The session finished. Come back and reply.";
 "Open thread" = "Open session";
 "I know" = "Got it";
+"Out of quota" = "Out of quota";
+"5-hour limit" = "5-hour limit";
+"Weekly limit" = "Weekly limit";
+"You're rate-limited for now." = "You're rate-limited for now.";
+"~%dh" = "~%dh";
+"~%dm" = "~%dm";
+"Resets at %@ (%@)" = "Resets at %@ (%@)";
+"%@ %@ reached" = "%@ %@ reached";
+"You're out until it resets at %@." = "You're out until it resets at %@.";
+"Alarm on subagent threads" = "Alarm on subagent threads";
+"Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly." = "Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly.";
 "Alarm provider" = "Provider";
 "Alarm thread" = "Session";
 "Alarm project" = "Project";

@@ -18,6 +18,13 @@ final class UsageStore: ObservableObject {
     @Published var lastUpdated: Date?
     @Published var refreshWarning: String?
     @Published var loading = false
+    /// When the current `loading` window started. A refresh normally clears
+    /// `loading` within a couple seconds; if a fetch wedges (e.g. a half-open
+    /// VPN tunnel that stays "connected" but never returns data), `loading`
+    /// would otherwise stick true forever and every scheduled poll would no-op
+    /// on the guard, freezing the panel at "synced N minutes ago". This lets
+    /// `refresh()` treat a too-old loading window as wedged and restart it.
+    private var loadingStartedAt: Date?
     /// Set while a `claude auth login` flow is in progress (spawned + still
     /// polling for the keychain to update). The UI hides the re-auth button
     /// during this window so users don't double-tap and spawn duplicate CLI
@@ -44,7 +51,11 @@ final class UsageStore: ObservableObject {
     }
 
     func refresh() {
-        if loading { return }
+        // Skip only if a refresh is genuinely in flight. A `loading` window
+        // older than 90s is presumed wedged (a hung fetch that never returned),
+        // so fall through and restart instead of no-op'ing forever — otherwise
+        // the panel freezes at the last successful sync.
+        if loading, let started = loadingStartedAt, Date().timeIntervalSince(started) < 90 { return }
         // Demo mode for screen recordings: skip the network entirely and
         // inject hand-tuned values that read as "real, healthy heavy-user
         // data". Reset times are recomputed each refresh so the countdowns
@@ -90,6 +101,7 @@ final class UsageStore: ObservableObject {
         }
 
         loading = true
+        loadingStartedAt = Date()
         refreshTask?.cancel()
         refreshTask = Task {
             async let codexResult = UsageFetcher.fetchCodex()
@@ -242,36 +254,50 @@ final class UsageStore: ObservableObject {
         self.refreshWarning = nil
     }
 
-    /// Spawn `claude auth login` and wait for the keychain to update.
+    /// Re-authenticate Claude via the in-app browser login.
     ///
-    /// We can't `await` the OAuth flow directly — it happens in Terminal and
-    /// may involve a browser tab, localhost callback listener, SSO, or manual
-    /// input. Poll the keychain metadata first, then hit the usage API once
-    /// after credentials change. Polling the usage endpoint every few seconds
-    /// can itself trigger Anthropic's rate limit, which hides the real auth
-    /// recovery behind a fresh `rate limited` error.
+    /// Preferred path (`ClaudeWebLogin`): opens the real Claude authorize page
+    /// in the default browser — reusing the user's claude.ai session, usually a
+    /// single click — and catches the OAuth redirect on a local loopback
+    /// listener, writing the fresh, fully-scoped token pair straight to the
+    /// keychain. No Terminal, no manual code paste. On any failure we fall back
+    /// to the legacy `claude auth login` + keychain-poll so a machine that can't
+    /// run the loopback flow is no worse off than before.
     func reauthenticateClaude() {
         guard !claudeReauthInProgress else { return }
-        let initialStamp = ClaudeCredentials.keychainModificationStamp()
-        guard ClaudeCredentials.spawnReauth() else { return }
         claudeReauthInProgress = true
         reauthPollTask?.cancel()
-        reauthPollTask = Task { [weak self, initialStamp] in
-            // ~2 minutes total. The keychain check is local and cheap; the
-            // usage API is called only once when the credentials actually
-            // change, plus one final fallback call before giving up.
-            for _ in 0..<40 {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                if Task.isCancelled { return }
-                let currentStamp = ClaudeCredentials.keychainModificationStamp()
-                guard currentStamp != nil, currentStamp != initialStamp else {
-                    continue
-                }
-                await self?.finishClaudeReauthWithSingleFetch()
-                return
+        reauthPollTask = Task { [weak self] in
+            guard let self else { return }
+            switch await ClaudeWebLogin.shared.start() {
+            case .success:
+                await self.finishClaudeReauthWithSingleFetch()
+            case .canceled:
+                await MainActor.run { self.claudeReauthInProgress = false }
+            case .failed:
+                await self.runClaudeCLIReauthFallback()
             }
-            await self?.finishClaudeReauthWithSingleFetch()
         }
+    }
+
+    /// Legacy fallback: spawn `claude auth login` in Terminal and poll the
+    /// keychain metadata for a change, then hit the usage API once. Kept only
+    /// as a safety net for setups where the loopback listener can't bind.
+    private func runClaudeCLIReauthFallback() async {
+        let initialStamp = ClaudeCredentials.keychainModificationStamp()
+        guard ClaudeCredentials.spawnReauth() else {
+            await MainActor.run { self.claudeReauthInProgress = false }
+            return
+        }
+        for _ in 0..<40 {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if Task.isCancelled { return }
+            let currentStamp = ClaudeCredentials.keychainModificationStamp()
+            guard currentStamp != nil, currentStamp != initialStamp else { continue }
+            await finishClaudeReauthWithSingleFetch()
+            return
+        }
+        await finishClaudeReauthWithSingleFetch()
     }
 
     func reauthenticateCodex() {

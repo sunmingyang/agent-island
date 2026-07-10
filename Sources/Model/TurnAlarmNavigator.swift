@@ -12,36 +12,61 @@ enum TurnAlarmNavigator {
         }
     }
 
+    private static let codexBundleID = "com.openai.codex"
+
     private static func openCodex(thread: ActivityMonitor.ActiveThread?) {
-        let fallback = {
-            if let thread, openCLIResume(
-                executable: "codex",
-                arguments: ["resume", thread.sessionId],
-                thread: thread,
-                fallbackBundleID: "com.openai.codex"
-            ) {
-                return
-            }
-            activate(bundleIdentifier: "com.openai.codex")
-        }
         if let id = sanitizedCodexThreadID(thread?.sessionId),
            let url = URL(string: "codex://threads/\(id)"),
-           NSWorkspace.shared.urlForApplication(toOpen: url) != nil {
+           let appURL = appURL(forScheme: url, bundleID: codexBundleID) {
             let config = NSWorkspace.OpenConfiguration()
-            NSWorkspace.shared.open(url, configuration: config) { app, error in
+            config.activates = true
+            // Deliver the deep link to the *specific* Codex Desktop we resolved,
+            // not whatever LaunchServices treats as the codex:// default. The
+            // scheme is claimed by a pile of stale duplicates (old Codex
+            // Framework helper copies, Sparkle Updater.app launchers, the
+            // computer-use helper) — routing through the default handler can
+            // wake one of those instead of the window the user is looking at.
+            NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config) { app, error in
                 Task { @MainActor in
                     if let app {
                         app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
                     } else if error != nil {
-                        fallback()
+                        codexCLIFallback(thread: thread)
                     } else {
-                        activate(bundleIdentifier: "com.openai.codex")
+                        activate(bundleIdentifier: codexBundleID)
                     }
                 }
             }
             return
         }
-        fallback()
+        codexCLIFallback(thread: thread)
+    }
+
+    private static func codexCLIFallback(thread: ActivityMonitor.ActiveThread?) {
+        if let thread, openCLIResume(
+            executable: "codex",
+            arguments: ["resume", thread.sessionId],
+            thread: thread,
+            fallbackBundleID: codexBundleID
+        ) {
+            return
+        }
+        activate(bundleIdentifier: codexBundleID)
+    }
+
+    /// The app bundle a scheme URL should be delivered to. Prefer the running
+    /// instance of the expected bundle id (so the URL lands in the window that's
+    /// actually open) before falling back to LaunchServices' default handler
+    /// and finally a by-id lookup.
+    private static func appURL(forScheme url: URL, bundleID: String) -> URL? {
+        if let running = NSWorkspace.shared.runningApplications
+            .first(where: { $0.bundleIdentifier == bundleID })?.bundleURL {
+            return running
+        }
+        if let byScheme = NSWorkspace.shared.urlForApplication(toOpen: url) {
+            return byScheme
+        }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
     }
 
     private static func sanitizedCodexThreadID(_ raw: String?) -> String? {
@@ -67,27 +92,17 @@ enum TurnAlarmNavigator {
         activate(bundleIdentifier: "com.anthropic.claudefordesktop")
     }
 
-    /// Claude Desktop registers a claude://resume deep link that opens a CLI
-    /// session by id (its own error toasts describe exactly this flow). Try
-    /// it so "Open thread" lands on the thread, not just the app; any failure
-    /// falls back to plain activation, which is the pre-deep-link behavior.
+    private static let claudeBundleID = "com.anthropic.claudefordesktop"
+
+    /// Safe behavior: bring Claude Desktop to the front. We do NOT fire a deep
+    /// link here — `claude://resume?sessionId=` only *imports a CLI session*
+    /// (per Claude's own error toasts, it never switches to an already-open
+    /// conversation) and `https://claude.ai/chat/<id>` spills into the browser.
+    /// Until Claude exposes a dependable external "open this conversation" URL,
+    /// fronting the app is the most we can reliably do without risking a jump
+    /// to the web browser.
     private static func openClaudeDesktop(thread: ActivityMonitor.ActiveThread?) {
-        let bundleID = "com.anthropic.claudefordesktop"
-        if let id = sanitizedCodexThreadID(thread?.sessionId),
-           let url = URL(string: "claude://resume?sessionId=\(id)"),
-           NSWorkspace.shared.urlForApplication(toOpen: url) != nil {
-            NSWorkspace.shared.open(url, configuration: NSWorkspace.OpenConfiguration()) { app, error in
-                Task { @MainActor in
-                    if let app {
-                        app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-                    } else if error != nil {
-                        activate(bundleIdentifier: bundleID)
-                    }
-                }
-            }
-            return
-        }
-        activate(bundleIdentifier: bundleID)
+        activate(bundleIdentifier: claudeBundleID)
     }
 
     private static func activate(bundleIdentifier: String) {

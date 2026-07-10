@@ -44,6 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // recompute sees whatever values the first refresh has produced.
         AlertEngine.shared.start()
 
+        // Quota-exhaustion alarm rides the same usage signal: a window hitting
+        // 100% pops the distinct "out of quota until <time>" alarm.
+        UsageExhaustionAlarm.shared.start()
+
         // Auto-trigger engine rides the same usage signal: a changed
         // fiveHour.resetAt means a window rolled over → resume the target
         // session. Started after the usage store for the same reason.

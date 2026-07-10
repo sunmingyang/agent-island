@@ -13,8 +13,16 @@ enum SessionTurnState {
             switch type {
             case "assistant":
                 let stop = (object["message"] as? [String: Any])?["stop_reason"] as? String
+                // Claude Code writes rate-limit / API-error lines using the SAME
+                // envelope as a finished turn — type:assistant, stop_reason:
+                // "stop_sequence" — but flags them isApiErrorMessage:true (e.g.
+                // "You've hit your session limit · resets 2:20am"). Treating those
+                // as a completed turn fired a false "it's your turn" alarm on
+                // every rate-limit. A genuinely exhausted window now raises the
+                // separate quota alarm instead; here we must NOT mark it done.
+                let isApiError = (object["isApiErrorMessage"] as? Bool) == true
                 return SessionTurnStatus(
-                    isDone: ["end_turn", "stop_sequence", "stop"].contains(stop ?? ""),
+                    isDone: !isApiError && ["end_turn", "stop_sequence", "stop"].contains(stop ?? ""),
                     key: key(object, fallback: line),
                     activityDate: date(object)
                 )

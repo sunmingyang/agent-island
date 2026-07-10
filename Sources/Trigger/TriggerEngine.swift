@@ -144,15 +144,24 @@ final class TriggerEngine: ObservableObject {
             return
         }
         let safety = TriggerSafetyStore.shared
+        // A blocked fire still advances the schedule (markFired). Otherwise a
+        // due `everyHours` trigger that stays blocked (execution off, untrusted
+        // project, or missing CLI) never updates lastFired, so checkIntervals
+        // re-fires it every 60s tick forever — spamming NSLog and minting a new
+        // timestamped log file per attempt. Backing off by a full interval caps
+        // the blocked-status log to one entry per cycle.
         guard safety.executionEnabled else {
+            TriggerStore.shared.markFired(trigger.id)
             logStatus("blocked: trigger execution is off", for: trigger)
             return
         }
         guard safety.isAllowed(cwd: trigger.cwd) else {
+            TriggerStore.shared.markFired(trigger.id)
             logStatus("blocked: project is not trusted for auto-resume\n\(preview(for: trigger))", for: trigger)
             return
         }
         guard let command = command(for: trigger, requireResolvedBinary: true) else {
+            TriggerStore.shared.markFired(trigger.id)
             NSLog("AgentIsland trigger: %@ binary not found", trigger.tool.rawValue)
             return
         }

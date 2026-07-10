@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StatusGuideView: View {
     @ObservedObject private var reminders = AgentReminderStore.shared
+    @ObservedObject private var subagentAlarm = SubagentAlarmStore.shared
     @State private var soundPickerExpanded = false
 
     var body: some View {
@@ -30,6 +31,12 @@ struct StatusGuideView: View {
                 subtitle: "Show session and project names in alarms and notifications."
             ) {
                 SettingsToggle(isOn: reminders.showSessionDetails) { reminders.showSessionDetails.toggle() }
+            }
+            SettingsRow(
+                title: "Alarm on subagent threads",
+                subtitle: "Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly."
+            ) {
+                SettingsToggle(isOn: subagentAlarm.showSubagentThreads) { subagentAlarm.showSubagentThreads.toggle() }
             }
             SettingsRow(
                 title: "Alarm sound",

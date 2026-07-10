@@ -20,6 +20,20 @@ enum ClaudeCredentials {
     static let reauthRequiredMessage = "re-login: claude /login"
     static let authRequiredMessage = "auth required — run claude"
 
+    // MARK: - OAuth endpoints (shared by refresh + in-app web login)
+
+    /// Claude Code's public OAuth client. Confirmed from the live `claude`
+    /// authorize URL and already used by the refresh path below.
+    static let oauthClientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+    /// Where `ClaudeWebLogin` sends the browser to sign in.
+    static let authorizeURLBase = "https://claude.com/cai/oauth/authorize"
+    /// Token endpoint for both refresh and authorization_code exchange.
+    static let tokenURLString = "https://platform.claude.com/v1/oauth/token"
+    /// Scope set the mid-2026 usage endpoint requires (`user:profile` is the
+    /// one older keychain tokens are missing — a fresh login is the only way
+    /// to acquire it, since refresh re-issues the same scopes).
+    static let loginScopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
+
     static func isAuthRecoverableError(_ message: String?) -> Bool {
         guard let message else { return false }
         return message == authRequiredMessage || message == reauthRequiredMessage
@@ -298,6 +312,65 @@ enum ClaudeCredentials {
         } catch {
             return nil
         }
+    }
+
+    // MARK: - Web login (PKCE loopback)
+
+    /// Second half of the loopback login: exchange the authorization code for a
+    /// fresh token pair and persist it to the keychain. Called by
+    /// `ClaudeWebLogin` after it catches the OAuth redirect. Returns true only
+    /// if both the exchange and the keychain write succeed.
+    static func completeWebLogin(code: String, codeVerifier: String, redirectURI: String, state: String) async -> Bool {
+        guard let tokens = await exchangeAuthorizationCode(
+            code: code, codeVerifier: codeVerifier, redirectURI: redirectURI, state: state
+        ) else { return false }
+        return persistFreshLogin(tokens)
+    }
+
+    /// Mirrors `refreshClaudeToken` but with grant_type=authorization_code, for
+    /// the very first token pair from a fresh browser sign-in.
+    private static func exchangeAuthorizationCode(
+        code: String, codeVerifier: String, redirectURI: String, state: String
+    ) async -> RefreshedTokens? {
+        var req = URLRequest(url: URL(string: tokenURLString)!)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: String] = [
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": codeVerifier,
+            "client_id": oauthClientID,
+            "redirect_uri": redirectURI,
+            "state": state,
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let access = obj["access_token"] as? String,
+                  let refresh = obj["refresh_token"] as? String else { return nil }
+            let expiresIn = (obj["expires_in"] as? Double) ?? 28_800
+            let expiresAt = Int64((Date().timeIntervalSince1970 + expiresIn) * 1000)
+            return RefreshedTokens(accessToken: access, refreshToken: refresh, expiresAt: expiresAt)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Writes a freshly-minted token pair into the `Claude Code-credentials`
+    /// keychain item, preserving the existing account name and any auxiliary
+    /// fields (subscriptionType, scopes) so downstream consumers keep working.
+    /// Seeds a minimal dict under the login username if no item exists yet.
+    @discardableResult
+    private static func persistFreshLogin(_ tokens: RefreshedTokens) -> Bool {
+        let existing = readClaudeCreds()
+        let account = existing?.account ?? NSUserName()
+        var oauth = existing?.oauth ?? [:]
+        oauth["accessToken"] = tokens.accessToken
+        oauth["refreshToken"] = tokens.refreshToken
+        oauth["expiresAt"] = tokens.expiresAt
+        return writeClaudeCreds(account: account, oauth: oauth)
     }
 
     // MARK: - In-app re-auth

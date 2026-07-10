@@ -138,14 +138,27 @@ enum SessionScanner {
               object["type"] as? String == "session_meta",
               let payload = object["payload"] as? [String: Any]
         else { return nil }
-        // Automation rollouts (orchestrator-spawned subagents, probes, and
-        // `codex exec` runs — e.g. originator "scs-probe") finish constantly;
-        // a human is never "up" in them, so they must not raise turn alarms
-        // or drive the logo. Interactive sessions carry a codex-family
-        // originator; missing originator = old CLI, treat as interactive.
-        let originator = payload["originator"] as? String ?? ""
-        if !originator.isEmpty,
-           !originator.hasPrefix("codex") || originator == "codex_exec" {
+        // Subagent / child threads (orchestrator-spawned executors) finish
+        // constantly with no human waiting on them, so by default they must NOT
+        // raise turn alarms or drive the logo. They can't be told apart by
+        // `originator`: a spawned subagent carries the SAME "Codex Desktop"
+        // originator as an interactive session. Codex writes the spawn markers
+        // on session_meta itself — `thread_source == "subagent"` and a
+        // `parent_thread_id` — so key off those. (They co-occur; either suffices.)
+        // Opt-in: SubagentAlarmStore lets the user surface them like any other
+        // session. Read the raw default directly — this runs off the main actor
+        // and UserDefaults is thread-safe.
+        let isSubagent = (payload["thread_source"] as? String) == "subagent"
+            || (payload["parent_thread_id"] as? String).map({ !$0.isEmpty }) == true
+        if isSubagent, !UserDefaults.standard.bool(forKey: subagentAlarmDefaultsKey) {
+            return nil
+        }
+        // Other automation rollouts, matched by originator: `codex exec` runs,
+        // probes, bridges (e.g. "scs-probe"/"codex_exec"). Case-insensitive
+        // substrings — an allowlist of hasPrefix("codex") once silently dropped
+        // the capital-C "Codex Desktop" app and killed its alarms.
+        let originator = (payload["originator"] as? String ?? "").lowercased()
+        if originator.contains("exec") || originator.contains("probe") || originator.contains("bridge") {
             return nil
         }
         return (payload["id"] as? String ?? "", payload["cwd"] as? String ?? "")

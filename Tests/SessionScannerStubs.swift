@@ -1,5 +1,10 @@
 import Foundation
 
+// App-only symbols the isolated SessionScanner test build must satisfy. The
+// real declarations live in the app target (SubagentAlarmStore.swift); the two
+// sets are never compiled together, so this is a stand-in, not a duplicate.
+let subagentAlarmDefaultsKey = "AgentIsland.showSubagentAlarms"
+
 enum TriggerTool: String {
     case claude
     case codex

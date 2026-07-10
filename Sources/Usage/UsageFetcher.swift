@@ -12,6 +12,7 @@ enum UsageFetcher {
         }
 
         var req = URLRequest(url: URL(string: "https://chatgpt.com/backend-api/wham/usage")!)
+        req.timeoutInterval = 25 // never let a wedged tunnel hang the poll loop
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         do {
@@ -88,6 +89,7 @@ enum UsageFetcher {
 
     private static func fetchClaudeUsage(token: String, plan: String?) async -> ClaudeCredentials.ProbeOutcome {
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
+        req.timeoutInterval = 25 // never let a wedged tunnel hang the poll loop
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         req.setValue("application/json", forHTTPHeaderField: "Accept")

@@ -25,7 +25,12 @@ final class TriggerSafetyStore: ObservableObject {
 
     func isAllowed(cwd: String) -> Bool {
         let root = normalized(cwd)
-        return root.isEmpty || allowedRoots.contains(root)
+        // Fail closed on an empty cwd: with no project root to anchor trust we
+        // can't have added it to the allowlist (setAllowed guards `!root.isEmpty`
+        // too), so an empty root must NOT auto-authorize the approval-skipping
+        // resume command. Claude scans frequently yield an empty cwd, so the
+        // old `root.isEmpty ||` short-circuit silently trusted every one of them.
+        return !root.isEmpty && allowedRoots.contains(root)
     }
 
     func setAllowed(cwd: String, _ allowed: Bool) {

@@ -208,6 +208,17 @@ private func date(_ raw: String) throws -> Date {
     return date
 }
 
+private func testClaudeApiErrorLineIsNotNeedsYou() throws {
+    // A rate-limit / API-error line uses the same envelope as a finished turn
+    // (type:assistant, stop_reason:"stop_sequence") but carries
+    // isApiErrorMessage:true. It must NOT be treated as your-turn.
+    let lines = [
+        #"{"type":"assistant","uuid":"a1","timestamp":"2026-07-02T01:15:42.000Z","isApiErrorMessage":true,"message":{"stop_reason":"stop_sequence","content":"You've hit your session limit · resets 2:20am"}}"#
+    ]
+    let state = SessionTurnState.claude(lines)
+    try expect(state.isDone == false, "an API-error / rate-limit assistant line must not count as a finished turn")
+}
+
 @main
 private enum SessionTurnStateTestRunner {
     static func main() {
@@ -222,7 +233,8 @@ private enum SessionTurnStateTestRunner {
             ("newer claude desktop activity suppresses old end_turn", testClaudeDesktopNewerActivitySuppressesOldEndTurn),
             ("desktop bookkeeping write does not suppress fresh end_turn", testDesktopBookkeepingWriteDoesNotSuppressFreshEndTurn),
             ("desktop activity well after end_turn still suppresses", testDesktopActivityWellAfterEndTurnStillSuppresses),
-            ("claude streaming assistant is working", testClaudeStreamingAssistantIsWorking)
+            ("claude streaming assistant is working", testClaudeStreamingAssistantIsWorking),
+            ("claude api-error / rate-limit line is not needs-you", testClaudeApiErrorLineIsNotNeedsYou)
         ]
 
         do {

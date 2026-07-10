@@ -24,6 +24,7 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
     private struct QueuedAlarm {
         let provider: AlertEngine.Provider
         let thread: ActivityMonitor.ActiveThread?
+        let kind: TurnAlarmKind
         let key: String
     }
 
@@ -42,10 +43,10 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
 
     private let sound = TurnAlarmSoundLooper()
 
-    func show(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) {
-        let key = Self.alarmKey(provider: provider, thread: thread)
+    func show(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?, kind: TurnAlarmKind = .yourTurn) {
+        let key = Self.alarmKey(provider: provider, thread: thread, kind: kind)
         guard current?.key != key, !queue.contains(where: { $0.key == key }) else { return }
-        let alarm = QueuedAlarm(provider: provider, thread: thread, key: key)
+        let alarm = QueuedAlarm(provider: provider, thread: thread, kind: kind, key: key)
         // One panel at a time: a second alarm queues instead of silently
         // replacing (and auto-acknowledging) one the user hasn't seen yet;
         // dismissing the visible panel recalls the next queued alarm.
@@ -56,16 +57,24 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
         display(alarm)
     }
 
-    private static func alarmKey(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) -> String {
-        ReminderDeliveryKey.make(
-            providerRawValue: provider.rawValue,
-            stateRawValue: ActivityMonitor.State.needsYou.rawValue,
-            transcriptPath: thread?.transcriptPath,
-            sessionId: thread?.sessionId ?? "",
-            cwd: thread?.cwd ?? "",
-            label: thread?.label ?? "",
-            turnKey: thread?.turnKey
-        )
+    private static func alarmKey(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?, kind: TurnAlarmKind) -> String {
+        switch kind {
+        case .yourTurn:
+            return ReminderDeliveryKey.make(
+                providerRawValue: provider.rawValue,
+                stateRawValue: ActivityMonitor.State.needsYou.rawValue,
+                transcriptPath: thread?.transcriptPath,
+                sessionId: thread?.sessionId ?? "",
+                cwd: thread?.cwd ?? "",
+                label: thread?.label ?? "",
+                turnKey: thread?.turnKey
+            )
+        case .quotaExhausted(let window, let resetAt):
+            // Keyed on the reset boundary so it fires once per window cycle and
+            // dedups against the currently-showing/queued exhaustion alarm.
+            let stamp = resetAt.map { String(Int($0.timeIntervalSince1970)) } ?? "none"
+            return "exhausted-\(provider.rawValue)-\(window.rawValue)-\(stamp)"
+        }
     }
 
     private func display(_ alarm: QueuedAlarm) {
@@ -85,6 +94,7 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
             provider: provider,
             providerName: name,
             thread: thread,
+            kind: alarm.kind,
             dismiss: { [weak self, weak panel] in
                 self?.dismissCurrentAlarm(panel)
             }
@@ -142,7 +152,11 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
     private func acknowledgeCurrentAlarm() {
         guard !didAcknowledgeCurrentAlarm, let current else { return }
         didAcknowledgeCurrentAlarm = true
-        AgentReminderCenter.shared.acknowledge(provider: current.provider, thread: current.thread)
+        // Only turn alarms feed the needsYou acknowledge machinery; a quota
+        // alarm has no thread turn to mark as seen.
+        if case .yourTurn = current.kind {
+            AgentReminderCenter.shared.acknowledge(provider: current.provider, thread: current.thread)
+        }
     }
 
     private func center(_ panel: NSPanel) {

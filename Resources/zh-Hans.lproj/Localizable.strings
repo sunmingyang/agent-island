@@ -250,6 +250,17 @@
 "The thread finished. Come back and reply." = "会话已结束，请回来回复。";
 "Open thread" = "回去处理";
 "I know" = "我知道了";
+"Out of quota" = "额度用完了";
+"5-hour limit" = "5 小时额度";
+"Weekly limit" = "周额度";
+"You're rate-limited for now." = "暂时被限流。";
+"~%dh" = "约 %d 小时后";
+"~%dm" = "约 %d 分钟后";
+"Resets at %@ (%@)" = "%@ 恢复（%@）";
+"%@ %@ reached" = "%@ %@ 已用满";
+"You're out until it resets at %@." = "已用满，%@ 才恢复。";
+"Alarm on subagent threads" = "子线程也弹窗";
+"Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly." = "Codex 子线程(subagent)结束时也弹窗提醒。默认关——这类线程结束得非常频繁。";
 "Alarm provider" = "提供商";
 "Alarm thread" = "会话";
 "Alarm project" = "项目";
