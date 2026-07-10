@@ -268,3 +268,8 @@
 "Percent readouts count down what's left of each window rather than up what's spent." = "Percent readouts count down what's left of each window rather than up what's spent.";
 "Session name copied" = "Session name copied";
 "Paste it in Claude's search to jump to “%@”." = "Paste it in Claude's search to jump to “%@”.";
+
+/* 1.5.4 Mission Control hide */
+"Mission Control" = "Mission Control";
+"Hide in Mission Control" = "Hide in Mission Control";
+"On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations." = "On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations.";

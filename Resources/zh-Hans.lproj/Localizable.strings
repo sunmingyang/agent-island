@@ -276,3 +276,8 @@
 "Percent readouts count down what's left of each window rather than up what's spent." = "百分比倒着数每个窗口还剩多少，而不是正着数用了多少。";
 "Session name copied" = "会话名已复制";
 "Paste it in Claude's search to jump to “%@”." = "在 Claude 的搜索里粘贴，即可找到「%@」。";
+
+/* 1.5.4 Mission Control hide */
+"Mission Control" = "调度中心";
+"Hide in Mission Control" = "在调度中心里隐藏";
+"On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations." = "外接显示器没有刘海，空间栏贴着顶边，岛可能会挡住它。开启后，切换空间的动画里岛也会跟着滑动。";

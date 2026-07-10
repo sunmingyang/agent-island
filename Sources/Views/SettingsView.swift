@@ -17,6 +17,7 @@ struct SettingsView: View {
     @ObservedObject private var alwaysShow = AlwaysShowUsageStore.shared
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
+    @ObservedObject private var missionControlHide = MissionControlHideStore.shared
     @ObservedObject private var alertPrefs = AlertThresholdStore.shared
     @ObservedObject private var spacing = IslandSpacingStore.shared
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
@@ -146,6 +147,7 @@ struct SettingsView: View {
             costStyleSection
             topPanelSection
             targetDisplaySection
+            missionControlSection
         }
     }
 
@@ -714,6 +716,22 @@ struct SettingsView: View {
             label: { $0.displayLabel },
             accessibilityPrefix: "Mac type"
         )
+    }
+
+    private var missionControlSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionLabel("Mission Control", hint: nil)
+            SettingsRow(
+                title: "Hide in Mission Control",
+                subtitle: "On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations."
+            ) {
+                SettingsToggle(isOn: missionControlHide.enabled) {
+                    missionControlHide.enabled.toggle()
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 14)
     }
 
     private var targetDisplaySection: some View {

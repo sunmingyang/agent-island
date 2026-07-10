@@ -35,7 +35,9 @@ final class IslandWindowController {
         window.backgroundColor = .clear
         window.hasShadow = false
         window.level = .popUpMenu
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.collectionBehavior = Self.collectionBehavior(
+            hideInMissionControl: MissionControlHideStore.shared.enabled
+        )
         window.isMovable = false
 
         host = IslandHostingView(
@@ -55,6 +57,28 @@ final class IslandWindowController {
         observeTargetChoice()
         observeOcclusion()
         observeSessionState()
+        observeMissionControlPreference()
+    }
+
+    /// `.stationary` pins the island through Exposé (fine on notched
+    /// MacBooks, where Mission Control drops its Spaces bar below the
+    /// housing) — on external displays the Spaces bar hugs the top edge and
+    /// the island covers it. The opt-in swaps in `.transient`, whose
+    /// documented (and on-device verified) behavior is "hidden by Exposé";
+    /// spaces behavior is unchanged either way.
+    private static func collectionBehavior(hideInMissionControl: Bool) -> NSWindow.CollectionBehavior {
+        hideInMissionControl
+            ? [.canJoinAllSpaces, .transient, .ignoresCycle]
+            : [.canJoinAllSpaces, .stationary, .ignoresCycle]
+    }
+
+    private func observeMissionControlPreference() {
+        MissionControlHideStore.shared.$enabled
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] enabled in
+                self?.window.collectionBehavior = Self.collectionBehavior(hideInMissionControl: enabled)
+            }
+            .store(in: &subs)
     }
 
     deinit {
