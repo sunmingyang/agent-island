@@ -41,8 +41,13 @@ public sealed class TriggerSafetyStore : INotifyPropertyChanged
 
     public bool IsAllowed(string cwd)
     {
+        // Fail closed on an empty cwd: with no project root to anchor trust it
+        // can never have been added to the allowlist (SetAllowed guards empty
+        // too), so an empty root must NOT auto-authorize the approval-skipping
+        // resume command. Mirrors the macOS fix — the old `Length == 0 ||`
+        // short-circuit silently trusted every session with no recorded cwd.
         var root = Normalized(cwd);
-        return root.Length == 0 || _allowedRoots.Contains(root);
+        return root.Length > 0 && _allowedRoots.Contains(root);
     }
 
     public void SetAllowed(string cwd, bool allowed)

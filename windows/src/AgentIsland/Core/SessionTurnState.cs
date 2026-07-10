@@ -37,7 +37,15 @@ public static class SessionTurnState
                     string? stop = null;
                     if (Jsonl.GetObject(root, "message") is { } message)
                         stop = Jsonl.GetString(message, "stop_reason");
-                    var isDone = stop is "end_turn" or "stop_sequence" or "stop";
+                    // Claude Code writes rate-limit / API-error lines with the
+                    // SAME envelope as a finished turn (type:assistant,
+                    // stop_reason:"stop_sequence") but flags them
+                    // isApiErrorMessage:true (e.g. "You've hit your session
+                    // limit · resets 2:20am"). Treating those as a completed
+                    // turn fired a false "it's your turn" alarm on every
+                    // rate-limit — mirror the macOS fix and never mark them done.
+                    var isApiError = Jsonl.GetBool(root, "isApiErrorMessage") == true;
+                    var isDone = !isApiError && stop is "end_turn" or "stop_sequence" or "stop";
                     return new SessionTurnStatus(isDone, Key(root, lines[i]), Date(root));
                 }
                 case "user":

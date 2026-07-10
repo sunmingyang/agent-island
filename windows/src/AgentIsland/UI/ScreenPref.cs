@@ -33,7 +33,11 @@ public sealed class ScreenPref : INotifyPropertyChanged
             ? parsed
             : IslandScreen.Usage;
         _hasSwiped = Preferences.Get<bool?>(SwipedKey) ?? false;
-        _showCostPage = Preferences.Get<bool?>("MacIsland.showCostPanelPage") ?? true;
+        // Cost page hidden by default (parity with macOS CostPanelVisibilityStore).
+        // Users opt in via Settings → Display; anyone who already toggled it keeps
+        // their stored choice. The Screen guard below sends a new install to Usage
+        // rather than an invisible Cost page.
+        _showCostPage = Preferences.Get<bool?>("MacIsland.showCostPanelPage") ?? false;
         if (!VisibleScreens.Contains(_screen)) _screen = IslandScreen.Usage;
     }
 
