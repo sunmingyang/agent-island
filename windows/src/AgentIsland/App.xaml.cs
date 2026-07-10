@@ -27,6 +27,7 @@ public partial class App : System.Windows.Application
         _island.Show();
 
         _tray = new TrayIcon(
+            showIsland: () => _island?.PopUp(),
             toggleIsland: () =>
             {
                 if (_island is null) return;
@@ -81,6 +82,7 @@ public partial class App : System.Windows.Application
 
         _tray?.Dispose();
         _tray = new TrayIcon(
+            showIsland: () => _island?.PopUp(),
             toggleIsland: () =>
             {
                 if (_island is null) return;

@@ -105,7 +105,8 @@ final class IslandWindowController {
         // Self-invalidates once any real mouseMoved arrives, so steady-state
         // doesn't pay the 10Hz timer cost forever.
         trackingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.updateMouseEventsBasedOnCursor() }
+            guard let self else { return }
+            Task { @MainActor in self.updateMouseEventsBasedOnCursor() }
         }
     }
 
@@ -162,7 +163,8 @@ final class IslandWindowController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.repositionForCurrentScreen() }
+            guard let self else { return }
+            Task { @MainActor in self.repositionForCurrentScreen() }
         }
     }
 
@@ -200,14 +202,16 @@ final class IslandWindowController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.fadeOut() }
+            guard let self else { return }
+            Task { @MainActor in self.fadeOut() }
         }
         sessionActiveObserver = dc.addObserver(
             forName: NSNotification.Name("com.apple.screenIsUnlocked"),
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.fadeIn() }
+            guard let self else { return }
+            Task { @MainActor in self.fadeIn() }
         }
     }
 
@@ -229,7 +233,8 @@ final class IslandWindowController {
         IslandTargetDisplayStore.shared.$choice
             .dropFirst()
             .sink { [weak self] _ in
-                Task { @MainActor in self?.repositionForCurrentScreen() }
+                guard let self else { return }
+                Task { @MainActor in self.repositionForCurrentScreen() }
             }
             .store(in: &subs)
     }

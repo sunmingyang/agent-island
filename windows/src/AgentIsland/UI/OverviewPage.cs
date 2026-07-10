@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using AgentIsland.Cost;
 using AgentIsland.Model;
 using AgentIsland.UI.Charts;
@@ -25,6 +26,7 @@ public sealed class OverviewPage : Border
     private readonly Canvas _gridCanvas = new();
     private readonly TextBlock _detail;
     private Dictionary<DateTime, (long ClaudeTokens, long ClaudeBillable, double ClaudeDollars, long CodexTokens, long CodexBillable, double CodexDollars)> _days = new();
+    private readonly DispatcherTimer _renderDebounce = new() { Interval = TimeSpan.FromMilliseconds(80) };
 
     public OverviewPage()
     {
@@ -99,16 +101,46 @@ public sealed class OverviewPage : Border
         Grid.SetRow(_detail, 3);
         grid.Children.Add(_detail);
 
-        CostStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
-        TokenCountModeStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Rebuild);
-        SizeChanged += (_, _) => Rebuild();
+        // RenderGrid re-creates ~365 day cells; SizeChanged fires on every
+        // frame of the island's expand/collapse morph, so rebuilding the grid
+        // per frame drops the signature animation. Recompute the data only
+        // when it actually changes, and coalesce the grid repaint to ~80ms
+        // after the size settles (or after a data change).
+        _renderDebounce.Tick += (_, _) =>
+        {
+            _renderDebounce.Stop();
+            RenderGrid();
+        };
+        // Detach on Unloaded (PagedContent recreates this page): a leaked
+        // instance would keep the debounce timer alive and repaint forever.
+        System.ComponentModel.PropertyChangedEventHandler onData =
+            (_, _) => Dispatcher.BeginInvoke(() =>
+            {
+                RebuildData();
+                ScheduleRender();
+            });
+        CostStore.Shared.PropertyChanged += onData;
+        TokenCountModeStore.Shared.PropertyChanged += onData;
+        SizeChanged += (_, _) => ScheduleRender();
+        Unloaded += (_, _) =>
+        {
+            _renderDebounce.Stop();
+            CostStore.Shared.PropertyChanged -= onData;
+            TokenCountModeStore.Shared.PropertyChanged -= onData;
+        };
+        RebuildData();
     }
 
-    private void Rebuild()
+    private void ScheduleRender()
+    {
+        _renderDebounce.Stop();
+        _renderDebounce.Start();
+    }
+
+    private void RebuildData()
     {
         _days = MergeHistory(CostStore.Shared.Claude.DailyHistory, CostStore.Shared.Codex.DailyHistory);
         UpdateHero();
-        RenderGrid();
     }
 
     private void UpdateHero()

@@ -38,11 +38,14 @@ public static class SessionScanner
     }
 
     /// Monitoring scan: every Claude transcript (desktop-labelled when known)
-    /// + every recent Codex rollout, no project dedupe.
+    /// + every recent Codex rollout, no project dedupe. Subagent threads only
+    /// participate when the user opted into subagent alarms.
     public static List<ScannedSession> MonitoringScan(DateTimeOffset now, IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
     {
-        var output = ScanClaudeTranscripts(now, lastWorking);
-        output.AddRange(ScanCodex(now, lastWorking, limit: MonitoringCodexLimit, dedupeProjects: false));
+        var includeSubagents = Alarm.SubagentAlarmStore.Shared.Enabled;
+        var output = ScanClaudeTranscripts(now, lastWorking, excludeArchived: false, includeSubagents);
+        output.AddRange(ScanCodex(
+            now, lastWorking, limit: MonitoringCodexLimit, dedupeProjects: false, includeSubagents));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         return output;
     }
@@ -87,15 +90,21 @@ public static class SessionScanner
     private static List<ScannedSession> ScanClaudeTranscripts(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
-        bool excludeArchived = false)
+        bool excludeArchived = false,
+        bool includeSubagents = false)
     {
         var desktopSessions = ClaudeDesktopIndex();
         var output = new List<ScannedSession>();
-        foreach (var (sid, path) in ClaudeTranscriptIndex())
+        foreach (var (sid, path) in ClaudeTranscriptIndex(includeSubagents))
         {
+            if (IsClaudeSubagentTranscript(path))
+            {
+                if (AgentSession(path, now, lastWorking) is { } agent) output.Add(agent);
+                continue;
+            }
             desktopSessions.TryGetValue(sid, out var desktop);
             if (excludeArchived && desktop is { IsArchived: true }) continue;
-            var cwd = desktop?.Cwd is { Length: > 0 } dc ? dc : ProjectFromClaudeTranscript(path);
+            var cwd = desktop?.Cwd is { Length: > 0 } dc ? dc : CwdFromClaudeTranscript(path);
             var title = desktop?.Title ?? "";
             var state = SessionState(
                 path,
@@ -117,34 +126,117 @@ public static class SessionScanner
         return output;
     }
 
+    /// A subagent transcript scanned as an alarm source (opt-in). The thread
+    /// resumes through its PARENT session — `claude --resume` only accepts
+    /// real session ids, and every subagent line carries the parent's.
+    private static ScannedSession? AgentSession(
+        string path,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+    {
+        var (parentSid, cwd) = ClaudeAgentMeta(path);
+        if (string.IsNullOrEmpty(parentSid)) return null;
+        var state = SessionState(path, now, lastWorking, null, SessionTurnState.ClaudeAgent);
+        var label = ClaudeAgentLabel(path);
+        return new ScannedSession(
+            TriggerTool.Claude,
+            parentSid,
+            cwd,
+            string.IsNullOrEmpty(label) ? Fallback(cwd, parentSid) : label,
+            state.Modified,
+            state.Status,
+            path,
+            state.TurnKey,
+            SessionLaunchTarget.Cli);
+    }
+
+    /// Parent session id + cwd from the transcript's own lines; falls back to
+    /// the nested layout's directory name (<parent-session>/subagents/…).
+    private static (string ParentSid, string Cwd) ClaudeAgentMeta(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            for (var i = 0; i < 30 && reader.ReadLine() is { } line; i++)
+            {
+                using var doc = Jsonl.TryParseLine(line);
+                if (doc is null) continue;
+                var sid = Jsonl.GetString(doc.RootElement, "sessionId");
+                if (!string.IsNullOrEmpty(sid))
+                {
+                    return (sid!, Jsonl.GetString(doc.RootElement, "cwd") ?? "");
+                }
+            }
+        }
+        catch
+        {
+        }
+        var dir = Path.GetDirectoryName(path);
+        if (string.Equals(Path.GetFileName(dir), "subagents", StringComparison.OrdinalIgnoreCase)
+            && Path.GetDirectoryName(dir) is { } parentDir)
+        {
+            return (Path.GetFileName(parentDir), "");
+        }
+        return ("", "");
+    }
+
+    /// The sibling agent-<id>.meta.json carries the Task tool's one-line
+    /// description — the best available alarm title for a subagent.
+    private static string ClaudeAgentLabel(string path)
+    {
+        try
+        {
+            var metaPath = Path.ChangeExtension(path, ".meta.json");
+            if (!File.Exists(metaPath)) return "";
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(metaPath));
+            return Jsonl.GetString(doc.RootElement, "description") ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    /// True when a transcript belongs to an orchestrated subagent rather
+    /// than a user conversation: nested under a subagents/ directory (the
+    /// current layout) or named agent-*.jsonl (flat layouts). Main session
+    /// files are always UUID-named.
+    internal static bool IsClaudeSubagentTranscript(string path)
+    {
+        var segments = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (segments.Contains("subagents", StringComparer.OrdinalIgnoreCase)) return true;
+        return segments[^1].StartsWith("agent-", StringComparison.OrdinalIgnoreCase);
+    }
+
     // MARK: - Codex: ~/.codex/sessions
 
     public static List<ScannedSession> ScanCodex(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
         int limit = 30,
-        bool dedupeProjects = true)
+        bool dedupeProjects = true,
+        bool includeSubagents = false)
     {
         var root = IslandPaths.CodexSessionsRoot;
         if (!Directory.Exists(root)) return new List<ScannedSession>();
 
-        List<string> files;
-        try
-        {
-            files = Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories).ToList();
-        }
-        catch
-        {
-            return new List<ScannedSession>();
-        }
-        files.Sort((a, b) => Mtime(b).CompareTo(Mtime(a)));
+        var files = SafeEnumerateFiles(root, "*.jsonl");
+        // Precompute mtimes once — calling Mtime() inside the comparator issues
+        // O(n log n) GetLastWriteTime syscalls over a full recursive tree.
+        var mtimes = new Dictionary<string, DateTimeOffset>(files.Count, StringComparer.Ordinal);
+        foreach (var f in files) mtimes[f] = Mtime(f);
+        files.Sort((a, b) => mtimes[b].CompareTo(mtimes[a]));
 
         var titles = CodexTitleIndex();
         var output = new List<ScannedSession>();
         var seenProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in files)
         {
-            if (CodexMeta(path) is not var (sid, cwd) || string.IsNullOrEmpty(sid)) continue;
+            if (CodexMeta(path) is not var (sid, cwd, kind) || string.IsNullOrEmpty(sid)) continue;
+            if (kind == CodexRolloutKind.Automation) continue;
+            if (kind == CodexRolloutKind.Subagent && !includeSubagents) continue;
             var projectKey = string.IsNullOrEmpty(cwd) ? sid : cwd;
             if (dedupeProjects && !seenProjects.Add(projectKey)) continue;
             var state = SessionState(path, now, lastWorking, null, SessionTurnState.Codex);
@@ -163,10 +255,17 @@ public static class SessionScanner
         return output;
     }
 
+    internal enum CodexRolloutKind
+    {
+        Interactive,
+        Subagent,
+        Automation,
+    }
+
     /// Reads the first JSONL line in full. Codex's `session_meta` is line 1
     /// but can be tens of KB (it embeds the full base instructions), so keep
     /// pulling chunks until the first newline.
-    private static (string Sid, string Cwd)? CodexMeta(string path)
+    private static (string Sid, string Cwd, CodexRolloutKind Kind)? CodexMeta(string path)
     {
         byte[] firstLine;
         try
@@ -194,53 +293,69 @@ public static class SessionScanner
         {
             return null;
         }
+        return ParseCodexMeta(Encoding.UTF8.GetString(firstLine));
+    }
 
-        using var doc = Jsonl.TryParseLine(Encoding.UTF8.GetString(firstLine));
+    /// Classifies a rollout from its session_meta line. `payload.source` is
+    /// a plain string for direct sessions ("cli", "vscode", "exec", "mcp")
+    /// and an object for machine-driven ones: {"subagent": …} for spawned /
+    /// review / compact threads, {"internal": …} for probes. Subagent
+    /// threads share the interactive codex originator, so the source field
+    /// is the only thing separating a fan-out worker from the user's own
+    /// thread — without it every finished subagent raises a turn alarm.
+    internal static (string Sid, string Cwd, CodexRolloutKind Kind)? ParseCodexMeta(string firstLine)
+    {
+        using var doc = Jsonl.TryParseLine(firstLine);
         if (doc is null) return null;
         var root = doc.RootElement;
         if (Jsonl.GetString(root, "type") != "session_meta") return null;
         if (Jsonl.GetObject(root, "payload") is not { } payload) return null;
 
-        // Automation rollouts (orchestrator-spawned subagents, probes, and
-        // `codex exec` runs) finish constantly; a human is never "up" in
-        // them, so they must not raise turn alarms or drive the logo.
-        // Interactive sessions carry a codex-family originator; missing
-        // originator = old CLI, treat as interactive. The prefix check is
+        var kind = CodexRolloutKind.Interactive;
+        if (payload.TryGetProperty("source", out var source))
+        {
+            if (source.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                if (source.GetString() is "exec" or "mcp") kind = CodexRolloutKind.Automation;
+            }
+            else if (source.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                if (source.TryGetProperty("subagent", out _)) kind = CodexRolloutKind.Subagent;
+                else if (source.TryGetProperty("internal", out _)) kind = CodexRolloutKind.Automation;
+            }
+        }
+
+        // Automation rollouts (orchestrator-driven runs, probes, and
+        // `codex exec`) finish constantly; a human is never "up" in them,
+        // so they must not raise turn alarms or drive the logo. Interactive
+        // sessions carry a codex-family originator; missing originator =
+        // old CLI, treat as interactive. The prefix check is
         // case-insensitive: the Windows desktop app stamps "Codex Desktop".
         var originator = Jsonl.GetString(payload, "originator") ?? "";
         if (originator.Length > 0
             && (!originator.StartsWith("codex", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(originator, "codex_exec", StringComparison.OrdinalIgnoreCase)))
         {
-            return null;
+            kind = CodexRolloutKind.Automation;
         }
-        return (Jsonl.GetString(payload, "id") ?? "", Jsonl.GetString(payload, "cwd") ?? "");
+
+        return (Jsonl.GetString(payload, "id") ?? "", Jsonl.GetString(payload, "cwd") ?? "", kind);
     }
 
     // MARK: - Indexes
 
-    public static Dictionary<string, string> ClaudeTranscriptIndex()
+    public static Dictionary<string, string> ClaudeTranscriptIndex(bool includeSubagents = false)
     {
         var output = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var root in IslandPaths.ClaudeProjectRoots)
         {
             if (!Directory.Exists(root)) continue;
-            IEnumerable<string> files;
-            try
+            foreach (var path in SafeEnumerateFiles(root, "*.jsonl"))
             {
-                files = Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories);
-            }
-            catch
-            {
-                continue;
-            }
-            foreach (var path in files)
-            {
-                // Subagent transcripts live under <project>/subagents/ and must
-                // not drive alarms or the logo.
-                var relative = Path.GetRelativePath(root, path);
-                if (relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .Contains("subagents", StringComparer.OrdinalIgnoreCase))
+                // Subagent transcripts (subagents/ dirs, agent-*.jsonl) are
+                // machine fan-out, not user conversations; they only enter
+                // the monitoring scan when subagent alarms are opted in.
+                if (!includeSubagents && IsClaudeSubagentTranscript(Path.GetRelativePath(root, path)))
                 {
                     continue;
                 }
@@ -257,17 +372,46 @@ public static class SessionScanner
     private static IEnumerable<string> EnumerateDesktopSessionFiles()
     {
         var root = IslandPaths.ClaudeDesktopSessionsRoot;
-        if (!Directory.Exists(root)) yield break;
-        IEnumerable<string> files;
+        if (!Directory.Exists(root)) return Array.Empty<string>();
+        return SafeEnumerateFiles(root, "local_*.json");
+    }
+
+    /// Recursively lists matching files, surviving a subdirectory that is
+    /// inaccessible OR deleted mid-walk (Claude Code rotates project folders).
+    /// A plain EnumerateFiles(AllDirectories) throws DURING iteration — outside
+    /// any try around the call — which used to fault the whole scan and, with
+    /// it, every turn alarm. Skips reparse points to avoid symlink loops.
+    internal static List<string> SafeEnumerateFiles(string root, string pattern)
+    {
+        var result = new List<string>();
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
         try
         {
-            files = Directory.EnumerateFiles(root, "local_*.json", SearchOption.AllDirectories);
+            using var walker = Directory.EnumerateFiles(root, pattern, options).GetEnumerator();
+            while (true)
+            {
+                try
+                {
+                    if (!walker.MoveNext()) break;
+                }
+                catch
+                {
+                    // A directory vanished or turned unreadable mid-walk —
+                    // stop cleanly and keep what we already gathered.
+                    break;
+                }
+                result.Add(walker.Current);
+            }
         }
         catch
         {
-            yield break;
         }
-        foreach (var file in files) yield return file;
+        return result;
     }
 
     private static DesktopSession? ParseDesktopSessionFile(string path)
@@ -391,10 +535,45 @@ public static class SessionScanner
         return basename;
     }
 
-    /// Display-only fallback when the desktop store has no cwd for a
-    /// transcript: reverse the encoded project directory name. The encoding
-    /// is lossy (path separators and ':' both became '-'), so this is a
-    /// best-effort label, same as on macOS.
+    /// The transcript itself records the true working directory on nearly
+    /// every entry ("cwd") — authoritative, unlike the lossy encoded folder
+    /// name, whose dashes un-munge real hyphenated paths into the wrong
+    /// directory and then break `claude --resume` launched from it.
+    internal static string CwdFromClaudeTranscript(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            for (var i = 0; i < 30 && reader.ReadLine() is { } line; i++)
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(line);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                        && doc.RootElement.TryGetProperty("cwd", out var cwd)
+                        && cwd.ValueKind == System.Text.Json.JsonValueKind.String
+                        && cwd.GetString() is { Length: > 0 } value)
+                    {
+                        return value;
+                    }
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                }
+            }
+        }
+        catch
+        {
+        }
+        return ProjectFromClaudeTranscript(path);
+    }
+
+    /// Display-only fallback when the transcript carries no cwd: reverse
+    /// the encoded project directory name. The encoding is lossy (path
+    /// separators and ':' both became '-'), so this is a best-effort label,
+    /// same as on macOS.
     private static string ProjectFromClaudeTranscript(string path)
     {
         var parent = Path.GetFileName(Path.GetDirectoryName(path) ?? "");

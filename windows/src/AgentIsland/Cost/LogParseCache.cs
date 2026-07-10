@@ -80,7 +80,11 @@ public sealed class LogParseCache
 
     private TokenEvent FromDto(EventDto dto) => new(
         _provider,
-        DateTimeOffset.FromUnixTimeMilliseconds(dto.Ts),
+        // Clamp: a corrupt cache file with an out-of-range Ts would otherwise
+        // throw out of FromUnixTimeMilliseconds and take the whole cost scan
+        // down on a cache hit.
+        DateTimeOffset.FromUnixTimeMilliseconds(
+            Math.Clamp(dto.Ts, -62_135_596_800_000, 253_402_300_799_999)),
         dto.Model,
         dto.In,
         dto.Out,

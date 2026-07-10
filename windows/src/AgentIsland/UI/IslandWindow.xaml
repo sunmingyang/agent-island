@@ -43,6 +43,7 @@
                 <DropShadowEffect x:Name="Halo" ShadowDepth="0" BlurRadius="14" Opacity="0.35" Color="#000000"/>
             </Border.Effect>
             <Grid ClipToBounds="True">
+                <!-- Bar strip on top, expanded panel growing downward. -->
                 <Grid.RowDefinitions>
                     <RowDefinition Height="36"/>
                     <RowDefinition Height="*"/>

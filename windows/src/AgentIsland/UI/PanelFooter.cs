@@ -16,6 +16,7 @@ namespace AgentIsland.UI;
 public sealed class PanelFooter : Grid
 {
     private readonly TextBlock _chip;
+    private readonly Border _chipHost;
     private readonly StackPanel _dots;
     private readonly LiveDot _liveDot = new();
     private readonly TextBlock _syncLabel;
@@ -51,19 +52,30 @@ public sealed class PanelFooter : Grid
         SetRow(row, 1);
         Children.Add(row);
 
+        // Rounded mono chip, the macOS Typography.chip pill.
         _chip = new TextBlock
         {
-            FontFamily = IslandFonts.Ui,
+            FontFamily = IslandFonts.Mono,
             FontSize = 9,
             FontWeight = FontWeights.Bold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.35)),
+            Foreground = IslandColors.Brush(IslandColors.White(0.78)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        _chipHost = new Border
+        {
+            Child = _chip,
+            CornerRadius = new CornerRadius(4),
+            Background = IslandColors.Brush(IslandColors.White(0.08)),
+            BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
+            BorderThickness = new Thickness(0.5),
+            Padding = new Thickness(5, 2, 5, 2),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Left,
             // Clear the settings gear that sits in the panel's corner.
             Margin = new Thickness(18, 0, 0, 0),
         };
-        SetColumn(_chip, 0);
-        row.Children.Add(_chip);
+        SetColumn(_chipHost, 0);
+        row.Children.Add(_chipHost);
 
         _dots = new StackPanel
         {
@@ -77,7 +89,6 @@ public sealed class PanelFooter : Grid
         var right = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
         };
         _syncLabel = new TextBlock
@@ -92,12 +103,38 @@ public sealed class PanelFooter : Grid
         _liveDot.VerticalAlignment = VerticalAlignment.Center;
         right.Children.Add(_liveDot);
         right.Children.Add(_syncLabel);
-        SetColumn(right, 2);
-        row.Children.Add(right);
+        // The macOS footer status is a quiet refresh button: hover wash,
+        // click re-syncs immediately.
+        var syncButton = new Border
+        {
+            Child = right,
+            CornerRadius = new CornerRadius(6),
+            Background = Brushes.Transparent,
+            Padding = new Thickness(7, 3, 7, 3),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        syncButton.MouseEnter += (_, _) =>
+            syncButton.Background = IslandColors.Brush(IslandColors.White(0.05));
+        syncButton.MouseLeave += (_, _) => syncButton.Background = Brushes.Transparent;
+        syncButton.MouseLeftButtonUp += (_, args) =>
+        {
+            UsageStore.Shared.Refresh();
+            args.Handled = true;
+        };
+        SetColumn(syncButton, 2);
+        row.Children.Add(syncButton);
 
-        ScreenPref.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
-        StylePreferenceStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(Update);
+        // A single named handler so every subscription and the timer tear
+        // down on Unloaded — a rebuilt island (e.g. language switch) would
+        // otherwise leave the old footer's 30s timer waking the UI thread and
+        // its store subscriptions pinning the dead instance alive forever.
+        System.ComponentModel.PropertyChangedEventHandler onChanged =
+            (_, _) => Dispatcher.BeginInvoke(Update);
+        ScreenPref.Shared.PropertyChanged += onChanged;
+        StylePreferenceStore.Shared.PropertyChanged += onChanged;
+        UsageStore.Shared.PropertyChanged += onChanged;
 
         // Keep the "2m ago" caption honest while the panel sits open.
         _agoTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -106,6 +143,17 @@ public sealed class PanelFooter : Grid
         };
         _agoTimer.Tick += (_, _) => Update();
         _agoTimer.Start();
+
+        // The footer is discarded (not reparented) when the island rebuilds,
+        // so a one-way teardown is correct.
+        Unloaded += (_, _) =>
+        {
+            _agoTimer.Stop();
+            ScreenPref.Shared.PropertyChanged -= onChanged;
+            StylePreferenceStore.Shared.PropertyChanged -= onChanged;
+            UsageStore.Shared.PropertyChanged -= onChanged;
+        };
+
         Update();
     }
 
@@ -122,6 +170,7 @@ public sealed class PanelFooter : Grid
             IslandScreen.Triggers => L10n.Tr("AUTO"),
             _ => StylePreferenceStore.Shared.Style.ToString().ToUpperInvariant(),
         };
+        _chipHost.Visibility = _chip.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         _dots.Children.Clear();
         foreach (var screen in pref.VisibleScreens)
@@ -208,7 +257,12 @@ public sealed class LiveDot : Grid
         };
         Children.Add(_halo);
         Children.Add(_core);
-        Usage.UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(MaybeBump);
+        // Detach on Unloaded — otherwise this dot stays pinned by UsageStore
+        // and defeats PanelFooter's own teardown, keeping the dead footer alive.
+        System.ComponentModel.PropertyChangedEventHandler onSync =
+            (_, _) => Dispatcher.BeginInvoke(MaybeBump);
+        Usage.UsageStore.Shared.PropertyChanged += onSync;
+        Unloaded += (_, _) => Usage.UsageStore.Shared.PropertyChanged -= onSync;
         SetActive(false);
     }
 

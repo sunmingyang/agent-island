@@ -66,8 +66,12 @@ struct TurnAlarmView: View {
 
                 if !isExhausted {
                     Button {
-                        dismiss()
+                        // Navigate FIRST: this is an .accessory app, so closing
+                        // our only key window hands focus back to the previous
+                        // app, after which macOS 14+ may refuse or delay the
+                        // cooperative activation the jump relies on.
                         TurnAlarmNavigator.open(provider: provider, thread: thread)
+                        dismiss()
                     } label: {
                         Text(L10n.tr("Open thread"))
                             .font(.system(size: 18, weight: .bold))

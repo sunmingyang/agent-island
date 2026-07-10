@@ -10,12 +10,18 @@ using AgentIsland.Usage;
 namespace AgentIsland.UI;
 
 /// The island itself: a borderless, topmost, per-pixel-transparent window
-/// pinned to the top-center of the screen. Fully transparent pixels pass
-/// clicks through to whatever is behind, so only the black silhouette is
-/// interactive — the WPF equivalent of the macOS hitTest override.
+/// docked to an edge of the chosen screen (top-center by default). Fully
+/// transparent pixels pass clicks through to whatever is behind, so only the
+/// black silhouette is interactive — the WPF equivalent of the macOS hitTest
+/// override.
 public partial class IslandWindow : Window
 {
     private readonly IslandModel _model = IslandModel.Shared;
+    // Unsubscribe actions for the singleton-store handlers, run on Closed —
+    // the island is discarded and recreated on a language switch, and without
+    // this the dead window stays pinned by the stores and keeps handling
+    // events (placement/usage/alert) forever.
+    private readonly List<Action> _teardown = new();
     private bool _hovering;
     private System.Windows.Controls.StackPanel? _claudeTitle;
     private System.Windows.Controls.StackPanel? _codexTitle;
@@ -34,7 +40,11 @@ public partial class IslandWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ApplyEdgeLayout();
         PositionOnScreen();
+        // Floating mode: drag the silhouette to move (and remember) the
+        // window; a non-drag press still expands.
+        Silhouette.MouseLeftButtonDown += OnSilhouetteMouseDown;
 
         // The sweep ring tracks the silhouette through every spring morph
         // (+4 so half its stroke rides outside the edge).
@@ -43,8 +53,12 @@ public partial class IslandWindow : Window
             Sweep.Width = args.NewSize.Width + 4;
             Sweep.Height = args.NewSize.Height + 4;
         };
-        Model.LowPowerModeStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateHalo);
-        SystemParameters.StaticPropertyChanged += (_, args) =>
+        System.ComponentModel.PropertyChangedEventHandler onLowPower =
+            (_, _) => Dispatcher.BeginInvoke(UpdateHalo);
+        Model.LowPowerModeStore.Shared.PropertyChanged += onLowPower;
+        _teardown.Add(() => Model.LowPowerModeStore.Shared.PropertyChanged -= onLowPower);
+
+        System.ComponentModel.PropertyChangedEventHandler onSysParams = (_, args) =>
         {
             if (args.PropertyName is nameof(SystemParameters.WorkArea)
                 or nameof(SystemParameters.PrimaryScreenWidth))
@@ -52,27 +66,60 @@ public partial class IslandWindow : Window
                 Dispatcher.BeginInvoke(PositionOnScreen);
             }
         };
+        SystemParameters.StaticPropertyChanged += onSysParams;
+        _teardown.Add(() => SystemParameters.StaticPropertyChanged -= onSysParams);
+
+        // WorkArea/PrimaryScreenWidth only cover the primary display;
+        // plug/unplug or resolution changes on a pinned secondary arrive via
+        // SystemEvents (the didChangeScreenParameters analog).
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        _teardown.Add(() =>
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged);
+
+        System.ComponentModel.PropertyChangedEventHandler onTargetDisplay =
+            (_, _) => Dispatcher.BeginInvoke(PositionOnScreen);
+        Model.IslandTargetDisplayStore.Shared.PropertyChanged += onTargetDisplay;
+        _teardown.Add(() => Model.IslandTargetDisplayStore.Shared.PropertyChanged -= onTargetDisplay);
+
+        System.ComponentModel.PropertyChangedEventHandler onPlacement = (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            ApplyEdgeLayout();
+            PositionOnScreen();
+        });
+        Model.IslandPositionStore.Shared.PropertyChanged += onPlacement;
+        _teardown.Add(() => Model.IslandPositionStore.Shared.PropertyChanged -= onPlacement);
+        Closed += (_, _) => { foreach (var teardown in _teardown) teardown(); };
 
         ApplySizeInstant();
         BuildExpandedChrome();
 
-        ActivityMonitor.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        System.ComponentModel.PropertyChangedEventHandler onActivity =
+            (_, _) => Dispatcher.BeginInvoke(UpdateActivityVisuals);
+        ActivityMonitor.Shared.PropertyChanged += onActivity;
+        _teardown.Add(() => ActivityMonitor.Shared.PropertyChanged -= onActivity);
+
+        System.ComponentModel.PropertyChangedEventHandler onUsage = (_, _) => Dispatcher.BeginInvoke(() =>
         {
             UpdatePills();
             // Loading is a glow event: it wakes the sweep in Low Power mode.
             UpdateHalo();
         });
-        Model.AlertEngine.Shared.PropertyChanged += (_, args) => Dispatcher.BeginInvoke(() =>
+        UsageStore.Shared.PropertyChanged += onUsage;
+        _teardown.Add(() => UsageStore.Shared.PropertyChanged -= onUsage);
+
+        System.ComponentModel.PropertyChangedEventHandler onAlert = (_, args) => Dispatcher.BeginInvoke(() =>
         {
             if (args.PropertyName == nameof(Model.AlertEngine.Pulse)) HandleAlertPulse();
             UpdateHalo();
             UpdatePills();
         });
+        Model.AlertEngine.Shared.PropertyChanged += onAlert;
+        _teardown.Add(() => Model.AlertEngine.Shared.PropertyChanged -= onAlert);
 
         // Bar-width change (Settings → Display) resizes the silhouette live
         // when it's not expanded; provider visibility hides a side entirely.
-        _model.PropertyChanged += (_, args) =>
+        // _model is the IslandModel singleton, so this too must be torn down.
+        System.ComponentModel.PropertyChangedEventHandler onModel = (_, args) =>
         {
             if (args.PropertyName == nameof(IslandModel.Size))
             {
@@ -82,14 +129,22 @@ public partial class IslandWindow : Window
                 });
             }
         };
-        Model.ProviderVisibilityStore.Shared.PropertyChanged += (_, _) =>
-            Dispatcher.BeginInvoke(ApplyProviderVisibility);
-        AlwaysShowUsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(() =>
+        _model.PropertyChanged += onModel;
+        _teardown.Add(() => _model.PropertyChanged -= onModel);
+
+        System.ComponentModel.PropertyChangedEventHandler onVisibility =
+            (_, _) => Dispatcher.BeginInvoke(ApplyProviderVisibility);
+        Model.ProviderVisibilityStore.Shared.PropertyChanged += onVisibility;
+        _teardown.Add(() => Model.ProviderVisibilityStore.Shared.PropertyChanged -= onVisibility);
+
+        System.ComponentModel.PropertyChangedEventHandler onAlwaysShow = (_, _) => Dispatcher.BeginInvoke(() =>
         {
             _model.NotifyAlwaysShowUsageChanged();
             if (_model.State != IslandState.Expanded) ApplySizeInstant();
             UpdatePills();
         });
+        AlwaysShowUsageStore.Shared.PropertyChanged += onAlwaysShow;
+        _teardown.Add(() => AlwaysShowUsageStore.Shared.PropertyChanged -= onAlwaysShow);
 
         ApplyProviderVisibility();
         UpdateActivityVisuals();
@@ -123,13 +178,26 @@ public partial class IslandWindow : Window
     private void ApplyProviderVisibility()
     {
         var visibility = Model.ProviderVisibilityStore.Shared;
-        ClaudeLogo.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
-        CodexLogo.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
+        // The logo's fixed grid column reserves its slot either way, so we
+        // fade opacity (the macOS openMorph spring) rather than hard-toggle
+        // Visibility — toggling a provider springs the mark in/out.
+        FadeLogo(ClaudeLogo, visibility.ClaudeVisible);
+        FadeLogo(CodexLogo, visibility.CodexVisible);
         if (_claudeTitle is not null)
             _claudeTitle.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
         if (_codexTitle is not null)
             _codexTitle.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
         UpdatePills();
+    }
+
+    private static void FadeLogo(UIElement logo, bool visible)
+    {
+        var fade = new DoubleAnimation(visible ? 1 : 0, IslandAnimations.OpenMorphDuration)
+        {
+            EasingFunction = IslandAnimations.OpenMorph(),
+        };
+        logo.BeginAnimation(OpacityProperty, fade);
+        logo.IsHitTestVisible = visible;
     }
 
     /// Pages + footer inside the expanded area; provider titles + plan chips
@@ -159,7 +227,10 @@ public partial class IslandWindow : Window
         System.Windows.Controls.Grid.SetColumn(_codexTitle, 2);
         TopStrip.Children.Add(_codexTitle);
 
-        UsageStore.Shared.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
+        System.ComponentModel.PropertyChangedEventHandler onPlanChips =
+            (_, _) => Dispatcher.BeginInvoke(UpdatePlanChips);
+        UsageStore.Shared.PropertyChanged += onPlanChips;
+        _teardown.Add(() => UsageStore.Shared.PropertyChanged -= onPlanChips);
         UpdatePlanChips();
 
         // Overview needs the taller panel (contribution grid); the size
@@ -167,7 +238,7 @@ public partial class IslandWindow : Window
         // must seed the height at startup, or reopening on Overview squashes
         // the grid.
         ApplyPanelHeightForScreen();
-        ScreenPref.Shared.PropertyChanged += (_, args) =>
+        System.ComponentModel.PropertyChangedEventHandler onScreen = (_, args) =>
         {
             if (args.PropertyName != nameof(ScreenPref.Screen)) return;
             Dispatcher.BeginInvoke(() =>
@@ -179,6 +250,8 @@ public partial class IslandWindow : Window
                 }
             });
         };
+        ScreenPref.Shared.PropertyChanged += onScreen;
+        _teardown.Add(() => ScreenPref.Shared.PropertyChanged -= onScreen);
     }
 
     private void ApplyPanelHeightForScreen() =>
@@ -206,10 +279,10 @@ public partial class IslandWindow : Window
         });
         var chip = new System.Windows.Controls.TextBlock
         {
-            FontFamily = Charts.IslandFonts.Ui,
+            FontFamily = Charts.IslandFonts.Mono,
             FontSize = 9,
             FontWeight = FontWeights.Bold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.6)),
+            Foreground = IslandColors.Brush(IslandColors.White(0.78)),
             VerticalAlignment = VerticalAlignment.Center,
         };
         var chipHost = new System.Windows.Controls.Border
@@ -249,10 +322,83 @@ public partial class IslandWindow : Window
         }
     }
 
+    private bool IsFloating =>
+        Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating;
+
     private void PositionOnScreen()
     {
-        Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
-        Top = 0;
+        var area = WorkAreaDip(Model.IslandTargetDisplayStore.Shared.Resolve());
+        var store = Model.IslandPositionStore.Shared;
+        if (store.Placement == Model.IslandPlacement.Floating)
+        {
+            var pt = store.FloatingPoint;
+            if (pt is { } p)
+            {
+                // Clamp the VISIBLE silhouette (not the oversized
+                // transparent canvas) so the island can be parked right
+                // at a screen edge; the canvas simply overhangs off-screen.
+                var silW = Silhouette.ActualWidth > 0 ? Silhouette.ActualWidth : 280;
+                var silH = Silhouette.ActualHeight > 0 ? Silhouette.ActualHeight : IslandModel.SilhouetteHeight;
+                var insetX = (Width - silW) / 2; // silhouette is centered in the canvas
+                var minLeft = area.Left - insetX;
+                var maxLeft = area.Right - silW - insetX;
+                var maxTop = area.Bottom - silH;
+                Left = Math.Clamp(p.X, minLeft, Math.Max(minLeft, maxLeft));
+                Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, maxTop));
+            }
+            else
+            {
+                Left = area.Left + (area.Width - Width) / 2;
+                Top = area.Top + 72;
+            }
+        }
+        else
+        {
+            Left = area.Left + (area.Width - Width) / 2;
+            Top = area.Top;
+        }
+    }
+
+    /// The chosen monitor's work area (taskbar excluded, so a top-docked
+    /// taskbar pushes the island below it) in WPF units. WinForms screens
+    /// report physical pixels; TransformFromDevice maps them into this
+    /// window's DIP space.
+    private Rect WorkAreaDip(System.Windows.Forms.Screen screen)
+    {
+        var area = screen.WorkingArea;
+        if (PresentationSource.FromVisual(this)?.CompositionTarget is { } target)
+        {
+            var device = target.TransformFromDevice;
+            return new Rect(
+                device.Transform(new Point(area.Left, area.Top)),
+                device.Transform(new Point(area.Right, area.Bottom)));
+        }
+        return SystemParameters.WorkArea;
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(PositionOnScreen);
+
+    /// Top bar sits flush against the screen edge, so only its bottom
+    /// corners round; a floating island rounds all four.
+    private CornerRadius ShapeRadius(double radius) => IsFloating
+        ? new CornerRadius(radius)
+        : new CornerRadius(0, 0, radius, radius);
+
+    /// Hidden panel content parks 8px toward the bar strip so the expand
+    /// reveal always slides down and away from it.
+    private const double PanelRestY = -8;
+
+    /// Re-shapes the silhouette corners for the current placement.
+    private void ApplyEdgeLayout()
+    {
+        Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
+        Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
+        if (_model.State != IslandState.Expanded)
+        {
+            ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
+            ContentSlide.Y = PanelRestY;
+        }
     }
 
     // MARK: - State transitions
@@ -290,8 +436,50 @@ public partial class IslandWindow : Window
         delay.Start();
     }
 
+    /// In Floating mode a left-press either drags the window (and persists
+    /// the new spot) or, if it barely moved, counts as the click that
+    /// expands. DragMove swallows the mouse-up, so we drive expand here and
+    /// let OnSilhouetteClick bail for floating.
+    private void OnSilhouetteMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Model.IslandPositionStore.Shared.Placement != Model.IslandPlacement.Floating) return;
+        if (_model.State != IslandState.Compact && _model.State != IslandState.Peek) return;
+        var startLeft = Left;
+        var startTop = Top;
+        try { DragMove(); } catch { }
+        var moved = Math.Abs(Left - startLeft) > 3 || Math.Abs(Top - startTop) > 3;
+        if (moved)
+        {
+            Model.IslandPositionStore.Shared.SetFloatingPoint(Left, Top);
+            // Settle into the clamped resting spot now, so it matches where a
+            // later reposition (display change / relaunch) would place it.
+            PositionOnScreen();
+        }
+        else if (_model.State is IslandState.Peek or IslandState.Compact)
+        {
+            SetState(IslandState.Expanded);
+            Activate();
+            Focus();
+        }
+        e.Handled = true;
+    }
+
+    /// Bring the island up and open it — the tray-icon launcher.
+    public void PopUp()
+    {
+        Show();
+        ApplyEdgeLayout();
+        PositionOnScreen();
+        if (_model.State != IslandState.Expanded) SetState(IslandState.Expanded);
+        Activate();
+        Focus();
+    }
+
     private void OnSilhouetteClick(object sender, MouseButtonEventArgs e)
     {
+        // Floating handles expand in the mouse-down path (DragMove consumes
+        // the up), so ignore the click there to avoid a double expand.
+        if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating) return;
         if (_model.State is IslandState.Peek or IslandState.Compact)
         {
             SetState(IslandState.Expanded);
@@ -329,8 +517,8 @@ public partial class IslandWindow : Window
             && (previous == IslandState.Compact || state == IslandState.Expanded);
         AnimateSize(_model.Size, open);
         AnimatePillSlots(open);
-        Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
-        Sweep.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius + 2, _model.CornerRadius + 2);
+        Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
+        Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
 
         // Expanded panel gains the hairline stroke and grounding shadow of
         // the macOS GlowLayer; both drop on collapse.
@@ -344,6 +532,7 @@ public partial class IslandWindow : Window
                 Opacity = 0.5,
                 BlurRadius = 20,
                 ShadowDepth = 10,
+                // Grounding shadow falls downward, away from the bar strip.
                 Direction = 270,
             }
             : null;
@@ -385,8 +574,8 @@ public partial class IslandWindow : Window
         var size = _model.Size;
         Silhouette.Width = size.Width;
         Silhouette.Height = size.Height;
-        Silhouette.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius, _model.CornerRadius);
-        Sweep.CornerRadius = new CornerRadius(0, 0, _model.CornerRadius + 2, _model.CornerRadius + 2);
+        Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
+        Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
         LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
         RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
         var slot = new GridLength(PillSlotTarget());
@@ -473,7 +662,7 @@ public partial class IslandWindow : Window
                 ExpandedContent.Visibility = Visibility.Collapsed;
                 SettingsGear.Visibility = Visibility.Collapsed;
                 ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
-                ContentSlide.Y = -8;
+                ContentSlide.Y = PanelRestY;
             }
         };
         ExpandedContent.BeginAnimation(OpacityProperty, fade);

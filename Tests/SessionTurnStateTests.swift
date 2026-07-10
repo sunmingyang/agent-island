@@ -42,6 +42,30 @@ private func testClaudeMetadataAfterAssistantKeepsAssistantTurnKey() throws {
     try expect(state.activityDate == expected, "metadata writes should not change semantic activity time")
 }
 
+private func testSidechainEndTurnDoesNotFinishMainTurn() throws {
+    // Older Claude Code interleaves subagent lines into the main transcript.
+    // A subagent finishing mid-fan-out must not read as "the user is up"
+    // while the main turn is still running.
+    let lines = [
+        #"{"type":"user","uuid":"u1","timestamp":"2026-07-09T10:00:00.000Z","message":{"role":"user","content":"go"}}"#,
+        #"{"type":"assistant","uuid":"a1","timestamp":"2026-07-09T10:00:05.000Z","message":{"stop_reason":"tool_use"}}"#,
+        #"{"type":"assistant","uuid":"side1","isSidechain":true,"timestamp":"2026-07-09T10:00:30.000Z","message":{"stop_reason":"end_turn"}}"#
+    ]
+    let state = SessionTurnState.claude(lines)
+    try expect(state.isDone == false, "a sidechain end_turn must not finish the main turn")
+    try expect(state.key == "a1", "turn key must come from the last main line, not the sidechain")
+}
+
+private func testMainEndTurnSurvivesTrailingSidechain() throws {
+    let lines = [
+        #"{"type":"assistant","uuid":"a9","timestamp":"2026-07-09T10:05:00.000Z","message":{"stop_reason":"end_turn"}}"#,
+        #"{"type":"user","uuid":"side2","isSidechain":true,"timestamp":"2026-07-09T10:05:02.000Z","message":{"role":"user","content":"tool result"}}"#
+    ]
+    let state = SessionTurnState.claude(lines)
+    try expect(state.isDone == true, "trailing sidechain lines must not hide a finished main turn")
+    try expect(state.key == "a9", "the main assistant line keeps the turn key")
+}
+
 private func testCodexUserAfterTaskCompleteIsNotNeedsYou() throws {
     let expected = try date("2026-07-02T01:15:42.000Z")
     let lines = [
@@ -225,6 +249,8 @@ private enum SessionTurnStateTestRunner {
         let tests: [(String, () throws -> Void)] = [
             ("claude user after assistant suppresses stale alarm", testClaudeUserAfterAssistantIsNotNeedsYou),
             ("claude metadata does not change turn key", testClaudeMetadataAfterAssistantKeepsAssistantTurnKey),
+            ("sidechain end_turn does not finish the main turn", testSidechainEndTurnDoesNotFinishMainTurn),
+            ("main end_turn survives trailing sidechain lines", testMainEndTurnSurvivesTrailingSidechain),
             ("codex user after complete suppresses stale alarm", testCodexUserAfterTaskCompleteIsNotNeedsYou),
             ("codex start after complete suppresses stale alarm", testCodexTaskStartedAfterTaskCompleteIsNotNeedsYou),
             ("codex complete still triggers needs-you", testCodexTaskCompleteIsNeedsYou),

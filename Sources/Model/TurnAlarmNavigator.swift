@@ -77,10 +77,15 @@ enum TurnAlarmNavigator {
     }
 
     private static func openClaude(thread: ActivityMonitor.ActiveThread?) {
-        if thread?.launchTarget == .claudeDesktop {
-            openClaudeDesktop(thread: thread)
-            return
-        }
+        // There is NO deep link that resumes a Claude session by id —
+        // `claude://resume?sessionId=…` is not a real endpoint (Claude Desktop
+        // only registers `claude://…/new`, the CLI registers `claude-cli://open`,
+        // both of which start a NEW session). Routing .claudeDesktop sessions
+        // there just surfaced the app on its default view and never resumed the
+        // thread. Resume the way the auto-trigger engine already does and knows
+        // works, for every Claude session regardless of launch target:
+        // `claude --resume <id>` in a terminal from the session's cwd. Bringing
+        // the desktop app forward is only a last resort when no CLI is found.
         if let thread, openCLIResume(
             executable: "claude",
             arguments: ["--resume", thread.sessionId],
@@ -90,19 +95,6 @@ enum TurnAlarmNavigator {
             return
         }
         activate(bundleIdentifier: "com.anthropic.claudefordesktop")
-    }
-
-    private static let claudeBundleID = "com.anthropic.claudefordesktop"
-
-    /// Safe behavior: bring Claude Desktop to the front. We do NOT fire a deep
-    /// link here — `claude://resume?sessionId=` only *imports a CLI session*
-    /// (per Claude's own error toasts, it never switches to an already-open
-    /// conversation) and `https://claude.ai/chat/<id>` spills into the browser.
-    /// Until Claude exposes a dependable external "open this conversation" URL,
-    /// fronting the app is the most we can reliably do without risking a jump
-    /// to the web browser.
-    private static func openClaudeDesktop(thread: ActivityMonitor.ActiveThread?) {
-        activate(bundleIdentifier: claudeBundleID)
     }
 
     private static func activate(bundleIdentifier: String) {
@@ -187,7 +179,10 @@ enum TurnAlarmNavigator {
         if isUsableDirectory(cwd) {
             parts.append("cd \(shellQuote(cwd)) || exit 1")
         }
-        parts.append("exec \(shellJoin([executable] + arguments))")
+        // nvm/bun/npm-global installs live outside the exported PATH;
+        // CLILocator already probes those homes for the trigger engine.
+        let binary = CLILocator.path(for: executable == "codex" ? .codex : .claude) ?? executable
+        parts.append("exec \(shellJoin([binary] + arguments))")
         return parts.joined(separator: "; ")
     }
 

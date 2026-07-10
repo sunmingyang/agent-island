@@ -138,27 +138,35 @@ enum SessionScanner {
               object["type"] as? String == "session_meta",
               let payload = object["payload"] as? [String: Any]
         else { return nil }
-        // Subagent / child threads (orchestrator-spawned executors) finish
-        // constantly with no human waiting on them, so by default they must NOT
-        // raise turn alarms or drive the logo. They can't be told apart by
-        // `originator`: a spawned subagent carries the SAME "Codex Desktop"
-        // originator as an interactive session. Codex writes the spawn markers
-        // on session_meta itself — `thread_source == "subagent"` and a
-        // `parent_thread_id` — so key off those. (They co-occur; either suffices.)
-        // Opt-in: SubagentAlarmStore lets the user surface them like any other
-        // session. Read the raw default directly — this runs off the main actor
-        // and UserDefaults is thread-safe.
-        let isSubagent = (payload["thread_source"] as? String) == "subagent"
-            || (payload["parent_thread_id"] as? String).map({ !$0.isEmpty }) == true
-        if isSubagent, !UserDefaults.standard.bool(forKey: subagentAlarmDefaultsKey) {
-            return nil
-        }
-        // Other automation rollouts, matched by originator: `codex exec` runs,
-        // probes, bridges (e.g. "scs-probe"/"codex_exec"). Case-insensitive
-        // substrings — an allowlist of hasPrefix("codex") once silently dropped
-        // the capital-C "Codex Desktop" app and killed its alarms.
+        // Two tiers of machine-driven sessions, told apart on session_meta
+        // (originator can't separate them — a spawned subagent carries the SAME
+        // "Codex Desktop" originator as an interactive session):
+        //
+        // 1. AUTOMATION — never surfaced, no opt-in: `codex exec` runs, probes,
+        //    bridges (originator substrings), source == "exec"/"mcp" strings,
+        //    and {"internal": …} probe objects. A human is never "up" in these.
         let originator = (payload["originator"] as? String ?? "").lowercased()
         if originator.contains("exec") || originator.contains("probe") || originator.contains("bridge") {
+            return nil
+        }
+        if let source = payload["source"] as? String, source == "exec" || source == "mcp" {
+            return nil
+        }
+        if let source = payload["source"] as? [String: Any], source["internal"] != nil {
+            return nil
+        }
+        // 2. SUBAGENT / child threads (orchestrator fan-out: spawned/review/
+        //    compact) — filtered by DEFAULT because they finish constantly, but
+        //    the user can opt back in via SubagentAlarmStore ("Alarm on subagent
+        //    threads"). All three spawn markers must honor the toggle, or an
+        //    enabled toggle would still be dead: thread_source == "subagent",
+        //    a non-empty parent_thread_id, and a {"subagent": …} source object
+        //    co-occur on the same rollouts. UserDefaults is thread-safe; this
+        //    runs off the main actor.
+        let isSubagent = (payload["thread_source"] as? String) == "subagent"
+            || (payload["parent_thread_id"] as? String).map({ !$0.isEmpty }) == true
+            || (payload["source"] as? [String: Any])?["subagent"] != nil
+        if isSubagent, !UserDefaults.standard.bool(forKey: subagentAlarmDefaultsKey) {
             return nil
         }
         return (payload["id"] as? String ?? "", payload["cwd"] as? String ?? "")
@@ -191,7 +199,11 @@ enum SessionScanner {
         guard let enumerator = FileManager.default.enumerator(atPath: root) else { return [:] }
         var out: [String: String] = [:]
         for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
+            // Subagent transcripts: subagents/ dirs (current layout) or
+            // agent-*.jsonl names (flat layouts). Main sessions are always
+            // UUID-named. Machine fan-out must not drive alarms or the logo.
             if rel.contains("/subagents/") { continue }
+            if ((rel as NSString).lastPathComponent).hasPrefix("agent-") { continue }
             let path = root + "/" + rel
             let sid = ((rel as NSString).lastPathComponent as NSString).deletingPathExtension
             out[sid] = path

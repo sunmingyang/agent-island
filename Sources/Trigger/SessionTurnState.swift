@@ -10,6 +10,10 @@ enum SessionTurnState {
     static func claude(_ lines: [String]) -> SessionTurnStatus {
         for line in lines.reversed() {
             guard let object = json(line), let type = object["type"] as? String else { continue }
+            // Older Claude Code interleaves subagent traffic into the main
+            // transcript marked isSidechain — a subagent's end_turn there is
+            // not the user's turn and must not classify the main session.
+            if object["isSidechain"] as? Bool == true { continue }
             switch type {
             case "assistant":
                 let stop = (object["message"] as? [String: Any])?["stop_reason"] as? String

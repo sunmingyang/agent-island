@@ -52,8 +52,19 @@ public sealed class TurnAlarmWindowController
         if (_queue.Count == 0) return;
         var next = _queue[0];
         _queue.RemoveAt(0);
-        // Let the close unwind before the next panel takes the stage.
-        System.Windows.Application.Current?.Dispatcher.BeginInvoke(
-            () => Present(next.Provider, next.Thread, next.DeliveryKey));
+        // Let the close unwind before the next panel takes the stage. A
+        // Show() can race in during that gap (a fresh turn finishing), so
+        // re-check _current at fire time — if one is already up, put this
+        // back at the head instead of stacking a second window (the macOS
+        // controller's guard).
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (_current is not null)
+            {
+                _queue.Insert(0, next);
+                return;
+            }
+            Present(next.Provider, next.Thread, next.DeliveryKey);
+        });
     }
 }

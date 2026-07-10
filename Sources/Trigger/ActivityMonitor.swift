@@ -82,10 +82,12 @@ final class ActivityMonitor: ObservableObject {
     func start() {
         tick()
         timer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tick() }
+            guard let self else { return }
+            Task { @MainActor in self.tick() }
         }
         let stream = TranscriptEventStream { [weak self] in
-            Task { @MainActor in self?.eventKick() }
+            guard let self else { return }
+            Task { @MainActor in self.eventKick() }
         }
         stream.start()
         eventStream = stream

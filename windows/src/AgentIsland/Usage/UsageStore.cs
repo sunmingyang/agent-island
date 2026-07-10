@@ -93,8 +93,11 @@ public sealed class UsageStore : INotifyPropertyChanged
         var dispatcher = Dispatcher.CurrentDispatcher;
         _refreshTask = Task.Run(async () =>
         {
-            var codexTask = UsageFetcher.FetchCodex();
-            var claudeTask = UsageFetcher.FetchClaude();
+            // Thread the token into the HTTP calls so a superseding refresh
+            // (network-up mid-flight on a dead path) actually aborts the dead
+            // request instead of letting it run to its own timeout.
+            var codexTask = UsageFetcher.FetchCodex(cts.Token);
+            var claudeTask = UsageFetcher.FetchClaude(cts.Token);
             var codexResult = await codexTask;
             var claudeResult = await claudeTask;
 

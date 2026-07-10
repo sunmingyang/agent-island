@@ -190,15 +190,26 @@ public sealed class CapsuleMeter : Grid
     }
 }
 
-/// Circular progress ring with the percent in its center and the window
-/// label beside it (the "Ring" style).
+/// Circular progress ring, macOS layout: thin 3pt ring with an empty
+/// center, the percent (18pt) and label stacked beside it. The trim
+/// animates on value changes (the "Ring" style).
 public sealed class RingMeter : Grid
 {
     private readonly System.Windows.Shapes.Path _progress;
-    private readonly TextBlock _center;
+    private readonly TextBlock _value;
     private readonly TextBlock _label;
     private const double Diameter = 56;
-    private const double Stroke = 5;
+    private const double Stroke = 3;
+
+    public static readonly DependencyProperty SweepProperty = DependencyProperty.Register(
+        nameof(Sweep), typeof(double), typeof(RingMeter),
+        new PropertyMetadata(0.0, (d, _) => ((RingMeter)d).Redraw()));
+
+    public double Sweep
+    {
+        get => (double)GetValue(SweepProperty);
+        set => SetValue(SweepProperty, value);
+    }
 
     public RingMeter(Color color)
     {
@@ -220,38 +231,62 @@ public sealed class RingMeter : Grid
             StrokeEndLineCap = PenLineCap.Round,
         };
         host.Children.Add(_progress);
-        _center = new TextBlock
-        {
-            FontFamily = IslandFonts.Mono,
-            FontSize = 13,
-            FontWeight = FontWeights.SemiBold,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        host.Children.Add(_center);
         SetColumn(host, 0);
         Children.Add(host);
 
+        var beside = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0, 0, 0),
+        };
+        var valueRow = new StackPanel { Orientation = Orientation.Horizontal };
+        _value = new TextBlock
+        {
+            FontFamily = IslandFonts.Mono,
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+        };
+        valueRow.Children.Add(_value);
+        valueRow.Children.Add(new TextBlock
+        {
+            Text = "%",
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.White(0.5)),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(1, 0, 0, 1),
+        });
+        beside.Children.Add(valueRow);
         _label = new TextBlock
         {
             FontFamily = IslandFonts.Ui,
             FontSize = 11,
             FontWeight = FontWeights.Medium,
             Foreground = IslandColors.Brush(IslandColors.White(0.55)),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0),
+            Margin = new Thickness(0, 1, 0, 0),
         };
-        SetColumn(_label, 1);
-        Children.Add(_label);
+        beside.Children.Add(_label);
+        SetColumn(beside, 1);
+        Children.Add(beside);
     }
 
     public void Update(string label, double value)
     {
         _label.Text = label.ToLowerInvariant();
-        _center.Text = $"{(int)value}%";
-        _center.Foreground = IslandColors.Brush(IslandColors.Urgency(value / 100));
-        _progress.Data = ArcGeometry(Math.Clamp(value, 0, 100) / 100 * 359.9);
+        _value.Text = $"{(int)value}";
+        _value.Foreground = IslandColors.Brush(IslandColors.Urgency(value / 100));
+        var sweep = new DoubleAnimation(
+            Math.Clamp(value, 0, 100) / 100 * 359.9,
+            IslandAnimations.StrongEaseOutDuration)
+        {
+            EasingFunction = IslandAnimations.StrongEaseOut(),
+        };
+        BeginAnimation(SweepProperty, sweep);
     }
+
+    private void Redraw() =>
+        _progress.Data = Sweep <= 0.1 ? null : ArcGeometry(Sweep);
 
     private static Geometry ArcGeometry(double sweepDegrees)
     {
@@ -276,31 +311,58 @@ public sealed class RingMeter : Grid
     }
 }
 
-/// Numbers-first style: oversized percent, window label, reset caption.
+/// Numbers-first style: oversized percent over a thin glowing brand meter,
+/// then the window label (macOS numbers: 38pt hero, 3pt capsule).
 public sealed class NumericMeter : StackPanel
 {
     private readonly TextBlock _value;
     private readonly TextBlock _label;
+    private readonly Border _meterFill;
+    private readonly Grid _meter;
+    private double _fraction;
 
-    public NumericMeter()
+    public NumericMeter(Color color)
     {
         Orientation = Orientation.Vertical;
         _value = new TextBlock
         {
             FontFamily = IslandFonts.Mono,
-            FontSize = 30,
+            FontSize = 38,
             FontWeight = FontWeights.SemiBold,
         };
+        _meter = new Grid { Height = 3, Margin = new Thickness(1, 5, 8, 0) };
+        _meter.Children.Add(new Border
+        {
+            CornerRadius = new CornerRadius(1.5),
+            Background = IslandColors.Brush(IslandColors.White(0.08)),
+        });
+        _meterFill = new Border
+        {
+            CornerRadius = new CornerRadius(1.5),
+            Background = IslandColors.Brush(color),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Width = 0,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                ShadowDepth = 0,
+                BlurRadius = 4,
+                Color = color,
+                Opacity = 0.7,
+            },
+        };
+        _meter.Children.Add(_meterFill);
         _label = new TextBlock
         {
             FontFamily = IslandFonts.Ui,
             FontSize = 11,
             FontWeight = FontWeights.Medium,
             Foreground = IslandColors.Brush(IslandColors.White(0.55)),
-            Margin = new Thickness(1, 2, 0, 0),
+            Margin = new Thickness(1, 4, 0, 0),
         };
         Children.Add(_value);
+        Children.Add(_meter);
         Children.Add(_label);
+        _meter.SizeChanged += (_, _) => ApplyMeter(animate: false);
     }
 
     public void Update(string label, double value)
@@ -316,51 +378,149 @@ public sealed class NumericMeter : StackPanel
             Foreground = IslandColors.Brush(IslandColors.White(0.5)),
         });
         _label.Text = label.ToLowerInvariant();
+        _fraction = Math.Clamp(value / 100, 0, 1);
+        ApplyMeter(animate: true);
+    }
+
+    private void ApplyMeter(bool animate)
+    {
+        var target = Math.Max(0, _meter.ActualWidth * _fraction);
+        if (!animate)
+        {
+            _meterFill.BeginAnimation(WidthProperty, null);
+            _meterFill.Width = target;
+            return;
+        }
+        var grow = new DoubleAnimation(target, IslandAnimations.StrongEaseOutDuration)
+        {
+            EasingFunction = IslandAnimations.StrongEaseOut(),
+        };
+        _meterFill.BeginAnimation(WidthProperty, grow);
     }
 }
 
-/// Seeded waveform bars; the filled fraction tracks the percent (the
-/// "Spark" style).
-public sealed class SparkMeter : Grid
+/// Area line chart rising to the current percent, the macOS Spark style:
+/// gradient area under a thin curve, quartile rules, a dotted "now"
+/// threshold line, and an end cursor with a halo.
+public sealed class SparkMeter : Canvas
 {
-    private const int Bars = 24;
-    private readonly System.Windows.Shapes.Rectangle[] _bars = new System.Windows.Shapes.Rectangle[Bars];
-    private readonly double[] _heights = new double[Bars];
-    private readonly Color _color;
+    private const int Points = 36;
+    private readonly double[] _wave = new double[Points];
+    private readonly System.Windows.Shapes.Polyline _line;
+    private readonly System.Windows.Shapes.Polygon _area;
+    private readonly System.Windows.Shapes.Line _threshold;
+    private readonly System.Windows.Shapes.Ellipse _cursorHalo;
+    private readonly System.Windows.Shapes.Ellipse _cursorDot;
+    private readonly System.Windows.Shapes.Rectangle[] _rules = new System.Windows.Shapes.Rectangle[3];
+    private double _value;
 
     public SparkMeter(Color color, int seed)
     {
-        _color = color;
         Height = 24;
-        for (var i = 0; i < Bars; i++)
+        // Deterministic per-seed wave so the curve is stable frame to frame.
+        for (var i = 0; i < Points; i++)
         {
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            // Deterministic per-seed wave so the shape is stable frame to frame.
-            _heights[i] = 8 + 14 * Math.Abs(Math.Sin(i * 0.82 + seed * 1.7) * 0.7 + Math.Sin(i * 0.31 + seed) * 0.3);
-            var bar = new System.Windows.Shapes.Rectangle
-            {
-                RadiusX = 1,
-                RadiusY = 1,
-                Height = Math.Min(22, _heights[i]),
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(i == 0 ? 0 : 1, 0, i == Bars - 1 ? 0 : 1, 0),
-                Fill = IslandColors.Brush(IslandColors.White(0.10)),
-            };
-            SetColumn(bar, i);
-            _bars[i] = bar;
-            Children.Add(bar);
+            _wave[i] = Math.Abs(Math.Sin(i * 0.82 + seed * 1.7) * 0.7 + Math.Sin(i * 0.31 + seed) * 0.3);
         }
+        for (var q = 0; q < 3; q++)
+        {
+            _rules[q] = new System.Windows.Shapes.Rectangle
+            {
+                Height = 1,
+                Fill = IslandColors.Brush(IslandColors.White(0.04)),
+            };
+            Children.Add(_rules[q]);
+        }
+        _area = new System.Windows.Shapes.Polygon
+        {
+            Fill = new LinearGradientBrush(
+                IslandColors.Alpha(color, 0.28), IslandColors.Alpha(color, 0), 90),
+        };
+        Children.Add(_area);
+        _line = new System.Windows.Shapes.Polyline
+        {
+            Stroke = IslandColors.Brush(color),
+            StrokeThickness = 1.4,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+        };
+        Children.Add(_line);
+        _threshold = new System.Windows.Shapes.Line
+        {
+            Stroke = IslandColors.Brush(IslandColors.White(0.18)),
+            StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection { 2, 3 },
+        };
+        Children.Add(_threshold);
+        _cursorHalo = new System.Windows.Shapes.Ellipse
+        {
+            Width = 8,
+            Height = 8,
+            Fill = IslandColors.Brush(color, 0.25),
+        };
+        Children.Add(_cursorHalo);
+        _cursorDot = new System.Windows.Shapes.Ellipse
+        {
+            Width = 4,
+            Height = 4,
+            Fill = IslandColors.Brush(color),
+        };
+        Children.Add(_cursorDot);
+        SizeChanged += (_, _) => Render();
     }
 
     public void Update(double value)
     {
-        var filled = value / 100 * Bars;
-        for (var i = 0; i < Bars; i++)
+        _value = value;
+        Render();
+    }
+
+    private void Render()
+    {
+        var w = ActualWidth;
+        var h = ActualHeight;
+        if (w <= 0 || h <= 0) return;
+
+        for (var q = 0; q < 3; q++)
         {
-            _bars[i].Fill = i < filled
-                ? IslandColors.Brush(_color)
-                : IslandColors.Brush(IslandColors.White(0.10));
+            _rules[q].Width = w;
+            SetLeft(_rules[q], 0);
+            SetTop(_rules[q], h * (q + 1) / 4.0);
         }
+
+        var frac = Math.Clamp(_value / 100, 0, 1);
+        double YFor(double level) => h - h * level * 0.92 - 1;
+
+        _line.Points.Clear();
+        _area.Points.Clear();
+        var lastX = 0.0;
+        var lastY = YFor(0);
+        for (var i = 0; i < Points; i++)
+        {
+            // Curve climbs toward the current percent, textured by the wave.
+            var progress = i / (double)(Points - 1);
+            var level = frac * (0.30 + 0.70 * progress) * (0.72 + 0.28 * _wave[i]);
+            var x = w * progress;
+            var y = YFor(level);
+            _line.Points.Add(new Point(x, y));
+            _area.Points.Add(new Point(x, y));
+            lastX = x;
+            lastY = y;
+        }
+        _area.Points.Add(new Point(w, h));
+        _area.Points.Add(new Point(0, h));
+
+        var thresholdY = YFor(frac);
+        _threshold.X1 = 0;
+        _threshold.X2 = w;
+        _threshold.Y1 = thresholdY;
+        _threshold.Y2 = thresholdY;
+
+        SetLeft(_cursorHalo, lastX - 4);
+        SetTop(_cursorHalo, lastY - 4);
+        SetLeft(_cursorDot, lastX - 2);
+        SetTop(_cursorDot, lastY - 2);
     }
 }
 
@@ -387,7 +547,7 @@ public sealed class ChartTile : StackPanel
         _stepped = new SteppedMeter(color) { Margin = new Thickness(0, 8, 0, 8) };
         _capsule = new CapsuleMeter(color) { Margin = new Thickness(0, 12, 0, 12) };
         _ring = new RingMeter(color) { Margin = new Thickness(0, 4, 0, 4) };
-        _numeric = new NumericMeter { Margin = new Thickness(0, 2, 0, 2) };
+        _numeric = new NumericMeter(color) { Margin = new Thickness(0, 2, 0, 2) };
         _spark = new SparkMeter(color, seed) { Margin = new Thickness(0, 6, 0, 6) };
         Children.Add(_head);
         Children.Add(_stepped);

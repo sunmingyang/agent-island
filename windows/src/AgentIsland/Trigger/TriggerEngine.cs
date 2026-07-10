@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows.Threading;
 using AgentIsland.Core;
 using AgentIsland.Usage;
@@ -118,6 +119,11 @@ public sealed class TriggerEngine
             var interval = TimeSpan.FromHours(Math.Max(1, trigger.EveryHours));
             if (now >= last + interval)
             {
+                // Advance the clock on the ATTEMPT, not only on a successful
+                // spawn — otherwise a fire that Fire() blocks (kill switch,
+                // untrusted project, invalid id/message, binary not found)
+                // leaves LastFired stale and retries every 60s tick forever.
+                TriggerStore.Shared.MarkFired(trigger.Id, now);
                 Fire(trigger);
             }
         }
@@ -148,6 +154,27 @@ public sealed class TriggerEngine
         if (!safety.IsAllowed(trigger.Cwd))
         {
             LogStatus($"blocked: project is not trusted for auto-resume\n{Preview(trigger)}", trigger);
+            return;
+        }
+        // The session id is interpolated unquoted into the cmd.exe command
+        // line below. It comes from on-disk session metadata (a Codex
+        // session_meta id, a Claude transcript filename) that a local
+        // attacker can plant, so a value like `x&calc&` would inject a
+        // command. Real ids are UUID/alphanumeric; reject anything else
+        // before it reaches the shell (mirrors TurnAlarmNavigator.Sanitize).
+        if (!IsSafeSessionId(trigger.SessionId))
+        {
+            LogStatus("blocked: invalid session id", trigger);
+            return;
+        }
+        // The message is spliced into the cmd.exe command line too, and its
+        // only escaping (Replace("\"","\\\"")) is inert in cmd.exe — a quote
+        // or an &/|/^/%/redirect would break out and run injected commands.
+        // Resume nudges are short natural-language strings; reject any that
+        // carry cmd metacharacters rather than execute them.
+        if (!IsSafeMessage(trigger.Message))
+        {
+            LogStatus("blocked: message contains characters unsafe for the shell", trigger);
             return;
         }
         if (Command(trigger, requireResolvedBinary: true) is not { } command)
@@ -205,12 +232,28 @@ public sealed class TriggerEngine
         }
     }
 
+    private static readonly Regex SessionIdPattern = new("^[A-Za-z0-9_-]+$", RegexOptions.Compiled);
+    // cmd.exe metacharacters + newlines. `!`/`(`/`)`/backtick are inert under a
+    // plain `cmd /c` (no delayed expansion), so they stay allowed.
+    private static readonly Regex MessageBlocklist = new("[\"&|<>^%\r\n]", RegexOptions.Compiled);
+
+    /// A session id is only ever spliced unquoted into a shell line, so it
+    /// must match the safe alphabet exactly.
+    internal static bool IsSafeSessionId(string sessionId) => SessionIdPattern.IsMatch(sessionId);
+
+    /// A resume message must carry no cmd metacharacters before it reaches
+    /// the shell.
+    internal static bool IsSafeMessage(string message) => !MessageBlocklist.IsMatch(message);
+
     private static ResumeCommand? Command(Trigger trigger, bool requireResolvedBinary)
     {
         var binary = CLILocator.PathFor(trigger.Tool);
         if (requireResolvedBinary && binary is null) return null;
         var displayBinary = binary ?? trigger.Tool.RawValue();
-        var message = trigger.Message.Replace("\"", "\\\"");
+        // The session id and message are both validated before Fire() reaches
+        // the shell (SessionIdPattern / MessageBlocklist), so neither can carry
+        // a cmd metacharacter here.
+        var message = trigger.Message;
         var arguments = trigger.Tool == TriggerTool.Claude
             ? $"--resume {trigger.SessionId} -p \"{message}\" --dangerously-skip-permissions"
             : $"exec resume {trigger.SessionId} \"{message}\" --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check";

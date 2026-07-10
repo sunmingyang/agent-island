@@ -88,7 +88,8 @@ final class AlertEngine: ObservableObject {
         Publishers.MergeMany(triggers)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] in
-                Task { @MainActor in self?.recompute() }
+                guard let self else { return }
+                Task { @MainActor in self.recompute() }
             }
             .store(in: &subs)
 

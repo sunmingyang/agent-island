@@ -596,11 +596,41 @@ public sealed class SettingsWindow : Window
                 : screens[display.SelectedIndex - 1].DeviceName;
         stack.Children.Add(new SettingsRowControl(
             "Show on",
-            L10n.TrFormat("Auto — showing on {0}.", L10n.Tr("the primary display")),
+            choice == "auto"
+                ? L10n.TrFormat("Auto — showing on {0}.", L10n.Tr("the primary display"))
+                : L10n.Tr("Pinned to a specific display. Falls back to Auto if unplugged."),
             display));
+
+        // 位置 — no notch reserves the top-center on Windows, so placement is
+        // a user choice: the Mac-style top bar or a draggable floating widget.
+        stack.Children.Add(SectionLabel("Position"));
+        var position = IslandPositionStore.Shared;
+
+        var placements = new[] { IslandPlacement.TopBar, IslandPlacement.Floating };
+        var placementBox = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var mode in placements) placementBox.Items.Add(PlacementLabel(mode));
+        placementBox.SelectedIndex = Math.Max(0, Array.IndexOf(placements, position.Placement));
+        placementBox.SelectionChanged += (_, _) =>
+        {
+            if (placementBox.SelectedIndex >= 0)
+            {
+                position.Placement = placements[placementBox.SelectedIndex];
+            }
+        };
+        stack.Children.Add(new SettingsRowControl(
+            "Island position",
+            "A bar at the top of the screen, or a floating widget you drag anywhere.",
+            placementBox));
 
         return stack;
     }
+
+    private static string PlacementLabel(IslandPlacement mode) => mode switch
+    {
+        IslandPlacement.TopBar => L10n.Tr("Top bar"),
+        IslandPlacement.Floating => L10n.Tr("Floating window"),
+        _ => mode.ToString(),
+    };
 
     // MARK: - Providers
 
@@ -833,14 +863,31 @@ public sealed class SettingsWindow : Window
 
         void ReloadSessions()
         {
-            sessions = Core.SessionScanner
-                .Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>())
-                .Where(s => s.Tool == tool)
-                .Take(20)
-                .ToList();
+            // Scan tail-reads every transcript; off the UI thread so the tab
+            // build and each provider toggle don't freeze the window. Snapshot
+            // the requested tool so a stale scan can't clobber a newer one.
+            var requestedTool = tool;
             sessionBox.Items.Clear();
-            foreach (var session in sessions) sessionBox.Items.Add(session.Label);
-            if (sessionBox.Items.Count > 0) sessionBox.SelectedIndex = 0;
+            sessionBox.Items.Add(Localization.L10n.Tr("Loading…"));
+            sessionBox.SelectedIndex = 0;
+            System.Threading.Tasks.Task.Run(
+                    () => Core.SessionScanner
+                        .Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>())
+                        .Where(s => s.Tool == requestedTool)
+                        .Take(20)
+                        .ToList())
+                .ContinueWith(task =>
+                {
+                    var scanned = task.Result;
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        if (tool != requestedTool) return;
+                        sessions = scanned;
+                        sessionBox.Items.Clear();
+                        foreach (var session in sessions) sessionBox.Items.Add(session.Label);
+                        if (sessionBox.Items.Count > 0) sessionBox.SelectedIndex = 0;
+                    });
+                }, System.Threading.Tasks.TaskScheduler.Default);
         }
 
         void UpdateResetCaption()
@@ -1008,6 +1055,13 @@ public sealed class SettingsWindow : Window
             "Turn alarm",
             "Pop up a foreground alarm when a background run needs you.",
             enabled));
+
+        var subagents = new CobaltToggle(SubagentAlarmStore.Shared.Enabled);
+        subagents.Toggled += value => SubagentAlarmStore.Shared.Enabled = value;
+        stack.Children.Add(new SettingsRowControl(
+            "Subagent alarms",
+            "Also alarm when orchestrated subagents finish. Off: only your own threads alarm.",
+            subagents));
 
         var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
         details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
@@ -1283,14 +1337,20 @@ public sealed class SettingsWindow : Window
         return host;
     }
 
+    // Held in a field: a local MediaPlayer can be collected mid-playback,
+    // making the preview intermittently silent or clipped.
+    private static MediaPlayer? _previewPlayer;
+
     private static void PreviewSound()
     {
         try
         {
             if (AgentReminderStore.Shared.ResolveSoundFile() is not { } file) return;
-            var player = new MediaPlayer { Volume = AgentReminderStore.Shared.Volume };
-            player.Open(new Uri(file));
-            player.Play();
+            _previewPlayer ??= new MediaPlayer();
+            _previewPlayer.Stop();
+            _previewPlayer.Volume = AgentReminderStore.Shared.Volume;
+            _previewPlayer.Open(new Uri(file));
+            _previewPlayer.Play();
         }
         catch
         {

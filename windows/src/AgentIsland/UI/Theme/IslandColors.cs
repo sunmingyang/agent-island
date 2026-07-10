@@ -41,6 +41,9 @@ public static class IslandColors
         _ => Colors.White,
     };
 
+    public static Color Alpha(Color color, double opacity) =>
+        Color.FromArgb((byte)(Math.Clamp(opacity, 0, 1) * 255), color.R, color.G, color.B);
+
     public static SolidColorBrush Brush(Color color, double opacity = 1)
     {
         var brush = new SolidColorBrush(color) { Opacity = opacity };

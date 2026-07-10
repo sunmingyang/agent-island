@@ -51,11 +51,15 @@ final class TriggerEngine: ObservableObject {
         ]
         Publishers.MergeMany(signals)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in Task { @MainActor in self?.checkResets() } }
+            .sink { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in self.checkResets() }
+            }
             .store(in: &subs)
 
         intervalTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.checkIntervals() }
+            guard let self else { return }
+            Task { @MainActor in self.checkIntervals() }
         }
         checkResets()
     }

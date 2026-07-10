@@ -20,11 +20,14 @@ public static class Formatting
     /// "941", "12.4k", "211.2M", "2.17B".
     public static string CompactTokens(long tokens)
     {
+        // Boundaries are 999_500, not 1_000_000: at 999_500 the "0"-rounding
+        // below already renders 1000, so promote to the next unit there to
+        // print "1.0M" instead of "1000k".
         return tokens switch
         {
             < 1_000 => tokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            < 1_000_000 => Trim(tokens / 1_000.0) + "k",
-            < 1_000_000_000 => Trim(tokens / 1_000_000.0) + "M",
+            < 999_500 => Trim(tokens / 1_000.0) + "k",
+            < 999_500_000 => Trim(tokens / 1_000_000.0) + "M",
             _ => Trim(tokens / 1_000_000_000.0) + "B",
         };
 

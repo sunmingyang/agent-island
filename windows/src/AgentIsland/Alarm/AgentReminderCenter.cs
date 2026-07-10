@@ -55,6 +55,7 @@ public sealed class AgentReminderCenter
         _activeNeedsYouKeys[providerKey] = currentKeys;
 
         var fresh = new List<(string Key, ActivityMonitor.ActiveThread Thread)>();
+        var baselined = false;
         foreach (var (key, thread) in keyed)
         {
             if (_acknowledgedNeedsYouKeys.ContainsKey(key)
@@ -68,6 +69,7 @@ public sealed class AgentReminderCenter
             if (isFirstObservation || thread.Modified < _startedAt)
             {
                 Baseline(key);
+                baselined = true;
                 continue;
             }
             fresh.Add((key, thread));
@@ -82,8 +84,14 @@ public sealed class AgentReminderCenter
             foreach (var extra in fresh.Skip(1))
             {
                 Baseline(extra.Key);
+                baselined = true;
             }
         }
+
+        // Persist ONCE, not once per key — at launch isFirstObservation can
+        // baseline dozens of finished sessions, and a full settings-file write
+        // per key was janking the UI thread.
+        if (baselined) PersistAcknowledgedKeys();
     }
 
     public bool HasAcknowledged(TriggerTool provider, ActivityMonitor.ActiveThread? thread) =>
@@ -115,10 +123,11 @@ public sealed class AgentReminderCenter
         }
     }
 
+    /// Records a key as already-seen WITHOUT persisting — the caller batches
+    /// a single write after the loop.
     private void Baseline(string deliveryKey)
     {
         _acknowledgedNeedsYouKeys[deliveryKey] = DateTimeOffset.Now;
-        PersistAcknowledgedKeys();
     }
 
     private static string DeliveryKeyFor(TriggerTool provider, ActivityMonitor.ActiveThread? thread) =>

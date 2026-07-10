@@ -370,8 +370,34 @@ public sealed class SessionPickerWindow : Window
         scroll.Content = list;
         root.Children.Add(scroll);
 
-        var sessions = SessionScanner.Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>());
-        foreach (var session in sessions.Take(24))
+        // SessionScanner.Scan tail-reads every transcript on disk — seconds
+        // on a busy machine. Running it in the ctor froze the island (single
+        // WPF UI thread) until the picker painted. Show a placeholder, scan
+        // off-thread, then fill the list back on the UI thread.
+        var loading = new TextBlock
+        {
+            Text = Localization.L10n.Tr("Loading…"),
+            Foreground = IslandColors.Brush(IslandColors.White(0.4)),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+            Margin = new Thickness(10, 12, 0, 0),
+        };
+        list.Children.Add(loading);
+        System.Threading.Tasks.Task.Run(
+                () => SessionScanner.Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>()))
+            .ContinueWith(task =>
+            {
+                var sessions = task.Result;
+                Dispatcher.BeginInvoke(() =>
+                {
+                    list.Children.Remove(loading);
+                    foreach (var session in sessions.Take(24)) AddSessionRow(list, trust, session);
+                });
+            }, System.Threading.Tasks.TaskScheduler.Default);
+    }
+
+    private void AddSessionRow(StackPanel list, CheckBox trust, Core.ScannedSession session)
+    {
         {
             var row = new Grid { Margin = new Thickness(8, 7, 8, 7) };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
