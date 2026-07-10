@@ -62,8 +62,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showDemoTurnAlarmIfNeeded() {
-        guard AppEnvironment.isDemo,
-              let raw = ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_TURN_ALARM"] else { return }
+        guard AppEnvironment.isDemo else { return }
+        // Headless marketing/release-notes renders: writes both alarm cards as
+        // PNGs (in-process ImageRenderer, no screen-recording permission
+        // needed) into the given directory, then quits.
+        if let dir = ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_ALARM_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                let thread = ActivityMonitor.ActiveThread(
+                    sessionId: "00000000-0000-0000-0000-000000000000",
+                    label: L10n.tr("Demo thread"),
+                    cwd: NSHomeDirectory() + "/Documents/Agent Island",
+                    modified: Date(),
+                    transcriptPath: nil,
+                    turnKey: "demo",
+                    launchTarget: .cli
+                )
+                Self.writeAlarmSnapshot(
+                    TurnAlarmView(provider: .codex, providerName: "Codex", thread: thread, kind: .yourTurn, dismiss: {}),
+                    to: dir + "/turn-alarm.png"
+                )
+                Self.writeAlarmSnapshot(
+                    TurnAlarmView(
+                        provider: .claude, providerName: "Claude", thread: nil,
+                        kind: .quotaExhausted(window: .fiveHour, resetAt: Date().addingTimeInterval(2 * 3600 + 7 * 60)),
+                        dismiss: {}
+                    ),
+                    to: dir + "/quota-alarm.png"
+                )
+                NSApp.terminate(nil)
+            }
+            return
+        }
+        guard let raw = ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_TURN_ALARM"] else { return }
         let value = raw.lowercased()
         // "quota" / "quota-codex" previews the out-of-quota alarm instead of
         // the finished-turn one (screenshots and launch videos need both).
@@ -97,5 +128,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Pin the app to the run loop until the user explicitly quits.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    @MainActor
+    private static func writeAlarmSnapshot(_ view: TurnAlarmView, to path: String) {
+        let card = view
+            .frame(width: 520, height: 520)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 2
+        guard let cg = renderer.cgImage else {
+            NSLog("AgentIsland: alarm snapshot render failed for %@", path)
+            return
+        }
+        let rep = NSBitmapImageRep(cgImage: cg)
+        try? rep.representation(using: .png, properties: [:])?
+            .write(to: URL(fileURLWithPath: path))
     }
 }

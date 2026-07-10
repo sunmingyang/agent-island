@@ -4,6 +4,16 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.5.2] - 2026-07-10
+
+### Fixed
+- "Open thread" on a Claude Desktop session brings Claude Desktop forward again instead of popping a Terminal (both platforms). CLI sessions still resume for real via `claude --resume` from the session's own directory — there is no external deep link that lands on an existing Desktop conversation, so app-level focus is the honest ceiling there.
+- App icon rebuilt on Apple's icon grid with transparent margins: no more white corners on macOS 15, no more system backing plate on macOS 26. (Windows .ico was already clean.)
+- Release automation: notes are now reliably taken from this CHANGELOG — the publish step had silently no-op'd since 1.2.3 — and a missing section now fails the release instead of shipping a stub.
+
+### Added
+- Demo mode can render both alarm cards headlessly to PNG (release screenshots without screen-recording permission).
+
 ## [1.5.1] - 2026-07-10
 
 First version-aligned macOS + Windows release: one tag, both platforms, same detection-engine behavior.
