@@ -64,7 +64,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showDemoTurnAlarmIfNeeded() {
         guard AppEnvironment.isDemo,
               let raw = ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_TURN_ALARM"] else { return }
-        let provider: AlertEngine.Provider = raw.lowercased() == "claude" ? .claude : .codex
+        let value = raw.lowercased()
+        // "quota" / "quota-codex" previews the out-of-quota alarm instead of
+        // the finished-turn one (screenshots and launch videos need both).
+        if value.hasPrefix("quota") {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                TurnAlarmWindowController.shared.show(
+                    provider: value.contains("codex") ? .codex : .claude,
+                    thread: nil,
+                    kind: .quotaExhausted(window: .fiveHour, resetAt: Date().addingTimeInterval(2 * 3600 + 7 * 60))
+                )
+            }
+            return
+        }
+        let provider: AlertEngine.Provider = value == "claude" ? .claude : .codex
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 600_000_000)
             let thread = ActivityMonitor.ActiveThread(
