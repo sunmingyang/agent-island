@@ -4,6 +4,15 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.5.3] - 2026-07-10
+
+### Added
+- Settings → Display: "Show remaining instead of used" — every percent readout (usage tiles, peek pills) counts down what's left of a window instead of up what's spent. Both platforms.
+- "Open thread" on a Claude Desktop session now copies the session title to the clipboard (macOS adds a quiet notification), so locating the conversation is one paste in Claude's search — the platform still offers no conversation-level deep link.
+
+### Fixed
+- A provider switched OFF in Settings no longer drives the island's red attention pulse or the out-of-quota alarm. Someone who only runs Claude keeps Codex hidden — its missing login used to pulse red forever. Both platforms.
+
 ## [1.5.2] - 2026-07-10
 
 ### Fixed
