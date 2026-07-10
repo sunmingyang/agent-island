@@ -4,6 +4,12 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.5.4] - 2026-07-10
+
+### Added
+- macOS: opt-in "Hide in Mission Control" (Settings → Display). The island ships pinned through Exposé — right on notched MacBooks where the Spaces bar drops below the housing, wrong on external displays where the bar hugs the top edge and the island covered it. Off by default.
+- Windows: when only one provider is switched on, the island folds the hidden side away and centers the visible logo, animated. On by default; Settings → Display to keep the symmetric layout instead.
+
 ## [1.5.3] - 2026-07-10
 
 ### Added
