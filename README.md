@@ -10,7 +10,7 @@ It lives in your MacBook's notch. Spinning logo = agent working. Alarm = your tu
 
 Works with both notched and non-notched Macs: use the notch-style top bar on MacBooks, or the compact top bar on external displays, iMac, Mac mini, and older MacBooks.
 
-[简体中文](README.zh-CN.md)
+**[agent-island.dev](https://agent-island.dev)** · [简体中文](README.zh-CN.md)
 
 [![Latest release](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
@@ -32,6 +32,7 @@ Works with both notched and non-notched Macs: use the notch-style top bar on Mac
 
 <p>
   <a href="#install"><strong>Install</strong></a> ·
+  <a href="https://agent-island.dev">Website</a> ·
   <a href="https://github.com/tristan666666/agent-island/releases/latest">Latest release</a> ·
   <a href="docs/roadmap.md">Roadmap</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
@@ -118,7 +119,7 @@ Live Claude & Codex 5-hour and weekly usage, cost, and reset countdowns — swip
 
 Native SwiftUI — no Electron. English and 简体中文, switchable in Settings. macOS 13+, universal binary (Apple Silicon + Intel).
 
-Windows is on the roadmap after the macOS status, alarm, and auto-resume flow is stable. See [Roadmap](docs/roadmap.md).
+Windows is here too: [Agent Island for Windows](windows/) is a native WPF port with the same detection engine. More platform notes on [agent-island.dev](https://agent-island.dev).
 
 <!-- launch video: coming soon -->
 

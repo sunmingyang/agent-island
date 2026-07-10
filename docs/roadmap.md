@@ -1,10 +1,11 @@
 # Agent Island Roadmap
 
-Agent Island is focused on one job first: keep Claude Code and Codex status visible on macOS, then bring you back when a run needs input.
+Agent Island is focused on one job first: keep Claude Code and Codex status visible, then bring you back when a run needs input. Website: [agent-island.dev](https://agent-island.dev).
 
 ## Shipping now
 
 - Native macOS top-bar companion for Claude Code, Claude Desktop, Codex CLI, and the Codex app.
+- Agent Island for Windows: a native WPF port with the same detection engine ([windows/](../windows/)).
 - Turn alarms when a background run finishes and needs your reply.
 - Live provider logo states: working, idle, your turn, and needs attention.
 - Claude and Codex usage, reset windows, and cost pages.
@@ -21,7 +22,6 @@ Agent Island is focused on one job first: keep Claude Code and Codex status visi
 
 ## Planned later
 
-- Windows companion mode after the macOS status, alarm, and auto-continue flow is stable.
 - More agent/provider integrations only after Claude and Codex are reliable enough for daily use.
 - More install paths if the project gets enough demand.
 

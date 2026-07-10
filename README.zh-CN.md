@@ -10,7 +10,7 @@
 
 有刘海和无刘海 Mac 都能用：MacBook 可用刘海风格顶部条，外接显示器、iMac、Mac mini、旧款 MacBook 可用紧凑顶部条。
 
-[English](README.md)
+**[agent-island.dev](https://agent-island.dev/zh/)** · [English](README.md)
 
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
@@ -32,6 +32,7 @@
 
 <p>
   <a href="#安装"><strong>安装</strong></a> ·
+  <a href="https://agent-island.dev/zh/">官网</a> ·
   <a href="https://github.com/tristan666666/agent-island/releases/latest">最新 release</a> ·
   <a href="docs/roadmap.md">路线图</a> ·
   <a href="CONTRIBUTING.md">参与贡献</a>
@@ -118,7 +119,7 @@ Claude / Codex 的 5 小时与周用量、成本、重置倒计时 —— 刘海
 
 原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
 
-Windows 版本在路线图中，会在 macOS 的状态提醒和自动继续体验稳定后推进。见 [路线图](docs/roadmap.md)。
+Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测引擎的原生 WPF 移植。更多平台说明见 [agent-island.dev](https://agent-island.dev/zh/)。
 
 <!-- launch video: coming soon -->
 
