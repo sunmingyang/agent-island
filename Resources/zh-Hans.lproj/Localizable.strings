@@ -281,3 +281,9 @@
 "Mission Control" = "调度中心";
 "Hide in Mission Control" = "在调度中心里隐藏";
 "On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations." = "外接显示器没有刘海，空间栏贴着顶边，岛可能会挡住它。开启后，切换空间的动画里岛也会跟着滑动。";
+
+/* 1.5.5 quota display segmented */
+"Quota shows" = "额度显示";
+"Used" = "已用";
+"Remaining" = "剩余";
+"Usage tiles and top-bar percentages follow this." = "用量图和顶栏百分比都跟随这里。";

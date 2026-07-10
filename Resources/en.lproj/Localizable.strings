@@ -273,3 +273,9 @@
 "Mission Control" = "Mission Control";
 "Hide in Mission Control" = "Hide in Mission Control";
 "On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations." = "On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations.";
+
+/* 1.5.5 quota display segmented */
+"Quota shows" = "Quota shows";
+"Used" = "Used";
+"Remaining" = "Remaining";
+"Usage tiles and top-bar percentages follow this." = "Usage tiles and top-bar percentages follow this.";

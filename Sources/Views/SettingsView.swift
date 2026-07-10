@@ -643,12 +643,15 @@ struct SettingsView: View {
                 .padding(.top, 4)
                 .padding(.horizontal, 10)
             SettingsRow(
-                title: "Show remaining instead of used",
-                subtitle: "Percent readouts count down what's left of each window rather than up what's spent."
+                title: "Quota shows",
+                subtitle: "Usage tiles and top-bar percentages follow this."
             ) {
-                SettingsToggle(isOn: quotaMode.showsRemaining) {
-                    quotaMode.showsRemaining.toggle()
-                }
+                SegmentedControl(
+                    items: [false, true],
+                    selected: $quotaMode.showsRemaining,
+                    label: { $0 ? "Remaining" : "Used" },
+                    accessibilityPrefix: "Quota shows"
+                )
             }
         }
         .padding(.horizontal, 14)
