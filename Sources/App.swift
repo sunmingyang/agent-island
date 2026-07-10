@@ -90,6 +90,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ),
                     to: dir + "/quota-alarm.png"
                 )
+                Self.writeAlarmSnapshot(
+                    TurnAlarmView(
+                        provider: .codex, providerName: "Codex", thread: nil,
+                        kind: .quotaExhausted(window: .fiveHour, resetAt: Date().addingTimeInterval(3 * 3600 + 22 * 60)),
+                        dismiss: {}
+                    ),
+                    to: dir + "/quota-alarm-codex.png"
+                )
                 NSApp.terminate(nil)
             }
             return

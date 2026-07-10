@@ -105,7 +105,12 @@ The screenshots at the top are this alarm, one per provider.
 
 Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: the moment a 5-hour or weekly window reaches 100%, a distinct alarm fires with the reset time on it ("Resets at 15:55 (~2h)"). Once per reset cycle, warmup-gated so launching into an already-exhausted window stays silent — on both macOS and Windows.
 
-<img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm with the reset time" width="420">
+<table>
+  <tr>
+    <td align="center"><img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm for Claude with the reset time" width="420"></td>
+    <td align="center"><img src="docs/assets/releases/quota-alarm-codex.png" alt="Out of quota alarm for Codex with the reset time" width="420"></td>
+  </tr>
+</table>
 
 ### 🔁 Auto-resume when the quota resets
 

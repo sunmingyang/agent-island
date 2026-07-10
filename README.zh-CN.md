@@ -105,7 +105,12 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
 
 撞上限流和跑完一轮是两种事件，配得上两种打断：5 小时或周额度窗口一到 100%，会弹一个独立提醒，重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。macOS 和 Windows 都有。
 
-<img src="docs/assets/releases/quota-alarm.png" alt="额度用完弹窗与重置时间" width="420">
+<table>
+  <tr>
+    <td align="center"><img src="docs/assets/releases/quota-alarm.png" alt="Claude 额度用完弹窗与重置时间" width="420"></td>
+    <td align="center"><img src="docs/assets/releases/quota-alarm-codex.png" alt="Codex 额度用完弹窗与重置时间" width="420"></td>
+  </tr>
+</table>
 
 ### 🔁 额度重置后自动续跑
 
