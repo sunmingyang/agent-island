@@ -6,15 +6,16 @@
 
 **Claude Code 和 Codex 的状态伴侣。**
 
-它住在你 MacBook 的刘海里。logo 旋转 = agent 在跑；闹钟响 = 该你了；变红 = 有事要你处理。
+它住在你 MacBook 的刘海里 —— 在 Windows 上则是原生顶部条 / 悬浮小窗。logo 旋转 = agent 在跑；闹钟响 = 该你了；变红 = 有事要你处理。
 
-有刘海和无刘海 Mac 都能用：MacBook 可用刘海风格顶部条，外接显示器、iMac、Mac mini、旧款 MacBook 可用紧凑顶部条。
+Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows 版是同一套检测引擎的原生 WPF 伴侣 —— 据我们所知，Windows 上目前没有第二个这样的东西。
 
 **[agent-island.dev](https://agent-island.dev/zh/)** · [English](README.md)
 
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
 [![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
+[![Windows 10+](https://img.shields.io/badge/Windows-10%2B%20·%20%E5%8E%9F%E7%94%9F%20WPF-0078d4?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
 [![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
 [![已收录 awesome-mac](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README-zh.md#%E8%8F%9C%E5%8D%95%E6%A0%8F%E5%B7%A5%E5%85%B7)
@@ -38,7 +39,7 @@
   <a href="CONTRIBUTING.md">参与贡献</a>
 </p>
 
-<p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多 Mac 用户找到它。</strong></p>
+<p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多在 Mac 和 Windows 上跑这些 agent 的人找到它。</strong></p>
 
 <table>
   <tr>
@@ -76,14 +77,19 @@ Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动
 
 <img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
 
-### 🖥️ 有刘海和无刘海 Mac 都能用
+### 🖥️ Mac 和 Windows 都有它的位置
 
-Agent Island 不只适合有摄像头刘海的 MacBook。你可以在设置里选择：
+Mac 上，Agent Island 不只适合有摄像头刘海的 MacBook。你可以在设置里选择：
 
 - **宽版顶部条**：适合 MacBook 的刘海风格布局。
 - **紧凑顶部条**：适合无刘海 Mac、外接显示器、iMac、Mac mini 和旧款 MacBook。
 
-两种模式都保持原生轻量的顶部状态伴侣体验。
+Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检测引擎，有自己的摆放模式：
+
+- **顶部条** —— 标志性的岛屿造型，居中贴在屏幕顶边。
+- **悬浮小窗** —— 可拖动、记住位置；品牌托盘图标常驻显示用量环和状态色。
+
+无论哪种形态，都是原生轻量伴侣 —— 两个平台都没有 Electron。
 
 ### 🔔 到你回复提醒
 
@@ -91,9 +97,15 @@ Agent Island 不只适合有摄像头刘海的 MacBook。你可以在设置里�
 
 - **回复了就自动消失** —— 你在线程里接上话，闹钟自己收窗，不留死窗口。
 - **多个完成不互吞** —— 几轮同时跑完会排队提醒，关掉一个，下一个接着来。
-- **「回去处理」直达线程** —— Claude Desktop 走 `claude://resume` 深链，Codex App 走 `codex://threads/…`，CLI 会话则在终端里拉起 resume 命令。
+- **「回去处理」带你回去** —— Codex 会话经 `codex://threads/…` 直投正在运行的应用、落在具体线程上；Claude CLI 会话在终端里从会话自己的目录 `claude --resume` 真正续跑；Claude Desktop 会话把 Claude Desktop 带到前台（Claude 没有任何能落到具体对话的外部入口 —— 装作能做到才是骗人）。
 
 顶部那两张截图就是这个闹钟，两家各一张。
+
+### ⛽ 额度用完弹窗
+
+撞上限流和跑完一轮是两种事件，配得上两种打断：5 小时或周额度窗口一到 100%，会弹一个独立提醒，重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。macOS 和 Windows 都有。
+
+<img src="docs/assets/releases/quota-alarm.png" alt="额度用完弹窗与重置时间" width="420">
 
 ### 🔁 额度重置后自动续跑
 
@@ -111,7 +123,7 @@ Agent Island 不只适合有摄像头刘海的 MacBook。你可以在设置里�
 
 ### 📊 用量岛
 
-Claude / Codex 的 5 小时与周用量、成本、重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。
+Claude / Codex 的 5 小时与周用量、成本、重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
 
 <img src="Assets/agent-island-usage.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
 
@@ -193,7 +205,3 @@ open build/AgentIsland.app
 Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入自动续跑、到你回复提醒、实时状态动效，并走出了自己的产品方向。
 
 MIT 许可 —— © 2026 Eric Park，本 fork 保留该声明。见 [LICENSE](LICENSE)。
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=tristan666666/agent-island&type=Date)](https://star-history.com/#tristan666666/agent-island&Date)

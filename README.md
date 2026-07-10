@@ -6,15 +6,16 @@
 
 **A status companion for Claude Code and Codex.**
 
-It lives in your MacBook's notch. Spinning logo = agent working. Alarm = your turn. Red = something needs you.
+It lives in your MacBook's notch — or in a native top bar / floating widget on Windows. Spinning logo = agent working. Alarm = your turn. Red = something needs you.
 
-Works with both notched and non-notched Macs: use the notch-style top bar on MacBooks, or the compact top bar on external displays, iMac, Mac mini, and older MacBooks.
+On the Mac it fits notched and non-notched machines alike (notch-style or compact top bar). On Windows it's a native WPF companion with the same detection engine — as far as we know, the only one of its kind on Windows.
 
 **[agent-island.dev](https://agent-island.dev)** · [简体中文](README.zh-CN.md)
 
 [![Latest release](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
 [![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
+[![Windows 10+](https://img.shields.io/badge/Windows-10%2B%20·%20native%20WPF-0078d4?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
 [![License](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
 [![Listed in awesome-mac](https://img.shields.io/badge/listed%20in-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README.md#menu-bar-tools)
@@ -38,7 +39,7 @@ Works with both notched and non-notched Macs: use the notch-style top bar on Mac
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-<p><strong>If Agent Island saves you one stalled overnight Claude/Codex run, star it so more Mac users can find it.</strong></p>
+<p><strong>If Agent Island saves you one stalled overnight Claude/Codex run, star it so more people running these agents — on Mac or Windows — can find it.</strong></p>
 
 <table>
   <tr>
@@ -76,14 +77,19 @@ The Claude and Codex logos mirror what your sessions are actually doing. Detecti
 
 <img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
 
-### 🖥️ Notched and non-notched Mac layouts
+### 🖥️ Fits your desk — Mac and Windows
 
-Agent Island is not limited to MacBooks with a camera notch. In Settings you can choose:
+On the Mac, Agent Island is not limited to MacBooks with a camera notch. In Settings you can choose:
 
 - **Wide top bar** for MacBook notch-style layouts.
 - **Compact top bar** for non-notched Macs, external displays, iMac, Mac mini, and older MacBooks.
 
-The app still runs as a lightweight native top-bar companion either way.
+On Windows, [Agent Island for Windows](windows/) runs the same detection engine in a native WPF shell, with its own placement modes:
+
+- **Top bar** — the signature island look, centered on the top edge.
+- **Floating widget** — a draggable card that remembers its spot; a brand tray icon shows a usage ring and state color at all times.
+
+Either way it stays a lightweight native companion — no Electron on either platform.
 
 ### 🔔 "It's your turn" alarms
 
@@ -91,9 +97,15 @@ When a turn finishes in a background session, Agent Island opens a foreground al
 
 - **Reply and it goes away** — the alarm auto-dismisses once you answer in the thread; no stale windows.
 - **Nothing gets swallowed** — if several turns finish, alarms queue; dismissing one recalls the next.
-- **Open thread** jumps back to the exact session: Claude Desktop via its `claude://resume` deep link, the Codex app via `codex://threads/…`, and CLI sessions by reopening the resume command in your terminal.
+- **Open thread** takes you back: Codex sessions land on the exact thread via `codex://threads/…` delivered to the running app; Claude CLI sessions resume for real with `claude --resume` from the session's own directory; Claude Desktop sessions bring Claude Desktop to the front (no conversation-level deep link exists — anything more would be pretend).
 
 The screenshots at the top are this alarm, one per provider.
+
+### ⛽ Out-of-quota alarm
+
+Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: the moment a 5-hour or weekly window reaches 100%, a distinct alarm fires with the reset time on it ("Resets at 15:55 (~2h)"). Once per reset cycle, warmup-gated so launching into an already-exhausted window stays silent — on both macOS and Windows.
+
+<img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm with the reset time" width="420">
 
 ### 🔁 Auto-resume when the quota resets
 
@@ -111,7 +123,7 @@ Honest limits: your Mac must be awake, and every resumed run spends tokens. See 
 
 ### 📊 Usage island
 
-Live Claude & Codex 5-hour and weekly usage, cost, and reset countdowns — swipeable pages in the notch, fed by each provider's own usage API.
+Live Claude & Codex 5-hour and weekly usage, cost, and reset countdowns — swipeable pages in the notch, fed by each provider's own usage API. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
 
 <img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
 
@@ -193,7 +205,3 @@ No. Agent Island reads local transcript files and calls the providers' usage API
 Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park** — the usage-island and cost-tracking foundation are his work. Agent Island adds auto-resume, turn alarms, live session-state animations, and its own product direction.
 
 MIT licensed — © 2026 Eric Park. This fork retains that notice. See [LICENSE](LICENSE).
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=tristan666666/agent-island&type=Date)](https://star-history.com/#tristan666666/agent-island&Date)
