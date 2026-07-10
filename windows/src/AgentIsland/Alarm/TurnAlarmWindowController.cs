@@ -11,18 +11,18 @@ public sealed class TurnAlarmWindowController
     private TurnAlarmWindowController() { }
 
     private TurnAlarmWindow? _current;
-    private readonly List<(TriggerTool Provider, ActivityMonitor.ActiveThread? Thread, string DeliveryKey)> _queue = new();
+    private readonly List<(TriggerTool Provider, ActivityMonitor.ActiveThread? Thread, string DeliveryKey, TurnAlarmKind? Kind)> _queue = new();
 
-    public void Show(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey)
+    public void Show(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey, TurnAlarmKind? kind = null)
     {
         if (_current is { } current)
         {
             if (current.DeliveryKey == deliveryKey) return;
             if (_queue.Any(item => item.DeliveryKey == deliveryKey)) return;
-            _queue.Add((provider, thread, deliveryKey));
+            _queue.Add((provider, thread, deliveryKey, kind));
             return;
         }
-        Present(provider, thread, deliveryKey);
+        Present(provider, thread, deliveryKey, kind);
     }
 
     /// The turn left needsYou (user replied, or it aged out): a visible
@@ -36,9 +36,9 @@ public sealed class TurnAlarmWindowController
         }
     }
 
-    private void Present(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey)
+    private void Present(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey, TurnAlarmKind? kind)
     {
-        var window = new TurnAlarmWindow(provider, thread, deliveryKey);
+        var window = new TurnAlarmWindow(provider, thread, deliveryKey, kind);
         window.Dismissed += OnDismissed;
         _current = window;
         window.Show();
@@ -64,7 +64,7 @@ public sealed class TurnAlarmWindowController
                 _queue.Insert(0, next);
                 return;
             }
-            Present(next.Provider, next.Thread, next.DeliveryKey);
+            Present(next.Provider, next.Thread, next.DeliveryKey, next.Kind);
         });
     }
 }

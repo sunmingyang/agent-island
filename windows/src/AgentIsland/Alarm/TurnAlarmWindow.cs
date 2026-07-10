@@ -20,6 +20,7 @@ public sealed class TurnAlarmWindow : Window
     public ActivityMonitor.ActiveThread? Thread { get; }
     public string DeliveryKey { get; }
 
+    private readonly TurnAlarmKind _kind;
     private readonly TurnAlarmSoundLooper _sound = new();
     public event Action<TurnAlarmWindow>? Dismissed;
 
@@ -27,11 +28,18 @@ public sealed class TurnAlarmWindow : Window
     private TextBlock? _error;
     private bool _opening;
 
-    public TurnAlarmWindow(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey)
+    private bool IsExhausted => _kind is TurnAlarmKind.QuotaExhausted;
+
+    public TurnAlarmWindow(
+        TriggerTool provider,
+        ActivityMonitor.ActiveThread? thread,
+        string deliveryKey,
+        TurnAlarmKind? kind = null)
     {
         Provider = provider;
         Thread = thread;
         DeliveryKey = deliveryKey;
+        _kind = kind ?? new TurnAlarmKind.YourTurn();
 
         Width = 520;
         Height = 520;
@@ -42,7 +50,7 @@ public sealed class TurnAlarmWindow : Window
         ShowInTaskbar = true;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Title = Localization.L10n.Tr("It's your turn");
+        Title = Headline();
         System.Windows.Media.TextOptions.SetTextFormattingMode(
             this, System.Windows.Media.TextFormattingMode.Display);
 
@@ -57,16 +65,22 @@ public sealed class TurnAlarmWindow : Window
         // The card IS the jump: press-and-move drags the window, a plain
         // click opens the thread — same click-vs-drag split as the floating
         // island. Buttons swallow their own mouse-down, so this only fires
-        // on the card body.
+        // on the card body. A quota alarm has no thread to open, so its card
+        // only drags.
         MouseLeftButtonDown += async (_, _) =>
         {
+            if (IsExhausted)
+            {
+                DragMoveSafe();
+                return;
+            }
             var startLeft = Left;
             var startTop = Top;
             DragMoveSafe();
             var moved = Math.Abs(Left - startLeft) > 3 || Math.Abs(Top - startTop) > 3;
             if (!moved) await OpenThread();
         };
-        Cursor = Cursors.Hand;
+        if (!IsExhausted) Cursor = Cursors.Hand;
         Loaded += (_, _) => _sound.Start();
         // Every close path must notify the controller — including an
         // OS-initiated close (Alt+F4, taskbar right-click → Close), which
@@ -115,7 +129,7 @@ public sealed class TurnAlarmWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = Localization.L10n.Tr("It's your turn"),
+            Text = Headline(),
             FontFamily = IslandFonts.Ui,
             FontSize = 36,
             FontWeight = FontWeights.Bold,
@@ -123,10 +137,9 @@ public sealed class TurnAlarmWindow : Window
             HorizontalAlignment = HorizontalAlignment.Center,
         });
 
-        var sessionLabel = Thread?.Label is { Length: > 0 } label ? label : Provider.Display();
         stack.Children.Add(new TextBlock
         {
-            Text = Localization.L10n.TrFormat("{0} is waiting", sessionLabel),
+            Text = WaitingTitle(),
             FontFamily = IslandFonts.Ui,
             FontSize = 17,
             FontWeight = FontWeights.Bold,
@@ -139,7 +152,7 @@ public sealed class TurnAlarmWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = Localization.L10n.Tr("The thread finished. Come back and reply."),
+            Text = DetailText(),
             FontFamily = IslandFonts.Ui,
             FontSize = 14,
             FontWeight = FontWeights.Medium,
@@ -148,7 +161,7 @@ public sealed class TurnAlarmWindow : Window
             Margin = new Thickness(0, 8, 0, 0),
         });
 
-        if (AgentReminderStore.Shared.ShowSessionDetails && Thread is { } thread)
+        if (!IsExhausted && AgentReminderStore.Shared.ShowSessionDetails && Thread is { } thread)
         {
             stack.Children.Add(BuildMetadata(thread, tint));
         }
@@ -167,19 +180,70 @@ public sealed class TurnAlarmWindow : Window
             Visibility = Visibility.Collapsed,
         };
 
-        var open = MakePrimaryButton(Localization.L10n.Tr("Open thread"), tint);
-        open.Margin = new Thickness(0, 24, 0, 0);
-        open.Click += async (_, _) => await OpenThread();
-        _openButton = open;
-        stack.Children.Add(open);
+        // A quota alarm has no thread to open — acknowledge is its only action.
+        if (!IsExhausted)
+        {
+            var open = MakePrimaryButton(Localization.L10n.Tr("Open thread"), tint);
+            open.Margin = new Thickness(0, 24, 0, 0);
+            open.Click += async (_, _) => await OpenThread();
+            _openButton = open;
+            stack.Children.Add(open);
+        }
 
         var gotIt = MakeSecondaryButton(Localization.L10n.Tr("I know"));
-        gotIt.Margin = new Thickness(0, 12, 0, 0);
+        gotIt.Margin = new Thickness(0, IsExhausted ? 24 : 12, 0, 0);
         gotIt.Click += (_, _) => Acknowledge();
         stack.Children.Add(gotIt);
         stack.Children.Add(_error);
 
         return root;
+    }
+
+    // MARK: - Kind-dependent copy (the macOS TurnAlarmView computed properties)
+
+    private string Headline() => IsExhausted
+        ? Localization.L10n.Tr("Out of quota")
+        : Localization.L10n.Tr("It's your turn");
+
+    private string WaitingTitle()
+    {
+        if (_kind is TurnAlarmKind.QuotaExhausted quota)
+        {
+            var windowName = quota.Window == QuotaWindowKind.FiveHour
+                ? Localization.L10n.Tr("5-hour limit")
+                : Localization.L10n.Tr("Weekly limit");
+            return $"{Provider.Display()} · {windowName}";
+        }
+        var sessionLabel = Thread?.Label is { Length: > 0 } label ? label : Provider.Display();
+        return Localization.L10n.TrFormat("{0} is waiting", sessionLabel);
+    }
+
+    private string DetailText()
+    {
+        if (_kind is TurnAlarmKind.QuotaExhausted quota)
+        {
+            if (quota.ResetAt is not { } resetAt)
+            {
+                return Localization.L10n.Tr("You're rate-limited for now.");
+            }
+            return ResetDetail(resetAt);
+        }
+        return Localization.L10n.Tr("The thread finished. Come back and reply.");
+    }
+
+    /// "Resets at 15:55 (~2h)" — absolute local time plus a coarse relative
+    /// gap, the macOS resetDetail.
+    private static string ResetDetail(DateTimeOffset resetAt)
+    {
+        var culture = Localization.L10n.IsChinese
+            ? System.Globalization.CultureInfo.GetCultureInfo("zh-CN")
+            : System.Globalization.CultureInfo.CurrentCulture;
+        var clock = resetAt.ToLocalTime().ToString("t", culture);
+        var minutes = Math.Max(1, (int)Math.Round((resetAt - DateTimeOffset.Now).TotalMinutes));
+        var relative = minutes >= 60
+            ? Localization.L10n.TrFormat("~{0}h", minutes / 60)
+            : Localization.L10n.TrFormat("~{0}m", minutes);
+        return Localization.L10n.TrFormat("Resets at {0} ({1})", clock, relative);
     }
 
     /// Jump to the finished thread. Keeps the alarm up and holds focus while
@@ -519,7 +583,12 @@ public sealed class TurnAlarmWindow : Window
 
     private void Acknowledge()
     {
-        AgentReminderCenter.Shared.Acknowledge(Provider, Thread);
+        // Only turn alarms feed the needsYou acknowledge machinery; a quota
+        // alarm has no thread turn to mark as seen.
+        if (_kind is TurnAlarmKind.YourTurn)
+        {
+            AgentReminderCenter.Shared.Acknowledge(Provider, Thread);
+        }
         DismissSilently();
     }
 
