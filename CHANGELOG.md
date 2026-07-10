@@ -4,6 +4,26 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.5.1] - 2026-07-10
+
+First version-aligned macOS + Windows release: one tag, both platforms, same detection-engine behavior.
+
+### Added
+- Out-of-quota alarm: a distinct full-screen alarm the moment a 5-hour or weekly window hits 100%, with the reset time on it. Fires once per reset cycle, warms up on launch, respects the master alarm switch.
+- In-app browser re-auth for Claude: the Re-authenticate button opens the claude.com authorize page in your default browser and finishes via a local loopback callback — no Terminal, no code pasting. The CLI flow remains as fallback.
+- Settings toggle "Alarm on subagent threads" (off by default) on both platforms.
+
+### Fixed
+- Rate-limit / API-error lines in Claude transcripts (`isApiErrorMessage`) no longer fire a false "It's your turn" alarm.
+- Codex subagent (child) threads no longer raise turn alarms or drive the logo by default.
+- "Open thread" reliability: the `codex://` deep link is delivered to the running Codex app instead of a stale duplicate handler; Claude sessions resume via `claude --resume` in a terminal (the `claude://resume` deep link only ever started a new session and is gone).
+- Usage sync can no longer freeze on a wedged fetch — 25s request timeouts plus a loading watchdog.
+- Auto-resume safety: sessions with no recorded project path fail closed instead of being auto-trusted; blocked interval triggers back off a full cycle instead of retrying every minute.
+
+### Changed
+- Cost page hidden by default on both platforms (Settings → Display to re-enable).
+- Windows: brand tray icon with usage ring and state color; simplified placement (top bar or floating widget).
+
 ## [1.4.1] - 2026-07-05
 
 ### Fixed
