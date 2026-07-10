@@ -141,6 +141,12 @@ scoop bucket add agent-island https://github.com/tristan666666/scoop-bucket
 scoop install agent-island/agentisland
 ```
 
+Or via winget:
+
+```powershell
+winget install TristanTang.AgentIsland
+```
+
 or grab the DMG:
 
 Download the DMG, drag AgentIsland into Applications, open it:
