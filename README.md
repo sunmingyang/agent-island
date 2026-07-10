@@ -29,7 +29,7 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
 </a>
 
-<video src="https://github.com/user-attachments/assets/d69b41e0-9298-4f17-b6c9-6014f3bd956b" controls width="900"></video>
+<video src="https://github.com/user-attachments/assets/2c482580-e9c3-4753-96af-f97033b5b0e1" controls width="900"></video>
 
 <p>
   <a href="#install"><strong>Install</strong></a> ·
