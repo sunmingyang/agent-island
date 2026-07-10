@@ -17,18 +17,19 @@ their tabs and title-bar buttons exactly where a top-center island sits,
 and the taskbar can be docked to any edge. So the Windows port makes
 placement a user choice instead of a fixed constant:
 
-- **Edge** — `Top` (default, the signature look) or `Bottom` (sits on the
-  work area, i.e. just above a bottom taskbar; the whole layout mirrors:
-  bar strip against the edge, panel grows upward, corners round away from
-  the edge).
-- **Alignment** — `Left` / `Center` (default) / `Right` along that edge,
-  with a 16 DIP inset on the sides. Left/right keep the island clear of
-  browser tabs and caption buttons.
-- Both live in `Model/IslandPositionStore.cs` (`AgentIsland.islandEdge`,
-  `AgentIsland.islandAlignment`) and are exposed in Settings → Display →
-  Position. Sides of the screen (vertical edges) were considered and
-  rejected: the island is a wide horizontal bar that morphs into an
-  800-DIP panel; a vertical-edge layout is a different product.
+- **Top bar** — the signature Mac look, centered against the top edge
+  (flat top corners). Best on screens where nothing is maximized under it.
+- **Floating window** (default fallback for retired modes) — a draggable
+  widget that remembers its spot and clamps to the work area. Because there
+  is no camera housing to mimic, the 200 DIP notch-lookalike center gap
+  tightens to a 64 DIP spacer in this mode (`UI/IslandModel.cs`,
+  `NotchWidth`).
+- The choice lives in `Model/IslandPositionStore.cs`
+  (`AgentIsland.islandPlacement`) and is exposed in Settings → Display →
+  Position. Bottom bar, tray-dock, edge/alignment, and vertical-rail
+  variants were shipped experimentally and retired: Win11 cannot embed
+  custom UI into the taskbar, and the extra modes read as clutter. Old
+  preference values migrate to Floating.
 
 Placement resolves the target monitor from the Settings → Screen picker
 (`Model/IslandTargetDisplayStore.cs`), converts the WinForms physical-pixel

@@ -85,20 +85,10 @@ public partial class IslandWindow : Window
         {
             ApplyEdgeLayout();
             PositionOnScreen();
-            // Tray mode is icon-first: the island hides and only pops up on a
-            // tray click. Switching away brings it back.
-            if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Tray) Hide();
-            else Show();
         });
         Model.IslandPositionStore.Shared.PropertyChanged += onPlacement;
         _teardown.Add(() => Model.IslandPositionStore.Shared.PropertyChanged -= onPlacement);
         Closed += (_, _) => { foreach (var teardown in _teardown) teardown(); };
-        // In tray mode, clicking elsewhere dismisses the popped-up island so
-        // it behaves like a tray flyout.
-        Deactivated += (_, _) =>
-        {
-            if (Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Tray) Hide();
-        };
 
         ApplySizeInstant();
         BuildExpandedChrome();
@@ -332,86 +322,41 @@ public partial class IslandWindow : Window
         }
     }
 
-    /// Transparent canvas kept on an anchored side so the halo glow (blur
-    /// radius up to 22 while pulsing) never clips at the window boundary.
-    private const double HaloBleed = 28;
-
-    /// Which screen edge the island's flat side faces. Floating faces none.
-    private enum DockEdge { Top, Bottom, None }
-
-    private DockEdge CurrentEdge() => Model.IslandPositionStore.Shared.Placement switch
-    {
-        Model.IslandPlacement.BottomBar or Model.IslandPlacement.Tray => DockEdge.Bottom,
-        Model.IslandPlacement.Floating => DockEdge.None,
-        _ => DockEdge.Top,
-    };
+    private bool IsFloating =>
+        Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating;
 
     private void PositionOnScreen()
     {
         var area = WorkAreaDip(Model.IslandTargetDisplayStore.Shared.Resolve());
         var store = Model.IslandPositionStore.Shared;
-        switch (store.Placement)
+        if (store.Placement == Model.IslandPlacement.Floating)
         {
-            case Model.IslandPlacement.Floating:
-                var pt = store.FloatingPoint;
-                if (pt is { } p)
-                {
-                    // Clamp the VISIBLE silhouette (not the oversized
-                    // transparent canvas) so the island can be parked right
-                    // at a screen edge; the canvas simply overhangs off-screen.
-                    var silW = Silhouette.ActualWidth > 0 ? Silhouette.ActualWidth : 280;
-                    var silH = Silhouette.ActualHeight > 0 ? Silhouette.ActualHeight : IslandModel.SilhouetteHeight;
-                    var insetX = (Width - silW) / 2; // silhouette is centered in the canvas
-                    var minLeft = area.Left - insetX;
-                    var maxLeft = area.Right - silW - insetX;
-                    var maxTop = area.Bottom - silH;
-                    Left = Math.Clamp(p.X, minLeft, Math.Max(minLeft, maxLeft));
-                    Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, maxTop));
-                }
-                else
-                {
-                    Left = area.Left + (area.Width - Width) / 2;
-                    Top = area.Top + 72;
-                }
-                break;
-            case Model.IslandPlacement.Tray:
-                // Sit OVER the taskbar (full screen bounds, not the work
-                // area) at the bottom-right, just left of the notification
-                // area — Win11 doesn't allow embedding into the taskbar, so
-                // a topmost overlay is the closest "in the bottom bar" spot.
-                var full = ScreenBoundsDip(Model.IslandTargetDisplayStore.Shared.Resolve());
-                Left = full.Right - Width - TrayNotificationInset;
-                Top = full.Bottom - Height;
-                break;
-            case Model.IslandPlacement.BottomBar:
+            var pt = store.FloatingPoint;
+            if (pt is { } p)
+            {
+                // Clamp the VISIBLE silhouette (not the oversized
+                // transparent canvas) so the island can be parked right
+                // at a screen edge; the canvas simply overhangs off-screen.
+                var silW = Silhouette.ActualWidth > 0 ? Silhouette.ActualWidth : 280;
+                var silH = Silhouette.ActualHeight > 0 ? Silhouette.ActualHeight : IslandModel.SilhouetteHeight;
+                var insetX = (Width - silW) / 2; // silhouette is centered in the canvas
+                var minLeft = area.Left - insetX;
+                var maxLeft = area.Right - silW - insetX;
+                var maxTop = area.Bottom - silH;
+                Left = Math.Clamp(p.X, minLeft, Math.Max(minLeft, maxLeft));
+                Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, maxTop));
+            }
+            else
+            {
                 Left = area.Left + (area.Width - Width) / 2;
-                Top = area.Bottom - Height;
-                break;
-            case Model.IslandPlacement.TopBar:
-            default:
-                Left = area.Left + (area.Width - Width) / 2;
-                Top = area.Top;
-                break;
+                Top = area.Top + 72;
+            }
         }
-    }
-
-    /// Room reserved on the right for the Win11 notification area (clock,
-    /// tray icons) so the Tray overlay doesn't cover them.
-    private const double TrayNotificationInset = 200;
-
-    /// Full monitor bounds (taskbar INCLUDED) in DIP — used by Tray mode to
-    /// overlay the bottom bar.
-    private Rect ScreenBoundsDip(System.Windows.Forms.Screen screen)
-    {
-        var b = screen.Bounds;
-        if (PresentationSource.FromVisual(this)?.CompositionTarget is { } target)
+        else
         {
-            var device = target.TransformFromDevice;
-            return new Rect(
-                device.Transform(new Point(b.Left, b.Top)),
-                device.Transform(new Point(b.Right, b.Bottom)));
+            Left = area.Left + (area.Width - Width) / 2;
+            Top = area.Top;
         }
-        return new Rect(b.Left, b.Top, b.Width, b.Height);
     }
 
     /// The chosen monitor's work area (taskbar excluded, so a top-docked
@@ -434,72 +379,25 @@ public partial class IslandWindow : Window
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(PositionOnScreen);
 
-    /// Rounded corners face away from the docked edge; the flat side sits
-    /// flush against it. A floating island rounds all four corners.
-    private CornerRadius ShapeRadius(double radius) => CurrentEdge() switch
-    {
-        DockEdge.Bottom => new CornerRadius(radius, radius, 0, 0),
-        DockEdge.None => new CornerRadius(radius),
-        _ => new CornerRadius(0, 0, radius, radius),
-    };
+    /// Top bar sits flush against the screen edge, so only its bottom
+    /// corners round; a floating island rounds all four.
+    private CornerRadius ShapeRadius(double radius) => IsFloating
+        ? new CornerRadius(radius)
+        : new CornerRadius(0, 0, radius, radius);
 
     /// Hidden panel content parks 8px toward the bar strip so the expand
-    /// reveal always slides away from the docked edge.
-    private double PanelRestOffset() => CurrentEdge() == DockEdge.Bottom ? 8 : -8;
+    /// reveal always slides down and away from it.
+    private const double PanelRestY = -8;
 
-    /// Re-anchors the silhouette for the current placement: a bottom edge
-    /// (BottomBar/Tray) mirrors the layout so the strip hugs the taskbar and
-    /// the panel grows upward; Tray pins bottom-right; Floating rounds all
-    /// corners and sits where the user dragged it.
+    /// Re-shapes the silhouette corners for the current placement.
     private void ApplyEdgeLayout()
     {
-        var store = Model.IslandPositionStore.Shared;
-        var edge = CurrentEdge();
-        var bottom = edge == DockEdge.Bottom;
-
-        FirstRow.Height = bottom
-            ? new GridLength(1, GridUnitType.Star)
-            : new GridLength(IslandModel.SilhouetteHeight);
-        SecondRow.Height = bottom
-            ? new GridLength(IslandModel.SilhouetteHeight)
-            : new GridLength(1, GridUnitType.Star);
-        System.Windows.Controls.Grid.SetRow(TopStrip, bottom ? 1 : 0);
-        System.Windows.Controls.Grid.SetRow(ExpandedContent, bottom ? 0 : 1);
-        System.Windows.Controls.Grid.SetRow(SettingsGear, bottom ? 0 : 1);
-        SettingsGear.VerticalAlignment = bottom ? VerticalAlignment.Top : VerticalAlignment.Bottom;
-        SettingsGear.Margin = bottom ? new Thickness(12, 11, 0, 0) : new Thickness(12, 0, 0, 11);
-
-        // Where the silhouette sits inside the oversized transparent canvas.
-        // Bars center; Tray hugs the right so it lands by the notification area.
-        var horizontal = store.Placement == Model.IslandPlacement.Tray
-            ? HorizontalAlignment.Right
-            : HorizontalAlignment.Center;
-        var vertical = bottom ? VerticalAlignment.Bottom : VerticalAlignment.Top;
-        Silhouette.HorizontalAlignment = horizontal;
-        Silhouette.VerticalAlignment = vertical;
-        Silhouette.Margin = new Thickness(
-            horizontal == HorizontalAlignment.Left ? HaloBleed : 0, 0,
-            horizontal == HorizontalAlignment.Right ? HaloBleed : 0, 0);
-        Sweep.HorizontalAlignment = horizontal;
-        Sweep.VerticalAlignment = vertical;
-        // The ring is 4px larger than the silhouette: -2 keeps it concentric
-        // on anchored sides and rides half its stroke outside the flush edge.
-        Sweep.Margin = new Thickness(
-            horizontal == HorizontalAlignment.Left ? HaloBleed - 2 : 0,
-            bottom ? 0 : -2,
-            horizontal == HorizontalAlignment.Right ? HaloBleed - 2 : 0,
-            bottom ? -2 : 0);
-
         Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
         Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
-        if (RootHost.Effect is System.Windows.Media.Effects.DropShadowEffect shadow)
-        {
-            shadow.Direction = bottom ? 90 : 270;
-        }
         if (_model.State != IslandState.Expanded)
         {
             ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
-            ContentSlide.Y = PanelRestOffset();
+            ContentSlide.Y = PanelRestY;
         }
     }
 
@@ -566,8 +464,7 @@ public partial class IslandWindow : Window
         e.Handled = true;
     }
 
-    /// Bring the island up and open it — the tray-icon launcher. Re-positions
-    /// first so a tray/bottom placement lands by the tray where the click was.
+    /// Bring the island up and open it — the tray-icon launcher.
     public void PopUp()
     {
         Show();
@@ -635,8 +532,8 @@ public partial class IslandWindow : Window
                 Opacity = 0.5,
                 BlurRadius = 20,
                 ShadowDepth = 10,
-                // Grounding shadow falls away from the docked edge.
-                Direction = CurrentEdge() == DockEdge.Bottom ? 90 : 270,
+                // Grounding shadow falls downward, away from the bar strip.
+                Direction = 270,
             }
             : null;
 
@@ -765,7 +662,7 @@ public partial class IslandWindow : Window
                 ExpandedContent.Visibility = Visibility.Collapsed;
                 SettingsGear.Visibility = Visibility.Collapsed;
                 ContentSlide.BeginAnimation(TranslateTransform.YProperty, null);
-                ContentSlide.Y = PanelRestOffset();
+                ContentSlide.Y = PanelRestY;
             }
         };
         ExpandedContent.BeginAnimation(OpacityProperty, fade);

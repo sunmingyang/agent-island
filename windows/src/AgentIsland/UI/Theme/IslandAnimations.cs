@@ -43,8 +43,10 @@ public static class IslandAnimations
 
     public static IEasingFunction PageSwipe() => MakeBezier(0.25, 0.82, 0.25, 1);
 
-    /// Working-logo spin: one revolution per 3.8s, linear.
-    public static readonly Duration SpinDuration = new(TimeSpan.FromSeconds(3.8));
+    /// Working-logo spin: one revolution per 1.8s, linear. Faster than the
+    /// macOS 3.8s on purpose — at 20px both brand marks are close to
+    /// rotationally symmetric, and the slower rate reads as a static logo.
+    public static readonly Duration SpinDuration = new(TimeSpan.FromSeconds(1.8));
 
     /// Working breath: scale 1.0-1.05, ease-in-out, 1.7s each direction.
     public static readonly Duration WorkingBreathDuration = new(TimeSpan.FromSeconds(1.7));

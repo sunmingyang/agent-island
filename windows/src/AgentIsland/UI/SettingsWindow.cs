@@ -602,15 +602,11 @@ public sealed class SettingsWindow : Window
             display));
 
         // 位置 — no notch reserves the top-center on Windows, so placement is
-        // a user choice with several native-feeling modes.
+        // a user choice: the Mac-style top bar or a draggable floating widget.
         stack.Children.Add(SectionLabel("Position"));
         var position = IslandPositionStore.Shared;
 
-        var placements = new[]
-        {
-            IslandPlacement.TopBar, IslandPlacement.BottomBar,
-            IslandPlacement.Floating, IslandPlacement.Tray,
-        };
+        var placements = new[] { IslandPlacement.TopBar, IslandPlacement.Floating };
         var placementBox = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
         foreach (var mode in placements) placementBox.Items.Add(PlacementLabel(mode));
         placementBox.SelectedIndex = Math.Max(0, Array.IndexOf(placements, position.Placement));
@@ -623,18 +619,8 @@ public sealed class SettingsWindow : Window
         };
         stack.Children.Add(new SettingsRowControl(
             "Island position",
-            "Top or bottom bar, a free-floating widget you drag anywhere, or tucked into the taskbar.",
+            "A bar at the top of the screen, or a floating widget you drag anywhere.",
             placementBox));
-
-        stack.Children.Add(new TextBlock
-        {
-            Text = L10n.Tr("Floating: drag the island to move it. Taskbar: sits over the bottom bar by the tray."),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            Foreground = IslandColors.Brush(IslandColors.White(0.4)),
-            Margin = new Thickness(10, 2, 10, 6),
-            TextWrapping = TextWrapping.Wrap,
-        });
 
         return stack;
     }
@@ -642,9 +628,7 @@ public sealed class SettingsWindow : Window
     private static string PlacementLabel(IslandPlacement mode) => mode switch
     {
         IslandPlacement.TopBar => L10n.Tr("Top bar"),
-        IslandPlacement.BottomBar => L10n.Tr("Bottom bar"),
         IslandPlacement.Floating => L10n.Tr("Floating window"),
-        IslandPlacement.Tray => L10n.Tr("By the tray"),
         _ => mode.ToString(),
     };
 

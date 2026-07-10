@@ -23,6 +23,10 @@ public sealed class TurnAlarmWindow : Window
     private readonly TurnAlarmSoundLooper _sound = new();
     public event Action<TurnAlarmWindow>? Dismissed;
 
+    private System.Windows.Controls.Button? _openButton;
+    private TextBlock? _error;
+    private bool _opening;
+
     public TurnAlarmWindow(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey)
     {
         Provider = provider;
@@ -50,7 +54,19 @@ public sealed class TurnAlarmWindow : Window
         {
             if (args.Key == Key.Escape) Acknowledge();
         };
-        MouseLeftButtonDown += (_, _) => DragMoveSafe();
+        // The card IS the jump: press-and-move drags the window, a plain
+        // click opens the thread — same click-vs-drag split as the floating
+        // island. Buttons swallow their own mouse-down, so this only fires
+        // on the card body.
+        MouseLeftButtonDown += async (_, _) =>
+        {
+            var startLeft = Left;
+            var startTop = Top;
+            DragMoveSafe();
+            var moved = Math.Abs(Left - startLeft) > 3 || Math.Abs(Top - startTop) > 3;
+            if (!moved) await OpenThread();
+        };
+        Cursor = Cursors.Hand;
         Loaded += (_, _) => _sound.Start();
         // Every close path must notify the controller — including an
         // OS-initiated close (Alt+F4, taskbar right-click → Close), which
@@ -137,7 +153,7 @@ public sealed class TurnAlarmWindow : Window
             stack.Children.Add(BuildMetadata(thread, tint));
         }
 
-        var error = new TextBlock
+        _error = new TextBlock
         {
             FontFamily = IslandFonts.Ui,
             FontSize = 12,
@@ -153,36 +169,43 @@ public sealed class TurnAlarmWindow : Window
 
         var open = MakePrimaryButton(Localization.L10n.Tr("Open thread"), tint);
         open.Margin = new Thickness(0, 24, 0, 0);
-        open.Click += async (_, _) =>
-        {
-            if (Thread is not { } target) { Acknowledge(); return; }
-            // Keep the alarm up and hold focus while the resume launches
-            // (CLILocator can take a beat), then acknowledge/close only on a
-            // real launch. On failure, surface it in place instead of the old
-            // silent vanish with nothing opened.
-            open.IsEnabled = false;
-            error.Visibility = Visibility.Collapsed;
-            var launched = await TurnAlarmNavigator.Open(Provider, target);
-            if (launched)
-            {
-                Acknowledge();
-            }
-            else
-            {
-                open.IsEnabled = true;
-                error.Text = Localization.L10n.Tr("Couldn't open the thread — is the claude/codex CLI on your PATH?");
-                error.Visibility = Visibility.Visible;
-            }
-        };
+        open.Click += async (_, _) => await OpenThread();
+        _openButton = open;
         stack.Children.Add(open);
 
         var gotIt = MakeSecondaryButton(Localization.L10n.Tr("I know"));
         gotIt.Margin = new Thickness(0, 12, 0, 0);
         gotIt.Click += (_, _) => Acknowledge();
         stack.Children.Add(gotIt);
-        stack.Children.Add(error);
+        stack.Children.Add(_error);
 
         return root;
+    }
+
+    /// Jump to the finished thread. Keeps the alarm up and holds focus while
+    /// the resume launches (CLILocator can take a beat), then acknowledges /
+    /// closes only on a real launch; a failure surfaces in place instead of
+    /// the old silent vanish with nothing opened.
+    private async Task OpenThread()
+    {
+        if (_opening) return;
+        if (Thread is not { } target) { Acknowledge(); return; }
+        _opening = true;
+        if (_openButton is { } button) button.IsEnabled = false;
+        if (_error is { } error) error.Visibility = Visibility.Collapsed;
+        var launched = await TurnAlarmNavigator.Open(Provider, target);
+        _opening = false;
+        if (launched)
+        {
+            Acknowledge();
+            return;
+        }
+        if (_openButton is { } retry) retry.IsEnabled = true;
+        if (_error is { } message)
+        {
+            message.Text = Localization.L10n.Tr("Couldn't open the thread — is the claude/codex CLI on your PATH?");
+            message.Visibility = Visibility.Visible;
+        }
     }
 
     /// The breathing backdrop of the macOS alarm: a radial provider-color

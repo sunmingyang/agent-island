@@ -4,18 +4,14 @@ using AgentIsland.Core;
 namespace AgentIsland.Model;
 
 /// How and where the island sits on screen. Windows has no notch reserving
-/// the top-center, so placement is a user choice with several native-feeling
-/// modes, unlike macOS which always pins top-center over the notch.
+/// the top-center, so placement is a user choice, unlike macOS which always
+/// pins top-center over the notch.
 public enum IslandPlacement
 {
     /// Horizontal bar hugging the top edge (the Mac look).
     TopBar,
-    /// Horizontal bar on the bottom work-area edge, above the taskbar.
-    BottomBar,
     /// A free-floating widget the user drags anywhere; its position sticks.
     Floating,
-    /// Docked into the bottom-right corner beside the notification tray.
-    Tray,
 }
 
 /// Persisted island placement. Windows-only concept, hence the AgentIsland.
@@ -38,16 +34,21 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
 
     private IslandPositionStore()
     {
-        if (Enum.TryParse<IslandPlacement>(Preferences.Get<string?>(PlacementKey), out var placement))
+        var raw = Preferences.Get<string?>(PlacementKey);
+        if (Enum.TryParse<IslandPlacement>(raw, out var placement))
         {
             _placement = placement;
         }
+        else if (raw is "BottomBar" or "Tray"
+            || Preferences.Get<string?>(LegacyEdgeKey) == "Bottom")
+        {
+            // Retired modes (bottom bar, tray dock, bottom edge) fold into
+            // the surviving out-of-the-way choice.
+            _placement = IslandPlacement.Floating;
+        }
         else
         {
-            // Migrate the old Top/Bottom edge choice into the new modes.
-            _placement = Preferences.Get<string?>(LegacyEdgeKey) == "Bottom"
-                ? IslandPlacement.BottomBar
-                : IslandPlacement.TopBar;
+            _placement = IslandPlacement.TopBar;
         }
         _floatX = Preferences.Get<double?>(FloatXKey);
         _floatY = Preferences.Get<double?>(FloatYKey);

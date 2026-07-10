@@ -51,6 +51,9 @@ public sealed class IslandModel : INotifyPropertyChanged
         // bar-style choice is gone: the bar is always the wide layout
         // (any previously persisted choice is ignored).
         _spacingMode = IslandSpacingMode.NotchStyle;
+        // The center gap depends on placement (see NotchWidth); re-emit Size
+        // so the silhouette re-measures the moment the mode flips.
+        Model.IslandPositionStore.Shared.PropertyChanged += (_, _) => Raise(nameof(Size));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -94,7 +97,14 @@ public sealed class IslandModel : INotifyPropertyChanged
         }
     }
 
-    public double NotchWidth => _spacingMode == IslandSpacingMode.NotchStyle ? 200 : 100;
+    /// The black center region between the logo tabs. The 200 gap is a notch
+    /// lookalike and only makes sense when the bar hugs the top edge like a
+    /// Mac menu bar; a floating island has no camera housing to mimic, so it
+    /// tightens to a compact spacer.
+    public double NotchWidth =>
+        Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating
+            ? 64
+            : (_spacingMode == IslandSpacingMode.NotchStyle ? 200 : 100);
 
     public Size Size => _state switch
     {
