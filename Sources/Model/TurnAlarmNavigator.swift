@@ -76,25 +76,36 @@ enum TurnAlarmNavigator {
         return raw
     }
 
+    private static let claudeBundleID = "com.anthropic.claudefordesktop"
+
     private static func openClaude(thread: ActivityMonitor.ActiveThread?) {
-        // There is NO deep link that resumes a Claude session by id —
-        // `claude://resume?sessionId=…` is not a real endpoint (Claude Desktop
-        // only registers `claude://…/new`, the CLI registers `claude-cli://open`,
-        // both of which start a NEW session). Routing .claudeDesktop sessions
-        // there just surfaced the app on its default view and never resumed the
-        // thread. Resume the way the auto-trigger engine already does and knows
-        // works, for every Claude session regardless of launch target:
-        // `claude --resume <id>` in a terminal from the session's cwd. Bringing
-        // the desktop app forward is only a last resort when no CLI is found.
+        // Split by where the session actually lives:
+        //
+        // - Desktop sessions: bring Claude Desktop to the front, nothing more.
+        //   There is NO deep link that lands on an existing conversation —
+        //   `claude://resume?sessionId=…` is not a real endpoint (Desktop only
+        //   registers `claude://…/new`, the CLI registers `claude-cli://open`,
+        //   both of which start a NEW session). 1.5.1 briefly resumed these in
+        //   a Terminal via `claude --resume`, which does continue the thread —
+        //   but a Desktop user clicking "Open thread" expects their Desktop
+        //   window, and a Terminal popping up reads as a wrong jump.
+        //
+        // - CLI sessions: resume for real, the way the auto-trigger engine
+        //   does — `claude --resume <id>` in a terminal from the session's
+        //   own cwd. That user lives in a terminal already.
+        if thread?.launchTarget == .claudeDesktop {
+            activate(bundleIdentifier: claudeBundleID)
+            return
+        }
         if let thread, openCLIResume(
             executable: "claude",
             arguments: ["--resume", thread.sessionId],
             thread: thread,
-            fallbackBundleID: "com.anthropic.claudefordesktop"
+            fallbackBundleID: claudeBundleID
         ) {
             return
         }
-        activate(bundleIdentifier: "com.anthropic.claudefordesktop")
+        activate(bundleIdentifier: claudeBundleID)
     }
 
     private static func activate(bundleIdentifier: String) {

@@ -33,6 +33,16 @@ public static class TurnAlarmNavigator
 
         if (provider == TriggerTool.Claude)
         {
+            // Desktop sessions: bring Claude Desktop forward, nothing more —
+            // there is no deep link that lands on an existing conversation,
+            // and a Desktop user clicking "Open thread" expects their Desktop
+            // window, not a terminal popping up (mirrors the macOS split).
+            // CLI sessions: resume for real via `claude --resume` from the
+            // session's own cwd; that user lives in a terminal already.
+            if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop)
+            {
+                return System.Threading.Tasks.Task.Run(() => FocusAppWindow("claude"));
+            }
             return System.Threading.Tasks.Task.Run(() =>
             {
                 if (Trigger.CLILocator.Locate("claude") is { } claude)
