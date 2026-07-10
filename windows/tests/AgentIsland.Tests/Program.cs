@@ -27,6 +27,7 @@ public static class Program
             SessionTurnStateTests.RunAll();
             SubagentFilterTests.RunAll();
             UsageExhaustionAlarmTests.RunAll();
+            SoloCenterLayoutTests.RunAll();
             UsageCachePolicyTests.RunAll();
             ReminderDeliveryKeyTests.RunAll();
             SecurityGuardTests.RunAll();

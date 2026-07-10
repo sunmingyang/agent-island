@@ -116,18 +116,18 @@ public partial class IslandWindow : Window
         Model.AlertEngine.Shared.PropertyChanged += onAlert;
         _teardown.Add(() => Model.AlertEngine.Shared.PropertyChanged -= onAlert);
 
-        // Bar-width change (Settings → Display) resizes the silhouette live
-        // when it's not expanded; provider visibility hides a side entirely.
-        // _model is the IslandModel singleton, so this too must be torn down.
+        // Live layout changes (Settings bar width, provider visibility, solo
+        // centering, placement) reflow the collapsed bar with the open
+        // spring — everything but state transitions, which SetState drives
+        // itself. _model is the IslandModel singleton, so this too must be
+        // torn down.
         System.ComponentModel.PropertyChangedEventHandler onModel = (_, args) =>
         {
-            if (args.PropertyName == nameof(IslandModel.Size))
+            if (args.PropertyName != nameof(IslandModel.Size) || _stateDrivenResize) return;
+            Dispatcher.BeginInvoke(() =>
             {
-                Dispatcher.BeginInvoke(() =>
-                {
-                    if (_model.State != IslandState.Expanded) ApplySizeInstant();
-                });
-            }
+                if (_model.State != IslandState.Expanded) AnimateBarMetrics();
+            });
         };
         _model.PropertyChanged += onModel;
         _teardown.Add(() => _model.PropertyChanged -= onModel);
@@ -139,8 +139,8 @@ public partial class IslandWindow : Window
 
         System.ComponentModel.PropertyChangedEventHandler onAlwaysShow = (_, _) => Dispatcher.BeginInvoke(() =>
         {
+            // The Size re-emit lands in onModel, which animates the reflow.
             _model.NotifyAlwaysShowUsageChanged();
-            if (_model.State != IslandState.Expanded) ApplySizeInstant();
             UpdatePills();
         });
         AlwaysShowUsageStore.Shared.PropertyChanged += onAlwaysShow;
@@ -507,16 +507,24 @@ public partial class IslandWindow : Window
         }
     }
 
+    /// True while SetState mutates the model — its Size re-emit must not
+    /// ALSO trigger the live-reflow path (SetState animates everything
+    /// itself with the state-appropriate spring).
+    private bool _stateDrivenResize;
+
     private void SetState(IslandState state)
     {
         var previous = _model.State;
         if (previous == state) return;
+        _stateDrivenResize = true;
         _model.State = state;
+        _stateDrivenResize = false;
 
         var open = state != IslandState.Compact
             && (previous == IslandState.Compact || state == IslandState.Expanded);
         AnimateSize(_model.Size, open);
         AnimatePillSlots(open);
+        AnimateTabColumns(open);
         Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
         Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
 
@@ -576,42 +584,81 @@ public partial class IslandWindow : Window
         Silhouette.Height = size.Height;
         Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
         Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
-        LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
-        RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
-        var slot = new GridLength(PillSlotTarget());
-        LeftPillColumn.Width = slot;
-        RightPillColumn.Width = slot;
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        SetColumnInstant(LeftPillColumn, PillSlotTarget(visibility.ClaudeVisible));
+        SetColumnInstant(RightPillColumn, PillSlotTarget(visibility.CodexVisible));
+        SetColumnInstant(ClaudeTabColumn, TabColumnTarget(visibility.ClaudeVisible));
+        SetColumnInstant(CodexTabColumn, TabColumnTarget(visibility.CodexVisible));
+    }
+
+    private static void SetColumnInstant(System.Windows.Controls.ColumnDefinition column, double width)
+    {
+        column.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, null);
+        column.Width = new GridLength(width);
+    }
+
+    /// Morph the collapsed bar to the model's current metrics — silhouette,
+    /// pill slots, and tab columns — with the open spring. Drives live
+    /// layout changes (provider visibility, solo centering, placement, bar
+    /// width) so the bar reflows instead of snapping.
+    private void AnimateBarMetrics()
+    {
+        AnimateSize(_model.Size, open: true);
+        AnimatePillSlots(open: true);
+        AnimateTabColumns(open: true);
     }
 
     /// Pill slots exist in peek — and in compact when "always show usage"
     /// keeps the percentages painted; they collapse in expanded so the logo
-    /// tabs glide out to the panel corners.
-    private double PillSlotTarget() => _model.State switch
+    /// tabs glide out to the panel corners. A solo-centered bar keeps the
+    /// hidden provider's slot at zero in every state.
+    private double PillSlotTarget(bool providerVisible)
     {
-        IslandState.Peek => IslandModel.PillSlotWidth,
-        IslandState.Compact when AlwaysShowUsageStore.Shared.Enabled => IslandModel.PillSlotWidth,
-        _ => 0,
-    };
+        if (_model.SoloCentering && !providerVisible) return 0;
+        return _model.State switch
+        {
+            IslandState.Peek => IslandModel.PillSlotWidth,
+            IslandState.Compact when AlwaysShowUsageStore.Shared.Enabled => IslandModel.PillSlotWidth,
+            _ => 0,
+        };
+    }
+
+    /// Logo tab columns are fixed 38 in the symmetric layout. Solo centering
+    /// collapses the hidden side and widens the survivor by the solo gap, so
+    /// the lone mark sits dead center of the narrowed silhouette (the star
+    /// gap column collapses to zero on its own).
+    private double TabColumnTarget(bool providerVisible)
+    {
+        if (!_model.SoloCentering) return IslandModel.TabWidth;
+        return providerVisible ? IslandModel.TabWidth + IslandModel.SoloGap : 0;
+    }
 
     private void AnimatePillSlots(bool open)
     {
-        var duration = open ? IslandAnimations.OpenMorphDuration : IslandAnimations.CloseMorphDuration;
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        AnimateColumn(LeftPillColumn, PillSlotTarget(visibility.ClaudeVisible), open);
+        AnimateColumn(RightPillColumn, PillSlotTarget(visibility.CodexVisible), open);
+    }
+
+    private void AnimateTabColumns(bool open)
+    {
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        AnimateColumn(ClaudeTabColumn, TabColumnTarget(visibility.ClaudeVisible), open);
+        AnimateColumn(CodexTabColumn, TabColumnTarget(visibility.CodexVisible), open);
+    }
+
+    private static void AnimateColumn(System.Windows.Controls.ColumnDefinition column, double target, bool open)
+    {
         var animation = new GridLengthAnimation
         {
-            From = LeftPillColumn.Width,
-            To = new GridLength(PillSlotTarget()),
-            Duration = duration,
+            From = column.Width,
+            To = new GridLength(target),
+            Duration = open ? IslandAnimations.OpenMorphDuration : IslandAnimations.CloseMorphDuration,
             EasingFunction = open ? IslandAnimations.OpenMorph() : IslandAnimations.CloseMorph(),
             FillBehavior = FillBehavior.Stop,
         };
-        animation.Completed += (_, _) =>
-        {
-            var final = new GridLength(PillSlotTarget());
-            LeftPillColumn.Width = final;
-            RightPillColumn.Width = final;
-        };
-        LeftPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, animation);
-        RightPillColumn.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, animation.Clone());
+        animation.Completed += (_, _) => column.Width = new GridLength(target);
+        column.BeginAnimation(System.Windows.Controls.ColumnDefinition.WidthProperty, animation);
     }
 
     private void FadePills(bool visible, int delayMs, double seconds)

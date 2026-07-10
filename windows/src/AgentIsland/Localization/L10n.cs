@@ -198,6 +198,8 @@ public static class L10n
         ["A bar at the top of the screen, or a floating widget you drag anywhere."] = "贴在屏幕顶部的横条，或可拖到任意位置的悬浮小窗。",
         ["Top bar"] = "顶部条",
         ["Floating window"] = "悬浮小窗",
+        ["Center the island when only one provider is on"] = "只开一个服务时岛居中",
+        ["Collapse the hidden side and pull the visible logo to the middle, instead of keeping the symmetric layout."] = "收起隐藏的一侧，把可见的 logo 拉到中间，而不是保持对称占位。",
         ["Slide the island along its edge to clear tabs and title-bar buttons."] = "沿边缘移动岛的位置，避开浏览器标签页和标题栏按钮。",
         ["Keep the 5-hour and weekly percentages beside the logos without hovering."] = "无需悬停，也在 Logo 两侧显示 5 小时和本周用量百分比。",
         ["Always show usage in top bar"] = "在顶部常显用量",

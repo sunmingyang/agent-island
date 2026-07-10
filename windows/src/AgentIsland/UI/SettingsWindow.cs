@@ -629,6 +629,13 @@ public sealed class SettingsWindow : Window
             "A bar at the top of the screen, or a floating widget you drag anywhere.",
             placementBox));
 
+        var soloCenter = new CobaltToggle(SoloCenterStore.Shared.Enabled);
+        soloCenter.Toggled += value => SoloCenterStore.Shared.Enabled = value;
+        stack.Children.Add(new SettingsRowControl(
+            "Center the island when only one provider is on",
+            "Collapse the hidden side and pull the visible logo to the middle, instead of keeping the symmetric layout.",
+            soloCenter));
+
         return stack;
     }
 
