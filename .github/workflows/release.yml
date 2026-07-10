@@ -89,10 +89,17 @@ jobs:
       - name: Attach changelog notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAG was missing here, so VER expanded empty, awk matched nothing,
+          # and every release silently kept the "Automated release" stub.
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
           VER="${TAG#v}"
           awk -v ver="$VER" 'BEGIN{f=0} $0 ~ "^## \\["ver"\\]" {f=1} f==1 && $0 ~ "^## \\[" && $0 !~ ver {exit} f' CHANGELOG.md > /tmp/notes.md
-          if [ -s /tmp/notes.md ]; then gh release edit "$TAG" --notes-file /tmp/notes.md; fi
+          if [ ! -s /tmp/notes.md ]; then
+            echo "::error::No CHANGELOG.md section found for $VER — release notes would be empty"
+            exit 1
+          fi
+          gh release edit "$TAG" --notes-file /tmp/notes.md
 
       - name: Upload release assets
         shell: bash
