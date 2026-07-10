@@ -3,19 +3,26 @@ using AgentIsland.Usage;
 
 namespace AgentIsland.UI;
 
-/// One-click re-authentication: spawn the provider's login command in a
-/// visible terminal right away. Only when nothing can be launched (CLI truly
-/// missing) does the branded dialog appear — with a Retry that runs the
-/// whole flow again, so a mid-update CLI swap never dead-ends the user.
+/// One-click re-authentication. Claude goes browser-first: the PKCE loopback
+/// flow needs no CLI, so the "CLI not found" dialog can only appear on the
+/// final fallback (web login failed AND the terminal flow couldn't spawn).
+/// Codex keeps the visible-terminal flow. The dialog's Retry runs the whole
+/// flow again, so a mid-update CLI swap never dead-ends the user.
 public static class ReauthFlow
 {
     public static void Run(TriggerTool tool)
     {
-        var spawned = tool == TriggerTool.Claude
-            ? UsageStore.Shared.ReauthenticateClaude()
-            : UsageStore.Shared.ReauthenticateCodex();
-        if (spawned) return;
+        if (tool == TriggerTool.Claude)
+        {
+            UsageStore.Shared.ReauthenticateClaude(onCliMissing: () => ShowCliMissing(tool));
+            return;
+        }
+        if (UsageStore.Shared.ReauthenticateCodex()) return;
+        ShowCliMissing(tool);
+    }
 
+    private static void ShowCliMissing(TriggerTool tool)
+    {
         var message = tool == TriggerTool.Claude
             ? Localization.L10n.Tr("Claude Code CLI not found. Log in from a terminal with: claude /login")
             : Localization.L10n.Tr("Codex CLI not found. Log in from a terminal with: codex login");

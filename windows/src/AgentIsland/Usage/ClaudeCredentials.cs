@@ -30,7 +30,13 @@ public static class ClaudeCredentials
     public static bool IsAuthRecoverableError(string? message) =>
         message is ReauthRequiredMessage or AuthRequiredMessage;
 
-    private const string RefreshClientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+    // OAuth constants — same values as the macOS ClaudeCredentials (which
+    // mirror the Claude Code CLI's own login flow).
+    public const string OauthClientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+    public const string AuthorizeUrlBase = "https://claude.com/cai/oauth/authorize";
+    public const string TokenUrl = "https://platform.claude.com/v1/oauth/token";
+    public const string LoginScopes =
+        "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload";
 
     public abstract record ProbeOutcome
     {
@@ -100,7 +106,7 @@ public static class ClaudeCredentials
                         // pair we just used. If we can't persist the rotated
                         // tokens, the on-disk creds are now dead — force a
                         // re-login instead of 401-ing forever.
-                        if (!WriteClaudeCreds(creds, refreshed))
+                        if (!WriteClaudeCreds(refreshed))
                         {
                             return new Resolution.ReauthRequired(ReauthRequiredMessage);
                         }
@@ -148,13 +154,13 @@ public static class ClaudeCredentials
 
     /// Updates the claudeAiOauth block in place, preserving unrelated fields
     /// (scopes, subscriptionType, rateLimitTier) and any other top-level
-    /// keys in the file. Best-effort: a failure means the next refresh pays
-    /// the rotation cost again.
-    /// Persists the rotated tokens. Returns false if the write ultimately
-    /// fails — Anthropic has already invalidated the OLD refresh token
-    /// server-side, so a lost write means the on-disk credentials are dead
-    /// and the caller must force a re-login rather than 401 forever.
-    private static bool WriteClaudeCreds(ClaudeCreds current, RefreshedTokens refreshed)
+    /// keys in the file; seeds a minimal structure when the file doesn't
+    /// exist yet (a fresh web login on a machine that never ran the CLI).
+    /// Returns false if the write ultimately fails — Anthropic has already
+    /// invalidated the OLD refresh token server-side, so a lost write means
+    /// the on-disk credentials are dead and the caller must force a re-login
+    /// rather than 401 forever.
+    private static bool WriteClaudeCreds(RefreshedTokens refreshed)
     {
         try
         {
@@ -177,6 +183,9 @@ public static class ClaudeCredentials
             oauth["refreshToken"] = refreshed.RefreshToken;
             oauth["expiresAt"] = refreshed.ExpiresAtMs;
 
+            // A fresh web login may land on a machine that never ran the CLI,
+            // where ~\.claude doesn't exist yet.
+            if (Path.GetDirectoryName(path) is { Length: > 0 } dir) Directory.CreateDirectory(dir);
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, root.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
             // Retry the rename: Claude Code / Claude Desktop may hold a brief
@@ -226,13 +235,12 @@ public static class ClaudeCredentials
     {
         try
         {
-            using var request = new HttpRequestMessage(
-                HttpMethod.Post, "https://platform.claude.com/v1/oauth/token");
+            using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl);
             var body = JsonSerializer.Serialize(new Dictionary<string, string>
             {
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = refreshToken,
-                ["client_id"] = RefreshClientId,
+                ["client_id"] = OauthClientId,
             });
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
             using var response = await Http.Client.SendAsync(request);
@@ -241,6 +249,57 @@ public static class ClaudeCredentials
             var access = Jsonl.GetString(doc.RootElement, "access_token");
             var refresh = Jsonl.GetString(doc.RootElement, "refresh_token");
             if (string.IsNullOrEmpty(access) || string.IsNullOrEmpty(refresh)) return null;
+            var expiresIn = Jsonl.GetDouble(doc.RootElement, "expires_in") ?? 28_800;
+            var expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToUnixTimeMilliseconds();
+            return new RefreshedTokens(access!, refresh!, expiresAt);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // MARK: - Web login (PKCE loopback)
+
+    /// Second half of the loopback login: exchange the authorization code for
+    /// a fresh token pair and persist it to the credentials file. Called by
+    /// `ClaudeWebLogin` after it catches the OAuth redirect. Returns true only
+    /// if both the exchange and the file write succeed.
+    public static async Task<bool> CompleteWebLogin(
+        string code, string codeVerifier, string redirectUri, string state)
+    {
+        if (await ExchangeAuthorizationCode(code, codeVerifier, redirectUri, state) is not { } tokens)
+        {
+            return false;
+        }
+        return WriteClaudeCreds(tokens);
+    }
+
+    /// Mirrors `RefreshClaudeToken` but with grant_type=authorization_code,
+    /// for the very first token pair from a fresh browser sign-in.
+    private static async Task<RefreshedTokens?> ExchangeAuthorizationCode(
+        string code, string codeVerifier, string redirectUri, string state)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl);
+            var body = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["grant_type"] = "authorization_code",
+                ["code"] = code,
+                ["code_verifier"] = codeVerifier,
+                ["client_id"] = OauthClientId,
+                ["redirect_uri"] = redirectUri,
+                ["state"] = state,
+            });
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+            using var response = await Http.Client.SendAsync(request);
+            if ((int)response.StatusCode != 200) return null;
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
+            var access = Jsonl.GetString(doc.RootElement, "access_token");
+            var refresh = Jsonl.GetString(doc.RootElement, "refresh_token");
+            if (string.IsNullOrEmpty(access) || string.IsNullOrEmpty(refresh)) return null;
+            // expires_in is seconds; Claude Code stores absolute ms.
             var expiresIn = Jsonl.GetDouble(doc.RootElement, "expires_in") ?? 28_800;
             var expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToUnixTimeMilliseconds();
             return new RefreshedTokens(access!, refresh!, expiresAt);

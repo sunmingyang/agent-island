@@ -215,17 +215,18 @@ public sealed class UsageStore : INotifyPropertyChanged
 
     // MARK: - Re-auth
 
-    /// Spawn `claude auth login` and wait for the credentials file to
-    /// change. We can't await the OAuth flow directly — it happens in a
-    /// terminal and may involve a browser. Poll the local file stamp (cheap),
-    /// then hit the usage API once when credentials actually change; polling
-    /// the endpoint itself can trip Anthropic's rate limit and hide the real
-    /// auth recovery behind a fresh `rate limited` error.
-    public bool ReauthenticateClaude()
+    /// Preferred path: the in-app browser login — PKCE + a loopback callback
+    /// caught by our own listener, writing the fresh, fully-scoped token pair
+    /// straight to the credentials file. No terminal, no manual code paste.
+    /// On any web failure we fall back to the legacy `claude auth login`
+    /// terminal flow (spawn + poll the file stamp), so a machine that can't
+    /// run the loopback flow is no worse off than before. Only when even the
+    /// terminal can't spawn (CLI truly missing) does `onCliMissing` fire —
+    /// the web flow itself needs no CLI, so that's the one place the
+    /// "CLI not found" dialog still makes sense.
+    public void ReauthenticateClaude(Action? onCliMissing = null)
     {
-        if (ClaudeReauthInProgress) return true;
-        var initialStamp = ClaudeCredentials.CredentialsModificationStamp();
-        if (!ClaudeCredentials.SpawnReauth()) return false;
+        if (ClaudeReauthInProgress) return;
         ClaudeReauthInProgress = true;
         _claudeReauthCts?.Cancel();
         var cts = new CancellationTokenSource();
@@ -233,6 +234,28 @@ public sealed class UsageStore : INotifyPropertyChanged
         var dispatcher = Dispatcher.CurrentDispatcher;
         _ = Task.Run(async () =>
         {
+            if (await ClaudeWebLogin.Shared.Start() is ClaudeWebLogin.Outcome.Success)
+            {
+                await FinishClaudeReauth(dispatcher);
+                return;
+            }
+
+            // Legacy fallback: spawn `claude auth login` in a terminal and
+            // wait for the credentials file to change. Poll the local file
+            // stamp (cheap), then hit the usage API once when credentials
+            // actually change; polling the endpoint itself can trip
+            // Anthropic's rate limit and hide the real auth recovery behind
+            // a fresh `rate limited` error.
+            var initialStamp = ClaudeCredentials.CredentialsModificationStamp();
+            if (!ClaudeCredentials.SpawnReauth())
+            {
+                await dispatcher.BeginInvoke(() =>
+                {
+                    ClaudeReauthInProgress = false;
+                    onCliMissing?.Invoke();
+                });
+                return;
+            }
             for (var i = 0; i < 40; i++)
             {
                 try { await Task.Delay(TimeSpan.FromSeconds(3), cts.Token); }
@@ -244,7 +267,6 @@ public sealed class UsageStore : INotifyPropertyChanged
             }
             await FinishClaudeReauth(dispatcher);
         });
-        return true;
     }
 
     public bool ReauthenticateCodex()
