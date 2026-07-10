@@ -205,6 +205,10 @@ No. Agent Island reads local transcript files and calls the providers' usage API
 **How is this different from codex-island?**
 [codex-island](https://github.com/ericjypark/codex-island) is a passive usage meter — it shows how much you've used. Agent Island keeps that (usage, cost, resets) and adds the active half: live session state on the logos, turn alarms, and auto-resume.
 
+## WeChat Community (中文交流群)
+
+Chinese-speaking users: scan the QR code in the [中文 README](README.zh-CN.md#用户交流群) to join our WeChat group for feedback and discussion.
+
 ## Credits & license
 
 Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park** — the usage-island and cost-tracking foundation are his work. Agent Island adds auto-resume, turn alarms, live session-state animations, and its own product direction.

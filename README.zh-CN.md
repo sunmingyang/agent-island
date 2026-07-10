@@ -205,6 +205,12 @@ open build/AgentIsland.app
 **跟 codex-island 有什么不一样？**
 [codex-island](https://github.com/ericjypark/codex-island) 是个被动电表 —— 告诉你用了多少。Agent Island 保留了这部分（用量、成本、重置），再加上主动的那一半：logo 上的实时会话状态、到你回复提醒、自动续跑。
 
+## 用户交流群
+
+扫码加作者微信,备注「Agent Island」,拉你进开源交流反馈群——聊使用体验、报问题、提想法,欢迎一起参与共建。
+
+<img src="Assets/wechat-qr.jpg" alt="加作者微信,备注 Agent Island 进交流群" width="300" />
+
 ## 致谢与许可
 
 Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入自动续跑、到你回复提醒、实时状态动效，并走出了自己的产品方向。
