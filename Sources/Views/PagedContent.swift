@@ -18,6 +18,17 @@ struct PagedContent: View {
     @ObservedObject private var screenPref = ScreenPref.shared
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
     @State private var peekOffset: CGFloat = 0
+    @State private var dragOffset: CGFloat = 0
+
+    /// Resist dragging past the first/last page so the carousel feels bounded
+    /// instead of sliding into blank space.
+    private func rubberBanded(_ raw: CGFloat, pageWidth: CGFloat) -> CGFloat {
+        let index = screenPref.visiblePageIndex
+        let lastIndex = screenPref.visibleScreens.count - 1
+        let atStart = index == 0 && raw > 0
+        let atEnd = index == lastIndex && raw < 0
+        return (atStart || atEnd) ? raw * 0.3 : raw
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -38,10 +49,35 @@ struct PagedContent: View {
                     .frame(width: pageWidth)
             }
             .frame(width: pageWidth, height: geo.size.height, alignment: .topLeading)
-            .offset(x: (-pageWidth * CGFloat(screenPref.visiblePageIndex)) + peekOffset)
+            .offset(x: (-pageWidth * CGFloat(screenPref.visiblePageIndex)) + peekOffset + dragOffset)
             .animation(.pageSwipe, value: screenPref.screen)
             .animation(.pageSwipe, value: costPanelVisibility.showInTopPanel)
             .clipped()
+            .contentShape(Rectangle())
+            // Left-click-drag paging, for people on a plain mouse (the
+            // trackpad two-finger swipe and Shift+wheel already work). The
+            // 12pt activation distance lets taps on tiles/buttons through;
+            // the card follows the cursor and snaps on release.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { value in
+                        // Horizontal intent only — vertical drags belong to
+                        // any nested scroll content.
+                        guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                        dragOffset = rubberBanded(value.translation.width, pageWidth: pageWidth)
+                    }
+                    .onEnded { value in
+                        let width = value.translation.width
+                        let threshold = pageWidth * 0.22
+                        withAnimation(.pageSwipe) { dragOffset = 0 }
+                        guard abs(width) > abs(value.translation.height) else { return }
+                        if width <= -threshold {
+                            model.advanceScreen()
+                        } else if width >= threshold {
+                            model.rewindScreen()
+                        }
+                    }
+            )
             .onAppear {
                 screenPref.ensureVisibleScreen()
                 // Discoverability cue, not decorative motion — fires even

@@ -295,3 +295,6 @@
 "Subagent alarms" = "Subagent alarms";
 "Input, output, and cache." = "Input, output, and cache.";
 "Input and output only." = "Input and output only.";
+
+"Notch width for MacBooks with a camera notch; narrower for those without." = "Notch width for MacBooks with a camera notch; narrower for those without.";
+"Codex spawns child threads that finish constantly. Off by default." = "Codex spawns child threads that finish constantly. Off by default.";

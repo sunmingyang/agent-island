@@ -303,3 +303,6 @@
 "Subagent alarms" = "子线程弹窗";
 "Input, output, and cache." = "统计输入、输出和缓存。";
 "Input and output only." = "只统计输入和输出。";
+
+"Notch width for MacBooks with a camera notch; narrower for those without." = "有刘海的 MacBook 用刘海宽度,没有的更窄。";
+"Codex spawns child threads that finish constantly. Off by default." = "Codex 会派生子线程,它们结束得非常频繁。默认关。";

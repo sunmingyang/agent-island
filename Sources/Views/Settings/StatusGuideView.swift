@@ -34,7 +34,7 @@ struct StatusGuideView: View {
             }
             SettingsRow(
                 title: "Subagent alarms",
-                subtitle: nil
+                subtitle: "Codex spawns child threads that finish constantly. Off by default."
             ) {
                 SettingsToggle(isOn: subagentAlarm.showSubagentThreads) { subagentAlarm.showSubagentThreads.toggle() }
             }
@@ -51,7 +51,7 @@ struct StatusGuideView: View {
                 }
                 SettingsRow(
                     title: "Volume",
-                    subtitle: "Adjust how loud the alarm sound is."
+                    subtitle: nil
                 ) {
                     Slider(value: $reminders.volume, in: 0...1)
                         .frame(width: 120)

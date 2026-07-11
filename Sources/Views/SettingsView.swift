@@ -203,7 +203,7 @@ struct SettingsView: View {
             }
             SettingsRow(
                 title: "Refresh interval",
-                subtitle: "How often to refresh."
+                subtitle: nil
             ) {
                 refreshSegmented
             }
@@ -236,7 +236,7 @@ struct SettingsView: View {
             sectionLabel("Alerts")
             SettingsRow(
                 title: "Approaching-limit alerts",
-                subtitle: "Tint the island and pulse the peek pill when 5-hour usage nears your limit."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: alertPrefs.enabled) {
                     // withAnimation here so the threshold rows + Preview row
@@ -435,7 +435,7 @@ struct SettingsView: View {
             }
             SettingsRow(
                 title: "Check now",
-                subtitle: "Look for a new version immediately."
+                subtitle: nil
             ) {
                 PillButton(label: "Check") { updater.checkForUpdates() }
             }
@@ -688,7 +688,7 @@ struct SettingsView: View {
             sectionLabel("Cost display", hint: costPanelVisibility.showInTopPanel ? "⌘-click to cycle" : nil)
             SettingsRow(
                 title: "Show cost page in top panel",
-                subtitle: "Include local token cost/value as a swipe page in the island."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: costPanelVisibility.showInTopPanel) {
                     withAnimation(.pageSwipe) {
@@ -714,7 +714,7 @@ struct SettingsView: View {
             sectionLabel("Top bar")
             SettingsRow(
                 title: "Always show usage in top bar",
-                subtitle: "Keep the 5-hour and weekly percentages beside the logos without hovering."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: alwaysShow.enabled) {
                     alwaysShow.enabled.toggle()
@@ -733,7 +733,7 @@ struct SettingsView: View {
     }
 
     private var displayModeSubtitle: String {
-        L10n.tr("Pick Notch for MacBooks with a camera notch. No notch suits Macs and external displays without one — the top bar gets narrower.")
+        L10n.tr("Notch width for MacBooks with a camera notch; narrower for those without.")
     }
 
     private var displayModeSegmented: some View {
