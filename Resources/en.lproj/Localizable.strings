@@ -285,3 +285,8 @@
 "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link." = "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link.";
 "CLI resume" = "CLI resume";
 "Desktop app" = "Desktop app";
+
+/* 1.5.6 per-provider jump rows */
+"Open threads via" = "Open threads via";
+"CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link." = "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link.";
+"The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead." = "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead.";

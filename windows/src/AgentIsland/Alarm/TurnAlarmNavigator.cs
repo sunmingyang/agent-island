@@ -91,8 +91,13 @@ public static class TurnAlarmNavigator
         // A user chatting in the Codex desktop app must not get a terminal
         // popped at them just because the CLI happens to be installed. The
         // CLI resume is the fallback when no codex:// handler exists.
+        var codexPrefersCli = Model.CodexJumpPreferenceStore.Shared.PrefersCli;
         return System.Threading.Tasks.Task.Run(() =>
         {
+            if (codexPrefersCli && Trigger.CLILocator.Locate("codex") is { } cliFirst)
+            {
+                return RunResumeInTerminal(cliFirst, $"resume {sessionId}", cwd, "Codex resume");
+            }
             if (TryOpenUri($"codex://threads/{sessionId}"))
             {
                 FocusAppWindow("Codex");   // best effort; the URI already landed

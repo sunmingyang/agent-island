@@ -323,15 +323,6 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Refresh interval", "How often to refresh.", refresh));
 
-        var claudeJump = Model.ClaudeJumpPreferenceStore.Shared;
-        var jumpSeg = new Segmented(
-            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
-            claudeJump.PrefersCli ? 1 : 0);
-        jumpSeg.SelectionChanged += index => claudeJump.PrefersCli = index == 1;
-        stack.Children.Add(new SettingsRowControl(
-            "Open Claude sessions with",
-            "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link.",
-            jumpSeg));
 
         var language = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
         language.Items.Add(L10n.Tr("Auto (system)"));
@@ -665,7 +656,26 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(SectionLabel("Providers"));
 
         stack.Children.Add(ProviderRow(TriggerTool.Claude));
+        var claudeJump = Model.ClaudeJumpPreferenceStore.Shared;
+        var claudeJumpSeg = new Segmented(
+            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
+            claudeJump.PrefersCli ? 1 : 0);
+        claudeJumpSeg.SelectionChanged += index => claudeJump.PrefersCli = index == 1;
+        stack.Children.Add(new SettingsRowControl(
+            "Open threads via",
+            "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link.",
+            claudeJumpSeg));
+
         stack.Children.Add(ProviderRow(TriggerTool.Codex));
+        var codexJump = Model.CodexJumpPreferenceStore.Shared;
+        var codexJumpSeg = new Segmented(
+            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
+            codexJump.PrefersCli ? 1 : 0);
+        codexJumpSeg.SelectionChanged += index => codexJump.PrefersCli = index == 1;
+        stack.Children.Add(new SettingsRowControl(
+            "Open threads via",
+            "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead.",
+            codexJumpSeg));
 
         stack.Children.Add(SectionLabel("TOKEN"));
         var mode = new Segmented(

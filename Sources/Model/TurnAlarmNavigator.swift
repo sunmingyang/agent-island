@@ -16,6 +16,11 @@ enum TurnAlarmNavigator {
     private static let codexBundleID = "com.openai.codex"
 
     private static func openCodex(thread: ActivityMonitor.ActiveThread?) {
+        // Opt-in: CLI people can have their threads reopen in a terminal.
+        if CodexJumpPreferenceStore.shared.prefersCLI {
+            codexCLIFallback(thread: thread)
+            return
+        }
         if let id = sanitizedCodexThreadID(thread?.sessionId),
            let url = URL(string: "codex://threads/\(id)"),
            let appURL = appURL(forScheme: url, bundleID: codexBundleID) {
