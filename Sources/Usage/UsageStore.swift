@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Network
+import AppKit
 
 @MainActor
 final class UsageStore: ObservableObject {
@@ -37,6 +38,8 @@ final class UsageStore: ObservableObject {
     private var reauthPollTask: Task<Void, Never>?
     private var codexReauthPollTask: Task<Void, Never>?
     private var pollTimer: Timer?
+    private var boundaryTimer: Timer?
+    private var wakeObserver: NSObjectProtocol?
     private var intervalCancellable: AnyCancellable?
     private var netMonitor: NWPathMonitor?
     private let netQueue = DispatchQueue(label: "UsageStore.network")
@@ -139,6 +142,32 @@ final class UsageStore: ObservableObject {
             self.refreshWarning = UsageStore.refreshWarning(codexFailed: codexFailed, claudeFailed: claudeFailed)
             self.lastUpdated = Date()
             self.loading = false
+            self.scheduleBoundaryRefresh()
+        }
+    }
+
+    /// The 5-minute poll floor means a window can sit visibly expired — and,
+    /// worse, an afterReset auto-resume never fires — for up to 5 minutes
+    /// after it actually rolls over. Schedule one extra targeted fetch a few
+    /// seconds past the soonest upcoming reset so the moment a window flips we
+    /// pull fresh data: the countdown updates AND the changed resetAt drives
+    /// the trigger engine. One-shot per reset, so it doesn't add to the poll
+    /// rate the endpoint is sensitive to.
+    private func scheduleBoundaryRefresh() {
+        boundaryTimer?.invalidate()
+        boundaryTimer = nil
+        let now = Date()
+        let resets = [
+            claude.fiveHour.resetAt, claude.weekly.resetAt,
+            codex.fiveHour.resetAt, codex.weekly.resetAt,
+        ].compactMap { $0 }.filter { $0 > now }
+        guard let soonest = resets.min() else { return }
+        // +8s cushion so the provider has flipped the window before we ask;
+        // clamp the far end so a week-away weekly reset doesn't hold a timer
+        // for days (the regular poll covers the long tail).
+        let delay = min(soonest.timeIntervalSince(now) + 8, 6 * 3600)
+        boundaryTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
         }
     }
 
@@ -373,11 +402,33 @@ final class UsageStore: ObservableObject {
                 Task { @MainActor in self.armTimer() }
             }
         startNetworkMonitor()
+        startWakeMonitor()
+    }
+
+    /// Macs sleep overnight — exactly when a quota window resets and an
+    /// overnight run wants to auto-continue. A sleeping Mac's timers don't
+    /// fire, so on wake the panel would sit on pre-sleep data (an expired
+    /// countdown, the stale exhausted state) until the next poll, and the
+    /// afterReset trigger would miss its window. Refresh immediately on wake
+    /// so both recover the instant the machine is back.
+    private func startWakeMonitor() {
+        if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
+        }
     }
 
     func stopAutoRefresh() {
         pollTimer?.invalidate()
         pollTimer = nil
+        boundaryTimer?.invalidate()
+        boundaryTimer = nil
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
+        }
         intervalCancellable?.cancel()
         intervalCancellable = nil
         netMonitor?.cancel()
