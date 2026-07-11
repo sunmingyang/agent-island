@@ -4,7 +4,9 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
-## [1.5.7] - 2026-07-12
+## [Unreleased]
+
+Staged, not yet released — held to ship together with the matching Windows work.
 
 ### Fixed
 - macOS: the out-of-quota alarm no longer re-fires every few minutes while a window stays maxed out. Anthropic's rolling 5-hour reset time drifts by seconds on each refresh; the alarm's dedup was keyed on the exact reset timestamp, so the drift made it forget it had already fired. It now re-arms only when the reset boundary jumps to a genuinely new cycle. (1.5.6 only stopped the same-refresh duplicates, not this cross-refresh repeat.)
