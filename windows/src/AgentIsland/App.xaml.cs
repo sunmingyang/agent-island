@@ -44,6 +44,7 @@ public partial class App : System.Windows.Application
         ActivityMonitor.Shared.Start();
         UsageStore.Shared.StartAutoRefresh();
         Alarm.UsageExhaustionAlarm.Shared.Start();
+        Update.UpdateChecker.Shared.Start();
         Cost.CostStore.Shared.StartAutoRefresh();
         Trigger.TriggerEngine.Shared.Start();
         Model.AlertEngine.Shared.Start();

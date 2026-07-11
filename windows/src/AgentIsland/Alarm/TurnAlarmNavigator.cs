@@ -63,15 +63,23 @@ public static class TurnAlarmNavigator
             });
         }
 
-        // Codex sessions resume in a terminal via the CLI; the desktop deep
-        // link is only the no-CLI fallback.
+        // Codex sessions: the desktop deep link lands on the exact thread in
+        // the app the user is looking at, so it goes FIRST (mirrors macOS).
+        // A user chatting in the Codex desktop app must not get a terminal
+        // popped at them just because the CLI happens to be installed. The
+        // CLI resume is the fallback when no codex:// handler exists.
         return System.Threading.Tasks.Task.Run(() =>
         {
+            if (TryOpenUri($"codex://threads/{sessionId}"))
+            {
+                FocusAppWindow("Codex");   // best effort; the URI already landed
+                return true;
+            }
             if (Trigger.CLILocator.Locate("codex") is { } codex)
             {
                 return RunResumeInTerminal(codex, $"resume {sessionId}", cwd, "Codex resume");
             }
-            return TryOpenUri($"codex://threads/{sessionId}") && FocusAppWindow("Codex");
+            return false;
         });
     }
 

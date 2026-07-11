@@ -28,6 +28,7 @@ public static class Program
             SubagentFilterTests.RunAll();
             UsageExhaustionAlarmTests.RunAll();
             SoloCenterLayoutTests.RunAll();
+            UpdateCheckerTests.RunAll();
             UsageCachePolicyTests.RunAll();
             ReminderDeliveryKeyTests.RunAll();
             SecurityGuardTests.RunAll();

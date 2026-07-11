@@ -394,9 +394,7 @@ public sealed class SettingsWindow : Window
             autoCheck));
 
         var check = new PillButtonControl(L10n.Tr("Check"));
-        check.Clicked += () => IslandDialog.ShowApp(
-            "Agent Island",
-            L10n.Tr("You're on the latest version. (Auto-update channel for Windows ships with a later release.)"));
+        check.Clicked += () => _ = Update.UpdateChecker.Shared.CheckAsync(userInitiated: true);
         stack.Children.Add(new SettingsRowControl(
             "Check now", "Look for a new version immediately.", check));
 
