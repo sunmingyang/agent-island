@@ -167,7 +167,8 @@ final class UsageStore: ObservableObject {
         // for days (the regular poll covers the long tail).
         let delay = min(soonest.timeIntervalSince(now) + 8, 6 * 3600)
         boundaryTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            guard let self else { return }
+            Task { @MainActor in self.refresh() }
         }
     }
 
@@ -416,7 +417,8 @@ final class UsageStore: ObservableObject {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            guard let self else { return }
+            Task { @MainActor in self.refresh() }
         }
     }
 
