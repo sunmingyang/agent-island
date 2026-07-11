@@ -31,6 +31,13 @@ enum SessionScanner {
         var out = scanClaude(now: now, lastWorking: lastWorking)
         out += scanCodex(now: now, lastWorking: lastWorking)
         out.sort { $0.modified > $1.modified }
+        // Dedupe by session: the Claude desktop store commonly holds the SAME
+        // cliSessionId under two project folders (23 of 41 on the reporting
+        // machine), so a raw file scan lists every such session twice in the
+        // trigger picker. Sorted newest-first, keep the first sighting of each
+        // (tool, sessionId).
+        var seen = Set<String>()
+        out = out.filter { seen.insert("\($0.tool.rawValue):\($0.sessionId)").inserted }
         return out
     }
 
