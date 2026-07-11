@@ -4,6 +4,15 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.5.5] - 2026-07-10
+
+### Added
+- Windows: real update checks — a daily poll of GitHub Releases (honoring the auto-check toggle) surfaces a Download dialog when a new version ships, and "Check now" genuinely reports latest / newer / unreachable. macOS already gets this from Sparkle.
+
+### Fixed
+- Windows: "Open thread" on a Codex session now lands on the exact thread in the Codex desktop app first (`codex://threads/…`), with the terminal resume only as fallback — the priority was inverted, so anyone with the codex CLI installed got a terminal instead of their chat window.
+- Both platforms: the quota display setting is now an explicit Used | Remaining choice instead of a confusingly-worded toggle.
+
 ## [1.5.4] - 2026-07-10
 
 ### Added
