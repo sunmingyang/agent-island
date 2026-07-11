@@ -14,13 +14,18 @@ namespace AgentIsland.UI;
 /// Win32 MessageBox in the app.
 public sealed class IslandDialog : Window
 {
+    private readonly TextBlock _message;
+
+    /// A null primaryLabel builds the progress form: no buttons and no
+    /// Escape — the flow that opened it owns closing it (a half-finished
+    /// exe swap is not something the user can cancel out of).
     private IslandDialog(
         string title,
         string message,
         Color tint,
         Geometry mark,
         IReadOnlyList<(string Caption, string Value)>? meta,
-        string primaryLabel,
+        string? primaryLabel,
         Action? primaryAction,
         string? secondaryLabel)
     {
@@ -101,7 +106,7 @@ public sealed class IslandDialog : Window
             TextAlignment = TextAlignment.Center,
         });
 
-        stack.Children.Add(new TextBlock
+        _message = new TextBlock
         {
             Text = message,
             FontFamily = IslandFonts.Ui,
@@ -112,7 +117,8 @@ public sealed class IslandDialog : Window
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 8, 0, 0),
             LineHeight = 19,
-        });
+        };
+        stack.Children.Add(_message);
 
         if (meta is { Count: > 0 })
         {
@@ -151,28 +157,31 @@ public sealed class IslandDialog : Window
             stack.Children.Add(grid);
         }
 
-        var primary = MakeButton(primaryLabel, Colors.White, tint, bold: true);
-        primary.Margin = new Thickness(0, 22, 0, 0);
-        primary.Click += (_, _) =>
+        if (primaryLabel is not null)
         {
-            Close();
-            primaryAction?.Invoke();
-        };
-        stack.Children.Add(primary);
+            var primary = MakeButton(primaryLabel, Colors.White, tint, bold: true);
+            primary.Margin = new Thickness(0, 22, 0, 0);
+            primary.Click += (_, _) =>
+            {
+                Close();
+                primaryAction?.Invoke();
+            };
+            stack.Children.Add(primary);
 
-        if (secondaryLabel is not null)
-        {
-            var secondary = MakeButton(
-                secondaryLabel, IslandColors.White(0.85), IslandColors.White(0.06), bold: false);
-            secondary.Margin = new Thickness(0, 10, 0, 0);
-            secondary.Click += (_, _) => Close();
-            stack.Children.Add(secondary);
+            if (secondaryLabel is not null)
+            {
+                var secondary = MakeButton(
+                    secondaryLabel, IslandColors.White(0.85), IslandColors.White(0.06), bold: false);
+                secondary.Margin = new Thickness(0, 10, 0, 0);
+                secondary.Click += (_, _) => Close();
+                stack.Children.Add(secondary);
+            }
+
+            KeyDown += (_, args) =>
+            {
+                if (args.Key == Key.Escape) Close();
+            };
         }
-
-        KeyDown += (_, args) =>
-        {
-            if (args.Key == Key.Escape) Close();
-        };
         MouseLeftButtonDown += (_, _) =>
         {
             try { DragMove(); } catch { }
@@ -212,6 +221,20 @@ public sealed class IslandDialog : Window
             Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
             primaryLabel ?? Localization.L10n.Tr("I know"), primaryAction, secondaryLabel));
     }
+
+    /// Button-less progress card for the update flow. The caller keeps the
+    /// handle: SetMessage for progress ticks, Close when the work is done.
+    public static IslandDialog ShowAppProgress(string title, string message)
+    {
+        var dialog = new IslandDialog(
+            title, message, IslandColors.Cobalt,
+            Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
+            primaryLabel: null, primaryAction: null, secondaryLabel: null);
+        Present(dialog);
+        return dialog;
+    }
+
+    public void SetMessage(string text) => _message.Text = text;
 
     private static void Present(IslandDialog dialog)
     {
