@@ -4,14 +4,16 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
-## [Unreleased]
+## [1.5.7] - 2026-07-12
 
-Staged, not yet released — held to ship together with the matching Windows work.
+### Added
+- Windows: a switch to turn the out-of-quota alarm off (Settings → Alarms), matching macOS — for people who only want auto-resume and not the "you're out" panel.
 
 ### Fixed
-- macOS: the out-of-quota alarm no longer re-fires every few minutes while a window stays maxed out. Anthropic's rolling 5-hour reset time drifts by seconds on each refresh; the alarm's dedup was keyed on the exact reset timestamp, so the drift made it forget it had already fired. It now re-arms only when the reset boundary jumps to a genuinely new cycle. (1.5.6 only stopped the same-refresh duplicates, not this cross-refresh repeat.)
+- Both platforms: the out-of-quota alarm no longer re-fires every few minutes while a window stays maxed out. Anthropic's rolling 5-hour reset time drifts by seconds on each refresh; the alarm's dedup was keyed on the exact reset timestamp, so the drift made it forget it had already fired. It now re-arms only when the reset boundary jumps to a genuinely new cycle. (1.5.6 only stopped the same-refresh duplicates, not this cross-refresh repeat.)
 - macOS: much lower idle CPU. The island's rotating glow was re-shading its conic gradient on the CPU 30 times a second whenever the island was visible — the app's dominant background cost. It's now shaded once and spun on the GPU: identical look, a large drop in CPU and energy use.
 - macOS: the every-few-seconds session scan stopped re-reading every file's metadata O(n·log n) times while sorting — it now reads each modification time once, via a direct syscall — trimming a periodic CPU spike.
+- Windows: softer, cleaner island glow, and the Settings copy was trimmed to match the leaner macOS layout.
 
 ## [1.5.6] - 2026-07-11
 
