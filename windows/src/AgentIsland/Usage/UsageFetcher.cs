@@ -81,14 +81,25 @@ public static class UsageFetcher
     /// and a User-Agent that identifies as the CLI. We replicate that.
     public static async Task<AppUsage> FetchClaude(CancellationToken ct = default)
     {
-        var resolution = await ClaudeCredentials.ResolveUsage((token, plan) => FetchClaudeUsage(token, plan, ct));
-        return resolution switch
+        // Nothing here may throw: a fetch that faults kills the refresh
+        // task before it can clear UsageStore.Loading, freezing usage (and
+        // auto-resume) until an app relaunch. Credential file IO races with
+        // the CLI rewriting the file are a real occurrence, not a theory.
+        try
         {
-            ClaudeCredentials.Resolution.Usage usage => usage.Value,
-            ClaudeCredentials.Resolution.ReauthRequired reauth => AppUsage.ErrorPair(reauth.Message),
-            ClaudeCredentials.Resolution.Failed failed => AppUsage.ErrorPair(failed.Message),
-            _ => AppUsage.ErrorPair("bad response"),
-        };
+            var resolution = await ClaudeCredentials.ResolveUsage((token, plan) => FetchClaudeUsage(token, plan, ct));
+            return resolution switch
+            {
+                ClaudeCredentials.Resolution.Usage usage => usage.Value,
+                ClaudeCredentials.Resolution.ReauthRequired reauth => AppUsage.ErrorPair(reauth.Message),
+                ClaudeCredentials.Resolution.Failed failed => AppUsage.ErrorPair(failed.Message),
+                _ => AppUsage.ErrorPair("bad response"),
+            };
+        }
+        catch (Exception error)
+        {
+            return AppUsage.ErrorPair(error.Message);
+        }
     }
 
     private static async Task<ClaudeCredentials.ProbeOutcome> FetchClaudeUsage(string token, string? plan, CancellationToken ct = default)

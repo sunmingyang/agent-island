@@ -152,6 +152,8 @@ public static class L10n
         ["Out of quota"] = "额度用完了",
         ["5-hour limit"] = "5 小时额度",
         ["Weekly limit"] = "周额度",
+        ["{0} {1} reached"] = "{0} {1}已用尽",
+        ["You're out until it resets at {0}."] = "在 {0} 重置前暂时无法使用。",
         ["You're rate-limited for now."] = "暂时被限流。",
         ["~{0}h"] = "约 {0} 小时后",
         ["~{0}m"] = "约 {0} 分钟后",

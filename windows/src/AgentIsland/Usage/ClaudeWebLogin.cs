@@ -122,16 +122,23 @@ public sealed class ClaudeWebLogin
         }
     }
 
-    private static bool OpenAuthorizePage(string challenge, string state, string redirectUri)
-    {
-        var url = ClaudeCredentials.AuthorizeUrlBase
-            + "?client_id=" + Uri.EscapeDataString(ClaudeCredentials.OauthClientId)
+    /// `code=true` is not decoration: the CLI sends it unconditionally, and
+    /// the authorize SUBMIT (not the consent page render) hard-fails with
+    /// "Invalid request format" without it. Verified live on 2026-07-11.
+    internal static string BuildAuthorizeUrl(string challenge, string state, string redirectUri) =>
+        ClaudeCredentials.AuthorizeUrlBase
+            + "?code=true"
+            + "&client_id=" + Uri.EscapeDataString(ClaudeCredentials.OauthClientId)
             + "&response_type=code"
             + "&redirect_uri=" + Uri.EscapeDataString(redirectUri)
             + "&scope=" + Uri.EscapeDataString(ClaudeCredentials.LoginScopes)
             + "&code_challenge=" + Uri.EscapeDataString(challenge)
             + "&code_challenge_method=S256"
             + "&state=" + Uri.EscapeDataString(state);
+
+    private static bool OpenAuthorizePage(string challenge, string state, string redirectUri)
+    {
+        var url = BuildAuthorizeUrl(challenge, state, redirectUri);
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
@@ -194,9 +201,9 @@ public sealed class ClaudeWebLogin
 
     // MARK: - PKCE helpers
 
-    private static string RandomUrlSafe(int bytes) =>
+    internal static string RandomUrlSafe(int bytes) =>
         Base64Url(RandomNumberGenerator.GetBytes(bytes));
 
-    private static string Base64Url(byte[] data) =>
+    internal static string Base64Url(byte[] data) =>
         Convert.ToBase64String(data).Replace('+', '-').Replace('/', '_').TrimEnd('=');
 }

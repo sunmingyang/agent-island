@@ -26,11 +26,15 @@ public sealed class UsageStore : INotifyPropertyChanged
     private bool _codexReauthInProgress;
 
     private DispatcherTimer? _pollTimer;
+    private DispatcherTimer? _resetEdgeTimer;
+    private DateTimeOffset _lastResetEdgeCheck = DateTimeOffset.Now;
+    private DateTimeOffset _refreshStartedAt;
     private CancellationTokenSource? _refreshCts;
     private Task? _refreshTask;
     private CancellationTokenSource? _claudeReauthCts;
     private CancellationTokenSource? _codexReauthCts;
     private bool _networkMonitorArmed;
+    private bool _powerMonitorArmed;
     private bool _lastNetworkAvailable = true;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -59,7 +63,11 @@ public sealed class UsageStore : INotifyPropertyChanged
 
     public void Refresh()
     {
-        if (Loading) return;
+        // Self-heal instead of early-return when a refresh has been "in
+        // flight" for minutes: a wedged one (faulted task, socket dead after
+        // sleep) used to latch Loading forever, freezing usage — and with it
+        // reset detection and auto-resume — until the app was relaunched.
+        if (Loading && DateTimeOffset.Now - _refreshStartedAt < TimeSpan.FromMinutes(2)) return;
 
         // Demo mode for screen recordings: skip the network entirely and
         // inject hand-tuned values. Reset times are recomputed each refresh
@@ -87,42 +95,55 @@ public sealed class UsageStore : INotifyPropertyChanged
         }
 
         Loading = true;
+        _refreshStartedAt = DateTimeOffset.Now;
         _refreshCts?.Cancel();
         var cts = new CancellationTokenSource();
         _refreshCts = cts;
         var dispatcher = Dispatcher.CurrentDispatcher;
         _refreshTask = Task.Run(async () =>
         {
-            // Thread the token into the HTTP calls so a superseding refresh
-            // (network-up mid-flight on a dead path) actually aborts the dead
-            // request instead of letting it run to its own timeout.
-            var codexTask = UsageFetcher.FetchCodex(cts.Token);
-            var claudeTask = UsageFetcher.FetchClaude(cts.Token);
-            var codexResult = await codexTask;
-            var claudeResult = await claudeTask;
-
-            await dispatcher.BeginInvoke(() =>
+            try
             {
-                // Cancellation = the network monitor saw the path come up
-                // while we were mid-flight on a dead one. Drop the dead-path
-                // errors so the superseding refresh has nothing to overwrite.
-                if (cts.IsCancellationRequested)
-                {
-                    Loading = false;
-                    return;
-                }
+                // Thread the token into the HTTP calls so a superseding refresh
+                // (network-up mid-flight on a dead path) actually aborts the dead
+                // request instead of letting it run to its own timeout.
+                var codexTask = UsageFetcher.FetchCodex(cts.Token);
+                var claudeTask = UsageFetcher.FetchClaude(cts.Token);
+                var codexResult = await codexTask;
+                var claudeResult = await claudeTask;
 
-                var codexFailed = IsErrorOnly(codexResult);
-                var claudeFailed = IsErrorOnly(claudeResult);
-                var mergedCodex = MergedUsage(Codex, codexResult);
-                var mergedClaude = MergedUsage(Claude, claudeResult);
-                Codex = mergedCodex;
-                Claude = mergedClaude;
-                SaveCachedSnapshot(mergedClaude, mergedCodex);
-                RefreshWarning = WarningFor(codexFailed, claudeFailed);
-                LastUpdated = DateTimeOffset.Now;
-                Loading = false;
-            });
+                await dispatcher.BeginInvoke(() =>
+                {
+                    // Cancellation = a superseding refresh took over (network
+                    // came up, or the watchdog replaced a wedged one). Only
+                    // the CURRENT refresh may touch Loading — a late loser
+                    // clearing it would let a third refresh start mid-flight.
+                    if (cts.IsCancellationRequested)
+                    {
+                        if (ReferenceEquals(_refreshCts, cts)) Loading = false;
+                        return;
+                    }
+
+                    var codexFailed = IsErrorOnly(codexResult);
+                    var claudeFailed = IsErrorOnly(claudeResult);
+                    var mergedCodex = MergedUsage(Codex, codexResult);
+                    var mergedClaude = MergedUsage(Claude, claudeResult);
+                    Codex = mergedCodex;
+                    Claude = mergedClaude;
+                    SaveCachedSnapshot(mergedClaude, mergedCodex);
+                    RefreshWarning = WarningFor(codexFailed, claudeFailed);
+                    LastUpdated = DateTimeOffset.Now;
+                    Loading = false;
+                });
+            }
+            catch
+            {
+                // A faulted refresh must never leave Loading latched.
+                await dispatcher.BeginInvoke(() =>
+                {
+                    if (ReferenceEquals(_refreshCts, cts)) Loading = false;
+                });
+            }
         }, CancellationToken.None);
     }
 
@@ -330,20 +351,76 @@ public sealed class UsageStore : INotifyPropertyChanged
         StopAutoRefresh();
         Refresh();
         ArmTimer();
+        ArmResetEdgeTimer();
         RefreshIntervalStore.Shared.PropertyChanged += OnIntervalChanged;
         StartNetworkMonitor();
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        _powerMonitorArmed = true;
     }
 
     public void StopAutoRefresh()
     {
         _pollTimer?.Stop();
         _pollTimer = null;
+        _resetEdgeTimer?.Stop();
+        _resetEdgeTimer = null;
         RefreshIntervalStore.Shared.PropertyChanged -= OnIntervalChanged;
         if (_networkMonitorArmed)
         {
             NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
             _networkMonitorArmed = false;
         }
+        if (_powerMonitorArmed)
+        {
+            Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            _powerMonitorArmed = false;
+        }
+    }
+
+    /// Refresh right after waking from sleep — the poll timer's schedule
+    /// slid while suspended, and any in-flight request died with the network
+    /// stack. Without this, a machine that slept through a reset boundary
+    /// shows the expired countdown until the next poll (up to 30 minutes).
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != Microsoft.Win32.PowerModes.Resume) return;
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            // The dead in-flight request would block Refresh's early-return
+            // for up to 2 minutes — supersede it outright.
+            _refreshCts?.Cancel();
+            Loading = false;
+            Refresh();
+        });
+    }
+
+    /// The moment any known reset boundary passes, fetch fresh windows —
+    /// don't sit on 100%-with-expired-countdown until the next scheduled
+    /// poll. This is also what lets AfterReset auto-resume triggers fire
+    /// within a minute of the reset instead of up to a poll interval late.
+    private void ArmResetEdgeTimer()
+    {
+        _lastResetEdgeCheck = DateTimeOffset.Now;
+        _resetEdgeTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromSeconds(30),
+        };
+        _resetEdgeTimer.Tick += (_, _) =>
+        {
+            var now = DateTimeOffset.Now;
+            var previous = _lastResetEdgeCheck;
+            _lastResetEdgeCheck = now;
+            var boundaries = new[]
+            {
+                Claude.FiveHour.ResetAt, Claude.Weekly.ResetAt,
+                Codex.FiveHour.ResetAt, Codex.Weekly.ResetAt,
+            };
+            if (boundaries.Any(reset => reset is { } at && previous < at && at <= now))
+            {
+                Refresh();
+            }
+        };
+        _resetEdgeTimer.Start();
     }
 
     private void OnIntervalChanged(object? sender, PropertyChangedEventArgs e) => ArmTimer();

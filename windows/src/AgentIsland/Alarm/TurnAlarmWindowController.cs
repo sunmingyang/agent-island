@@ -19,10 +19,40 @@ public sealed class TurnAlarmWindowController
         {
             if (current.DeliveryKey == deliveryKey) return;
             if (_queue.Any(item => item.DeliveryKey == deliveryKey)) return;
+            Banner(provider, thread, kind);
             _queue.Add((provider, thread, deliveryKey, kind));
             return;
         }
+        Banner(provider, thread, kind);
         Present(provider, thread, deliveryKey, kind);
+    }
+
+    /// The tray banner rides along with every alarm — queued ones included,
+    /// so an event isn't silent just because another panel holds the stage.
+    /// Fires once per delivery key (both callers sit past the dedup guards).
+    private static void Banner(TriggerTool provider, ActivityMonitor.ActiveThread? thread, TurnAlarmKind? kind)
+    {
+        string title, body;
+        if (kind is TurnAlarmKind.QuotaExhausted quota)
+        {
+            var windowName = quota.Window == QuotaWindowKind.FiveHour
+                ? Localization.L10n.Tr("5-hour limit")
+                : Localization.L10n.Tr("Weekly limit");
+            title = Localization.L10n.TrFormat("{0} {1} reached", provider.Display(), windowName);
+            body = quota.ResetAt is { } reset
+                ? Localization.L10n.TrFormat(
+                    "You're out until it resets at {0}.",
+                    reset.ToLocalTime().ToString("HH:mm"))
+                : Localization.L10n.Tr("Out of quota");
+        }
+        else
+        {
+            title = Localization.L10n.Tr("It's your turn");
+            body = thread is { } t && !string.IsNullOrWhiteSpace(t.Label)
+                ? t.Label + " — " + Localization.L10n.Tr("The thread finished. Come back and reply.")
+                : Localization.L10n.Tr("The thread finished. Come back and reply.");
+        }
+        UI.TrayIcon.Current?.ShowBanner(title, body);
     }
 
     /// The turn left needsYou (user replied, or it aged out): a visible

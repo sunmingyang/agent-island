@@ -64,7 +64,7 @@ public sealed class TriggerEngine
                 SetBaseline(current, tool);   // first sighting — seed only
                 continue;
             }
-            if (current <= previous || previous > DateTimeOffset.Now) continue;
+            if (!IsGenuineReset(current, previous, DateTimeOffset.Now)) continue;
             SetBaseline(current, tool);
             foreach (var trigger in TriggerStore.Shared.Triggers
                 .Where(t => t.Enabled && t.Tool == tool && t.Mode == TriggerMode.AfterReset))
@@ -73,6 +73,13 @@ public sealed class TriggerEngine
             }
         }
     }
+
+    /// A genuine rollover: the boundary we were tracking has elapsed AND the
+    /// provider now reports a later one. A resetAt merely sliding forward
+    /// while still in the future (demo recomputes each refresh) is not a
+    /// reset, and an unchanged boundary is not one either.
+    internal static bool IsGenuineReset(DateTimeOffset current, DateTimeOffset previous, DateTimeOffset now) =>
+        current > previous && previous <= now;
 
     private void SetBaseline(DateTimeOffset date, TriggerTool tool)
     {

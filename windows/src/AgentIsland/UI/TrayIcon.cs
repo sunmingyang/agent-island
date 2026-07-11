@@ -50,6 +50,23 @@ public sealed class TrayIcon : IDisposable
     private void OnDataChanged(object? sender, PropertyChangedEventArgs e) =>
         _dispatcher.BeginInvoke(Update);
 
+    /// Windows banner ("toast") in the tray corner — the system-notification
+    /// half of an alarm, next to the foreground alarm window. On Win 10/11 a
+    /// balloon tip renders as a native toast and lands in the Action Center.
+    public void ShowBanner(string title, string message)
+    {
+        try
+        {
+            _icon.BalloonTipTitle = title;
+            _icon.BalloonTipText = string.IsNullOrWhiteSpace(message) ? title : message;
+            _icon.BalloonTipIcon = System.Windows.Forms.ToolTipIcon.None;
+            _icon.ShowBalloonTip(5000);
+        }
+        catch
+        {
+        }
+    }
+
     private void Update()
     {
         var visibility = ProviderVisibilityStore.Shared;
