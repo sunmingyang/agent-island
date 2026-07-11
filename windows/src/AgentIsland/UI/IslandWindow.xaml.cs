@@ -403,19 +403,37 @@ public partial class IslandWindow : Window
 
     // MARK: - State transitions
 
+    private DispatcherTimer? _hoverIntent;
+
     private void OnSilhouetteMouseEnter(object sender, MouseEventArgs e)
     {
         _hovering = true;
         UpdateHalo();
-        if (_model.State == IslandState.Compact)
+        if (_model.State != IslandState.Compact) return;
+        // Hover intent: unlike the macOS notch, this island sits where the
+        // cursor routinely passes straight THROUGH it (especially floating
+        // placement mid-screen). Peeking on raw enter made every pass-over
+        // pop the bar open and snap it shut. The halo still lights up
+        // instantly above; the size morph waits until the cursor has
+        // actually settled on the island.
+        _hoverIntent?.Stop();
+        var intent = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+        _hoverIntent = intent;
+        intent.Tick += (_, _) =>
         {
-            SetState(IslandState.Peek);
-        }
+            intent.Stop();
+            if (_hovering && _model.State == IslandState.Compact)
+            {
+                SetState(IslandState.Peek);
+            }
+        };
+        intent.Start();
     }
 
     private void OnSilhouetteMouseLeave(object sender, MouseEventArgs e)
     {
         _hovering = false;
+        _hoverIntent?.Stop();
         UpdateHalo();
         // Pills fade first (~80ms), then the silhouette springs back.
         var delay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
@@ -538,7 +556,9 @@ public partial class IslandWindow : Window
             {
                 Color = Colors.Black,
                 Opacity = 0.5,
-                BlurRadius = 20,
+                // macOS radius 20 is a sigma; WPF's kernel-extent BlurRadius
+                // needs ~3x for the same soft grounding falloff.
+                BlurRadius = 60,
                 ShadowDepth = 10,
                 // Grounding shadow falls downward, away from the bar strip.
                 Direction = 270,
@@ -780,7 +800,10 @@ public partial class IslandWindow : Window
                 case HaloMode.AttentionPulse:
                     Halo.Color = IslandColors.AlertRed;
                     var half = IslandAnimations.AttentionPulseDuration.TimeSpan;
-                    var radius = new DoubleAnimation(14, 22, new Duration(half))
+                    // macOS radii 14–22 are gaussian sigmas; WPF BlurRadius is
+                    // the kernel extent, so ~3x keeps the pulse a soft aura
+                    // instead of a hard red outline.
+                    var radius = new DoubleAnimation(42, 66, new Duration(half))
                     {
                         AutoReverse = true,
                         RepeatBehavior = RepeatBehavior.Forever,
@@ -798,18 +821,18 @@ public partial class IslandWindow : Window
                 case HaloMode.CriticalTint:
                     Halo.Color = IslandColors.AlertRed;
                     Halo.Opacity = 0.35;
-                    Halo.BlurRadius = 14;
+                    Halo.BlurRadius = 42;
                     break;
                 case HaloMode.WarningTint:
                     Halo.Color = IslandColors.AlertAmber;
                     Halo.Opacity = 0.35;
-                    Halo.BlurRadius = 14;
+                    Halo.BlurRadius = 42;
                     break;
                 case HaloMode.Rest:
                 default:
                     Halo.Color = IslandColors.Cobalt;
                     Halo.Opacity = 0.35;
-                    Halo.BlurRadius = 14;
+                    Halo.BlurRadius = 42;
                     break;
             }
         }

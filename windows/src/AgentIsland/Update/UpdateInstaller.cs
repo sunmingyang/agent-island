@@ -81,7 +81,7 @@ public static class UpdateInstaller
         {
             LastAction = $"failed({LastAction}: {error.Message})";
             dialog.Close();
-            UI.IslandDialog.ShowApp(
+            UI.IslandDialog.ShowUpdate(
                 "Agent Island",
                 Localization.L10n.Tr("Automatic update failed. You can download the new version manually from GitHub Releases."),
                 primaryLabel: Localization.L10n.Tr("Open download page"),

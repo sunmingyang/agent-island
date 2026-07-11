@@ -40,7 +40,10 @@
                 MouseLeave="OnSilhouetteMouseLeave"
                 MouseLeftButtonUp="OnSilhouetteClick">
             <Border.Effect>
-                <DropShadowEffect x:Name="Halo" ShadowDepth="0" BlurRadius="14" Opacity="0.35" Color="#000000"/>
+                <!-- SwiftUI shadow(radius:) is a gaussian sigma; WPF BlurRadius
+                     is the kernel extent (~3x). The macOS radius-14 aura needs
+                     ~42 here or it renders as a hard rim, not a glow. -->
+                <DropShadowEffect x:Name="Halo" ShadowDepth="0" BlurRadius="42" Opacity="0.35" Color="#000000"/>
             </Border.Effect>
             <Grid ClipToBounds="True">
                 <!-- Bar strip on top, expanded panel growing downward. -->

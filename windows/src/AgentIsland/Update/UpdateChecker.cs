@@ -40,6 +40,17 @@ public sealed class UpdateChecker
     public static Version CurrentVersion =>
         typeof(UpdateChecker).Assembly.GetName().Version ?? new Version(0, 0, 0);
 
+    /// "1.5.5" — the three-part form the dialogs show, matching the tag
+    /// scheme (assembly versions carry a fourth .0 nobody prints).
+    internal static string CurrentVersionDisplay
+    {
+        get
+        {
+            var v = CurrentVersion;
+            return $"{v.Major}.{v.Minor}.{Math.Max(0, v.Build)}";
+        }
+    }
+
     /// "win-x64" / "win-arm64" — must match build.ps1's zip naming.
     internal static string RuntimeSuffix =>
         "win-" + System.Runtime.InteropServices.RuntimeInformation
@@ -88,9 +99,10 @@ public sealed class UpdateChecker
                 LastOutcome = "feed-unreachable";
                 if (userInitiated)
                 {
-                    UI.IslandDialog.ShowApp(
+                    UI.IslandDialog.ShowUpdate(
                         "Agent Island",
-                        Localization.L10n.Tr("Couldn't reach the release feed. Try again in a bit."));
+                        Localization.L10n.Tr("Couldn't reach the release feed. Try again in a bit."),
+                        primaryLabel: Localization.L10n.Tr("OK"));
                 }
                 return;
             }
@@ -100,9 +112,15 @@ public sealed class UpdateChecker
                 LastOutcome = $"latest({found.Tag})";
                 if (userInitiated)
                 {
-                    UI.IslandDialog.ShowApp(
-                        "Agent Island",
-                        Localization.L10n.Tr("You're on the latest version."));
+                    // The Sparkle "You're up to date!" card, verbatim.
+                    UI.IslandDialog.ShowUpdate(
+                        Localization.L10n.Tr("You're up to date!"),
+                        Localization.L10n.TrFormat(
+                            "AgentIsland {0} is currently the newest version available.",
+                            CurrentVersionDisplay),
+                        primaryLabel: Localization.L10n.Tr("OK"),
+                        secondaryLabel: Localization.L10n.Tr("Version History"),
+                        secondaryAction: OpenReleasesPage);
                 }
                 return;
             }
@@ -127,7 +145,7 @@ public sealed class UpdateChecker
 
             if (found.AssetUrl is not null)
             {
-                UI.IslandDialog.ShowApp(
+                UI.IslandDialog.ShowUpdate(
                     Localization.L10n.TrFormat("Agent Island {0} is available", found.Tag),
                     Localization.L10n.Tr("The update downloads in the background, then Agent Island relaunches on the new version."),
                     primaryLabel: Localization.L10n.Tr("Update & Relaunch"),
@@ -139,7 +157,7 @@ public sealed class UpdateChecker
                 // Release exists but carries no zip for this architecture
                 // (e.g. the Windows CI job hasn't attached it yet) — send
                 // the user to the page rather than pretend nothing shipped.
-                UI.IslandDialog.ShowApp(
+                UI.IslandDialog.ShowUpdate(
                     Localization.L10n.TrFormat("Agent Island {0} is available", found.Tag),
                     Localization.L10n.Tr("A new version is ready on GitHub Releases. The download is a zip — unpack and replace the app."),
                     primaryLabel: Localization.L10n.Tr("Download"),

@@ -18,7 +18,10 @@ public sealed class IslandDialog : Window
 
     /// A null primaryLabel builds the progress form: no buttons and no
     /// Escape — the flow that opened it owns closing it (a half-finished
-    /// exe swap is not something the user can cancel out of).
+    /// exe swap is not something the user can cancel out of). An appIcon
+    /// swaps the glowing brand glyph for the real app icon in a dark
+    /// rounded square, and horizontalButtons lays the pair side by side —
+    /// the Sparkle updater layout the macOS app shows.
     private IslandDialog(
         string title,
         string message,
@@ -27,7 +30,10 @@ public sealed class IslandDialog : Window
         IReadOnlyList<(string Caption, string Value)>? meta,
         string? primaryLabel,
         Action? primaryAction,
-        string? secondaryLabel)
+        string? secondaryLabel,
+        ImageSource? appIcon = null,
+        bool horizontalButtons = false,
+        Action? secondaryAction = null)
     {
         Width = 420;
         SizeToContent = SizeToContent.Height;
@@ -63,36 +69,64 @@ public sealed class IslandDialog : Window
         var stack = new StackPanel { Margin = new Thickness(32, 26, 32, 24) };
         root.Child = stack;
 
-        var glyph = new System.Windows.Shapes.Path
+        if (appIcon is not null)
         {
-            Data = mark,
-            Fill = IslandColors.Brush(tint),
-            Width = 40,
-            Height = 40,
-            Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Effect = new DropShadowEffect
+            // Real app icon in a dark rounded square — how the icon reads
+            // in the macOS updater dialog. Flat on purpose: no breathing
+            // glow on an informational card.
+            stack.Children.Add(new Border
             {
-                ShadowDepth = 0,
-                BlurRadius = 16,
-                Color = tint,
-                Opacity = 0.55,
-            },
-        };
-        // The slow alarm-family glow breath, scaled down for a dialog.
-        IslandMotion.Breathe((DropShadowEffect)glyph.Effect, DropShadowEffect.BlurRadiusProperty, 14, 24, 1.7);
-        stack.Children.Add(new Border
+                Width = 72,
+                Height = 72,
+                CornerRadius = new CornerRadius(17),
+                Background = IslandColors.Brush(IslandColors.White(0.05)),
+                BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
+                BorderThickness = new Thickness(1),
+                Child = new System.Windows.Controls.Image
+                {
+                    Source = appIcon,
+                    Width = 46,
+                    Height = 46,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 16),
+            });
+        }
+        else
         {
-            Width = 72,
-            Height = 72,
-            CornerRadius = new CornerRadius(36),
-            BorderBrush = IslandColors.Brush(tint, 0.35),
-            BorderThickness = new Thickness(1),
-            Child = glyph,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 16),
-        });
+            var glyph = new System.Windows.Shapes.Path
+            {
+                Data = mark,
+                Fill = IslandColors.Brush(tint),
+                Width = 40,
+                Height = 40,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Effect = new DropShadowEffect
+                {
+                    ShadowDepth = 0,
+                    BlurRadius = 16,
+                    Color = tint,
+                    Opacity = 0.55,
+                },
+            };
+            // The slow alarm-family glow breath, scaled down for a dialog.
+            IslandMotion.Breathe((DropShadowEffect)glyph.Effect, DropShadowEffect.BlurRadiusProperty, 14, 24, 1.7);
+            stack.Children.Add(new Border
+            {
+                Width = 72,
+                Height = 72,
+                CornerRadius = new CornerRadius(36),
+                BorderBrush = IslandColors.Brush(tint, 0.35),
+                BorderThickness = new Thickness(1),
+                Child = glyph,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 16),
+            });
+        }
 
         stack.Children.Add(new TextBlock
         {
@@ -160,21 +194,47 @@ public sealed class IslandDialog : Window
         if (primaryLabel is not null)
         {
             var primary = MakeButton(primaryLabel, Colors.White, tint, bold: true);
-            primary.Margin = new Thickness(0, 22, 0, 0);
             primary.Click += (_, _) =>
             {
                 Close();
                 primaryAction?.Invoke();
             };
-            stack.Children.Add(primary);
 
+            Button? secondary = null;
             if (secondaryLabel is not null)
             {
-                var secondary = MakeButton(
+                secondary = MakeButton(
                     secondaryLabel, IslandColors.White(0.85), IslandColors.White(0.06), bold: false);
-                secondary.Margin = new Thickness(0, 10, 0, 0);
-                secondary.Click += (_, _) => Close();
-                stack.Children.Add(secondary);
+                secondary.Click += (_, _) =>
+                {
+                    Close();
+                    secondaryAction?.Invoke();
+                };
+            }
+
+            if (horizontalButtons && secondary is not null)
+            {
+                // Sparkle layout: [secondary] [primary] sharing one row,
+                // primary on the right.
+                var row = new Grid { Margin = new Thickness(0, 22, 0, 0) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                Grid.SetColumn(secondary, 0);
+                Grid.SetColumn(primary, 2);
+                row.Children.Add(secondary);
+                row.Children.Add(primary);
+                stack.Children.Add(row);
+            }
+            else
+            {
+                primary.Margin = new Thickness(0, 22, 0, 0);
+                stack.Children.Add(primary);
+                if (secondary is not null)
+                {
+                    secondary.Margin = new Thickness(0, 10, 0, 0);
+                    stack.Children.Add(secondary);
+                }
             }
 
             KeyDown += (_, args) =>
@@ -220,6 +280,68 @@ public sealed class IslandDialog : Window
             title, message, IslandColors.Cobalt,
             Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
             primaryLabel ?? Localization.L10n.Tr("I know"), primaryAction, secondaryLabel));
+    }
+
+    /// Sparkle-style update dialog: the real app icon, headline, message,
+    /// and a side-by-side [secondary][primary] button row — the layout the
+    /// macOS updater shows, in the island's dark card.
+    public static IslandDialog ShowUpdate(
+        string title,
+        string message,
+        string primaryLabel,
+        Action? primaryAction = null,
+        string? secondaryLabel = null,
+        Action? secondaryAction = null)
+    {
+        ImageSource? icon = null;
+        try
+        {
+            icon = new System.Windows.Media.Imaging.BitmapImage(
+                new Uri("pack://application:,,,/Assets/agentisland_logo.png"));
+        }
+        catch
+        {
+            // Missing resource falls back to the glowing brand glyph.
+        }
+        var dialog = new IslandDialog(
+            title, message, IslandColors.Cobalt,
+            Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
+            primaryLabel, primaryAction, secondaryLabel,
+            appIcon: icon, horizontalButtons: true, secondaryAction: secondaryAction);
+        Present(dialog);
+        return dialog;
+    }
+
+    /// Scripted verification: render this dialog into a PNG once layout AND
+    /// the entrance fade have settled — screenshots that survive virtual
+    /// desktops and occlusion.
+    public void SaveSnapshot(string path)
+    {
+        var settle = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(700),
+        };
+        settle.Tick += (_, _) =>
+        {
+            settle.Stop();
+            try
+            {
+                var width = (int)Math.Ceiling(ActualWidth);
+                var height = (int)Math.Ceiling(ActualHeight);
+                if (width <= 0 || height <= 0) return;
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    width, height, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(this);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                using var stream = System.IO.File.Create(path);
+                encoder.Save(stream);
+            }
+            catch
+            {
+            }
+        };
+        settle.Start();
     }
 
     /// Button-less progress card for the update flow. The caller keeps the

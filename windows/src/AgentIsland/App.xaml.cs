@@ -11,10 +11,38 @@ public partial class App : System.Windows.Application
 
     private IslandWindow? _island;
     private TrayIcon? _tray;
+    private System.Threading.Mutex? _singleInstance;
+
+    /// Two live copies sharing %APPDATA%\AgentIsland corrupt each other's
+    /// preferences (each periodic save resurrects that instance's stale
+    /// snapshot), so a second launch bows out. The wait is generous because
+    /// the auto-updater's relaunch overlaps the old process by design —
+    /// the new exe must outwait the old one's exit, not give up. Demo/debug
+    /// copies skip the gate: running one beside the real app is a supported
+    /// verification flow.
+    private bool ClaimSingleInstance()
+    {
+        if (AppEnvironment.Current != AppMode.Normal) return true;
+        _singleInstance = new System.Threading.Mutex(
+            initiallyOwned: false, @"Local\AgentIsland.SingleInstance");
+        try
+        {
+            return _singleInstance.WaitOne(TimeSpan.FromSeconds(10));
+        }
+        catch (System.Threading.AbandonedMutexException)
+        {
+            return true; // previous holder died without releasing — ours now
+        }
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (!ClaimSingleInstance())
+        {
+            Shutdown();
+            return;
+        }
         InstallCrashLogger();
         Model.AppLanguageStore.ApplyAtStartup();
 
@@ -55,6 +83,21 @@ public partial class App : System.Windows.Application
         if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_OPEN_SETTINGS") == "1")
         {
             UI.SettingsWindow.Open();
+        }
+        // "1" pops the Sparkle-style up-to-date card; any other value is a
+        // PNG path the card renders itself into (works across virtual
+        // desktops, where a screen grab can't see it).
+        var updateDialogPreview = Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_UPDATE_DIALOG");
+        if (!string.IsNullOrEmpty(updateDialogPreview))
+        {
+            var dialog = IslandDialog.ShowUpdate(
+                Localization.L10n.Tr("You're up to date!"),
+                Localization.L10n.TrFormat(
+                    "AgentIsland {0} is currently the newest version available.",
+                    Update.UpdateChecker.CurrentVersionDisplay),
+                primaryLabel: Localization.L10n.Tr("OK"),
+                secondaryLabel: Localization.L10n.Tr("Version History"));
+            if (updateDialogPreview != "1") dialog.SaveSnapshot(updateDialogPreview);
         }
         if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_DIALOG") == "1")
         {

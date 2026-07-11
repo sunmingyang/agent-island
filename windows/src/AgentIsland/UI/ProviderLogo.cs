@@ -114,13 +114,15 @@ public sealed class ProviderLogo : Grid
             case ActivityState.Working:
                 StartSpin();
                 StartBreath(from: 1.0, to: 1.05, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan);
-                StartGlow(radiusFrom: 2, radiusTo: 5, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan);
+                // macOS radii are gaussian sigmas; WPF BlurRadius is the
+                // kernel extent (~3x), else the glow reads as an outline.
+                StartGlow(radiusFrom: 6, radiusTo: 15, halfCycle: IslandAnimations.WorkingBreathDuration.TimeSpan);
                 break;
             case ActivityState.Stalled:
             case ActivityState.RateLimited:
             case ActivityState.AuthRequired:
                 StartBreath(from: 1.0, to: 1.16, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
-                StartGlow(radiusFrom: 4, radiusTo: 11, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
+                StartGlow(radiusFrom: 12, radiusTo: 33, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
                 break;
             case ActivityState.Idle:
             case ActivityState.NeedsYou:
