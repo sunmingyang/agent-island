@@ -84,6 +84,19 @@ public partial class App : System.Windows.Application
         {
             UI.SettingsWindow.Open();
         }
+        // Render the island's live glow/sweep to a PNG for parity checks —
+        // AGENTISLAND_DEBUG_ISLAND_STATE (working/stalled/needsYou/…) forces
+        // the state first. Immune to the window occlusion a screen grab hits.
+        var islandPng = Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_ISLAND_PNG");
+        if (!string.IsNullOrEmpty(islandPng))
+        {
+            var stateName = Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_ISLAND_STATE");
+            if (Enum.TryParse<ActivityState>(stateName, ignoreCase: true, out var forced))
+            {
+                ActivityMonitor.Shared.Demo(forced);
+            }
+            _island?.SaveVisualSnapshot(islandPng);
+        }
         // "1" pops the Sparkle-style up-to-date card; any other value is a
         // PNG path the card renders itself into (works across virtual
         // desktops, where a screen grab can't see it).

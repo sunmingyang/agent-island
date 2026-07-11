@@ -482,6 +482,46 @@ public partial class IslandWindow : Window
         e.Handled = true;
     }
 
+    /// Scripted glow/sweep verification: render the live visual tree (sweep +
+    /// halo effects included) to a PNG, composited over a desktop-like grey so
+    /// the aura reads the way it does on screen. Immune to window occlusion —
+    /// a plain screen grab loses to whatever sits on top of the topmost bar.
+    public void SaveVisualSnapshot(string path)
+    {
+        var settle = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        settle.Tick += (_, _) =>
+        {
+            settle.Stop();
+            try
+            {
+                var w = (int)Math.Ceiling(RootHost.ActualWidth);
+                var h = (int)Math.Ceiling(RootHost.ActualHeight);
+                if (w <= 0 || h <= 0) return;
+                var visual = new DrawingVisual();
+                using (var dc = visual.RenderOpen())
+                {
+                    // The light desktop the island actually floats over, so the
+                    // glow spread shows against a real backdrop, not transparency.
+                    dc.DrawRectangle(
+                        new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF2)),
+                        null, new Rect(0, 0, w, h));
+                    dc.DrawRectangle(new VisualBrush(RootHost), null, new Rect(0, 0, w, h));
+                }
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    w, h, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(visual);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                using var stream = System.IO.File.Create(path);
+                encoder.Save(stream);
+            }
+            catch
+            {
+            }
+        };
+        settle.Start();
+    }
+
     /// Bring the island up and open it — the tray-icon launcher.
     public void PopUp()
     {
