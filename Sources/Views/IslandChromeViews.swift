@@ -260,10 +260,21 @@ struct LoadingSweep: View {
 
     var body: some View {
         if active {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-                let rotation = (context.date.timeIntervalSinceReferenceDate * 100).truncatingRemainder(dividingBy: 360)
-                IslandShape()
-                    .stroke(
+            // The sweep's geometry never changes — only its rotation. The old
+            // build re-shaded the conic `AngularGradient(angle:)` on the CPU
+            // every frame (a 30Hz TimelineView), which drove
+            // `rgba64_shade_conic_RGB` in CoreGraphics on the main thread and
+            // was the app's dominant idle-CPU cost. Here the conic field is
+            // shaded ONCE (fixed angle) and spun by a GPU rotation transform,
+            // masked to the fixed island stroke so the outline stays put while
+            // the highlight travels around it — visually identical, but the
+            // shading no longer repeats per frame. The field is sized to the
+            // island's bounding circle so the rotated layer always covers the
+            // stroke it's masked to.
+            GeometryReader { geo in
+                let side = max(geo.size.width, geo.size.height) * 2.2
+                Rectangle()
+                    .fill(
                         AngularGradient(
                             gradient: Gradient(stops: [
                                 .init(color: .clear, location: 0.00),
@@ -273,12 +284,27 @@ struct LoadingSweep: View {
                                 .init(color: tint.opacity(0.0), location: 1.00),
                             ]),
                             center: .center,
-                            angle: .degrees(rotation)
-                        ),
-                        lineWidth: 4
+                            angle: .degrees(0)
+                        )
                     )
+                    .frame(width: side, height: side)
+                    .rotationEffect(.degrees(rotation))
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            }
+            .mask {
+                IslandShape()
+                    .stroke(lineWidth: 4)
                     .blur(radius: 3)
             }
+            .onAppear {
+                rotation = 0
+                withAnimation(.linear(duration: 3.6).repeatForever(autoreverses: false)) {
+                    rotation = 360
+                }
+            }
+            .onDisappear { rotation = 0 }
         }
     }
+
+    @State private var rotation: Double = 0
 }

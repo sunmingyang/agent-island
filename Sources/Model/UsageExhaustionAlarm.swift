@@ -8,15 +8,28 @@ import Foundation
 /// finished turn with a hard rate-limit block.
 ///
 /// Mirrors `AlertEngine`'s crossing pattern: it warms up on the first real
-/// usage sample (so launching into an already-exhausted window doesn't alarm),
-/// dedups per (provider, window, resetAt) so it fires once per reset cycle, and
-/// prunes a key only when that window's reset boundary advances — so a percent
-/// that jitters just under/over 100% within one cycle can't re-alarm.
+/// usage sample (so launching into an already-exhausted window doesn't alarm)
+/// and fires once per reset cycle per (provider, window).
+///
+/// Re-arming is keyed on the reset boundary *advancing to a new cycle*, not on
+/// its exact value. Anthropic's rolling 5-hour `reset_at` drifts by seconds to
+/// minutes on every poll while a window sits exhausted, so an exact-timestamp
+/// dedup (what 1.5.6 shipped) churned its key every 5-minute refresh and
+/// re-fired the same "out of quota" alarm over and over. We now track the
+/// latest boundary we've accounted for and only re-alarm when the boundary
+/// jumps past it by more than `reArmMargin` — real resets leap hours (5-hour)
+/// or days (weekly); jitter never does.
 @MainActor
 final class UsageExhaustionAlarm {
     static let shared = UsageExhaustionAlarm()
 
-    private var firedKeys: Set<String> = []
+    /// windowId ("provider-window") → the most recent reset boundary we've
+    /// accounted for. Presence means "already alarmed for this cycle".
+    private var alarmedResetAt: [String: Date] = [:]
+    /// A boundary must advance by more than this to count as a new cycle.
+    /// Comfortably larger than any observed reset_at jitter, comfortably
+    /// smaller than the smallest real reset span (the 5-hour window).
+    private static let reArmMargin: TimeInterval = 30 * 60
     private var warmedUp = false
     private var subs: Set<AnyCancellable> = []
 
@@ -53,8 +66,22 @@ final class UsageExhaustionAlarm {
         return all.filter { ProviderVisibilityStore.shared.effectiveVisible(provider: $0.provider) }
     }
 
-    private func key(_ provider: AlertEngine.Provider, _ window: QuotaWindowKind, _ resetAt: Date) -> String {
-        "\(provider.rawValue)-\(window.rawValue)-\(Int(resetAt.timeIntervalSince1970))"
+    private func windowId(_ provider: AlertEngine.Provider, _ window: QuotaWindowKind) -> String {
+        "\(provider.rawValue)-\(window.rawValue)"
+    }
+
+    /// A window is fire-worthy when we've never alarmed it, or its reset
+    /// boundary has jumped to a new cycle (past the last one by > margin).
+    private func isNewCycle(_ provider: AlertEngine.Provider, _ window: QuotaWindowKind, _ resetAt: Date) -> Bool {
+        guard let prev = alarmedResetAt[windowId(provider, window)] else { return true }
+        return resetAt > prev + Self.reArmMargin
+    }
+
+    /// Record the boundary we've now accounted for, monotonically — so a
+    /// reset_at that drifts earlier can't lower the bar and let jitter re-fire.
+    private func accountFor(_ provider: AlertEngine.Provider, _ window: QuotaWindowKind, _ resetAt: Date) {
+        let id = windowId(provider, window)
+        alarmedResetAt[id] = max(alarmedResetAt[id] ?? resetAt, resetAt)
     }
 
     private func isExhausted(_ ref: WindowRef) -> Bool {
@@ -70,21 +97,11 @@ final class UsageExhaustionAlarm {
 
         let windows = currentWindows()
 
-        // Prune fired keys whose window has advanced to a new reset cycle. Only
-        // prune when the current resetAt is known — an error/nil boundary leaves
-        // prior keys intact rather than re-arming on a transient blip.
-        for ref in windows {
-            guard let reset = ref.usage.resetAt else { continue }
-            let prefix = "\(ref.provider.rawValue)-\(ref.window.rawValue)-"
-            let currentKey = key(ref.provider, ref.window, reset)
-            firedKeys = firedKeys.filter { !$0.hasPrefix(prefix) || $0 == currentKey }
-        }
-
         // Warmup: on the first real sample, mark anything already exhausted as
         // already-alarmed so we don't pop for a state that predates launch.
         if !warmedUp {
             for ref in windows where isExhausted(ref) {
-                if let reset = ref.usage.resetAt { firedKeys.insert(key(ref.provider, ref.window, reset)) }
+                if let reset = ref.usage.resetAt { accountFor(ref.provider, ref.window, reset) }
             }
             warmedUp = true
             return
@@ -101,15 +118,17 @@ final class UsageExhaustionAlarm {
         // fire two separate full-screen panels (they queue back-to-back, so it
         // reads as "it keeps popping"). Collapse to a single alarm for the
         // binding window — the one with the latest reset, i.e. the time you're
-        // actually blocked until — while marking every exhausted window fired
-        // so neither re-arms. Windows that exhaust in *different* passes still
-        // each get their own alarm.
+        // actually blocked until.
         let exhausted = windows.filter { isExhausted($0) && $0.usage.resetAt != nil }
         for provider in Set(exhausted.map(\.provider)) {
             let group = exhausted.filter { $0.provider == provider }
-            let hasUnfired = group.contains { !firedKeys.contains(key($0.provider, $0.window, $0.usage.resetAt!)) }
-            guard hasUnfired else { continue }
-            for ref in group { firedKeys.insert(key(ref.provider, ref.window, ref.usage.resetAt!)) }
+            // Fire only if some window in this provider's group has entered a
+            // new reset cycle. Check BEFORE recording, then record every group
+            // boundary so a jittering reset_at (or a window flapping just
+            // under/over 100% within one cycle) can never re-fire.
+            let hasNewCycle = group.contains { isNewCycle($0.provider, $0.window, $0.usage.resetAt!) }
+            for ref in group { accountFor(ref.provider, ref.window, ref.usage.resetAt!) }
+            guard hasNewCycle else { continue }
             if let binding = group.max(by: { ($0.usage.resetAt ?? .distantPast) < ($1.usage.resetAt ?? .distantPast) }),
                let reset = binding.usage.resetAt {
                 fire(binding, resetAt: reset)

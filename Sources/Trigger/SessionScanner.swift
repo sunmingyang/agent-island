@@ -101,7 +101,13 @@ enum SessionScanner {
         for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
             files.append(root + "/" + rel)
         }
-        files.sort { mtime($0) > mtime($1) }
+        // Stat each file ONCE, then sort by the cached mtime. Calling mtime()
+        // inside the comparator re-stats every file O(n log n) times — the
+        // dominant cost of the every-few-seconds monitoring scan.
+        files = files
+            .map { (path: $0, modified: mtime($0)) }
+            .sorted { $0.modified > $1.modified }
+            .map(\.path)
         var out: [ScannedSession] = []
         var seenProjects = Set<String>()
         for path in files {
@@ -302,10 +308,18 @@ enum SessionScanner {
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
+    /// Modification time via a single `stat(2)` syscall. `FileManager`'s
+    /// `attributesOfItem` fetches the *entire* attribute set (owner,
+    /// permissions, size, every timestamp) and bridges it into an NSDictionary
+    /// — dozens of times more work than we need. The monitoring scan runs every
+    /// few seconds over every session file, so this hot path takes only the one
+    /// field it uses.
     static func mtime(_ path: String) -> Date {
-        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
-              let date = attrs[.modificationDate] as? Date else { return .distantPast }
-        return date
+        var info = stat()
+        guard stat(path, &info) == 0 else { return .distantPast }
+        return Date(timeIntervalSince1970:
+            TimeInterval(info.st_mtimespec.tv_sec)
+            + TimeInterval(info.st_mtimespec.tv_nsec) / 1_000_000_000)
     }
 
     private static func latestDate(_ lhs: Date?, _ rhs: Date?) -> Date? {
