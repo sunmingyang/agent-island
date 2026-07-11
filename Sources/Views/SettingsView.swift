@@ -18,6 +18,7 @@ struct SettingsView: View {
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
     @ObservedObject private var missionControlHide = MissionControlHideStore.shared
+    @ObservedObject private var claudeJump = ClaudeJumpPreferenceStore.shared
     @ObservedObject private var alertPrefs = AlertThresholdStore.shared
     @ObservedObject private var spacing = IslandSpacingStore.shared
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
@@ -204,6 +205,17 @@ struct SettingsView: View {
                 subtitle: "How often to refresh."
             ) {
                 refreshSegmented
+            }
+            SettingsRow(
+                title: "Open Claude sessions with",
+                subtitle: "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link."
+            ) {
+                SegmentedControl(
+                    items: [false, true],
+                    selected: $claudeJump.prefersCLI,
+                    label: { $0 ? "CLI resume" : "Desktop app" },
+                    accessibilityPrefix: "Open Claude sessions with"
+                )
             }
             SettingsRow(
                 title: "Language",

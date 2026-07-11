@@ -287,3 +287,9 @@
 "Used" = "已用";
 "Remaining" = "剩余";
 "Usage tiles and top-bar percentages follow this." = "用量图和顶栏百分比都跟随这里。";
+
+/* 1.5.6 Claude jump preference */
+"Open Claude sessions with" = "Claude 会话跳转方式";
+"CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链后才能直达具体会话。";
+"CLI resume" = "CLI 恢复";
+"Desktop app" = "桌面应用";

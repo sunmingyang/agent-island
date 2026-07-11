@@ -279,3 +279,9 @@
 "Used" = "Used";
 "Remaining" = "Remaining";
 "Usage tiles and top-bar percentages follow this." = "Usage tiles and top-bar percentages follow this.";
+
+/* 1.5.6 Claude jump preference */
+"Open Claude sessions with" = "Open Claude sessions with";
+"CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link." = "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link.";
+"CLI resume" = "CLI resume";
+"Desktop app" = "Desktop app";

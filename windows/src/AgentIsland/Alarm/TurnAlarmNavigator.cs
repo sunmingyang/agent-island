@@ -41,15 +41,38 @@ public static class TurnAlarmNavigator
             // session's own cwd; that user lives in a terminal already.
             if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop)
             {
-                // No deep link lands on an existing Claude conversation, so
-                // compensate: put the session title on the clipboard (here,
-                // on the caller's STA/UI thread - Clipboard requires it) so
-                // finding the thread is one paste in Claude's search.
+                // Opt-in: some people prefer the terminal's exact-conversation
+                // resume over landing in the Desktop app.
+                if (Model.ClaudeJumpPreferenceStore.Shared.PrefersCli)
+                {
+                    return System.Threading.Tasks.Task.Run(() =>
+                    {
+                        if (Trigger.CLILocator.Locate("claude") is { } claudeCli)
+                        {
+                            return RunResumeInTerminal(claudeCli, $"--resume {sessionId}", cwd, "Claude resume");
+                        }
+                        return FocusAppWindow("claude");
+                    });
+                }
+                // Clipboard assist (STA/UI thread required): until Anthropic
+                // unlocks the conversation deep link, finding the thread is
+                // one paste in Claude's search.
                 if (!string.IsNullOrEmpty(thread.Label))
                 {
                     try { System.Windows.Clipboard.SetText(thread.Label); } catch { }
                 }
-                return System.Threading.Tasks.Task.Run(() => FocusAppWindow("claude"));
+                return System.Threading.Tasks.Task.Run(() =>
+                {
+                    // claude://code/<bridge-id> routes straight to the
+                    // conversation once Anthropic's server-side flag opens
+                    // (today it merely fronts the app — same as our fallback,
+                    // so firing it costs nothing and upgrades automatically).
+                    if (BridgeSessionId(thread.SessionId) is { } bridge)
+                    {
+                        TryOpenUri($"claude://code/{bridge}");
+                    }
+                    return FocusAppWindow("claude");
+                });
             }
             return System.Threading.Tasks.Task.Run(() =>
             {
@@ -81,6 +104,40 @@ public static class TurnAlarmNavigator
             }
             return false;
         });
+    }
+
+    /// Claude Desktop's session store keeps, per conversation, the internal
+    /// bridge ids (session_/cse_ prefixed) its claude://code/<id> route
+    /// expects. Looked up on click; the store is dozens of small JSON files.
+    private static string? BridgeSessionId(string cliSessionId)
+    {
+        try
+        {
+            var root = IslandPaths.ClaudeDesktopSessionsRoot;
+            if (!System.IO.Directory.Exists(root)) return null;
+            foreach (var path in System.IO.Directory.EnumerateFiles(root, "local_*.json", System.IO.SearchOption.AllDirectories))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllBytes(path));
+                var rootEl = doc.RootElement;
+                if (Jsonl.GetString(rootEl, "cliSessionId") != cliSessionId) continue;
+                if (!rootEl.TryGetProperty("bridgeSessionIds", out var bridges)
+                    || bridges.ValueKind != System.Text.Json.JsonValueKind.Array)
+                {
+                    return null;
+                }
+                string? found = null;
+                foreach (var b in bridges.EnumerateArray())
+                {
+                    var v = b.GetString();
+                    if (v is not null && (v.StartsWith("session_") || v.StartsWith("cse_"))) found = v;
+                }
+                return found;
+            }
+        }
+        catch
+        {
+        }
+        return null;
     }
 
     private static bool TryOpenUri(string uri)

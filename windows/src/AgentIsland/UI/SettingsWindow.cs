@@ -323,6 +323,16 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Refresh interval", "How often to refresh.", refresh));
 
+        var claudeJump = Model.ClaudeJumpPreferenceStore.Shared;
+        var jumpSeg = new Segmented(
+            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
+            claudeJump.PrefersCli ? 1 : 0);
+        jumpSeg.SelectionChanged += index => claudeJump.PrefersCli = index == 1;
+        stack.Children.Add(new SettingsRowControl(
+            "Open Claude sessions with",
+            "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link.",
+            jumpSeg));
+
         var language = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
         language.Items.Add(L10n.Tr("Auto (system)"));
         language.Items.Add("English");

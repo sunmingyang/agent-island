@@ -95,11 +95,44 @@ enum TurnAlarmNavigator {
         //   does — `claude --resume <id>` in a terminal from the session's
         //   own cwd. That user lives in a terminal already.
         if thread?.launchTarget == .claudeDesktop {
-            activate(bundleIdentifier: claudeBundleID)
-            // Best possible compensation for the missing deep link: put the
-            // session's title on the clipboard and tell the user, so locating
-            // the conversation is one paste in Claude's search instead of a
-            // scroll hunt through the sidebar.
+            // Opt-in: some people prefer the terminal's exact-conversation
+            // resume over landing in the Desktop app.
+            if ClaudeJumpPreferenceStore.shared.prefersCLI,
+               let thread, openCLIResume(
+                   executable: "claude",
+                   arguments: ["--resume", thread.sessionId],
+                   thread: thread,
+                   fallbackBundleID: claudeBundleID
+               ) {
+                return
+            }
+            // Desktop path. Claude registers claude://code/<bridge-id>, a
+            // route straight to the conversation — currently behind
+            // Anthropic's server-side flag ("code session deep link gated
+            // off" in their log), where it merely fronts the app. Firing it
+            // costs nothing today and upgrades to a true jump the moment
+            // they enable the flag. Clipboard assist stays either way.
+            if let thread,
+               let bridge = bridgeSessionId(forCLISession: thread.sessionId),
+               let url = URL(string: "claude://code/\(bridge)"),
+               let appURL = appURL(forScheme: url, bundleID: claudeBundleID) {
+                let config = NSWorkspace.OpenConfiguration()
+                config.activates = true
+                NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config) { app, _ in
+                    Task { @MainActor in
+                        if let app {
+                            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                        } else {
+                            activate(bundleIdentifier: claudeBundleID)
+                        }
+                    }
+                }
+            } else {
+                activate(bundleIdentifier: claudeBundleID)
+            }
+            // Put the session's title on the clipboard and say so — until the
+            // deep link is unlocked, finding the conversation is one paste in
+            // Claude's search instead of a scroll hunt through the sidebar.
             if let label = thread?.label, !label.isEmpty, label != L10n.tr("Demo thread") {
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
@@ -119,9 +152,29 @@ enum TurnAlarmNavigator {
         activate(bundleIdentifier: claudeBundleID)
     }
 
-    /// Claude Desktop has no URL that lands on an existing conversation (its
-    /// scheme only registers new-session entry points), so after fronting the
-    /// app we surface a quiet notification explaining the clipboard assist.
+    /// Claude Desktop's session store keeps, per conversation, the internal
+    /// bridge ids (`session_…`/`cse_…`) its own `claude://code/<id>` route
+    /// expects. Looked up on click — 60-odd small JSON files, milliseconds —
+    /// so the value is always fresh and no scanner plumbing is needed.
+    private static func bridgeSessionId(forCLISession sessionId: String) -> String? {
+        let root = NSHomeDirectory() + "/Library/Application Support/Claude/claude-code-sessions"
+        guard let enumerator = FileManager.default.enumerator(atPath: root) else { return nil }
+        for case let rel as String in enumerator
+        where rel.hasSuffix(".json") && (rel as NSString).lastPathComponent.hasPrefix("local_") {
+            guard let data = FileManager.default.contents(atPath: root + "/" + rel),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  object["cliSessionId"] as? String == sessionId,
+                  let bridges = object["bridgeSessionIds"] as? [String],
+                  let bridge = bridges.last(where: { $0.hasPrefix("session_") || $0.hasPrefix("cse_") })
+            else { continue }
+            return bridge
+        }
+        return nil
+    }
+
+    /// Until Anthropic unlocks the conversation deep link, fronting the app
+    /// is as far as it goes — so we surface a quiet notification explaining
+    /// the clipboard assist.
     private static func postClipboardHint(label: String) {
         let content = UNMutableNotificationContent()
         content.title = L10n.tr("Session name copied")
