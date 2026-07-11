@@ -104,8 +104,8 @@ struct TriggerSettingsView: View {
             ForEach(rows) { trigger in
                 SettingsRow(title: trigger.label, subtitle: subtitle(trigger)) {
                     HStack(spacing: 8) {
-                        PillButton(label: safety.isAllowed(cwd: trigger.cwd) ? "Disallow resume" : "Allow resume") {
-                            safety.setAllowed(cwd: trigger.cwd, !safety.isAllowed(cwd: trigger.cwd))
+                        PillButton(label: safety.isAllowed(trigger) ? "Disallow resume" : "Allow resume") {
+                            safety.setAllowed(trigger, !safety.isAllowed(trigger))
                         }
                         PillButton(label: "Run") { TriggerEngine.shared.fire(trigger) }
                         if !trigger.cwd.isEmpty {

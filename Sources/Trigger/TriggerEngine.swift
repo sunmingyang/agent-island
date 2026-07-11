@@ -159,7 +159,7 @@ final class TriggerEngine: ObservableObject {
             logStatus("blocked: trigger execution is off", for: trigger)
             return
         }
-        guard safety.isAllowed(cwd: trigger.cwd) else {
+        guard safety.isAllowed(trigger) else {
             TriggerStore.shared.markFired(trigger.id)
             logStatus("blocked: project is not trusted for auto-resume\n\(preview(for: trigger))", for: trigger)
             return

@@ -1,6 +1,5 @@
 import Combine
 import Foundation
-import UserNotifications
 
 /// Fires a distinct full-screen alarm (and a system notification) the moment a
 /// provider's 5-hour or weekly window hits 100% — the "you're out of quota
@@ -94,42 +93,40 @@ final class UsageExhaustionAlarm {
         // Respect the master alarm switch — if the user turned off turn alarms,
         // don't surprise them with a quota alarm either.
         guard AgentReminderStore.shared.enabled else { return }
+        // Dedicated opt-out: some people only want auto-resume.
+        guard QuotaAlarmStore.shared.enabled else { return }
 
-        for ref in windows where isExhausted(ref) {
-            guard let reset = ref.usage.resetAt else { continue }
-            let alarmKey = key(ref.provider, ref.window, reset)
-            guard !firedKeys.contains(alarmKey) else { continue }
-            firedKeys.insert(alarmKey)
-            fire(ref, resetAt: reset)
+        // One alarm per provider per pass. Claude exposes both a 5-hour and a
+        // weekly window; when both cross 100% in the same refresh they used to
+        // fire two separate full-screen panels (they queue back-to-back, so it
+        // reads as "it keeps popping"). Collapse to a single alarm for the
+        // binding window — the one with the latest reset, i.e. the time you're
+        // actually blocked until — while marking every exhausted window fired
+        // so neither re-arms. Windows that exhaust in *different* passes still
+        // each get their own alarm.
+        let exhausted = windows.filter { isExhausted($0) && $0.usage.resetAt != nil }
+        for provider in Set(exhausted.map(\.provider)) {
+            let group = exhausted.filter { $0.provider == provider }
+            let hasUnfired = group.contains { !firedKeys.contains(key($0.provider, $0.window, $0.usage.resetAt!)) }
+            guard hasUnfired else { continue }
+            for ref in group { firedKeys.insert(key(ref.provider, ref.window, ref.usage.resetAt!)) }
+            if let binding = group.max(by: { ($0.usage.resetAt ?? .distantPast) < ($1.usage.resetAt ?? .distantPast) }),
+               let reset = binding.usage.resetAt {
+                fire(binding, resetAt: reset)
+            }
         }
     }
 
     private func fire(_ ref: WindowRef, resetAt: Date) {
+        // The full-screen panel IS the notification — it's screen-saver level
+        // and joins all Spaces, so it surfaces over fullscreen work on any
+        // display. Posting a Notification Center banner alongside it just
+        // showed the same thing twice (half of the "2-3 popups" report).
         TurnAlarmWindowController.shared.show(
             provider: ref.provider,
             thread: nil,
             kind: .quotaExhausted(window: ref.window, resetAt: resetAt)
         )
-        postNotification(ref, resetAt: resetAt)
     }
 
-    private func postNotification(_ ref: WindowRef, resetAt: Date) {
-        let name = ref.provider == .claude ? "Claude" : "Codex"
-        let windowName = ref.window == .fiveHour ? L10n.tr("5-hour limit") : L10n.tr("Weekly limit")
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-
-        let content = UNMutableNotificationContent()
-        content.title = L10n.tr("%@ %@ reached", name, windowName)
-        content.body = L10n.tr("You're out until it resets at %@.", formatter.string(from: resetAt))
-
-        let request = UNNotificationRequest(
-            identifier: "agent-island-exhausted-\(key(ref.provider, ref.window, resetAt))",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-    }
 }

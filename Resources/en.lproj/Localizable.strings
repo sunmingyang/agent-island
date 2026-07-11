@@ -298,3 +298,6 @@
 
 "Notch width for MacBooks with a camera notch; narrower for those without." = "Notch width for MacBooks with a camera notch; narrower for those without.";
 "Codex spawns child threads that finish constantly. Off by default." = "Codex spawns child threads that finish constantly. Off by default.";
+
+/* quota alarm toggle */
+"Out-of-quota alarm" = "Out-of-quota alarm";

@@ -306,3 +306,6 @@
 
 "Notch width for MacBooks with a camera notch; narrower for those without." = "有刘海的 MacBook 用刘海宽度,没有的更窄。";
 "Codex spawns child threads that finish constantly. Off by default." = "Codex 会派生子线程,它们结束得非常频繁。默认关。";
+
+/* quota alarm toggle */
+"Out-of-quota alarm" = "额度用完弹窗";

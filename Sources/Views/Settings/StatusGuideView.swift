@@ -3,6 +3,7 @@ import SwiftUI
 struct StatusGuideView: View {
     @ObservedObject private var reminders = AgentReminderStore.shared
     @ObservedObject private var subagentAlarm = SubagentAlarmStore.shared
+    @ObservedObject private var quotaAlarm = QuotaAlarmStore.shared
     @State private var soundPickerExpanded = false
 
     var body: some View {
@@ -37,6 +38,12 @@ struct StatusGuideView: View {
                 subtitle: "Codex spawns child threads that finish constantly. Off by default."
             ) {
                 SettingsToggle(isOn: subagentAlarm.showSubagentThreads) { subagentAlarm.showSubagentThreads.toggle() }
+            }
+            SettingsRow(
+                title: "Out-of-quota alarm",
+                subtitle: nil
+            ) {
+                SettingsToggle(isOn: quotaAlarm.enabled) { quotaAlarm.enabled.toggle() }
             }
             SettingsRow(
                 title: "Alarm sound",

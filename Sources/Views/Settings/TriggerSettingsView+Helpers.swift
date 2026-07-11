@@ -14,7 +14,7 @@ extension TriggerSettingsView {
     func addTrigger() {
         guard let id = selectedID,
               let session = allSessions.first(where: { $0.id == id }) else { return }
-        store.add(Trigger(
+        let trigger = Trigger(
             tool: session.tool,
             sessionId: session.sessionId,
             label: session.label,
@@ -24,7 +24,12 @@ extension TriggerSettingsView {
             everyHours: hours,
             enabled: true,
             lastFired: mode == .everyHours ? Date() : nil
-        ))
+        )
+        store.add(trigger)
+        // Creating a trigger is the explicit act of consent — trust it to
+        // resume so "configured it" actually runs, instead of silently
+        // blocking on the separate allowlist the user never discovered.
+        TriggerSafetyStore.shared.setAllowed(trigger, true)
     }
 
     func loadSessions() async {
@@ -42,7 +47,7 @@ extension TriggerSettingsView {
             ? L10n.tr("after reset")
             : L10n.tr("every %dh", trigger.everyHours)
         var parts = ["「\(trigger.message)」", when]
-        parts.append(safety.isAllowed(cwd: trigger.cwd) ? L10n.tr("resume allowed") : L10n.tr("resume not allowed"))
+        parts.append(safety.isAllowed(trigger) ? L10n.tr("resume allowed") : L10n.tr("resume not allowed"))
         parts.append(TriggerEngine.shared.preview(for: trigger))
         if let last = trigger.lastFired {
             parts.append(L10n.tr("fired %@", Self.rel.localizedString(for: last, relativeTo: Date())))

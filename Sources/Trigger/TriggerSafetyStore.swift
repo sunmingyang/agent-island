@@ -23,23 +23,27 @@ final class TriggerSafetyStore: ObservableObject {
         allowedRoots = Set(UserDefaults.standard.stringArray(forKey: Self.allowedRootsKey) ?? [])
     }
 
-    func isAllowed(cwd: String) -> Bool {
-        let root = normalized(cwd)
-        // Fail closed on an empty cwd: with no project root to anchor trust we
-        // can't have added it to the allowlist (setAllowed guards `!root.isEmpty`
-        // too), so an empty root must NOT auto-authorize the approval-skipping
-        // resume command. Claude scans frequently yield an empty cwd, so the
-        // old `root.isEmpty ||` short-circuit silently trusted every one of them.
-        return !root.isEmpty && allowedRoots.contains(root)
+    /// The allowlist entry that authorizes a trigger. A real project path
+    /// trusts the whole project (all its triggers); a trigger with no cwd —
+    /// common for Claude Desktop / home-dir sessions — is trusted individually
+    /// by its own id. Never empty, so the approval-skipping resume still
+    /// requires an explicit allow. The auto-monitoring scanner never builds a
+    /// Trigger, so it can never reach this and can't auto-authorize itself.
+    private func authKey(for trigger: Trigger) -> String {
+        let root = normalized(trigger.cwd)
+        return root.isEmpty ? "trigger:\(trigger.id)" : root
     }
 
-    func setAllowed(cwd: String, _ allowed: Bool) {
-        let root = normalized(cwd)
-        guard !root.isEmpty else { return }
+    func isAllowed(_ trigger: Trigger) -> Bool {
+        allowedRoots.contains(authKey(for: trigger))
+    }
+
+    func setAllowed(_ trigger: Trigger, _ allowed: Bool) {
+        let key = authKey(for: trigger)
         if allowed {
-            allowedRoots.insert(root)
+            allowedRoots.insert(key)
         } else {
-            allowedRoots.remove(root)
+            allowedRoots.remove(key)
         }
     }
 
