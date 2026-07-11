@@ -4,9 +4,12 @@ using AgentIsland.Usage;
 
 namespace AgentIsland.Tests;
 
-/// Pins the quota-alarm contract (macOS UsageExhaustionAlarm semantics):
-/// warmup swallows pre-existing exhaustion, one alarm per reset cycle,
-/// jitter inside a cycle can't re-fire, and a new reset boundary re-arms.
+/// Pins the quota-alarm contract (macOS UsageExhaustionAlarm semantics plus
+/// the per-provider coalescing added on Windows): warmup swallows
+/// pre-existing exhaustion, one alarm per reset cycle, jitter inside a cycle
+/// can't re-fire, a new reset boundary re-arms — and windows of one provider
+/// exhausting together (or in quick succession) pop a single alarm carrying
+/// the latest reset, not one popup each.
 public static class UsageExhaustionAlarmTests
 {
     public static void RunAll()
@@ -20,6 +23,9 @@ public static class UsageExhaustionAlarmTests
             ("reminders off suppresses without consuming the key", TestDisabledSuppressesWithoutConsuming),
             ("alarm key matches the macOS shape", TestAlarmKeyShape),
             ("hidden provider never fires", TestHiddenProviderNeverFires),
+            ("both windows exhausting together alarm once, on the later reset", TestBothWindowsCoalesce),
+            ("window exhausting inside an alarmed stretch stays silent", TestBlockedStretchStaysSilent),
+            ("a stretch ending re-arms the provider", TestStretchEndRearms),
         };
 
         foreach (var (name, test) in tests)
@@ -37,9 +43,17 @@ public static class UsageExhaustionAlarmTests
 
     private static readonly DateTimeOffset ResetA = DateTimeOffset.FromUnixTimeSeconds(1_800_000_000);
     private static readonly DateTimeOffset ResetB = DateTimeOffset.FromUnixTimeSeconds(1_800_018_000);
+    private static readonly DateTimeOffset ResetWeekly = DateTimeOffset.FromUnixTimeSeconds(1_800_400_000);
+    private static readonly DateTimeOffset T0 = ResetA.AddHours(-1);
 
     private static AppUsage Usage(double fiveHourPercent, DateTimeOffset? resetAt, string? error = null) =>
         new(new WindowUsage(fiveHourPercent, resetAt, error), new WindowUsage(0.1, null, null));
+
+    private static AppUsage UsageBoth(
+        double fiveHourPercent, DateTimeOffset? fiveReset,
+        double weeklyPercent, DateTimeOffset? weeklyReset) =>
+        new(new WindowUsage(fiveHourPercent, fiveReset, null),
+            new WindowUsage(weeklyPercent, weeklyReset, null));
 
     private static (UsageExhaustionAlarm Alarm, List<string> Fired) Make()
     {
@@ -85,23 +99,70 @@ public static class UsageExhaustionAlarmTests
     {
         var (alarm, fired) = Make();
         // First real sample is ALREADY exhausted — that predates launch.
-        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true);
-        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true);
+        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true, now: T0);
+        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true, now: T0);
         Expect(fired.Count == 0, "exhaustion that predates launch must not alarm");
 
-        // But the NEXT cycle does alarm.
-        alarm.Recompute(Usage(1.0, ResetB), AppUsage.Empty, remindersEnabled: true);
+        // But the NEXT cycle — after the warmed-up stretch has ended — does.
+        alarm.Recompute(Usage(1.0, ResetB), AppUsage.Empty, remindersEnabled: true,
+            now: ResetA.AddMinutes(5));
         Expect(fired.Count == 1, "the next reset cycle must alarm normally");
     }
 
     private static void TestNewCycleRearms()
     {
         var (alarm, fired) = Make();
-        alarm.Recompute(Usage(0.2, ResetA), AppUsage.Empty, remindersEnabled: true);
-        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true);
-        alarm.Recompute(Usage(1.0, ResetB), AppUsage.Empty, remindersEnabled: true);
+        alarm.Recompute(Usage(0.2, ResetA), AppUsage.Empty, remindersEnabled: true, now: T0);
+        alarm.Recompute(Usage(1.0, ResetA), AppUsage.Empty, remindersEnabled: true, now: T0);
+        alarm.Recompute(Usage(1.0, ResetB), AppUsage.Empty, remindersEnabled: true,
+            now: ResetA.AddMinutes(5));
         Expect(fired.Count == 2, "an advanced reset boundary must re-arm the alarm");
         Expect(fired[1] == "exhausted-claude-fiveHour-1800018000", $"unexpected key {fired[1]}");
+    }
+
+    private static void TestBothWindowsCoalesce()
+    {
+        var (alarm, fired) = Make();
+        alarm.Recompute(UsageBoth(0.5, ResetA, 0.9, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0);
+        // Heavy use pushes BOTH windows over 100% in the same poll — the
+        // user is blocked once, so exactly one popup, and it names the
+        // weekly reset (the true unblock time).
+        alarm.Recompute(UsageBoth(1.0, ResetA, 1.0, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0);
+        Expect(fired.Count == 1, "both windows crossing together must pop exactly one alarm");
+        Expect(fired[0] == "exhausted-claude-weekly-1800400000",
+            $"the alarm must carry the later (weekly) reset, got {fired[0]}");
+    }
+
+    private static void TestBlockedStretchStaysSilent()
+    {
+        var (alarm, fired) = Make();
+        alarm.Recompute(UsageBoth(0.5, ResetA, 0.9, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0);
+        alarm.Recompute(UsageBoth(1.0, ResetA, 0.9, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0);
+        Expect(fired.Count == 1, "five-hour crossing alarms");
+        // The weekly window crosses 20 minutes later, while the user is
+        // still blocked on the 5-hour reset: same event, no second popup.
+        alarm.Recompute(UsageBoth(1.0, ResetA, 1.0, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0.AddMinutes(20));
+        Expect(fired.Count == 1, "a window exhausting inside an alarmed stretch must stay silent");
+    }
+
+    private static void TestStretchEndRearms()
+    {
+        var (alarm, fired) = Make();
+        alarm.Recompute(UsageBoth(0.5, ResetA, 0.9, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0);
+        alarm.Recompute(UsageBoth(1.0, ResetA, 1.0, ResetWeekly), AppUsage.Empty,
+            remindersEnabled: true, now: T0);
+        Expect(fired.Count == 1, "coalesced stretch alarms once");
+        // Past the weekly reset the stretch is over; a fresh 5-hour
+        // exhaustion is a new event and must alarm again.
+        alarm.Recompute(UsageBoth(1.0, ResetWeekly.AddHours(5), 0.2, ResetWeekly.AddDays(7)),
+            AppUsage.Empty, remindersEnabled: true, now: ResetWeekly.AddMinutes(30));
+        Expect(fired.Count == 2, "a new stretch after the fired reset passes must alarm");
     }
 
     private static void TestErroredWindowNeverFires()

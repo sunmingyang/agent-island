@@ -6,6 +6,13 @@ namespace AgentIsland.Core;
 /// UserDefaults equivalent: one JSON file of keyed values under
 /// %APPDATA%\AgentIsland. Writes are atomic (temp + rename) so a crash
 /// mid-save never truncates every preference at once.
+///
+/// Every write re-reads the file and layers only the caller's key on top.
+/// The old write-my-whole-snapshot design silently destroyed data whenever
+/// two copies of the app ran at once (portable exe + a second unzip, or the
+/// updater's relaunch overlap): each instance's periodic saves kept
+/// resurrecting its stale launch snapshot — which is how a freshly created
+/// auto-resume rule could vanish minutes later.
 public static class Preferences
 {
     private static readonly object Gate = new();
@@ -20,7 +27,7 @@ public static class Preferences
     {
         lock (Gate)
         {
-            Load();
+            LoadIfNeeded();
             if (_values!.TryGetValue(key, out var element))
             {
                 try { return element.Deserialize<T>(); }
@@ -34,7 +41,7 @@ public static class Preferences
     {
         lock (Gate)
         {
-            Load();
+            LoadIfNeeded();
             return _values!.ContainsKey(key);
         }
     }
@@ -43,8 +50,8 @@ public static class Preferences
     {
         lock (Gate)
         {
-            Load();
-            _values![key] = JsonSerializer.SerializeToElement(value);
+            _values = LoadFromDisk();
+            _values[key] = JsonSerializer.SerializeToElement(value);
             Save();
         }
     }
@@ -53,29 +60,32 @@ public static class Preferences
     {
         lock (Gate)
         {
-            Load();
-            if (_values!.Remove(key)) Save();
+            _values = LoadFromDisk();
+            if (_values.Remove(key)) Save();
         }
     }
 
-    private static void Load()
+    private static void LoadIfNeeded()
     {
-        if (_values is not null) return;
+        _values ??= LoadFromDisk();
+    }
+
+    private static Dictionary<string, JsonElement> LoadFromDisk()
+    {
         try
         {
             var path = IslandPaths.SettingsFile;
             if (File.Exists(path))
             {
                 var text = File.ReadAllText(path);
-                _values = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(text)
+                return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(text)
                     ?? new Dictionary<string, JsonElement>();
-                return;
             }
         }
         catch
         {
         }
-        _values = new Dictionary<string, JsonElement>();
+        return new Dictionary<string, JsonElement>();
     }
 
     private static void Save()
