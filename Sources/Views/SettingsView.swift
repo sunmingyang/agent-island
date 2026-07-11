@@ -509,7 +509,7 @@ struct SettingsView: View {
             }
             SettingsRow(
                 title: "Open threads via",
-                subtitle: "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link."
+                subtitle: nil
             ) {
                 SegmentedControl(
                     items: [false, true],
@@ -542,7 +542,7 @@ struct SettingsView: View {
             }
             SettingsRow(
                 title: "Open threads via",
-                subtitle: "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead."
+                subtitle: nil
             ) {
                 SegmentedControl(
                     items: [false, true],
@@ -581,9 +581,9 @@ struct SettingsView: View {
     private var tokenModeSubtitle: String {
         switch tokenMode.mode {
         case .all:
-            return L10n.tr("Counts everything — input, output, and cache. Mirrors ccusage.")
+            return L10n.tr("Input, output, and cache.")
         case .billable:
-            return L10n.tr("Input + output only. Matches Anthropic's claude.ai stats.")
+            return L10n.tr("Input and output only.")
         }
     }
 
@@ -668,7 +668,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 10)
             SettingsRow(
                 title: "Quota shows",
-                subtitle: "Usage tiles and top-bar percentages follow this."
+                subtitle: nil
             ) {
                 SegmentedControl(
                     items: [false, true],
@@ -750,7 +750,7 @@ struct SettingsView: View {
             sectionLabel("Mission Control", hint: nil)
             SettingsRow(
                 title: "Hide in Mission Control",
-                subtitle: "On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: missionControlHide.enabled) {
                     missionControlHide.enabled.toggle()

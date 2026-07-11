@@ -33,8 +33,8 @@ struct StatusGuideView: View {
                 SettingsToggle(isOn: reminders.showSessionDetails) { reminders.showSessionDetails.toggle() }
             }
             SettingsRow(
-                title: "Alarm on subagent threads",
-                subtitle: "Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly."
+                title: "Subagent alarms",
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: subagentAlarm.showSubagentThreads) { subagentAlarm.showSubagentThreads.toggle() }
             }

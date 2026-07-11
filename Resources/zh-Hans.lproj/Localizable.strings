@@ -298,3 +298,8 @@
 "Open threads via" = "跳转方式";
 "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链。";
 "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead." = "桌面应用直达具体线程；CLI 恢复则改在终端里重开。";
+
+/* 1.5.6 copy cleanup */
+"Subagent alarms" = "子线程弹窗";
+"Input, output, and cache." = "统计输入、输出和缓存。";
+"Input and output only." = "只统计输入和输出。";

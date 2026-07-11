@@ -290,3 +290,8 @@
 "Open threads via" = "Open threads via";
 "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link." = "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link.";
 "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead." = "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead.";
+
+/* 1.5.6 copy cleanup */
+"Subagent alarms" = "Subagent alarms";
+"Input, output, and cache." = "Input, output, and cache.";
+"Input and output only." = "Input and output only.";
