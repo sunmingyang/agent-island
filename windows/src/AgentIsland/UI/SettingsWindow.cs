@@ -31,6 +31,52 @@ public sealed class SettingsWindow : Window
         _open = window;
         window.Closed += (_, _) => _open = null;
         window.Show();
+
+        // Scripted verification: render the active tab's full content (past the
+        // viewport) to a PNG — immune to the window occlusion a screen grab hits.
+        var png = Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_SETTINGS_PNG");
+        if (!string.IsNullOrEmpty(png)) window.SaveSnapshot(png);
+    }
+
+    /// Renders the current tab's content column at full height onto the panel
+    /// background, so a verification screenshot shows every row even when the
+    /// window is behind something else.
+    public void SaveSnapshot(string path)
+    {
+        var settle = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(650),
+        };
+        settle.Tick += (_, _) =>
+        {
+            settle.Stop();
+            try
+            {
+                if (_scroll.Content is not FrameworkElement content) return;
+                var w = (int)Math.Ceiling(content.ActualWidth);
+                var h = (int)Math.Ceiling(content.ActualHeight);
+                if (w <= 0 || h <= 0) return;
+                var visual = new System.Windows.Media.DrawingVisual();
+                using (var dc = visual.RenderOpen())
+                {
+                    dc.DrawRectangle(
+                        IslandColors.Brush(IslandColors.AlarmBackground), null, new Rect(0, 0, w, h));
+                    dc.DrawRectangle(
+                        new System.Windows.Media.VisualBrush(content), null, new Rect(0, 0, w, h));
+                }
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(visual);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                using var stream = System.IO.File.Create(path);
+                encoder.Save(stream);
+            }
+            catch
+            {
+            }
+        };
+        settle.Start();
     }
 
     private enum Tab
@@ -321,7 +367,7 @@ public sealed class SettingsWindow : Window
             Math.Max(0, Array.IndexOf(presets, RefreshIntervalStore.Shared.Seconds)));
         refresh.SelectionChanged += index => RefreshIntervalStore.Shared.Seconds = presets[index];
         stack.Children.Add(new SettingsRowControl(
-            "Refresh interval", "How often to refresh.", refresh));
+            "Refresh interval", null, refresh));
 
 
         var language = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
@@ -366,7 +412,7 @@ public sealed class SettingsWindow : Window
         var alerts = new CobaltToggle(AlertThresholdStore.Shared.Enabled);
         stack.Children.Add(new SettingsRowControl(
             "Approaching-limit alerts",
-            "Tint the island and pulse the peek pill when 5-hour usage nears your limit.",
+            null,
             alerts));
 
         alertsHost.Children.Add(ThresholdLine(IslandColors.AlertAmber, "Warning",
@@ -397,7 +443,7 @@ public sealed class SettingsWindow : Window
         var check = new PillButtonControl(L10n.Tr("Check"));
         check.Clicked += () => _ = Update.UpdateChecker.Shared.CheckAsync(userInitiated: true);
         stack.Children.Add(new SettingsRowControl(
-            "Check now", "Look for a new version immediately.", check));
+            "Check now", null, check));
 
         return stack;
     }
@@ -560,7 +606,7 @@ public sealed class SettingsWindow : Window
         };
         stack.Children.Add(new SettingsRowControl(
             "Show cost page in top panel",
-            "Include local token cost/value as a swipe page in the island.",
+            null,
             costPage));
         RefreshCostPicker();
         stack.Children.Add(costPickerHost);
@@ -572,7 +618,7 @@ public sealed class SettingsWindow : Window
         quotaSeg.SelectionChanged += index => quotaMode.ShowsRemaining = index == 1;
         stack.Children.Add(new SettingsRowControl(
             "Quota shows",
-            "Usage tiles and top-bar percentages follow this.",
+            null,
             quotaSeg));
 
         // 顶部条.
@@ -581,7 +627,7 @@ public sealed class SettingsWindow : Window
         alwaysShow.Toggled += enabled => AlwaysShowUsageStore.Shared.Enabled = enabled;
         stack.Children.Add(new SettingsRowControl(
             "Always show usage in top bar",
-            "Keep the 5-hour and weekly percentages beside the logos without hovering.",
+            null,
             alwaysShow));
 
         // 屏幕. (The macOS bar-style choice — Compact vs Notched Mac — is
@@ -663,7 +709,7 @@ public sealed class SettingsWindow : Window
         claudeJumpSeg.SelectionChanged += index => claudeJump.PrefersCli = index == 1;
         stack.Children.Add(new SettingsRowControl(
             "Open threads via",
-            "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link.",
+            null,
             claudeJumpSeg));
 
         stack.Children.Add(ProviderRow(TriggerTool.Codex));
@@ -674,7 +720,7 @@ public sealed class SettingsWindow : Window
         codexJumpSeg.SelectionChanged += index => codexJump.PrefersCli = index == 1;
         stack.Children.Add(new SettingsRowControl(
             "Open threads via",
-            "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead.",
+            null,
             codexJumpSeg));
 
         stack.Children.Add(SectionLabel("TOKEN"));
@@ -686,8 +732,8 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Token counting",
             TokenCountModeStore.Shared.Mode == TokenCountMode.All
-                ? "Counts everything — input, output, and cache. Mirrors ccusage."
-                : "Input + output only. Matches Anthropic's claude.ai stats.",
+                ? "Input, output, and cache."
+                : "Input and output only.",
             mode));
 
         // Cost freshness strip: section label + last-scan caption + Refresh.
@@ -1088,8 +1134,15 @@ public sealed class SettingsWindow : Window
         enabled.Toggled += value => AgentReminderStore.Shared.Enabled = value;
         stack.Children.Add(new SettingsRowControl(
             "Turn alarm",
-            "Pop up a foreground alarm when a background run needs you.",
+            "Pop up a foreground alarm and system notification when a background run needs you.",
             enabled));
+
+        var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
+        details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
+        stack.Children.Add(new SettingsRowControl(
+            "Show thread details",
+            "Show session and project names in alarms and notifications.",
+            details));
 
         var subagents = new CobaltToggle(SubagentAlarmStore.Shared.Enabled);
         subagents.Toggled += value => SubagentAlarmStore.Shared.Enabled = value;
@@ -1098,12 +1151,14 @@ public sealed class SettingsWindow : Window
             "Also alarm when orchestrated subagents finish. Off: only your own threads alarm.",
             subagents));
 
-        var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
-        details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
+        // The exhaustion-alarm opt-out: some people only want auto-resume and
+        // treat the "out of quota" popup as noise. Subtitle nil, matching mac.
+        var quotaAlarm = new CobaltToggle(Model.QuotaAlarmStore.Shared.Enabled);
+        quotaAlarm.Toggled += value => Model.QuotaAlarmStore.Shared.Enabled = value;
         stack.Children.Add(new SettingsRowControl(
-            "Show thread details",
-            "Show session and project names in alarms and notifications.",
-            details));
+            "Out-of-quota alarm",
+            null,
+            quotaAlarm));
 
         var soundHost = new StackPanel();
         var sound = new CobaltToggle(AgentReminderStore.Shared.SoundEnabled);
@@ -1226,7 +1281,7 @@ public sealed class SettingsWindow : Window
         };
         volume.ValueChanged += (_, _) => AgentReminderStore.Shared.Volume = volume.Value;
         host.Children.Add(new SettingsRowControl(
-            "Volume", "Adjust how loud the alarm sound is.", volume));
+            "Volume", null, volume));
     }
 
     /// The "your reply is up" legend uses the bell mark, matching the macOS
