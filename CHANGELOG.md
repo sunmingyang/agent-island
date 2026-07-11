@@ -4,6 +4,22 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [1.5.6] - 2026-07-11
+
+### Added
+- Windows: one-click auto-update. When a new release ships, "Update & Relaunch" downloads the zip in the background, swaps the running app, and reopens it on the new version — no more hunting the releases page and reinstalling by hand. macOS has always had this through Sparkle. (Note: this build must be installed manually one last time; every version after it updates itself.)
+- macOS: a switch to turn the out-of-quota alarm off (Settings → Alarms) for people who only want auto-resume and don't want the "you're out" panel.
+- macOS: each provider chooses how "Open thread" lands — Claude and Codex can independently open the desktop app or resume in the CLI (Settings → Providers).
+
+### Fixed
+- The quota alarm no longer fires two or three times for one limit (it was most visible in Claude Code) — one alarm per provider per blocked stretch, and the redundant system banner is gone. Both platforms.
+- Auto-resume actually runs again. A session whose working directory couldn't be read was silently refused authorization, so "Continue after reset" never fired for it; triggers are now trusted per-session and trusted automatically when you create them. macOS.
+- The auto-resume picker no longer lists every thread twice. Both platforms.
+- When a 5-hour or weekly window resets, the display refreshes and auto-resume fires on its own — including right after the Mac or PC wakes from sleep. Before this, the reset time could pass with nothing updating until you quit and relaunched. Both platforms.
+- Windows: re-authenticating Claude no longer fails with "Authorization failed / Invalid request format."
+- Windows: two copies of the app open at once no longer overwrite each other's settings, and update prompts follow the Sparkle wording macOS uses.
+- macOS: Settings drops the grey explainer subtitles, and the expanded carousel pages with a left-click drag.
+
 ## [1.5.5] - 2026-07-10
 
 ### Added
