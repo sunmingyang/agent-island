@@ -889,8 +889,13 @@ public partial class IslandWindow : Window
         || UsageStore.Shared.Loading
         || Model.AlertEngine.Shared.Severity != Model.AlertSeverity.None;
 
-    /// The rotating comet ring hugging the island edge — always alive unless
-    /// Low Power idles it between glow events. Tint follows the halo.
+    /// The rotating comet ring hugging the island edge. It spins on genuine
+    /// activity — a running or attention-needing session, a refresh, an alert,
+    /// or hover — and rests when the island is idle. macOS keeps it "always
+    /// alive" (Metal makes that free), but on the small Windows floating pill
+    /// an always-spinning comet both reads as a stuck loader and keeps the WPF
+    /// render thread busy for nothing, so here it's driven by activity. Tint
+    /// follows the halo.
     private void UpdateSweep()
     {
         var monitor = ActivityMonitor.Shared;
@@ -903,7 +908,10 @@ public partial class IslandWindow : Window
                 Model.AlertSeverity.Warning => IslandColors.AlertAmber,
                 _ => IslandColors.Cobalt,
             };
-        var active = !Model.LowPowerModeStore.Shared.Enabled || GlowEventActive();
+        // Spin only for a live reason; an idle or your-turn island stays still.
+        var anyActivity = monitor.Claude.IsActiveState() || monitor.Codex.IsActiveState();
+        var active = GlowEventActive()
+            || (!Model.LowPowerModeStore.Shared.Enabled && anyActivity);
         if (active == _sweepActive && tint == _sweepTint) return;
         _sweepActive = active;
         _sweepTint = tint;

@@ -263,6 +263,10 @@ public sealed class LiveDot : Grid
             (_, _) => Dispatcher.BeginInvoke(MaybeBump);
         Usage.UsageStore.Shared.PropertyChanged += onSync;
         Unloaded += (_, _) => Usage.UsageStore.Shared.PropertyChanged -= onSync;
+        // Pause/resume the breath as the dot enters/leaves the visual tree —
+        // a compact island collapses the footer, and a forever animation on
+        // the hidden dot would keep repainting the whole transparent window.
+        IsVisibleChanged += (_, _) => ApplyBreath();
         SetActive(false);
     }
 
@@ -270,11 +274,23 @@ public sealed class LiveDot : Grid
     {
         if (_active == active) return;
         _active = active;
-        if (active)
+        _core.Fill = active
+            ? IslandColors.Brush(IslandColors.LiveTeal, 0.9)
+            : IslandColors.Brush(IslandColors.White(0.25));
+        ApplyBreath();
+    }
+
+    /// The ~2.4s breath runs only while the dot is BOTH active AND actually
+    /// visible. On the collapsed compact footer a forever animation would
+    /// otherwise repaint the transparent window every frame for a dot nobody
+    /// can see — the dominant idle-CPU cost on Windows (a layered window
+    /// re-composites in full on each animation tick, however small the tick).
+    private void ApplyBreath()
+    {
+        var scale = (ScaleTransform)_halo.RenderTransform;
+        if (_active && IsVisible)
         {
-            _core.Fill = IslandColors.Brush(IslandColors.LiveTeal, 0.9);
-            var scale = (ScaleTransform)_halo.RenderTransform;
-            // ~2.4s breath: halo swells 1 -> 1.6 while fading out.
+            // halo swells 1 -> 1.6 while fading out.
             var grow = new DoubleAnimation(1.0, 1.6, new Duration(TimeSpan.FromSeconds(1.2)))
             {
                 AutoReverse = true,
@@ -293,12 +309,10 @@ public sealed class LiveDot : Grid
         }
         else
         {
-            var scale = (ScaleTransform)_halo.RenderTransform;
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             _halo.BeginAnimation(OpacityProperty, null);
             _halo.Opacity = 0;
-            _core.Fill = IslandColors.Brush(IslandColors.White(0.25));
         }
     }
 
