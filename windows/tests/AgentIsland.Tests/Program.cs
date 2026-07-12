@@ -22,6 +22,24 @@ public static class Program
             }
             return 0;
         }
+        if (args.Length > 0 && args[0] == "scanbench")
+        {
+            // Time repeated full MonitoringScans against this machine's real
+            // session files: scan #0 builds the turn-parse cache, #1+ hit it,
+            // so the delta isolates the tail-read/parse cost from the fixed
+            // file-enumeration + stat cost that every scan pays.
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            var now = DateTimeOffset.UtcNow;
+            var lw = new Dictionary<string, DateTimeOffset>();
+            for (var i = 0; i < 6; i++)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var s = SessionScanner.MonitoringScan(now, lw);
+                sw.Stop();
+                Console.WriteLine($"scan #{i}: {sw.ElapsedMilliseconds} ms, {s.Count} sessions");
+            }
+            return 0;
+        }
         if (args.Length > 0 && args[0] == "trigger-status")
         {
             // Live diagnostic: everything the auto-resume engine would see

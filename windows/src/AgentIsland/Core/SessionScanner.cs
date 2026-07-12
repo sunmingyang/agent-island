@@ -484,9 +484,7 @@ public static class SessionScanner
         if (path is null)
             return (ActivityState.Idle, null, externalActivityDate ?? DateTimeOffset.MinValue);
 
-        var fileModified = Mtime(path);
-        var lines = TailLines(path);
-        var turn = turnState(lines);
+        var (turn, fileModified) = ReadTurn(path, turnState);
         var semanticModified = LatestDate(turn.ActivityDate, externalActivityDate);
         var effectiveModified = semanticModified ?? fileModified;
         // For a finished turn, external activity inside the bookkeeping grace
@@ -523,6 +521,56 @@ public static class SessionScanner
         }
         return (ActivityState.Idle, turn.Key, effectiveModified);
     }
+
+    // MARK: - Turn parse cache
+
+    private static readonly Dictionary<string, (long Ticks, long Size, SessionTurnStatus Turn, DateTimeOffset Modified)>
+        TurnCache = new(StringComparer.Ordinal);
+
+    /// The expensive half of SessionState — the tail read plus the JSON turn
+    /// parse — depends only on file CONTENT, so it is cached on a (mtime, size)
+    /// fingerprint. Transcripts are append-only: a byte written bumps Length,
+    /// so an unchanged fingerprint provably means the parsed turn still holds.
+    ///
+    /// This is the fix for the monitor pegging a CPU core on a machine with
+    /// many sessions: the file-event path kicks a FULL scan on every transcript
+    /// write, and without this every kick re-read and re-parsed the tail of
+    /// EVERY session. Now an idle session is a two-field stat, and only the one
+    /// transcript actually being written gets re-parsed. The time-based state
+    /// (working / stalled / needsYou) is still computed fresh each scan from
+    /// the cached turn, so nothing about detection changes — only redundant IO.
+    private static (SessionTurnStatus Turn, DateTimeOffset Modified) ReadTurn(
+        string path, Func<IReadOnlyList<string>, SessionTurnStatus> turnState)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            var ticks = info.LastWriteTimeUtc.Ticks;
+            var size = info.Length;
+            if (TurnCache.TryGetValue(path, out var cached)
+                && cached.Ticks == ticks && cached.Size == size)
+            {
+                return (cached.Turn, cached.Modified);
+            }
+            var modified = Mtime(path);
+            var parsed = turnState(TailLines(path));
+            // Bound the cache against pathological growth (project-folder
+            // rotation minting new transcript paths forever); the working set
+            // is one entry per real session, rebuilt cheaply after a clear.
+            if (TurnCache.Count > 5000) TurnCache.Clear();
+            TurnCache[path] = (ticks, size, parsed, modified);
+            return (parsed, modified);
+        }
+        catch
+        {
+            // Stat/read raced a folder rotation — read directly, uncached.
+            return (turnState(TailLines(path)), Mtime(path));
+        }
+    }
+
+    /// Test seam: drop the fingerprint cache so a suite that rewrites content
+    /// behind a reused path never reads a stale parse.
+    internal static void ClearTurnCache() => TurnCache.Clear();
 
     // MARK: - Helpers
 
