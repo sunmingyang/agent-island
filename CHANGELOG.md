@@ -4,6 +4,16 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [Unreleased]
+
+Targeting 1.6.1 — staged, held to ship together with the matching Windows parity work.
+
+### Fixed
+- macOS: auto-resume now keeps working while the screen is locked. As a menu-bar app, macOS suspended our background timers when the screen locked (App Nap), so a quota window that reset while you were away went unnoticed and the session never continued. We now opt out of that suspension — without keeping your Mac from sleeping — and refresh the instant you unlock, so a reset that landed during the lock is caught immediately. (Windows already kept running while locked.)
+
+### Added
+- macOS: opening the island refreshes usage when it has gone stale, so the numbers are current the moment you look — capped by your refresh interval, so it never polls the rate-limited endpoint any faster than the background schedule already would.
+
 ## [1.5.7] - 2026-07-12
 
 ### Added

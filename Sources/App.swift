@@ -18,9 +18,24 @@ struct AgentIslandApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var island: IslandWindowController?
     private var settingsShortcutMonitor: Any?
+    private var backgroundActivity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        // Keep monitoring while the screen is locked. As an `.accessory` /
+        // LSUIElement app with no visible window, we're a prime App Nap target:
+        // once the screen locks, macOS suspends our timers, so a quota window
+        // that resets while you're away is never detected and auto-resume never
+        // fires — exactly the "locked screen = no resume" report. A background
+        // activity assertion opts out of App Nap so the refresh and trigger
+        // timers keep running. `.background` only disables App Nap; it does NOT
+        // set `idleSystemSleepDisabled`, so it never keeps the Mac awake — a
+        // Mac that actually sleeps still can't resume, which is expected.
+        backgroundActivity = ProcessInfo.processInfo.beginActivity(
+            options: .background,
+            reason: "Monitor quota resets to auto-resume sessions while the screen is locked"
+        )
         UserDefaults.standard.removeObject(forKey: "NSWindow Frame com_apple_SwiftUI_Settings_window")
         island = IslandWindowController()
         island?.show()
@@ -59,6 +74,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Touch the shared updater so Sparkle starts its background scheduler.
         _ = UpdaterController.shared
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Give the background activity a defined end. It is meant to be held
+        // for the whole session (App Nap off while we monitor), and quitting is
+        // the one moment that ends the session — so release it here rather than
+        // leaning on process teardown.
+        if let backgroundActivity {
+            ProcessInfo.processInfo.endActivity(backgroundActivity)
+            self.backgroundActivity = nil
+        }
     }
 
     private func showDemoTurnAlarmIfNeeded() {

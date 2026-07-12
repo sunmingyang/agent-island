@@ -15,6 +15,10 @@ extension IslandRootView {
             return
         }
         guard model.state == .peek || model.state == .compact else { return }
+        // Opening the full panel is a "show me the current numbers" moment —
+        // pull fresh data if what we have is already past its interval. Capped
+        // by refreshIfStale so it never out-paces the rate-limited endpoint.
+        UsageStore.shared.refreshIfStale()
         withAnimation(.openMorph) {
             model.setState(.expanded)
         }

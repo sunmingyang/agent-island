@@ -40,6 +40,7 @@ final class UsageStore: ObservableObject {
     private var pollTimer: Timer?
     private var boundaryTimer: Timer?
     private var wakeObserver: NSObjectProtocol?
+    private var unlockObserver: NSObjectProtocol?
     private var intervalCancellable: AnyCancellable?
     private var netMonitor: NWPathMonitor?
     private let netQueue = DispatchQueue(label: "UsageStore.network")
@@ -51,6 +52,17 @@ final class UsageStore: ObservableObject {
     /// `RefreshIntervalStore` enforces a 5-minute floor (300/900/1800).
     private var pollInterval: TimeInterval {
         TimeInterval(RefreshIntervalStore.shared.seconds)
+    }
+
+    /// Refresh on a "user is looking now" moment (opening the panel), but only
+    /// when the data is already older than the poll interval. This is the whole
+    /// trick to staying fresh without polling faster: it can never make a call
+    /// the schedule wouldn't have made anyway, so opening the island ten times
+    /// in a row still costs at most one fetch — no extra pressure on the
+    /// rate-limited endpoint. Fresh data is fresh; stale data refreshes on open.
+    func refreshIfStale() {
+        guard let last = lastUpdated else { refresh(); return }
+        if Date().timeIntervalSince(last) >= pollInterval { refresh() }
     }
 
     func refresh() {
@@ -420,6 +432,17 @@ final class UsageStore: ObservableObject {
             guard let self else { return }
             Task { @MainActor in self.refresh() }
         }
+        // Locked but not slept: even with App Nap disabled the scheduled poll
+        // may be up to `pollInterval` away when the screen unlocks. Refresh the
+        // instant it unlocks so a reset that landed during the lock is picked
+        // up (and its afterReset trigger caught up) without waiting.
+        if let unlockObserver { DistributedNotificationCenter.default().removeObserver(unlockObserver) }
+        unlockObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in self.refresh() }
+        }
     }
 
     func stopAutoRefresh() {
@@ -430,6 +453,10 @@ final class UsageStore: ObservableObject {
         if let wakeObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
             self.wakeObserver = nil
+        }
+        if let unlockObserver {
+            DistributedNotificationCenter.default().removeObserver(unlockObserver)
+            self.unlockObserver = nil
         }
         intervalCancellable?.cancel()
         intervalCancellable = nil
