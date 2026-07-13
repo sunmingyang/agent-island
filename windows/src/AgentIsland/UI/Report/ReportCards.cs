@@ -27,13 +27,16 @@ public static class ReportCards
     public static FrameworkElement Weekly(WeeklyReportData data, bool rounded = true)
     {
         var zh = ReportFormat.IsChinese;
-        var stack = new StackPanel();
-        stack.Children.Add(Header("WEEKLY", data.RangeText, IslandColors.Claude, IslandColors.Codex));
-        stack.Children.Add(Hero(Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, zh, topMargin: 12));
-        stack.Children.Add(ProviderSplit(data.ClaudeShare, topMargin: 15));
-        stack.Children.Add(WeekBars(data, topMargin: 16));
-        stack.Children.Add(ModelDonut(data, zh, topMargin: 16));
-        return Card(stack, Footer(data.MilestoneText), rounded,
+        // Elastic gaps, the macOS Spacer(minLength:) behavior: sections keep
+        // their minimum breathing room and the leftover height distributes
+        // evenly, so the card reads composed instead of packed.
+        var body = FlexColumn(
+            (Header("WEEKLY", data.RangeText, IslandColors.Claude, IslandColors.Codex), 0),
+            (Hero(Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, zh), 14),
+            (ProviderSplit(data.ClaudeShare), 16),
+            (WeekBars(data), 18),
+            (ModelDonut(data, zh), 18));
+        return Card(body, Footer(data.MilestoneText), rounded,
             auraA: (IslandColors.Claude, new Point(0.12, 0.02), 340),
             auraB: (IslandColors.Codex, new Point(0.95, 0.85), 380));
     }
@@ -41,14 +44,39 @@ public static class ReportCards
     public static FrameworkElement Monthly(MonthlyReportData data, bool rounded = true)
     {
         var zh = ReportFormat.IsChinese;
-        var stack = new StackPanel();
-        stack.Children.Add(Header("MONTHLY", data.MonthText, IslandColors.Codex, IslandColors.Claude));
-        stack.Children.Add(Hero(Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, zh, topMargin: 20));
-        stack.Children.Add(ProviderSplit(data.ClaudeShare, topMargin: 22));
-        stack.Children.Add(HeatBlock(data, topMargin: 26));
-        return Card(stack, Footer(data.MilestoneText), rounded,
+        var body = FlexColumn(
+            (Header("MONTHLY", data.MonthText, IslandColors.Codex, IslandColors.Claude), 0),
+            (Hero(Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, zh), 14),
+            (ProviderSplit(data.ClaudeShare), 16),
+            (HeatBlock(data), 20));
+        return Card(body, Footer(data.MilestoneText), rounded,
             auraA: (IslandColors.Codex, new Point(0.9, 0.06), 360),
             auraB: (IslandColors.Claude, new Point(0.06, 0.9), 340));
+    }
+
+    /// Sections interleaved with star-sized spacer rows carrying a minimum
+    /// height — WPF's rendition of SwiftUI's Spacer(minLength:).
+    private static Grid FlexColumn(params (UIElement Element, double MinGap)[] sections)
+    {
+        var grid = new Grid();
+        var row = 0;
+        foreach (var (element, minGap) in sections)
+        {
+            if (minGap > 0)
+            {
+                grid.RowDefinitions.Add(new RowDefinition
+                {
+                    Height = new GridLength(1, GridUnitType.Star),
+                    MinHeight = minGap,
+                });
+                row++;
+            }
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow((FrameworkElement)element, row);
+            grid.Children.Add(element);
+            row++;
+        }
+        return grid;
     }
 
     // MARK: - Scaffold
@@ -84,6 +112,7 @@ public static class ReportCards
         content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(body, 0);
         Grid.SetRow(footer, 1);
+        ((FrameworkElement)footer).Margin = new Thickness(0, 16, 0, 0);
         content.Children.Add(body);
         content.Children.Add(footer);
         root.Children.Add(content);
@@ -150,9 +179,9 @@ public static class ReportCards
         return row;
     }
 
-    private static UIElement Hero(string title, long totalTokens, double totalDollars, bool zh, double topMargin)
+    private static UIElement Hero(string title, long totalTokens, double totalDollars, bool zh)
     {
-        var stack = new StackPanel { Margin = new Thickness(0, topMargin, 0, 0) };
+        var stack = new StackPanel();
         stack.Children.Add(new TextBlock
         {
             Text = title,
@@ -169,9 +198,13 @@ public static class ReportCards
         {
             Text = value,
             FontFamily = IslandFonts.Ui,
-            FontSize = 68,
+            FontSize = 74,
             FontWeight = FontWeights.ExtraBold,
             Foreground = numberBrush,
+            // WPF's default line box adds ~1/3 of the font size; the macOS
+            // hero sits tight, so pin the line to the glyphs.
+            LineHeight = 78,
+            LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
         });
         if (unit.Length > 0)
         {
@@ -180,11 +213,11 @@ public static class ReportCards
             {
                 Text = unit,
                 FontFamily = IslandFonts.Ui,
-                FontSize = zh ? 36 : 68,
+                FontSize = zh ? 38 : 74,
                 FontWeight = FontWeights.ExtraBold,
                 Foreground = numberBrush,
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(2, 0, 0, zh ? 10 : 0),
+                Margin = new Thickness(2, 0, 0, zh ? 12 : 0),
             });
         }
         stack.Children.Add(number);
@@ -203,9 +236,9 @@ public static class ReportCards
         return stack;
     }
 
-    private static UIElement ProviderSplit(double claudeShare, double topMargin)
+    private static UIElement ProviderSplit(double claudeShare)
     {
-        var stack = new StackPanel { Margin = new Thickness(0, topMargin, 0, 0) };
+        var stack = new StackPanel();
         var track = new Grid { Height = 7 };
         track.ColumnDefinitions.Add(new ColumnDefinition
         {
@@ -271,10 +304,10 @@ public static class ReportCards
 
     // MARK: - Weekly sections
 
-    private static UIElement WeekBars(WeeklyReportData data, double topMargin)
+    private static UIElement WeekBars(WeeklyReportData data)
     {
         var peak = Math.Max(data.DailyTokens.Max(), 1);
-        var grid = new Grid { Margin = new Thickness(0, topMargin, 0, 0) };
+        var grid = new Grid();
         for (var i = 0; i < 7; i++)
         {
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -315,9 +348,9 @@ public static class ReportCards
 
     /// Donut + legend — every model carries all three numbers (tokens,
     /// dollars, share); segment 0 starts at 12 o'clock.
-    private static UIElement ModelDonut(WeeklyReportData data, bool zh, double topMargin)
+    private static UIElement ModelDonut(WeeklyReportData data, bool zh)
     {
-        var row = new Grid { Margin = new Thickness(0, topMargin, 0, 0) };
+        var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -359,7 +392,7 @@ public static class ReportCards
         var legend = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         foreach (var model in data.TopModels)
         {
-            var line = new DockPanel { Margin = new Thickness(0, 4, 0, 4), LastChildFill = true };
+            var line = new DockPanel { Margin = new Thickness(0, 3, 0, 3), LastChildFill = true };
             var dot = new Ellipse
             {
                 Width = 7,
@@ -459,9 +492,9 @@ public static class ReportCards
         Color.FromRgb(0x41, 0xAA, 0xFF),
     };
 
-    private static UIElement HeatBlock(MonthlyReportData data, double topMargin)
+    private static UIElement HeatBlock(MonthlyReportData data)
     {
-        var stack = new StackPanel { Margin = new Thickness(0, topMargin, 0, 0) };
+        var stack = new StackPanel();
 
         var caption = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 10) };
         var weeksLabel = new TextBlock

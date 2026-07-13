@@ -114,15 +114,18 @@ public sealed class ReportWindow : Window
             Opacity = 0,
         };
 
+        // The close control rides ON the card (top-right, dark disc, hover
+        // red) — parked on the window's transparent margin it was invisible
+        // against a light desktop.
+        var cardHost = new Grid();
+        cardHost.Children.Add(card);
+        cardHost.Children.Add(CloseDisc());
+
         var stack = new StackPanel { Margin = new Thickness(26, 22, 26, 12) };
-        stack.Children.Add(card);
+        stack.Children.Add(cardHost);
         stack.Children.Add(buttons);
         stack.Children.Add(_coach);
-
-        var shell = new Grid();
-        shell.Children.Add(stack);
-        shell.Children.Add(CaptionButtons.Build(this));
-        Content = shell;
+        Content = stack;
 
         KeyDown += (_, e) =>
         {
@@ -141,6 +144,52 @@ public sealed class ReportWindow : Window
     private FrameworkElement BuildCard(bool rounded) => _kind == Kind.Weekly
         ? ReportCards.Weekly(WeeklyReportData.Current(), rounded)
         : ReportCards.Monthly(MonthlyReportData.Current(), rounded);
+
+    /// The card's own close control: a quiet dark disc with an ✕, top-right
+    /// corner, red on hover — always visible against the card's ink.
+    private UIElement CloseDisc()
+    {
+        var glyph = new TextBlock
+        {
+            Text = "", // Segoe Fluent ChromeClose
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontSize = 8.5,
+            Foreground = IslandColors.Brush(IslandColors.White(0.65)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var disc = new Border
+        {
+            Width = 24,
+            Height = 24,
+            CornerRadius = new CornerRadius(12),
+            Background = IslandColors.Brush(IslandColors.White(0.10)),
+            BorderBrush = IslandColors.Brush(IslandColors.White(0.12)),
+            BorderThickness = new Thickness(0.5),
+            Child = glyph,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 12, 12, 0),
+            Cursor = Cursors.Hand,
+        };
+        disc.MouseEnter += (_, _) =>
+        {
+            disc.Background = IslandColors.Brush(Color.FromRgb(0xC4, 0x2B, 0x1C));
+            glyph.Foreground = Brushes.White;
+        };
+        disc.MouseLeave += (_, _) =>
+        {
+            disc.Background = IslandColors.Brush(IslandColors.White(0.10));
+            glyph.Foreground = IslandColors.Brush(IslandColors.White(0.65));
+        };
+        disc.MouseLeftButtonDown += (_, e) => e.Handled = true; // not a drag
+        disc.MouseLeftButtonUp += (_, e) =>
+        {
+            e.Handled = true;
+            Close();
+        };
+        return disc;
+    }
 
     private void ShowCoach(string text)
     {
