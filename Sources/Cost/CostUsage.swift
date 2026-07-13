@@ -46,6 +46,10 @@ struct ModelUsageRow {
     /// window. Cache reads are excluded so bars track what actually
     /// pressures the rate-limit counter.
     let tokens: Int
+    /// ALL tokens (cache included) attributed to this model in the window —
+    /// the same accounting as the headline totals, so per-model rows shown
+    /// next to a wire-level total actually sum to it (the weekly card).
+    var wireTokens: Int = 0
     /// Dollar cost attributed to this model in the window — full
     /// `Pricing.cost(for:)` total including cache rates so the row
     /// reads "what this model is actually costing me", not "what hit

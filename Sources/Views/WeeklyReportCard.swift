@@ -14,7 +14,10 @@ struct WeeklyReportData {
     struct ModelShare: Identifiable {
         let id = UUID()
         let name: String
-        let percent: Double   // 0...1 of the combined week
+        let tokens: Int       // wire tokens this week
+        let dollars: Double   // API value this week
+        let percent: Double   // 0...1 of the combined week's dollars
+        let isClaude: Bool
         let color: Color
     }
 
@@ -56,16 +59,43 @@ struct WeeklyReportData {
         // pushed more tokens and got cut from the list entirely.
         let dollarUniverse = max(0.01, (cost.claude.weekByModel + cost.codex.weekByModel)
             .reduce(0.0) { $0 + $1.dollars })
+        // Wire tokens (cache included) — same accounting as the hero total,
+        // so the four rows visibly sum toward the headline number.
         let claudeRows = cost.claude.weekByModel.map {
-            ModelShare(name: $0.displayName, percent: $0.dollars / dollarUniverse, color: IslandColor.claude)
+            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
+                       percent: $0.dollars / dollarUniverse, isClaude: true,
+                       color: IslandColor.claude)
         }
         let codexRows = cost.codex.weekByModel.map {
-            ModelShare(name: $0.displayName, percent: $0.dollars / dollarUniverse, color: IslandColor.codex)
+            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
+                       percent: $0.dollars / dollarUniverse, isClaude: false,
+                       color: IslandColor.codex)
         }
         var models = (claudeRows + codexRows).sorted { $0.percent > $1.percent }
         // No "0%" tail rows — a model must have earned at least half a
         // percent of the week's spend to make the card.
         models = Array(models.filter { $0.percent >= 0.005 }.prefix(4))
+        // Donut segments need each model distinguishable — same-provider
+        // models step through brand-color shades instead of all sharing one.
+        let claudeShades = [IslandColor.claude,
+                            Color(red: 235/255, green: 168/255, blue: 140/255),
+                            Color(red: 146/255, green: 82/255, blue: 60/255)]
+        let codexShades = [IslandColor.codex,
+                           Color(red: 152/255, green: 202/255, blue: 250/255),
+                           Color(red: 50/255, green: 114/255, blue: 184/255)]
+        var claudeSeen = 0, codexSeen = 0
+        models = models.map { m in
+            let shade: Color
+            if m.isClaude {
+                shade = claudeShades[min(claudeSeen, claudeShades.count - 1)]
+                claudeSeen += 1
+            } else {
+                shade = codexShades[min(codexSeen, codexShades.count - 1)]
+                codexSeen += 1
+            }
+            return ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
+                              percent: m.percent, isClaude: m.isClaude, color: shade)
+        }
 
         // The card follows the app language — a card destined for WeChat
         // groups must read Chinese when the UI is Chinese.
@@ -277,32 +307,67 @@ struct WeeklyReportCard: View {
         }
     }
 
+    /// Donut + legend — every model carries all three numbers (tokens,
+    /// dollars, share); the bare percent bars said too little.
     private var modelRows: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            ForEach(Array(data.topModels.enumerated()), id: \.element.id) { i, row in
-                HStack(spacing: 10) {
-                    Text("\(i + 1)")
-                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
-                        .frame(width: 10)
-                    Text(row.name)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .lineLimit(1)
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.07))
-                            Capsule().fill(row.color.opacity(0.85))
-                                .frame(width: max(3, geo.size.width * row.percent))
-                        }
-                    }
-                    .frame(height: 4)
-                    Text("\(Int((row.percent * 100).rounded()))%")
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .frame(width: 34, alignment: .trailing)
+        let zh = L10n.locale.identifier.hasPrefix("zh")
+        return HStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .stroke(.white.opacity(0.06), lineWidth: 13)
+                ForEach(donutSegments, id: \.0.id) { row, from, to in
+                    Circle()
+                        .trim(from: CGFloat(from), to: CGFloat(to))
+                        .stroke(row.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
                 }
             }
+            // Segment 0 starts at 12 o'clock; the label rides outside the
+            // rotation so it stays upright.
+            .rotationEffect(.degrees(-90))
+            .overlay {
+                Text("TOP \(data.topModels.count)")
+                    .font(.system(size: 10.5, weight: .heavy, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .frame(width: 94, height: 94)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(data.topModels) { row in
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(row.color)
+                            .frame(width: 7, height: 7)
+                        Text(row.name)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text(Self.compactString(row.tokens, zh: zh))
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.5))
+                        Text("$\(Self.money(row.dollars))")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62).opacity(0.9))
+                        Text("\(Int((row.percent * 100).rounded()))%")
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .frame(width: 28, alignment: .trailing)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Cumulative (row, from, to) sweep per model, with a hairline gap
+    /// between segments so same-hue neighbors stay separable.
+    private var donutSegments: [(WeeklyReportData.ModelShare, Double, Double)] {
+        var cum = 0.0
+        return data.topModels.map { row in
+            let start = cum
+            cum += row.percent
+            let gap = row.percent > 0.03 ? 0.006 : 0.0
+            return (row, start + gap, max(start + gap, cum - gap))
         }
     }
 
@@ -369,6 +434,11 @@ struct WeeklyReportCard: View {
     }
 
     // MARK: - Formatting
+
+    static func compactString(_ n: Int, zh: Bool) -> String {
+        let parts = compactParts(n, zh: zh)
+        return parts.0 + parts.1
+    }
 
     /// (value, unit). Chinese counts in 亿/万 — the way the number is
     /// actually said — English in B/M/K.

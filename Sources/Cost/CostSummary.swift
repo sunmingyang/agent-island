@@ -21,13 +21,16 @@ enum CostSummary {
             value: -(historyDays - 1),
             to: startOfDay
         ) ?? startOfDay
-        // Rolling windows for per-model breakdown — approximate the live
-        // tile windows. We don't know the server's exact window alignment
-        // for either, so "last N hours from now" is the practical proxy.
-        // 5h matches Anthropic's rate-limit window; 7d matches both
-        // providers' weekly tile.
+        // 5h rolling window for the per-model breakdown — approximates the
+        // live tile (Anthropic's rate-limit window); "last 5h from now" is
+        // the practical proxy.
         let recentStart = now.addingTimeInterval(-5 * 3600)
-        let weekStart = now.addingTimeInterval(-7 * 24 * 3600)
+        // The week slice is CALENDAR-aligned (today + 6 days back, from
+        // midnight), not rolling 168h: the weekly report card sums these
+        // per-model rows against a calendar-day hero total, and a rolling
+        // window made the rows overshoot the headline by most of a day.
+        let weekStart = cal.date(byAdding: .day, value: -6, to: startOfDay)
+            ?? now.addingTimeInterval(-7 * 24 * 3600)
 
         var todayDollars = 0.0, todayTokens = 0, todayBillable = 0
         var monthDollars = 0.0, monthTokens = 0, monthBillable = 0
@@ -46,10 +49,12 @@ enum CostSummary {
         // money). Two metrics, two consumers: usage-page shows tokens,
         // cost-page shows dollars.
         var recentTokensByModel: [String: Int] = [:]
+        var recentWireByModel: [String: Int] = [:]
         var recentDollarsByModel: [String: Double] = [:]
         // Same shape, weekly window. Two windows in one pass costs an
         // extra `>=` per event — cheap relative to JSON parsing upstream.
         var weekTokensByModel: [String: Int] = [:]
+        var weekWireByModel: [String: Int] = [:]
         var weekDollarsByModel: [String: Double] = [:]
 
         // Drop events older than every window's start. Using `min(...)`
@@ -114,6 +119,11 @@ enum CostSummary {
                 if billable > 0 {
                     weekTokensByModel[canon, default: 0] += billable
                 }
+                // Wire tokens accumulate unconditionally — cache-read-only
+                // events have zero billable but real traffic.
+                if tokens > 0 {
+                    weekWireByModel[canon, default: 0] += tokens
+                }
                 if cost > 0 {
                     weekDollarsByModel[canon, default: 0] += cost
                 }
@@ -122,6 +132,9 @@ enum CostSummary {
                 if event.timestamp >= recentStart {
                     if billable > 0 {
                         recentTokensByModel[canon, default: 0] += billable
+                    }
+                    if tokens > 0 {
+                        recentWireByModel[canon, default: 0] += tokens
                     }
                     if cost > 0 {
                         recentDollarsByModel[canon, default: 0] += cost
@@ -132,10 +145,12 @@ enum CostSummary {
 
         let recentRows = modelRows(
             tokensByModel: recentTokensByModel,
+            wireByModel: recentWireByModel,
             dollarsByModel: recentDollarsByModel
         )
         let weekRows = modelRows(
             tokensByModel: weekTokensByModel,
+            wireByModel: weekWireByModel,
             dollarsByModel: weekDollarsByModel
         )
 
@@ -200,11 +215,14 @@ enum CostSummary {
     /// computation.
     private static func modelRows(
         tokensByModel: [String: Int],
+        wireByModel: [String: Int] = [:],
         dollarsByModel: [String: Double]
     ) -> [ModelUsageRow] {
         let totalTokens = tokensByModel.values.reduce(0, +)
         let totalDollars = dollarsByModel.values.reduce(0, +)
-        let canonicals = Set(tokensByModel.keys).union(dollarsByModel.keys)
+        let canonicals = Set(tokensByModel.keys)
+            .union(dollarsByModel.keys)
+            .union(wireByModel.keys)
         return canonicals.map { canon in
             let tokens = tokensByModel[canon] ?? 0
             let dollars = dollarsByModel[canon] ?? 0
@@ -212,6 +230,7 @@ enum CostSummary {
                 model: canon,
                 displayName: prettyModelName(canon),
                 tokens: tokens,
+                wireTokens: wireByModel[canon] ?? 0,
                 dollars: dollars,
                 percent: totalTokens > 0 ? Double(tokens) / Double(totalTokens) : 0,
                 dollarPercent: totalDollars > 0 ? dollars / totalDollars : 0

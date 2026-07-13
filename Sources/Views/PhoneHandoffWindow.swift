@@ -118,7 +118,7 @@ final class HandoffServer {
          small{font-size:11px;color:rgba(255,255,255,.3);margin-top:8px}
         </style></head><body>
         <img src="/img/\(token).png" alt="Agent Island weekly report">
-        <p>长按图片 → 发送给朋友 / 保存图片<br>Long-press the image to send or save</p>
+        <p>长按图片 → 共享 / 发送给朋友 / 保存<br>Long-press the image to share or save</p>
         <small>Agent Island · 局域网直传,不经过服务器</small>
         </body></html>
         """
@@ -172,14 +172,15 @@ final class PhoneHandoffWindowController: NSWindowController, NSWindowDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    /// platformKey: L10n key of the platform ("WeChat", "Xiaohongshu", …) —
-    /// picks the coaching copy. Renders the card, starts the LAN server,
-    /// shows the QR.
-    func show(platformKey: String) {
+    /// One QR covers every platform: the phone's OWN share sheet (long-press
+    /// in Safari/WeChat) reaches WeChat, WhatsApp, Instagram, X — anything
+    /// installed. Renders from the warm cache, starts the LAN server, shows
+    /// the QR.
+    func show() {
         guard let png = WeeklyReportRenderer.pngData() else { return }
         let url = HandoffServer.shared.start(png: png)
 
-        let size = NSSize(width: 400, height: 512)
+        let size = NSSize(width: 400, height: 532)
         if window == nil {
             let panel = HandoffPanel(
                 contentRect: NSRect(origin: .zero, size: size),
@@ -197,9 +198,7 @@ final class PhoneHandoffWindowController: NSWindowController, NSWindowDelegate {
             panel.delegate = self
             window = panel
         }
-        window?.contentView = NSHostingView(
-            rootView: HandoffSheet(platformKey: platformKey, url: url)
-        )
+        window?.contentView = NSHostingView(rootView: HandoffSheet(url: url))
         mountCloseButton()
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
@@ -227,7 +226,6 @@ final class PhoneHandoffWindowController: NSWindowController, NSWindowDelegate {
 }
 
 private struct HandoffSheet: View {
-    let platformKey: String
     let url: URL?
 
     var body: some View {
@@ -236,8 +234,8 @@ private struct HandoffSheet: View {
                 Text(L10n.tr("Send to your phone"))
                     .font(.system(size: 17, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                Text(L10n.tr(platformKey))
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                Text(L10n.tr("WeChat · WhatsApp · Instagram · X · anywhere"))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.5))
             }
             .padding(.top, 34)
@@ -256,12 +254,26 @@ private struct HandoffSheet: View {
                     .frame(width: 236, height: 236)
             }
 
-            Text(steps)
+            Text(L10n.tr("Scan with your phone → long-press the image → share to any app, or save it"))
                 .font(.system(size: 12.5, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.85))
                 .multilineTextAlignment(.center)
                 .lineSpacing(5)
                 .padding(.horizontal, 26)
+
+            // iPhone shortcut: AirDrop drops the PNG straight into Photos —
+            // no scan, no Wi-Fi requirement beyond proximity.
+            Button {
+                if let image = WeeklyReportRenderer.image(),
+                   let airdrop = NSSharingService(named: .sendViaAirDrop) {
+                    airdrop.perform(withItems: [image])
+                }
+            } label: {
+                Text(L10n.tr("Or AirDrop to your iPhone →"))
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            .buttonStyle(.plain)
 
             Spacer(minLength: 0)
 
@@ -272,7 +284,7 @@ private struct HandoffSheet: View {
                 .padding(.horizontal, 30)
                 .padding(.bottom, 18)
         }
-        .frame(width: 400, height: 512)
+        .frame(width: 400, height: 532)
         .background(
             RoundedRectangle(cornerRadius: 24)
                 .fill(LinearGradient(colors: [Color(red: 0.09, green: 0.095, blue: 0.115),
@@ -283,12 +295,6 @@ private struct HandoffSheet: View {
         )
         .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
         .padding(6)
-    }
-
-    private var steps: String {
-        platformKey == "WeChat"
-            ? L10n.tr("Scan with WeChat → long-press the image → send to a chat, or save it and post to Moments")
-            : L10n.tr("Scan with your camera → save the image → post it in the app")
     }
 
     private static func qrImage(for string: String) -> NSImage? {
