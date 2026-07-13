@@ -12,14 +12,15 @@ enum MilestoneLadder {
         let emoji: String
     }
 
+    // Coarse, round thresholds only (owner's call: no fine-grained cuts) —
+    // 1亿 / 10亿 / 50亿 / 100亿 / 200亿 / 500亿 / 1000亿.
     static let tokenTiers: [Tier] = [
-        Tier(threshold: 10_000_000, nameKey: "Drifter", emoji: "🌊"),
-        Tier(threshold: 100_000_000, nameKey: "Islander", emoji: "🏝️"),
-        Tier(threshold: 500_000_000, nameKey: "Settler", emoji: "⛺"),
-        Tier(threshold: 2_000_000_000, nameKey: "Pioneer", emoji: "🛖"),
-        Tier(threshold: 6_000_000_000, nameKey: "Chieftain", emoji: "🗿"),
-        Tier(threshold: 15_000_000_000, nameKey: "Island Lord", emoji: "🏰"),
-        Tier(threshold: 40_000_000_000, nameKey: "Archipelago King", emoji: "💎"),
+        Tier(threshold: 100_000_000, nameKey: "Drifter", emoji: "🌊"),
+        Tier(threshold: 1_000_000_000, nameKey: "Islander", emoji: "🏝️"),
+        Tier(threshold: 5_000_000_000, nameKey: "Settler", emoji: "⛺"),
+        Tier(threshold: 10_000_000_000, nameKey: "Chieftain", emoji: "🗿"),
+        Tier(threshold: 20_000_000_000, nameKey: "Island Lord", emoji: "🏰"),
+        Tier(threshold: 50_000_000_000, nameKey: "Archipelago King", emoji: "💎"),
         Tier(threshold: 100_000_000_000, nameKey: "Legendary Navigator", emoji: "👑"),
     ]
 
