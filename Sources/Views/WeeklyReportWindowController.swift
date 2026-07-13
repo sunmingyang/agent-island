@@ -116,25 +116,6 @@ private struct WeeklyReportSheet: View {
     @State private var copied = false
     @State private var toast: String?
 
-    /// "Share to <platform>" = copy the PNG to the clipboard, then open that
-    /// platform's composer/upload page — paste (or drop) and post. No SDKs,
-    /// no upload from us; works for every platform that has a web composer.
-    private struct Platform: Identifiable {
-        let id: String
-        let nameKey: String
-        let url: String?
-        let appBundleID: String?
-    }
-
-    private static let platforms: [Platform] = [
-        .init(id: "wechat", nameKey: "WeChat", url: nil, appBundleID: "com.tencent.xinWeChat"),
-        .init(id: "mp", nameKey: "WeChat Official Accounts", url: "https://mp.weixin.qq.com/", appBundleID: nil),
-        .init(id: "x", nameKey: "X (Twitter)", url: "https://x.com/intent/post?text=Agent%20Island%20Weekly%20%E2%80%94%20agent-island.dev", appBundleID: nil),
-        .init(id: "xhs", nameKey: "Xiaohongshu", url: "https://creator.xiaohongshu.com/publish/publish", appBundleID: nil),
-        .init(id: "douyin", nameKey: "Douyin", url: "https://creator.douyin.com/creator-micro/content/upload", appBundleID: nil),
-        .init(id: "instagram", nameKey: "Instagram", url: "https://www.instagram.com/", appBundleID: nil),
-    ]
-
     var body: some View {
         VStack(spacing: 14) {
             WeeklyReportCard(data: .current())
@@ -150,9 +131,13 @@ private struct WeeklyReportSheet: View {
                     }
                 }
                 actionButton(L10n.tr("Save PNG…")) { savePNG() }
-                shareToMenu
-                ShareAnchor()
-                    .frame(width: 40, height: 30)
+                // The one native share button; WeChat/Xiaohongshu/… live
+                // INSIDE the system sheet (see ShareAnchor below).
+                ShareAnchor {
+                    toast = L10n.tr("Image copied — paste it into the composer")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6) { toast = nil }
+                }
+                .frame(width: 44, height: 30)
             }
 
             // One-line coach mark after picking a platform.
@@ -167,42 +152,12 @@ private struct WeeklyReportSheet: View {
         .padding(.bottom, 14)
     }
 
-    private var shareToMenu: some View {
-        Menu {
-            ForEach(Self.platforms) { p in
-                Button(L10n.tr(p.nameKey)) { share(to: p) }
-            }
-        } label: {
-            Text(L10n.tr("Share to…"))
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.85))
-                .padding(.horizontal, 14)
-                .frame(height: 30)
-                .background(Capsule().fill(Color.white.opacity(0.12)))
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-    }
-
     @discardableResult
     private func copyImage() -> Bool {
         guard let image = WeeklyReportRenderer.image() else { return false }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
         return true
-    }
-
-    private func share(to platform: Platform) {
-        guard copyImage() else { return }
-        toast = L10n.tr("Image copied — paste it into the composer")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { toast = nil }
-        if let bundleID = platform.appBundleID,
-           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            NSWorkspace.shared.openApplication(at: appURL, configuration: .init())
-        } else if let raw = platform.url, let url = URL(string: raw) {
-            NSWorkspace.shared.open(url)
-        }
     }
 
     private func actionButton(_ title: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
@@ -230,10 +185,17 @@ private struct WeeklyReportSheet: View {
     }
 }
 
-/// System share sheet anchor (AirDrop, WeChat when its mac app is installed,
-/// Messages, …). Douyin/Xiaohongshu/Jike have no macOS share targets — the
-/// cross-platform landing hook is the QR printed on the card itself.
+/// The system share sheet, with our platforms INSIDE it. macOS lets an app
+/// append custom NSSharingServices to the native picker via its delegate —
+/// so WeChat / 公众号 / X / 小红书 / 抖音 / Instagram appear at the top of
+/// the official sheet, above AirDrop and Messages, each with a brand-colored
+/// tile icon. Picking one copies the PNG and opens that platform's composer
+/// (none of them ship a macOS share extension, so posting = paste).
 private struct ShareAnchor: NSViewRepresentable {
+    /// Fired when the user picks one of OUR platforms — the sheet view shows
+    /// the "image copied — paste it" coach mark.
+    var onPlatformPicked: () -> Void
+
     func makeNSView(context: Context) -> NSButton {
         // The native macOS share control: icon-only square.and.arrow.up,
         // exactly what every system app uses.
@@ -246,16 +208,139 @@ private struct ShareAnchor: NSViewRepresentable {
         return button
     }
 
-    func updateNSView(_ nsView: NSButton, context: Context) {}
+    func updateNSView(_ nsView: NSButton, context: Context) {
+        context.coordinator.onPlatformPicked = onPlatformPicked
+    }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator {
+        let c = Coordinator()
+        c.onPlatformPicked = onPlatformPicked
+        return c
+    }
 
     @MainActor
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, NSSharingServicePickerDelegate {
+        var onPlatformPicked: (() -> Void)?
+        // The picker dies the moment it goes out of scope — hold it while
+        // the sheet is up, release in didChoose.
+        private var activePicker: NSSharingServicePicker?
+
         @objc func share(_ sender: NSButton) {
             guard let image = WeeklyReportRenderer.image() else { return }
             let picker = NSSharingServicePicker(items: [image])
+            picker.delegate = self
+            activePicker = picker
             picker.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+        }
+
+        // MARK: NSSharingServicePickerDelegate
+
+        func sharingServicePicker(
+            _ sharingServicePicker: NSSharingServicePicker,
+            sharingServicesForItems items: [Any],
+            proposedSharingServices proposedServices: [NSSharingService]
+        ) -> [NSSharingService] {
+            let image = items.compactMap { $0 as? NSImage }.first
+            return Self.platforms.map { platform in
+                NSSharingService(
+                    title: L10n.tr(platform.nameKey),
+                    image: Self.tileIcon(glyph: platform.glyph,
+                                         top: platform.topColor,
+                                         bottom: platform.bottomColor),
+                    alternateImage: nil
+                ) { [weak self] in
+                    if let image {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.writeObjects([image])
+                    }
+                    platform.open()
+                    self?.onPlatformPicked?()
+                }
+            } + proposedServices
+        }
+
+        func sharingServicePicker(_ sharingServicePicker: NSSharingServicePicker,
+                                  didChoose service: NSSharingService?) {
+            activePicker = nil
+        }
+
+        // MARK: Platforms
+
+        private struct Platform {
+            let nameKey: String
+            let glyph: String
+            let topColor: NSColor
+            let bottomColor: NSColor?
+            let appBundleID: String?
+            let url: String?
+
+            func open() {
+                if let appBundleID,
+                   let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appBundleID) {
+                    NSWorkspace.shared.openApplication(at: appURL, configuration: .init())
+                } else if let url, let target = URL(string: url) {
+                    NSWorkspace.shared.open(target)
+                }
+            }
+        }
+
+        private static let platforms: [Platform] = [
+            Platform(nameKey: "WeChat", glyph: "微",
+                     topColor: NSColor(srgbRed: 0.03, green: 0.76, blue: 0.38, alpha: 1), bottomColor: nil,
+                     appBundleID: "com.tencent.xinWeChat", url: nil),
+            Platform(nameKey: "WeChat Official Accounts", glyph: "公",
+                     topColor: NSColor(srgbRed: 0.02, green: 0.56, blue: 0.28, alpha: 1), bottomColor: nil,
+                     appBundleID: nil, url: "https://mp.weixin.qq.com/"),
+            Platform(nameKey: "X (Twitter)", glyph: "𝕏",
+                     topColor: NSColor(srgbRed: 0.06, green: 0.08, blue: 0.10, alpha: 1), bottomColor: nil,
+                     appBundleID: nil,
+                     url: "https://x.com/intent/post?text=Agent%20Island%20Weekly%20%E2%80%94%20agent-island.dev"),
+            Platform(nameKey: "Xiaohongshu", glyph: "红",
+                     topColor: NSColor(srgbRed: 1.00, green: 0.14, blue: 0.26, alpha: 1), bottomColor: nil,
+                     appBundleID: nil, url: "https://creator.xiaohongshu.com/publish/publish"),
+            Platform(nameKey: "Douyin", glyph: "抖",
+                     topColor: NSColor(srgbRed: 0.09, green: 0.09, blue: 0.14, alpha: 1), bottomColor: nil,
+                     appBundleID: nil, url: "https://creator.douyin.com/creator-micro/content/upload"),
+            Platform(nameKey: "Instagram", glyph: "IG",
+                     topColor: NSColor(srgbRed: 0.31, green: 0.36, blue: 0.84, alpha: 1),
+                     bottomColor: NSColor(srgbRed: 0.84, green: 0.16, blue: 0.46, alpha: 1),
+                     appBundleID: nil, url: "https://www.instagram.com/"),
+        ]
+
+        /// App-Store-style rounded tile with a bold white glyph — reads as an
+        /// app icon inside the share sheet. Drawn, not bundled: shipping real
+        /// platform logos in the binary is a trademark headache.
+        private static func tileIcon(glyph: String, top: NSColor, bottom: NSColor?) -> NSImage {
+            let size = NSSize(width: 18, height: 18)
+            let image = NSImage(size: size, flipped: false) { rect in
+                let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5),
+                                        xRadius: 4.5, yRadius: 4.5)
+                if let bottom {
+                    NSGradient(starting: top, ending: bottom)?.draw(in: path, angle: -65)
+                } else {
+                    top.setFill()
+                    path.fill()
+                }
+                // Dark tiles (X, Douyin) would vanish on a dark sheet.
+                NSColor.white.withAlphaComponent(0.22).setStroke()
+                path.lineWidth = 0.5
+                path.stroke()
+
+                let style = NSMutableParagraphStyle()
+                style.alignment = .center
+                let text = NSAttributedString(string: glyph, attributes: [
+                    .font: NSFont.systemFont(ofSize: glyph.count > 1 ? 8 : 9.5, weight: .heavy),
+                    .foregroundColor: NSColor.white,
+                    .paragraphStyle: style,
+                ])
+                let height = text.size().height
+                text.draw(in: NSRect(x: 0, y: (rect.height - height) / 2 - 0.5,
+                                     width: rect.width, height: height))
+                return true
+            }
+            // Template=false so the sheet keeps our brand colors.
+            image.isTemplate = false
+            return image
         }
     }
 }

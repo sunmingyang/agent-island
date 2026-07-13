@@ -6,6 +6,7 @@ import AppKit
 /// header at the top of the window.
 struct SettingsFooter: View {
     @State private var quitHovered = false
+    @State private var shareHovered = false
 
     private static let githubURL = URL(string: "https://github.com/tristan666666/agent-island")!
     private static let licenseURL = URL(string: "https://github.com/tristan666666/agent-island/blob/main/LICENSE")!
@@ -16,6 +17,30 @@ struct SettingsFooter: View {
             link("License", url: Self.licenseURL)
 
             Spacer()
+
+            // The report entry rides next to Quit — settings is chrome the
+            // user actually visits, so the share CTA shows here too.
+            Button {
+                WeeklyReportWindowController.shared.show()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 9.5, weight: .bold))
+                    Text(L10n.tr("Share weekly report"))
+                        .font(Typography.label.weight(.bold))
+                }
+                .foregroundStyle(.black.opacity(0.85))
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.white.opacity(shareHovered ? 1.0 : 0.92))
+                }
+            }
+            .buttonStyle(.plain)
+            .onHover { shareHovered = $0 }
+            .help(L10n.tr("Share weekly report"))
+            .animation(.strongEaseOut, value: shareHovered)
 
             Button {
                 NSApp.terminate(nil)
