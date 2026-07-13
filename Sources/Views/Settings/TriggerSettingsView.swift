@@ -84,8 +84,10 @@ struct TriggerSettingsView: View {
                 .padding(.vertical, 10)
         } else {
             VStack(alignment: .leading, spacing: 4) {
+                // Claude only — Codex auto-resume is retired; existing Codex
+                // triggers stay persisted (one line to restore) but are not
+                // shown and never fire.
                 groupRows(.claude)
-                groupRows(.codex)
             }
             .padding(.bottom, 4)
         }

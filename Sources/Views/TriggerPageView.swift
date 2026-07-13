@@ -36,8 +36,10 @@ struct TriggerPageView: View {
 
     private var resetRow: some View {
         HStack(spacing: 16) {
+            // Claude only: Codex auto-resume is retired (its 5h window is
+            // gone since July 2026), so advertising a Codex reset countdown
+            // here would promote a feature that no longer acts.
             resetPill(.claude, IslandColor.claude, usage.claude.fiveHour.resetAt)
-            resetPill(.codex, IslandColor.codex, usage.codex.fiveHour.resetAt)
             Spacer(minLength: 8)
             Button(action: openSettings) {
                 HStack(spacing: 4) {

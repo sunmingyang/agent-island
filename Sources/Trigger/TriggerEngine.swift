@@ -147,6 +147,16 @@ final class TriggerEngine: ObservableObject {
             NSLog("AgentIsland trigger: suppressed fire in non-normal mode (%@)", trigger.label)
             return
         }
+        // Codex auto-resume is retired (2026-07-13): its 5-hour window is
+        // gone ("temporarily", per OpenAI), so there is no intra-day reset
+        // to resume at, and resuming at a WEEKLY boundary unattended is a
+        // budget hazard, not a convenience. Existing Codex triggers stay in
+        // the store (hidden in UI) but never spawn anything.
+        guard trigger.tool == .claude else {
+            TriggerStore.shared.markFired(trigger.id)
+            logStatus("blocked: Codex auto-resume is retired (no 5-hour window to resume at)", for: trigger)
+            return
+        }
         let safety = TriggerSafetyStore.shared
         // A blocked fire still advances the schedule (markFired). Otherwise a
         // due `everyHours` trigger that stays blocked (execution off, untrusted
