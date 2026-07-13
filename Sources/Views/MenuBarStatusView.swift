@@ -54,6 +54,9 @@ struct MenuBarStatusView: View {
         Button(L10n.tr("Refresh usage")) {
             usage.refresh()
         }
+        Button(L10n.tr("Weekly report…")) {
+            WeeklyReportWindowController.shared.show()
+        }
         Button(L10n.tr("Open Settings")) {
             SettingsWindowController.shared.show()
         }

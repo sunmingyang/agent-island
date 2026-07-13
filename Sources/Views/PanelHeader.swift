@@ -26,13 +26,10 @@ struct PanelHeader: View {
                 Spacer(minLength: 0)
                 // Banked-reset count ("reset cards") — the escape hatches of
                 // the weekly-only quota era, read straight from the usage
-                // payload (rate_limit_reset_credits.available_count). Sits in
-                // the dead space left of the Codex title; hidden when the
-                // provider reports none.
-                if let cards = usageStore.codex.resetCards, cards > 0 {
-                    resetCardChip(cards)
-                        .padding(.trailing, 10)
-                }
+                // payload (rate_limit_reset_credits.available_count). Always
+                // shown, ×0 included, in the dead space left of the title.
+                resetCardChip(usageStore.codex.resetCards ?? 0)
+                    .padding(.trailing, 10)
                 providerTitle(name: "Codex", tag: usageStore.codex.plan?.uppercased(),
                               color: IslandColor.codex, alignment: .trailing)
                     .fixedSize()
@@ -48,28 +45,44 @@ struct PanelHeader: View {
         .padding(.bottom, min(14, max(0, notch.height - 22 - 4)))
     }
 
-    /// "⎌ ×2" chip: banked Codex resets. Same chip vocabulary as the plan
-    /// tag — quiet by default, codex-blue accents so it reads as Codex's.
+    /// Banked Codex resets, drawn as a tiny physical CARD with the OpenAI
+    /// mark printed on it, and "×N" beside it — no colored container box.
+    /// The card reads as an object (gradient face, top-edge catchlight,
+    /// drop shadow), which is the whole point: these are cards you hold.
     private func resetCardChip(_ count: Int) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrow.counterclockwise.circle")
-                .font(.system(size: 9.5, weight: .semibold))
-                .foregroundStyle(IslandColor.codex.opacity(0.9))
+        HStack(spacing: 6) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(white: 0.22), Color(white: 0.075)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.38), .white.opacity(0.04)],
+                            startPoint: .top, endPoint: .bottom
+                        ),
+                        lineWidth: 0.6
+                    )
+                if let logo = ProviderLogos.openAI {
+                    Image(nsImage: logo)
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 9)
+                        .foregroundStyle(.white.opacity(count > 0 ? 0.92 : 0.45))
+                }
+            }
+            .frame(width: 25, height: 16)
+            .shadow(color: .black.opacity(0.55), radius: 1.6, y: 1)
             Text("×\(count)")
                 .font(Typography.chip)
                 .tracking(0.6)
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(.white.opacity(count > 0 ? 0.78 : 0.42))
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2.5)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(IslandColor.codex.opacity(0.10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(IslandColor.codex.opacity(0.22), lineWidth: 0.5)
-                )
-        )
         .help(L10n.tr("%d banked resets available", count))
         .accessibilityLabel(L10n.tr("%d banked resets available", count))
     }

@@ -154,6 +154,12 @@
 "%@: %d percent of weekly window used, %@" = "%@：已使用周窗口的 %d%%，%@";
 "%@: no data for weekly window" = "%@：周窗口暂无数据";
 "%d banked resets available" = "%d 张重置卡可用";
+"Weekly report…" = "本周周报…";
+"Weekly report" = "本周周报";
+"Copy image" = "复制图片";
+"Copied" = "已复制";
+"Save PNG…" = "保存 PNG…";
+"Share…" = "分享…";
 "Swipe to change pages." = "滑动切换页面。";
 
 /* Auto-Trigger (Triggers tab) */

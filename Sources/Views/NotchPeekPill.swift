@@ -116,18 +116,15 @@ struct NotchPeekPill: View {
         return "\(value)%"
     }
 
-    /// `Nh` when ≥ 1h remaining, `Nm` under 1h. Returns nil if there's no
-    /// resetAt or the reset has already passed (happens transiently when a
-    /// window rolls over before the next fetch lands).
+    /// Same compact vocabulary as the panel captions (`6d` / `14h` / `32m`)
+    /// via Duration.compact — a weekly window must never read "150h".
+    /// Returns nil if there's no resetAt or the reset has already passed
+    /// (happens transiently when a window rolls over before the next fetch).
     private var resetText: String? {
         guard let resetAt = usage.resetAt else { return nil }
         let remaining = resetAt.timeIntervalSinceNow
         guard remaining > 0 else { return nil }
-        if remaining >= 3600 {
-            return "\(Int((remaining / 3600).rounded(.down)))h"
-        } else {
-            return "\(max(1, Int((remaining / 60).rounded(.down))))m"
-        }
+        return Duration.compact(remaining)
     }
 }
 

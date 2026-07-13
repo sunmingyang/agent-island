@@ -74,6 +74,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Touch the shared updater so Sparkle starts its background scheduler.
         _ = UpdaterController.shared
+
+        // Headless card snapshot for tooling: waits for the cost scan to
+        // land, renders the weekly report PNG, and exits. Mirrors the alarm
+        // snapshot tooling used for release screenshots.
+        if let path = ProcessInfo.processInfo.environment["AGENTISLAND_REPORT_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                WeeklyReportRenderer.writePNG(to: path)
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
