@@ -70,7 +70,10 @@ enum CostSummary {
             // figure instantly without re-scanning session logs.
             let billable = event.inputTokens + event.outputTokens
             let tokens = billable + event.cacheCreationTokens + event.cacheReadTokens
-            let isUnpriced = tokens > 0 && !Pricing.isKnown(event.model)
+            // "<synthetic>" is Claude Code's placeholder for injected banner/
+            // error lines, not a model — it must never count as unpriced
+            // spend (it once surfaced as a baffling "1 unpriced" warning).
+            let isUnpriced = tokens > 0 && event.model != "<synthetic>" && !Pricing.isKnown(event.model)
 
             if event.timestamp >= historyStart {
                 let eventDay = cal.startOfDay(for: event.timestamp)

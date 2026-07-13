@@ -6,14 +6,12 @@ import SwiftUI
 /// the machine on its own.
 @MainActor
 enum WeeklyReportRenderer {
-    /// The EXPORT version sits on an opaque near-black backdrop with a
-    /// margin: social apps flatten transparency to white, so a bare
-    /// rounded-corner card pastes with ugly white corners. Opaque backdrop
-    /// = clean everywhere (WeChat, Douyin, anywhere).
+    /// The EXPORT version is the card itself, full-bleed with SQUARE outer
+    /// corners and no backdrop margin: social apps flatten transparency to
+    /// white (ugly corner nicks) and a margin frame read as a gray box
+    /// around the card. Edge-to-edge card = clean everywhere.
     private static func exportView() -> some View {
-        WeeklyReportCard(data: .current())
-            .padding(26)
-            .background(Color(red: 0.043, green: 0.047, blue: 0.055))
+        WeeklyReportCard(data: .current(), rounded: false)
     }
 
     static func image() -> NSImage? {
@@ -71,6 +69,10 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
             panel.isOpaque = false
             panel.hasShadow = false // the card paints its own shadow
             panel.isMovableByWindowBackground = true
+            // Screenshot tools (⇧⌘4/5) deactivate the app; panels hide on
+            // deactivate by default, which made the card "jump away" the
+            // moment the user tried to capture it.
+            panel.hidesOnDeactivate = false
             panel.isReleasedWhenClosed = false
             panel.level = .floating
             panel.contentView = NSHostingView(rootView: WeeklyReportSheet())
@@ -158,7 +160,11 @@ private struct WeeklyReportSheet: View {
 /// cross-platform landing hook is the QR printed on the card itself.
 private struct ShareAnchor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(title: L10n.tr("Share…"), target: context.coordinator,
+        // The native macOS share control: icon-only square.and.arrow.up,
+        // exactly what every system app uses.
+        let button = NSButton(image: NSImage(systemSymbolName: "square.and.arrow.up",
+                                             accessibilityDescription: L10n.tr("Share…"))!,
+                              target: context.coordinator,
                               action: #selector(Coordinator.share(_:)))
         button.bezelStyle = .rounded
         button.controlSize = .regular

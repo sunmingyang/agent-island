@@ -50,19 +50,22 @@ struct WeeklyReportData {
         let dollars = (cost.claude.weekByModel + cost.codex.weekByModel)
             .reduce(0.0) { $0 + $1.dollars }
 
-        // Model share is billable-vs-billable (weekByModel's own universe) —
-        // dividing billable rows by the wire-level total (which includes
-        // cache reads) produced absurd 0–3% rows.
-        let billableUniverse = max(1, (cost.claude.weekByModel + cost.codex.weekByModel)
-            .reduce(0) { $0 + $1.tokens })
-        let claudeRows = cost.claude.weekByModel.prefix(2).map {
-            ModelShare(name: $0.displayName, percent: Double($0.tokens) / Double(billableUniverse), color: IslandColor.claude)
+        // Rank models by DOLLARS, not billable tokens: the card's story is
+        // "what my week was worth", and token-ranking buried expensive
+        // models — Fable 5 ($10/$50 rates) ranked below cheaper models that
+        // pushed more tokens and got cut from the list entirely.
+        let dollarUniverse = max(0.01, (cost.claude.weekByModel + cost.codex.weekByModel)
+            .reduce(0.0) { $0 + $1.dollars })
+        let claudeRows = cost.claude.weekByModel.map {
+            ModelShare(name: $0.displayName, percent: $0.dollars / dollarUniverse, color: IslandColor.claude)
         }
-        let codexRows = cost.codex.weekByModel.prefix(2).map {
-            ModelShare(name: $0.displayName, percent: Double($0.tokens) / Double(billableUniverse), color: IslandColor.codex)
+        let codexRows = cost.codex.weekByModel.map {
+            ModelShare(name: $0.displayName, percent: $0.dollars / dollarUniverse, color: IslandColor.codex)
         }
         var models = (claudeRows + codexRows).sorted { $0.percent > $1.percent }
-        models = Array(models.prefix(3))
+        // No "0%" tail rows — a model must have earned at least half a
+        // percent of the week's spend to make the card.
+        models = Array(models.filter { $0.percent >= 0.005 }.prefix(4))
 
         // The card follows the app language — a card destined for WeChat
         // groups must read Chinese when the UI is Chinese.
@@ -97,6 +100,10 @@ struct WeeklyReportData {
 
 struct WeeklyReportCard: View {
     let data: WeeklyReportData
+    /// The in-window card is rounded; the EXPORTED card is square-cornered
+    /// and full-bleed — social apps flatten transparency to white, so any
+    /// rounded transparent corner pastes as ugly white nicks.
+    var rounded: Bool = true
 
     static let size = CGSize(width: 420, height: 560)
 
@@ -120,14 +127,14 @@ struct WeeklyReportCard: View {
             .padding(30)
         }
         .frame(width: Self.size.width, height: Self.size.height)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous))
     }
 
     // MARK: - Texture
 
     private var background: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [Color(red: 0.075, green: 0.08, blue: 0.09),
@@ -140,7 +147,7 @@ struct WeeklyReportCard: View {
                            center: .init(x: 0.12, y: 0.02), startRadius: 0, endRadius: 340)
             RadialGradient(colors: [IslandColor.codex.opacity(0.11), .clear],
                            center: .init(x: 0.95, y: 0.85), startRadius: 0, endRadius: 380)
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous)
                 .strokeBorder(
                     LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.02)],
                                    startPoint: .top, endPoint: .bottom),
