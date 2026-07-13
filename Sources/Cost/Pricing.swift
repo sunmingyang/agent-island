@@ -92,26 +92,9 @@ enum Pricing {
             inputPerMillion: 5, outputPerMillion: 30,
             cacheCreationPerMillion: 5, cacheReadPerMillion: 0.50
         ),
-        "gpt-5.5-pro": Rates(
-            inputPerMillion: 30, outputPerMillion: 180,
-            // Pro tiers list no cached-input rate — cache bills as input.
-            cacheCreationPerMillion: 30, cacheReadPerMillion: 30
-        ),
         "gpt-5.4": Rates(
             inputPerMillion: 2.5, outputPerMillion: 15,
             cacheCreationPerMillion: 2.5, cacheReadPerMillion: 0.25
-        ),
-        "gpt-5.4-mini": Rates(
-            inputPerMillion: 0.75, outputPerMillion: 4.5,
-            cacheCreationPerMillion: 0.75, cacheReadPerMillion: 0.075
-        ),
-        "gpt-5.4-nano": Rates(
-            inputPerMillion: 0.20, outputPerMillion: 1.25,
-            cacheCreationPerMillion: 0.20, cacheReadPerMillion: 0.02
-        ),
-        "gpt-5.4-pro": Rates(
-            inputPerMillion: 30, outputPerMillion: 180,
-            cacheCreationPerMillion: 30, cacheReadPerMillion: 30
         ),
         "gpt-5.2": Rates(
             inputPerMillion: 1.75, outputPerMillion: 14,
