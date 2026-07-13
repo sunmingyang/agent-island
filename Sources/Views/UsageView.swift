@@ -101,7 +101,8 @@ struct ChartsBlock: View {
                 // in July 2026, so it reads "week", not a hardcoded "5h".
                 ChartTile(style: style, color: color,
                           labelKey: usage.fiveHour.isLongPeriod ? "week" : "5h",
-                          window: usage.fiveHour, seed: seed)
+                          window: usage.fiveHour, seed: seed,
+                          wide: usage.secondaryMissing)
                 // A provider that reports only one window gets one tile — no
                 // permanent "no data" ghost for a window gone upstream.
                 if !usage.secondaryMissing {
@@ -153,6 +154,8 @@ struct ChartTile: View {
     let labelKey: String
     let window: WindowUsage
     let seed: Int
+    /// True when this tile spans the full row (single-window provider).
+    var wide: Bool = false
 
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
 
@@ -168,7 +171,7 @@ struct ChartTile: View {
 
         Group {
             switch style {
-            case .ring:    RingChart(value: value, color: color, label: label, sub: sub)
+            case .ring:    RingChart(value: value, color: color, label: label, sub: sub, centered: wide)
             case .bar:     BarChart(value: value, color: color, label: label, sub: sub)
             case .stepped: SteppedChart(value: value, color: color, label: label, sub: sub)
             case .numeric: NumericChart(value: value, color: color, label: label, sub: compactSubCaption())

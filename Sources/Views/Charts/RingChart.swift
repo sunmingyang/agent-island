@@ -5,9 +5,13 @@ struct RingChart: View {
     let color: Color
     let label: String
     let sub: String
+    /// A single-window provider's tile spans the full row (Codex has been
+    /// weekly-only since July 2026); a left-hugging ring leaves a void on
+    /// the right, so the wide tile centers instead.
+    var centered: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: centered ? .center : .leading, spacing: 8) {
             HStack(spacing: 14) {
                 ZStack {
                     Circle().stroke(.white.opacity(0.07), lineWidth: 3)
@@ -39,7 +43,7 @@ struct RingChart: View {
                             .foregroundStyle(.white.opacity(0.5))
                     }
                 }
-                Spacer()
+                if !centered { Spacer() }
             }
             Text(sub)
                 .font(Typography.caption)

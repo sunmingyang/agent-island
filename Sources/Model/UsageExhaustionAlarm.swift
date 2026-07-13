@@ -55,11 +55,15 @@ final class UsageExhaustionAlarm {
 
     private func currentWindows() -> [WindowRef] {
         let usage = UsageStore.shared
+        // Codex dropped its 5-hour window for a single weekly quota (July
+        // 2026), and a full-screen "you're out for the week" panel is noise,
+        // not an actionable interruption — so Codex no longer raises the
+        // quota alarm at all (product call, 2026-07-13; macOS only for now).
+        // Codex quota still shows in the tiles and still drives the pace/
+        // threshold warnings; Claude keeps the alarm (its 5h window lives).
         let all = [
             WindowRef(provider: .claude, window: .fiveHour, usage: usage.claude.fiveHour),
             WindowRef(provider: .claude, window: .weekly, usage: usage.claude.weekly),
-            WindowRef(provider: .codex, window: .fiveHour, usage: usage.codex.fiveHour),
-            WindowRef(provider: .codex, window: .weekly, usage: usage.codex.weekly),
         ]
         // Providers switched off in Settings never alarm — same contract as
         // the island's red attention glow.

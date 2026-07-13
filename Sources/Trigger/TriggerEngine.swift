@@ -166,6 +166,11 @@ final class TriggerEngine: ObservableObject {
         }
         guard let command = command(for: trigger, requireResolvedBinary: true) else {
             TriggerStore.shared.markFired(trigger.id)
+            // Field reports of "auto-resume did nothing" were undiagnosable
+            // because this path left no run record — only an NSLog nobody
+            // reads. A missing CLI must show up in run records like every
+            // other blocked fire.
+            logStatus("blocked: \(trigger.tool.rawValue) CLI not found — install it or fix PATH, then re-test\n\(preview(for: trigger))", for: trigger)
             NSLog("AgentIsland trigger: %@ binary not found", trigger.tool.rawValue)
             return
         }
