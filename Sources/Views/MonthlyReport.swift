@@ -453,7 +453,7 @@ final class MonthlyReportWindowController: NSWindowController, NSWindowDelegate 
         }
         if window == nil {
             let panel = MonthlyPanel(
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 648)),
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 670)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -495,6 +495,7 @@ final class MonthlyReportWindowController: NSWindowController, NSWindowDelegate 
 
 private struct MonthlyReportSheet: View {
     @State private var copied = false
+    @State private var coach: String?
     @State private var shareAnchor: NSView?
     @State private var pickerHolder = MonthlyPickerHolder()
 
@@ -509,19 +510,37 @@ private struct MonthlyReportSheet: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.writeObjects([image])
                         copied = true
+                        showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
-                pill(L10n.tr("Share…")) { openSharePicker() }
-                    .background(
-                        MonthlyShareAnchorView { shareAnchor = $0 }
-                            .frame(width: 1, height: 1)
-                    )
+                pill(L10n.tr("Share…")) {
+                    showCoach(L10n.tr("Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲"))
+                    openSharePicker()
+                }
+                .background(
+                    MonthlyShareAnchorView { shareAnchor = $0 }
+                        .frame(width: 1, height: 1)
+                )
             }
+
+            Text(coach ?? " ")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
+                .lineLimit(1)
+                .opacity(coach == nil ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: coach == nil)
         }
         .padding(.horizontal, 26)
         .padding(.top, 22)
-        .padding(.bottom, 14)
+        .padding(.bottom, 12)
+    }
+
+    private func showCoach(_ text: String) {
+        coach = text
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            if coach == text { coach = nil }
+        }
     }
 
     @MainActor

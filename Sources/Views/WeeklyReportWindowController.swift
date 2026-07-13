@@ -93,7 +93,7 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
                 // Hugs the content exactly (card 420 + 26pt margins; buttons
                 // below) — a window wider than its content reads as a ghost
                 // slab around the card.
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 648)),
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 670)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -146,6 +146,7 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
 
 private struct WeeklyReportSheet: View {
     @State private var copied = false
+    @State private var coach: String?
     @State private var shareAnchor: NSView?
     // NSSharingServicePicker dies if released while on screen — park it.
     @State private var pickerHolder = PickerHolder()
@@ -159,29 +160,46 @@ private struct WeeklyReportSheet: View {
 
             // Two actions, identical pills, both instant (renders come from
             // the warm cache). Copy → paste anywhere; Share → the system
-            // share picker (AirDrop / Messages / installed extensions). No
-            // coached routes — WeChat-specific copy read as China-only
-            // (owner, 2026-07-14).
+            // share picker (AirDrop / Messages / installed extensions).
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
                     if copyImage() {
                         copied = true
+                        showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
-                actionButton(L10n.tr("Share…"), prominent: true) { openSharePicker() }
-                    .background(
-                        // Invisible AppKit anchor the picker popover attaches
-                        // to — keeps the visible control a pixel-identical
-                        // SwiftUI pill (a real NSButton never matched).
-                        ShareAnchorView { shareAnchor = $0 }
-                            .frame(width: 1, height: 1)
-                    )
+                actionButton(L10n.tr("Share…"), prominent: true) {
+                    showCoach(L10n.tr("Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲"))
+                    openSharePicker()
+                }
+                .background(
+                    // Invisible AppKit anchor the picker popover attaches
+                    // to — keeps the visible control a pixel-identical
+                    // SwiftUI pill (a real NSButton never matched).
+                    ShareAnchorView { shareAnchor = $0 }
+                        .frame(width: 1, height: 1)
+                )
             }
+
+            // Fixed one-line slot so the window never reflows.
+            Text(coach ?? " ")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
+                .lineLimit(1)
+                .opacity(coach == nil ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: coach == nil)
         }
         .padding(.horizontal, 26)
         .padding(.top, 22)
-        .padding(.bottom, 14)
+        .padding(.bottom, 12)
+    }
+
+    private func showCoach(_ text: String) {
+        coach = text
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            if coach == text { coach = nil }
+        }
     }
 
     @MainActor
