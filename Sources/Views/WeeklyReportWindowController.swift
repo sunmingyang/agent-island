@@ -64,7 +64,10 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
     func show() {
         if window == nil {
             let panel = ReportPanel(
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 520, height: 700)),
+                // Hugs the content exactly (card 420 + 26pt margins; buttons
+                // below) — a window wider than its content reads as a ghost
+                // slab around the card.
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 656)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -91,11 +94,14 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
                 contentView.addSubview(close)
                 // Card sits at (26, 22) from the top-left of the content;
                 // native windows inset the light ~12pt into the corner.
+                // NSHostingView is FLIPPED (y grows downward) — measuring
+                // from the bottom edge parked the light at the bottom.
                 let inset: CGFloat = 12
-                close.setFrameOrigin(NSPoint(
-                    x: 26 + inset,
-                    y: contentView.bounds.height - 22 - inset - close.frame.height
-                ))
+                let yFromTop: CGFloat = 22 + inset
+                let y = contentView.isFlipped
+                    ? yFromTop
+                    : contentView.bounds.height - yFromTop - close.frame.height
+                close.setFrameOrigin(NSPoint(x: 26 + inset, y: y))
             }
             panel.delegate = self
             window = panel
@@ -112,7 +118,9 @@ private struct WeeklyReportSheet: View {
     var body: some View {
         VStack(spacing: 18) {
             WeeklyReportCard(data: .current())
-                .shadow(color: .black.opacity(0.6), radius: 34, y: 16)
+                // A tight, grounded shadow — the old radius-34/0.6 halo was
+                // the "floating on fog" feel, not any system glass.
+                .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
 
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {

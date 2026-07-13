@@ -43,6 +43,20 @@ enum Pricing {
             inputPerMillion: 5, outputPerMillion: 25,
             cacheCreationPerMillion: 6.25, cacheReadPerMillion: 0.50
         ),
+        "claude-mythos-5": Rates(
+            inputPerMillion: 10, outputPerMillion: 50,
+            cacheCreationPerMillion: 12.50, cacheReadPerMillion: 1.00
+        ),
+        // Sonnet 5 standard list ($2/$10 intro runs through 2026-08-31; we
+        // book at list so estimates don't shift when the intro lapses).
+        "claude-sonnet-5": Rates(
+            inputPerMillion: 3, outputPerMillion: 15,
+            cacheCreationPerMillion: 3.75, cacheReadPerMillion: 0.30
+        ),
+        "claude-opus-4-1": Rates(
+            inputPerMillion: 15, outputPerMillion: 75,
+            cacheCreationPerMillion: 18.75, cacheReadPerMillion: 1.50
+        ),
         "claude-sonnet-4-6": Rates(
             inputPerMillion: 3, outputPerMillion: 15,
             cacheCreationPerMillion: 3.75, cacheReadPerMillion: 0.30
@@ -78,9 +92,26 @@ enum Pricing {
             inputPerMillion: 5, outputPerMillion: 30,
             cacheCreationPerMillion: 5, cacheReadPerMillion: 0.50
         ),
+        "gpt-5.5-pro": Rates(
+            inputPerMillion: 30, outputPerMillion: 180,
+            // Pro tiers list no cached-input rate — cache bills as input.
+            cacheCreationPerMillion: 30, cacheReadPerMillion: 30
+        ),
         "gpt-5.4": Rates(
             inputPerMillion: 2.5, outputPerMillion: 15,
             cacheCreationPerMillion: 2.5, cacheReadPerMillion: 0.25
+        ),
+        "gpt-5.4-mini": Rates(
+            inputPerMillion: 0.75, outputPerMillion: 4.5,
+            cacheCreationPerMillion: 0.75, cacheReadPerMillion: 0.075
+        ),
+        "gpt-5.4-nano": Rates(
+            inputPerMillion: 0.20, outputPerMillion: 1.25,
+            cacheCreationPerMillion: 0.20, cacheReadPerMillion: 0.02
+        ),
+        "gpt-5.4-pro": Rates(
+            inputPerMillion: 30, outputPerMillion: 180,
+            cacheCreationPerMillion: 30, cacheReadPerMillion: 30
         ),
         "gpt-5.2": Rates(
             inputPerMillion: 1.75, outputPerMillion: 14,
