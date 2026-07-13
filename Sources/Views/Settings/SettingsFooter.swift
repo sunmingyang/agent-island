@@ -76,7 +76,9 @@ private struct SharePillButton: View {
                     .font(.system(size: 9.5, weight: .bold))
                 Text(title)
                     .font(Typography.label.weight(.bold))
+                    .lineLimit(1)
             }
+            .fixedSize()
             .foregroundStyle(.black.opacity(0.85))
             .padding(.horizontal, 11)
             .padding(.vertical, 5)
