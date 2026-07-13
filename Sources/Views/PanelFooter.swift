@@ -53,16 +53,22 @@ struct PanelFooter: View {
 
                     Spacer()
 
-                    // Weekly report card lives where the user actually looks
-                    // (the island), not only in the menu-bar icon's menu.
+                    // Weekly report entry — labeled, because a bare 22px icon
+                    // is invisible and nobody shares what they can't find.
+                    // Shows on every page (usage + cost + overview).
                     Button {
                         WeeklyReportWindowController.shared.show()
                     } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 10.5, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.55))
-                            .frame(width: 22, height: 22)
-                            .background(Circle().fill(.white.opacity(0.06)))
+                        HStack(spacing: 5) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 9.5, weight: .semibold))
+                            Text(L10n.tr("Weekly report"))
+                                .font(Typography.label)
+                        }
+                        .foregroundStyle(.white.opacity(0.68))
+                        .padding(.horizontal, 10)
+                        .frame(height: 22)
+                        .background(Capsule().fill(.white.opacity(0.08)))
                     }
                     .buttonStyle(.plain)
                     .help(L10n.tr("Weekly report"))

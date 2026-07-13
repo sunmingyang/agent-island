@@ -1,4 +1,6 @@
 import SwiftUI
+import AppKit
+import CoreImage
 
 /// The shareable weekly report — a fixed-size portrait card rendered from
 /// LOCAL data only (CostStore's log scan + UsageStore quota). Users copy or
@@ -62,14 +64,24 @@ struct WeeklyReportData {
         var models = (claudeRows + codexRows).sorted { $0.percent > $1.percent }
         models = Array(models.prefix(3))
 
+        // The card follows the app language — a card destined for WeChat
+        // groups must read Chinese when the UI is Chinese.
+        let zh = L10n.locale.identifier.hasPrefix("zh")
         let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.dateFormat = "MMM d"
+        df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
+        df.dateFormat = zh ? "M月d日" : "MMM d"
         let range = "\(df.string(from: days.first ?? today)) – \(df.string(from: today))"
 
-        let letterFmt = DateFormatter()
-        letterFmt.locale = Locale(identifier: "en_US_POSIX")
-        letterFmt.dateFormat = "EEEEE"
+        let letters: [String]
+        if zh {
+            let zhDays = ["日", "一", "二", "三", "四", "五", "六"]
+            letters = days.map { zhDays[cal.component(.weekday, from: $0) - 1] }
+        } else {
+            let letterFmt = DateFormatter()
+            letterFmt.locale = Locale(identifier: "en_US_POSIX")
+            letterFmt.dateFormat = "EEEEE"
+            letters = days.map { letterFmt.string(from: $0) }
+        }
 
         return WeeklyReportData(
             rangeText: range,
@@ -77,7 +89,7 @@ struct WeeklyReportData {
             totalDollars: dollars,
             claudeShare: total > 0 ? Double(claudeWeek) / Double(total) : 0,
             dailyTokens: daily,
-            dayLetters: days.map { letterFmt.string(from: $0) },
+            dayLetters: letters,
             topModels: models
         )
     }
@@ -160,20 +172,30 @@ struct WeeklyReportCard: View {
     }
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(Self.compact(data.totalTokens))
-                .font(.system(size: 74, weight: .heavy, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(colors: [.white, .white.opacity(0.72)],
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .kerning(-1.5)
+        let zh = L10n.locale.identifier.hasPrefix("zh")
+        let parts = Self.compactParts(data.totalTokens, zh: zh)
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(parts.0)
+                    .font(.system(size: 74, weight: .heavy, design: .rounded))
+                    .kerning(-1.5)
+                if !parts.1.isEmpty {
+                    // 中文单位(亿/万)按惯例小一号挂在数字后;英文单位(B/M)
+                    // 与数字同体量。
+                    Text(parts.1)
+                        .font(.system(size: zh ? 38 : 74, weight: .heavy, design: .rounded))
+                }
+            }
+            .foregroundStyle(
+                LinearGradient(colors: [.white, .white.opacity(0.72)],
+                               startPoint: .top, endPoint: .bottom)
+            )
             HStack(spacing: 8) {
-                Text("tokens this week")
+                Text(L10n.tr("tokens this week"))
                     .font(.system(size: 13.5, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.5))
                 if data.totalDollars >= 1 {
-                    Text("≈ $\(Self.money(data.totalDollars)) API value")
+                    Text(L10n.tr("≈ $%@ API value", Self.money(data.totalDollars)))
                         .font(.system(size: 13.5, weight: .heavy, design: .rounded))
                         .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
                 }
@@ -277,40 +299,94 @@ struct WeeklyReportCard: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             Rectangle()
                 .fill(LinearGradient(colors: [.white.opacity(0.0), .white.opacity(0.14), .white.opacity(0.0)],
                                      startPoint: .leading, endPoint: .trailing))
                 .frame(height: 1)
-            HStack {
-                // Brand strip. This row is the reserved sponsor slot: swap the
-                // left text for a partner mark later without touching layout.
-                Text("agent-island.dev")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.5))
+            // Brand + landing strip. The row doubles as the reserved sponsor
+            // slot; the QR is the cross-platform landing hook — anyone who
+            // sees the shared image (WeChat, Douyin, Android, anywhere)
+            // scans straight into agent-island.dev.
+            HStack(alignment: .center, spacing: 10) {
+                if let icon = NSImage(named: NSImage.applicationIconName) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 34, height: 34)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Agent Island")
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.88))
+                    Text("github.com/tristan666666/agent-island")
+                        .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.38))
+                }
                 Spacer()
-                Text("local · open source")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .tracking(0.6)
-                    .foregroundStyle(.white.opacity(0.3))
+                qrTile
             }
         }
     }
 
+    /// White tile + crisp QR → agent-island.dev. The landing page that
+    /// catches every share, on every platform, no share-API needed.
+    private var qrTile: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(.white)
+            if let qr = Self.landingQR {
+                Image(nsImage: qr)
+                    .interpolation(.none)
+                    .resizable()
+                    .frame(width: 40, height: 40)
+            }
+        }
+        .frame(width: 50, height: 50)
+    }
+
+    private static let landingQR: NSImage? = makeQR("https://agent-island.dev")
+
+    private static func makeQR(_ text: String) -> NSImage? {
+        guard let data = text.data(using: .utf8),
+              let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(data, forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let output = filter.outputImage else { return nil }
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
+        let rep = NSCIImageRep(ciImage: scaled)
+        let image = NSImage(size: rep.size)
+        image.addRepresentation(rep)
+        return image
+    }
+
     // MARK: - Formatting
 
-    static func compact(_ n: Int) -> String {
+    /// (value, unit). Chinese counts in 亿/万 — the way the number is
+    /// actually said — English in B/M/K.
+    static func compactParts(_ n: Int, zh: Bool) -> (String, String) {
         let v = Double(n)
+        if zh {
+            if v >= 100_000_000 { return (trim(v / 100_000_000), "亿") }
+            if v >= 10_000 { return (trim(v / 10_000), "万") }
+            return ("\(n)", "")
+        }
         switch v {
-        case 1_000_000_000...: return trim(v / 1_000_000_000) + "B"
-        case 1_000_000...:     return trim(v / 1_000_000) + "M"
-        case 1_000...:         return trim(v / 1_000) + "K"
-        default:               return "\(n)"
+        case 1_000_000_000...: return (trim(v / 1_000_000_000), "B")
+        case 1_000_000...:     return (trim(v / 1_000_000), "M")
+        case 1_000...:         return (trim(v / 1_000), "K")
+        default:               return ("\(n)", "")
         }
     }
 
     private static func trim(_ v: Double) -> String {
-        v >= 100 ? String(format: "%.0f", v) : String(format: "%.2f", v)
+        // No trailing zeros — "99.5亿", never "99.50亿".
+        var s = v >= 100 ? String(format: "%.0f", v) : String(format: "%.2f", v)
+        if s.contains(".") {
+            while s.hasSuffix("0") { s.removeLast() }
+            if s.hasSuffix(".") { s.removeLast() }
+        }
+        return s
     }
 
     static func money(_ v: Double) -> String {

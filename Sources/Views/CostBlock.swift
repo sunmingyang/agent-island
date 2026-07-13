@@ -349,19 +349,17 @@ struct CostTile: View {
     /// produced real spend in this window, the countdown is replaced with
     /// an "⚠ N unpriced" warning so the user knows the dollar total is an
     /// undercount rather than a clean zero.
+    // "⚠ N unpriced" used to replace the countdown here — internal pricing
+    // bookkeeping leaking into a consumer surface (owner's verdict: 扯).
+    // The total quietly undercounts until the pricing table catches up,
+    // which is the right trade for a glanceable panel.
     private var resetGlyph: String {
         if let err = window.error { return err }
-        if !window.unknownModels.isEmpty {
-            return L10n.tr("⚠ %d unpriced", window.unknownModels.count)
-        }
         return "↻ " + (isMonth ? CostBucketing.monthResetIn() : CostBucketing.todayResetIn())
     }
 
     private var resetGlyphSpoken: String {
         if let err = window.error { return err }
-        if !window.unknownModels.isEmpty {
-            return L10n.tr("Warning: %d unpriced models — totals may be incomplete.", window.unknownModels.count)
-        }
         let countdown = isMonth ? CostBucketing.monthResetIn() : CostBucketing.todayResetIn()
         return L10n.tr("Resets in %@", countdown)
     }

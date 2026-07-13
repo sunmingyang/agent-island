@@ -85,6 +85,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+        // Weekly report moment: once per ISO week, surface the card ~10s
+        // after launch (the cost scan needs a beat). Sharing needs a moment
+        // put in front of people, not a buried menu item.
+        if AppEnvironment.current == .normal,
+           ProcessInfo.processInfo.environment["AGENTISLAND_REPORT_SNAPSHOT"] == nil,
+           ProcessInfo.processInfo.environment["AGENTISLAND_CHIP_SNAPSHOT"] == nil {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                let cal = Calendar(identifier: .iso8601)
+                let comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+                let weekKey = "\(comps.yearForWeekOfYear ?? 0)-W\(comps.weekOfYear ?? 0)"
+                let shownKey = "AgentIsland.weeklyReportShownForWeek"
+                if UserDefaults.standard.string(forKey: shownKey) != weekKey {
+                    UserDefaults.standard.set(weekKey, forKey: shownKey)
+                    WeeklyReportWindowController.shared.show()
+                }
+            }
+        }
+
         // Same idea for the reset-card chip (taste iterations need eyes):
         // renders the chip at 10x against the panel background and exits.
         if let path = ProcessInfo.processInfo.environment["AGENTISLAND_CHIP_SNAPSHOT"] {

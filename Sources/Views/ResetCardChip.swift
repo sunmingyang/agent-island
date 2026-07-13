@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Banked Codex resets, drawn as a tiny UPRIGHT card — portrait like a card
-/// you hold, faced in the Agent Island logo teal, with the OpenAI mark
+/// you hold, faced in the Codex logo blue, with the OpenAI mark
 /// printed on it and "×N" beside it. No container box around the pair.
 /// Clicking it opens the detail popover: each card + how long it stays
 /// valid. Always visible, ×0 included (the face dims when empty).
@@ -31,7 +31,7 @@ struct ResetCardChip: View {
         }
     }
 
-    /// Portrait card face in the brand teal: deep teal gradient, a diagonal
+    /// Portrait card face in the Codex blue: deep blue gradient, a diagonal
     /// sheen sweep, a top catchlight edge, and a drop shadow — reads as an
     /// object, not a badge.
     private var cardFace: some View {
@@ -40,8 +40,8 @@ struct ResetCardChip: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            IslandColor.brandTeal.opacity(count > 0 ? 0.95 : 0.30),
-                            IslandColor.brandTeal.opacity(count > 0 ? 0.45 : 0.14),
+                            IslandColor.codex.opacity(count > 0 ? 0.95 : 0.30),
+                            IslandColor.codex.opacity(count > 0 ? 0.45 : 0.14),
                         ],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     )
@@ -60,7 +60,7 @@ struct ResetCardChip: View {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [.white.opacity(0.45), IslandColor.brandTeal.opacity(0.15)],
+                        colors: [.white.opacity(0.45), IslandColor.codex.opacity(0.15)],
                         startPoint: .top, endPoint: .bottom
                     ),
                     lineWidth: 0.6
@@ -71,12 +71,12 @@ struct ResetCardChip: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 9)
-                    .foregroundStyle(Color(red: 0.01, green: 0.13, blue: 0.115).opacity(count > 0 ? 0.9 : 0.5))
+                    .foregroundStyle(Color(red: 0.03, green: 0.10, blue: 0.20).opacity(count > 0 ? 0.9 : 0.5))
             }
         }
         .frame(width: 13.5, height: 19)
         .shadow(color: .black.opacity(0.5), radius: 1.8, y: 1.1)
-        .shadow(color: IslandColor.brandTeal.opacity(count > 0 ? 0.35 : 0), radius: 5, y: 0)
+        .shadow(color: IslandColor.codex.opacity(count > 0 ? 0.35 : 0), radius: 5, y: 0)
     }
 
     private var detailsPopover: some View {
@@ -94,7 +94,7 @@ struct ResetCardChip: View {
                 ForEach(cards) { card in
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(IslandColor.brandTeal)
+                            .fill(IslandColor.codex)
                             .frame(width: 5, height: 5)
                         Text(card.title)
                             .font(.system(size: 11.5, weight: .semibold, design: .rounded))

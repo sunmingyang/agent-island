@@ -42,9 +42,23 @@ final class ScreenPref: ObservableObject {
         didSet { UserDefaults.standard.set(hasSwipedScreen, forKey: Self.swipedKey) }
     }
 
+    private static let costDefaultMigration = "MacIsland.defaultScreenCost.v1"
+
     private init() {
         let raw = UserDefaults.standard.string(forKey: Self.key) ?? ""
-        self.screen = Screen(rawValue: raw) ?? .usage
+        // Cost is the default landing page (product call, 2026-07-13): the
+        // money number is what people open the panel to see — and what they
+        // share. One-time migration nudges existing users there too; their
+        // swipes still persist afterwards.
+        var initial = Screen(rawValue: raw) ?? .cost
+        if !UserDefaults.standard.bool(forKey: Self.costDefaultMigration) {
+            UserDefaults.standard.set(true, forKey: Self.costDefaultMigration)
+            if CostPanelVisibilityStore.shared.showInTopPanel {
+                initial = .cost
+                UserDefaults.standard.set(Screen.cost.rawValue, forKey: Self.key)
+            }
+        }
+        self.screen = initial
         // Demo mode forces the discoverability peek to fire on every
         // launch so screen recordings always capture it. didSet does not
         // run for init assignments, so this never persists back to

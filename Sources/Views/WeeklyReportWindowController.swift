@@ -2,13 +2,24 @@ import AppKit
 import SwiftUI
 
 /// Renders the weekly report card to a crisp PNG (3x) and hosts the share
-/// window: the card, plus Copy / Save / system Share. Sharing is always the
-/// USER posting an image — nothing leaves the machine on its own.
+/// window. Sharing is always the USER posting an image — nothing leaves
+/// the machine on its own.
 @MainActor
 enum WeeklyReportRenderer {
+    /// The EXPORT version sits on an opaque near-black backdrop with a
+    /// margin: social apps flatten transparency to white, so a bare
+    /// rounded-corner card pastes with ugly white corners. Opaque backdrop
+    /// = clean everywhere (WeChat, Douyin, anywhere).
+    private static func exportView() -> some View {
+        WeeklyReportCard(data: .current())
+            .padding(26)
+            .background(Color(red: 0.043, green: 0.047, blue: 0.055))
+    }
+
     static func image() -> NSImage? {
-        let renderer = ImageRenderer(content: WeeklyReportCard(data: .current()))
+        let renderer = ImageRenderer(content: exportView())
         renderer.scale = 3
+        renderer.isOpaque = true
         return renderer.nsImage
     }
 
@@ -30,6 +41,13 @@ enum WeeklyReportRenderer {
     }
 }
 
+/// Borderless panel: the window IS the card — no chrome, no frame around
+/// the frame. Esc or the ✕ closes it; drag anywhere to move.
+private final class ReportPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override func cancelOperation(_ sender: Any?) { close() }
+}
+
 @MainActor
 final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
     static let shared = WeeklyReportWindowController()
@@ -43,18 +61,18 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
 
     func show() {
         if window == nil {
-            let panel = NSPanel(
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 480, height: 660)),
-                styleMask: [.titled, .closable, .fullSizeContentView],
+            let panel = ReportPanel(
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 520, height: 700)),
+                styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
-            panel.title = L10n.tr("Weekly report")
-            panel.titleVisibility = .hidden
-            panel.titlebarAppearsTransparent = true
+            panel.backgroundColor = .clear
+            panel.isOpaque = false
+            panel.hasShadow = false // the card paints its own shadow
             panel.isMovableByWindowBackground = true
-            panel.backgroundColor = NSColor(calibratedWhite: 0.02, alpha: 1)
             panel.isReleasedWhenClosed = false
+            panel.level = .floating
             panel.contentView = NSHostingView(rootView: WeeklyReportSheet())
             panel.delegate = self
             window = panel
@@ -69,9 +87,13 @@ private struct WeeklyReportSheet: View {
     @State private var copied = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            WeeklyReportCard(data: .current())
-                .shadow(color: .black.opacity(0.55), radius: 28, y: 14)
+        VStack(spacing: 18) {
+            ZStack(alignment: .topTrailing) {
+                WeeklyReportCard(data: .current())
+                    .shadow(color: .black.opacity(0.6), radius: 34, y: 16)
+                closeButton
+                    .padding(10)
+            }
 
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
@@ -86,10 +108,24 @@ private struct WeeklyReportSheet: View {
                 ShareAnchor()
                     .frame(width: 92, height: 30)
             }
-            .padding(.bottom, 4)
         }
-        .padding(24)
-        .frame(width: 480)
+        .padding(.horizontal, 44)
+        .padding(.top, 44)
+        .padding(.bottom, 28)
+    }
+
+    private var closeButton: some View {
+        Button {
+            WeeklyReportWindowController.shared.window?.close()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 9.5, weight: .bold))
+                .foregroundStyle(.white.opacity(0.55))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(.white.opacity(0.10)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.tr("Close"))
     }
 
     private func actionButton(_ title: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
@@ -100,7 +136,7 @@ private struct WeeklyReportSheet: View {
                 .padding(.horizontal, 16)
                 .frame(height: 30)
                 .background(
-                    Capsule().fill(prominent ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.white.opacity(0.10)))
+                    Capsule().fill(prominent ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.white.opacity(0.12)))
                 )
         }
         .buttonStyle(.plain)
@@ -118,8 +154,8 @@ private struct WeeklyReportSheet: View {
 }
 
 /// System share sheet anchor (AirDrop, WeChat when its mac app is installed,
-/// Messages, …). Douyin/Xiaohongshu have no macOS share targets — the real
-/// path there is Save/AirDrop to the phone and post from it.
+/// Messages, …). Douyin/Xiaohongshu/Jike have no macOS share targets — the
+/// cross-platform landing hook is the QR printed on the card itself.
 private struct ShareAnchor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSButton {
         let button = NSButton(title: L10n.tr("Share…"), target: context.coordinator,

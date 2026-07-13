@@ -160,6 +160,9 @@
 "Copied" = "已复制";
 "Save PNG…" = "保存 PNG…";
 "Share…" = "分享…";
+"tokens this week" = "本周 Token 消耗";
+"≈ $%@ API value" = "≈ $%@ API 等值";
+"Close" = "关闭";
 "Details unavailable right now." = "明细暂时不可用。";
 "Earned resets appear here with their expiry." = "获得的重置卡会显示在这里,附有效期。";
 "expired" = "已过期";
