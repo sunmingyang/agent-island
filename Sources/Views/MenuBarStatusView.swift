@@ -61,10 +61,13 @@ struct MenuBarStatusView: View {
             NSApp.terminate(nil)
         }
         Divider()
-        // The bottom slot is the prime slot — share lives there, not Quit
+        // The bottom slots are the prime slots — share lives there, not Quit
         // (owner's call, 2026-07-14).
         Button(L10n.tr("Share weekly report…")) {
             WeeklyReportWindowController.shared.show()
+        }
+        Button(L10n.tr("Share monthly report…")) {
+            MonthlyReportWindowController.shared.show()
         }
     }
 }

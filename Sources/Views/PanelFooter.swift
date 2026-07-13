@@ -53,28 +53,15 @@ struct PanelFooter: View {
 
                     Spacer()
 
-                    // Weekly report entry — labeled, because a bare 22px icon
-                    // is invisible and nobody shares what they can't find.
-                    // Shows on every page (usage + cost + overview).
-                    Button {
+                    // Report entries — labeled, because a bare 22px icon is
+                    // invisible and nobody shares what they can't find.
+                    // Weekly + monthly, same bright pill, every page.
+                    reportPill(L10n.tr("Weekly"), help: L10n.tr("Share weekly report")) {
                         WeeklyReportWindowController.shared.show()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 10, weight: .bold))
-                            Text(L10n.tr("Share weekly report"))
-                                .font(Typography.label.weight(.bold))
-                        }
-                        // The panel's one true call-to-action — bright pill,
-                        // unmissable (the dim ghost pill was invisible).
-                        .foregroundStyle(.black.opacity(0.85))
-                        .padding(.horizontal, 11)
-                        .frame(height: 23)
-                        .background(Capsule().fill(.white.opacity(0.92)))
                     }
-                    .buttonStyle(.plain)
-                    .help(L10n.tr("Share weekly report"))
-                    .accessibilityLabel(L10n.tr("Share weekly report"))
+                    reportPill(L10n.tr("Monthly"), help: L10n.tr("Share monthly report")) {
+                        MonthlyReportWindowController.shared.show()
+                    }
 
                     liveStatus
                 }
@@ -93,6 +80,27 @@ struct PanelFooter: View {
             .animation(.strongEaseOut, value: costPref.hasCycledStyle)
             .animation(.strongEaseOut, value: screenPref.screen)
         }
+    }
+
+    /// Bright white pill with the share glyph — the panel's call-to-action
+    /// pair (dim ghost pills were invisible).
+    private func reportPill(_ title: String, help: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 10, weight: .bold))
+                Text(title)
+                    .font(Typography.label.weight(.bold))
+            }
+            .foregroundStyle(.black.opacity(0.85))
+            .padding(.horizontal, 10)
+            .frame(height: 23)
+            .background(Capsule().fill(.white.opacity(0.92)))
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
     }
 
     private var activeStyleCycled: Bool {

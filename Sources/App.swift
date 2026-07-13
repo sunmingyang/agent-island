@@ -90,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // put in front of people, not a buried menu item.
         if AppEnvironment.current == .normal,
            ProcessInfo.processInfo.environment["AGENTISLAND_REPORT_SNAPSHOT"] == nil,
+           ProcessInfo.processInfo.environment["AGENTISLAND_MONTHLY_SNAPSHOT"] == nil,
            ProcessInfo.processInfo.environment["AGENTISLAND_CHIP_SNAPSHOT"] == nil {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
@@ -101,6 +102,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     UserDefaults.standard.set(weekKey, forKey: shownKey)
                     WeeklyReportWindowController.shared.show()
                 }
+            }
+        }
+
+        // Monthly card counterpart of the weekly snapshot hook.
+        if let path = ProcessInfo.processInfo.environment["AGENTISLAND_MONTHLY_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                MonthlyReportRenderer.writePNG(to: path)
+                NSApp.terminate(nil)
             }
         }
 

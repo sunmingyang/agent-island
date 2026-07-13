@@ -108,33 +108,39 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
             panel.hidesOnDeactivate = false
             panel.isReleasedWhenClosed = false
             panel.level = .floating
-            panel.contentView = NSHostingView(rootView: WeeklyReportSheet())
-
-            // The REAL red traffic light (hover ✕ and all), mounted onto the
-            // card's top-left like a normal window — without the titled
-            // style that drags the macOS 26 glass slab along.
-            if let contentView = panel.contentView,
-               let close = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable]) {
-                close.target = panel
-                close.action = #selector(NSWindow.close)
-                contentView.addSubview(close)
-                // Card sits at (26, 22) from the top-left of the content;
-                // native windows inset the light ~12pt into the corner.
-                // NSHostingView is FLIPPED (y grows downward) — measuring
-                // from the bottom edge parked the light at the bottom.
-                let inset: CGFloat = 12
-                let yFromTop: CGFloat = 22 + inset
-                let y = contentView.isFlipped
-                    ? yFromTop
-                    : contentView.bounds.height - yFromTop - close.frame.height
-                close.setFrameOrigin(NSPoint(x: 26 + inset, y: y))
-            }
             panel.delegate = self
             window = panel
         }
+        // Rebuilt EVERY show — a cached SwiftUI tree kept serving stale data
+        // and the pre-switch language ("English UI, Chinese poster").
+        window?.contentView = NSHostingView(rootView: WeeklyReportSheet())
+        mountCloseButton()
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// The REAL red traffic light (hover ✕ and all), mounted onto the card's
+    /// top-left like a normal window — without the titled style that drags
+    /// the macOS 26 glass slab along. Re-mounted whenever contentView is
+    /// replaced (the old button dies with the old view).
+    private func mountCloseButton() {
+        guard let contentView = window?.contentView,
+              let close = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable])
+        else { return }
+        close.target = window
+        close.action = #selector(NSWindow.close)
+        contentView.addSubview(close)
+        // Card sits at (26, 22) from the top-left of the content; native
+        // windows inset the light ~12pt into the corner. NSHostingView is
+        // FLIPPED (y grows downward) — measuring from the bottom edge parked
+        // the light at the bottom.
+        let inset: CGFloat = 12
+        let yFromTop: CGFloat = 22 + inset
+        let y = contentView.isFlipped
+            ? yFromTop
+            : contentView.bounds.height - yFromTop - close.frame.height
+        close.setFrameOrigin(NSPoint(x: 26 + inset, y: y))
     }
 }
 

@@ -163,6 +163,16 @@
 "Close" = "关闭";
 "Share weekly report" = "分享周报";
 "Share weekly report…" = "分享本周周报…";
+"Weekly" = "周报";
+"Monthly" = "月报";
+"Share monthly report" = "分享月报";
+"Share monthly report…" = "分享本月月报…";
+"tokens this month" = "本月 Token 消耗量";
+"Past %d weeks" = "过去 %d 周";
+"%d-day streak 🔥" = "连续 %d 天 🔥";
+"Active %d days · peak %@" = "活跃 %d 天 · 单日峰值 %@";
+"less" = "少";
+"more" = "多";
 "Share…" = "分享…";
 "Others" = "其他";
 "Details unavailable right now." = "明细暂时不可用。";

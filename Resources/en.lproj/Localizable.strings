@@ -163,6 +163,16 @@
 "Close" = "Close";
 "Share weekly report" = "Share weekly report";
 "Share weekly report…" = "Share weekly report…";
+"Weekly" = "Weekly";
+"Monthly" = "Monthly";
+"Share monthly report" = "Share monthly report";
+"Share monthly report…" = "Share monthly report…";
+"tokens this month" = "tokens this month";
+"Past %d weeks" = "Past %d weeks";
+"%d-day streak 🔥" = "%d-day streak 🔥";
+"Active %d days · peak %@" = "Active %d days · peak %@";
+"less" = "less";
+"more" = "more";
 "Share…" = "Share…";
 "Others" = "Others";
 "Details unavailable right now." = "Details unavailable right now.";
