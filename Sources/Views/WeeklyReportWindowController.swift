@@ -93,7 +93,7 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
                 // Hugs the content exactly (card 420 + 26pt margins; buttons
                 // below) — a window wider than its content reads as a ghost
                 // slab around the card.
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 670)),
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 648)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -140,7 +140,6 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
 
 private struct WeeklyReportSheet: View {
     @State private var copied = false
-    @State private var coach: String?
     @State private var shareAnchor: NSView?
     // NSSharingServicePicker dies if released while on screen — park it.
     @State private var pickerHolder = PickerHolder()
@@ -154,18 +153,14 @@ private struct WeeklyReportSheet: View {
 
             // Two actions, identical pills, both instant (renders come from
             // the warm cache). Copy → paste anywhere; Share → the system
-            // share picker (AirDrop / Messages / installed extensions).
+            // share picker (AirDrop / Messages / installed extensions). No
+            // coached routes — WeChat-specific copy read as China-only
+            // (owner, 2026-07-14).
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
                     if copyImage() {
                         copied = true
-                        // The get-it-to-your-phone guidance, shown at the
-                        // moment it's useful instead of as permanent chrome:
-                        // WeChat's own File Transfer chat reaches ANY phone
-                        // (Android included, cellular included).
-                        coach = L10n.tr("Paste into WeChat \"File Transfer\" — it lands on your phone, ready to post")
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { coach = nil }
                     }
                 }
                 actionButton(L10n.tr("Share…"), prominent: true) { openSharePicker() }
@@ -177,18 +172,10 @@ private struct WeeklyReportSheet: View {
                             .frame(width: 1, height: 1)
                     )
             }
-
-            // Fixed one-line slot so the window never reflows.
-            Text(coach ?? " ")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
-                .lineLimit(1)
-                .opacity(coach == nil ? 0 : 1)
-                .animation(.easeOut(duration: 0.2), value: coach == nil)
         }
         .padding(.horizontal, 26)
         .padding(.top, 22)
-        .padding(.bottom, 12)
+        .padding(.bottom, 14)
     }
 
     @MainActor
