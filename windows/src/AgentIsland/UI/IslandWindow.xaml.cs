@@ -230,6 +230,16 @@ public partial class IslandWindow : Window
         // weekly-only quota era. Always shown, ×0 included, in the dead
         // space left of the title; click for per-card expiry.
         _resetCards = new ResetCardChip { Margin = new Thickness(0, 0, 10, 0) };
+        // The popup suppressed the hover-out collapse while it was up; when
+        // it closes, run the deferred check — if the mouse has genuinely
+        // left the island, fold now instead of hanging open forever.
+        _resetCards.PopupClosed += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!Silhouette.IsMouseOver && !_hovering && _model.State != IslandState.Compact)
+            {
+                SetState(IslandState.Compact);
+            }
+        });
         _codexTitle.Children.Insert(0, _resetCards);
         TopStrip.Children.Add(_codexTitle);
 
@@ -447,6 +457,11 @@ public partial class IslandWindow : Window
         delay.Tick += (_, _) =>
         {
             delay.Stop();
+            // The reset-card popup steals the mouse the instant it opens,
+            // which reads as a MouseLeave here — folding the panel would
+            // yank the popup shut mid-look. Hold the panel while it's up;
+            // its Closed handler runs this collapse check again.
+            if (_resetCards?.IsPopupOpen == true) return;
             if (!_hovering && _model.State != IslandState.Compact)
             {
                 SetState(IslandState.Compact);

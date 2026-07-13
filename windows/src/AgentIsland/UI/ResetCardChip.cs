@@ -119,9 +119,20 @@ public sealed class ResetCardChip : StackPanel
             _popup.IsOpen = !_popup.IsOpen;
             e.Handled = true;
         };
+        _popup.Closed += (_, _) => PopupClosed?.Invoke(this, EventArgs.Empty);
 
         Apply();
     }
+
+    /// The island's hover-out collapse must not fire while the details popup
+    /// is up: the popup grabs the mouse the moment it opens, the silhouette
+    /// sees a MouseLeave, and 80ms later the panel folds — taking the popup
+    /// with it ("it just snaps shut on its own").
+    public bool IsPopupOpen => _popup.IsOpen;
+
+    /// Raised when the popup closes, so the island can re-evaluate the
+    /// deferred collapse it suppressed while the popup was up.
+    public event EventHandler? PopupClosed;
 
     public void Update(int? cards, IReadOnlyList<ResetCard>? details)
     {
