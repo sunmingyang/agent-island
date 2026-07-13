@@ -220,7 +220,8 @@ final class UsageStore: ObservableObject {
                 periodSeconds: existing.weekly.periodSeconds
             ),
             plan: existing.plan,
-            resetCards: existing.resetCards
+            resetCards: existing.resetCards,
+            resetCardDetails: existing.resetCardDetails
         )
     }
 

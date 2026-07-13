@@ -160,6 +160,10 @@
 "Copied" = "已复制";
 "Save PNG…" = "保存 PNG…";
 "Share…" = "分享…";
+"Details unavailable right now." = "明细暂时不可用。";
+"Earned resets appear here with their expiry." = "获得的重置卡会显示在这里,附有效期。";
+"expired" = "已过期";
+"valid %@ · %@" = "有效 %@ · %@ 到期";
 "Swipe to change pages." = "滑动切换页面。";
 
 /* Auto-Trigger (Triggers tab) */

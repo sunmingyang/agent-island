@@ -107,7 +107,8 @@ enum UsageCachePolicy {
                 periodSeconds: usage.weekly.periodSeconds
             ),
             plan: usage.plan,
-            resetCards: usage.resetCards
+            resetCards: usage.resetCards,
+            resetCardDetails: usage.resetCardDetails
         )
     }
 

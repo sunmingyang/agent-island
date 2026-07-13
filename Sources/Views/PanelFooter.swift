@@ -53,6 +53,21 @@ struct PanelFooter: View {
 
                     Spacer()
 
+                    // Weekly report card lives where the user actually looks
+                    // (the island), not only in the menu-bar icon's menu.
+                    Button {
+                        WeeklyReportWindowController.shared.show()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.55))
+                            .frame(width: 22, height: 22)
+                            .background(Circle().fill(.white.opacity(0.06)))
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.tr("Weekly report"))
+                    .accessibilityLabel(L10n.tr("Weekly report"))
+
                     liveStatus
                 }
 

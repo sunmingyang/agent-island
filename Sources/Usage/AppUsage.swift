@@ -22,6 +22,14 @@ struct WindowUsage: Codable {
     var isLongPeriod: Bool { (periodSeconds ?? 0) >= 2 * 86400 }
 }
 
+/// One banked Codex reset: OpenAI's own title ("Full reset") + expiry.
+/// From `wham/rate-limit-reset-credits`, available cards only.
+struct ResetCard: Codable, Identifiable {
+    var id: String
+    var title: String
+    var expiresAt: Date?
+}
+
 struct AppUsage: Codable {
     var fiveHour: WindowUsage
     var weekly: WindowUsage
@@ -34,12 +42,17 @@ struct AppUsage: Codable {
     /// panel surfaces the count. nil = provider doesn't report any (Claude,
     /// old caches).
     var resetCards: Int? = nil
+    /// Per-card detail (what each card is + when it expires). nil when the
+    /// detail fetch failed — the count above still stands on its own.
+    var resetCardDetails: [ResetCard]? = nil
 
-    init(fiveHour: WindowUsage, weekly: WindowUsage, plan: String? = nil, resetCards: Int? = nil) {
+    init(fiveHour: WindowUsage, weekly: WindowUsage, plan: String? = nil,
+         resetCards: Int? = nil, resetCardDetails: [ResetCard]? = nil) {
         self.fiveHour = fiveHour
         self.weekly = weekly
         self.plan = plan
         self.resetCards = resetCards
+        self.resetCardDetails = resetCardDetails
     }
 
     static let empty = AppUsage(fiveHour: .unknown, weekly: .unknown)

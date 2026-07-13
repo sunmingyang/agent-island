@@ -85,6 +85,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+        // Same idea for the reset-card chip (taste iterations need eyes):
+        // renders the chip at 10x against the panel background and exits.
+        if let path = ProcessInfo.processInfo.environment["AGENTISLAND_CHIP_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                let sample = [
+                    ResetCard(id: "a", title: "Full reset",
+                              expiresAt: Date().addingTimeInterval(29 * 86400)),
+                    ResetCard(id: "b", title: "Full reset",
+                              expiresAt: Date().addingTimeInterval(29 * 86400)),
+                ]
+                let view = ResetCardChip(count: 2, cards: sample)
+                    .padding(24)
+                    .background(Color(red: 0.02, green: 0.02, blue: 0.027))
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 10
+                if let tiff = renderer.nsImage?.tiffRepresentation,
+                   let rep = NSBitmapImageRep(data: tiff),
+                   let png = rep.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: path))
+                }
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

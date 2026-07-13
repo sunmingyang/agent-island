@@ -160,6 +160,10 @@
 "Copied" = "Copied";
 "Save PNG…" = "Save PNG…";
 "Share…" = "Share…";
+"Details unavailable right now." = "Details unavailable right now.";
+"Earned resets appear here with their expiry." = "Earned resets appear here with their expiry.";
+"expired" = "expired";
+"valid %@ · %@" = "valid %@ · %@";
 "Swipe to change pages." = "Swipe to change pages.";
 "Triggers" = "Auto Resume";
 "Auto-Trigger" = "Auto Resume";

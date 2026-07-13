@@ -14,6 +14,11 @@ enum IslandColor {
     /// #3DD68C — live status dot. Sits next to cobalt without clashing.
     static let liveTeal = Color(red: 61/255, green: 214/255, blue: 140/255)
 
+    /// #20C0B0 — the Agent Island logo teal (site logo/favicon color).
+    /// Brand-owned surfaces only (e.g. the reset-card face), never
+    /// provider data.
+    static let brandTeal = Color(red: 32/255, green: 192/255, blue: 176/255)
+
     /// #F5A524 — approaching-limit warning tint. Reads as "amber" against
     /// the black silhouette without competing with the cobalt halo. Used
     /// for the static glow + peek pill accent at warning severity.

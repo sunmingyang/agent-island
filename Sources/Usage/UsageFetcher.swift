@@ -44,6 +44,12 @@ enum UsageFetcher {
                 usage.resetCards = (credits["available_count"] as? Int)
                     ?? (credits["available_count"] as? Double).map(Int.init)
             }
+            // Per-card detail (title + expiry) lives on its own endpoint.
+            // Best-effort: a failure only costs the expiry rows, never the
+            // count above.
+            if (usage.resetCards ?? 0) > 0 {
+                usage.resetCardDetails = await fetchResetCardDetails(token: token)
+            }
             return usage
         } catch {
             return errorPair(error.localizedDescription)
@@ -64,6 +70,31 @@ enum UsageFetcher {
               let tokens = json["tokens"] as? [String: Any],
               let token = tokens["access_token"] as? String else { return nil }
         return token
+    }
+
+    /// GET wham/rate-limit-reset-credits → the available cards, each with
+    /// OpenAI's own title ("Full reset") and expires_at. Returns nil on any
+    /// failure so the caller keeps the count-only display.
+    private static func fetchResetCardDetails(token: String) async -> [ResetCard]? {
+        var req = URLRequest(url: URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!)
+        req.timeoutInterval = 15
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let rows = obj["credits"] as? [[String: Any]] else { return nil }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fallback = ISO8601DateFormatter()
+        return rows.compactMap { row in
+            guard (row["status"] as? String) == "available",
+                  let id = row["id"] as? String else { return nil }
+            let title = (row["title"] as? String) ?? "Reset"
+            let expires = (row["expires_at"] as? String).flatMap {
+                iso.date(from: $0) ?? fallback.date(from: $0)
+            }
+            return ResetCard(id: id, title: title, expiresAt: expires)
+        }
     }
 
     private static func parseCodexWindow(_ obj: Any?) -> WindowUsage {
