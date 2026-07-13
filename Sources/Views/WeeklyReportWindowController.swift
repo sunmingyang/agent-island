@@ -193,6 +193,14 @@ private struct WeeklyReportSheet: View {
         .padding(.horizontal, 26)
         .padding(.top, 22)
         .padding(.bottom, 12)
+        .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
+            // Recording rig: replay the copy interaction on cue.
+            if (note.userInfo?["cmd"] as? String) == "report:copy", copyImage() {
+                copied = true
+                showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
+            }
+        }
     }
 
     private func showCoach(_ text: String) {

@@ -143,9 +143,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else if step == "quit" {
                         NSApp.terminate(nil)
                     } else {
-                        NotificationCenter.default.post(
-                            name: .islandDemoCommand, object: nil, userInfo: ["cmd": step]
-                        )
+                        switch step {
+                        case "style:next": StylePref.shared.cycle()
+                        case "coststyle:next": CostStylePref.shared.cycle()
+                        case "quota:toggle":
+                            QuotaDisplayModeStore.shared.showsRemaining.toggle()
+                        case "report:weekly": WeeklyReportWindowController.shared.show()
+                        case "report:monthly": MonthlyReportWindowController.shared.show()
+                        default:
+                            NotificationCenter.default.post(
+                                name: .islandDemoCommand, object: nil, userInfo: ["cmd": step]
+                            )
+                        }
                     }
                 }
             }

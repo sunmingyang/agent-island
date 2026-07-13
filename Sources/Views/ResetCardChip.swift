@@ -26,6 +26,12 @@ struct ResetCardChip: View {
         .buttonStyle(.plain)
         .help(L10n.tr("%d banked resets available", count))
         .accessibilityLabel(L10n.tr("%d banked resets available", count))
+        .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
+            // Recording rig: scripted popover open/close.
+            guard let cmd = note.userInfo?["cmd"] as? String else { return }
+            if cmd == "resetcards:open" { showingDetails = true }
+            if cmd == "resetcards:close" { showingDetails = false }
+        }
         .popover(isPresented: $showingDetails, arrowEdge: .bottom) {
             detailsPopover
         }

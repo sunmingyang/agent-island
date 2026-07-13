@@ -1,20 +1,36 @@
 import SwiftUI
+import AppKit
 
-/// Fullscreen stage for recording rigs — the same dark, faintly brand-lit
-/// texture as the share cards, so raw clips sit on a clean, private,
-/// on-brand base instead of whatever the desktop happens to show.
+/// Fullscreen stage for recording rigs. V1 was a card-style gradient (read
+/// as a "grey board" — rejected); V2 is a stock macOS wallpaper, so clips
+/// look like a clean real desktop while guaranteeing no private windows,
+/// desktop widgets, or note titles ever enter frame.
 struct RecordingBackdropView: View {
+    private static let wallpaper: NSImage? = {
+        let candidates = [
+            "/System/Library/Desktop Pictures/Sonoma.heic",
+            "/System/Library/Desktop Pictures/Radial Sky Blue.heic",
+            "/System/Library/Desktop Pictures/Mac Blue.heic",
+        ]
+        for path in candidates {
+            if let image = NSImage(contentsOfFile: path) { return image }
+        }
+        return nil
+    }()
+
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.055, green: 0.06, blue: 0.075),
-                         Color(red: 0.02, green: 0.022, blue: 0.03)],
-                startPoint: .top, endPoint: .bottom
-            )
-            RadialGradient(colors: [IslandColor.claude.opacity(0.05), .clear],
-                           center: .init(x: 0.15, y: 0.1), startRadius: 0, endRadius: 700)
-            RadialGradient(colors: [IslandColor.codex.opacity(0.05), .clear],
-                           center: .init(x: 0.85, y: 0.75), startRadius: 0, endRadius: 800)
+        Group {
+            if let wallpaper = Self.wallpaper {
+                Image(nsImage: wallpaper)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                LinearGradient(
+                    colors: [Color(red: 0.055, green: 0.06, blue: 0.075),
+                             Color(red: 0.02, green: 0.022, blue: 0.03)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
         }
         .ignoresSafeArea()
     }
