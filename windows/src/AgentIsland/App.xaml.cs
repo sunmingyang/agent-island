@@ -23,6 +23,13 @@ public partial class App : System.Windows.Application
     private bool ClaimSingleInstance()
     {
         if (AppEnvironment.Current != AppMode.Normal) return true;
+        // One-shot headless card renders run beside the live instance and
+        // exit on their own; preference writes merge (P15), so this is safe.
+        if (Environment.GetEnvironmentVariable("AGENTISLAND_REPORT_SNAPSHOT") is not null
+            || Environment.GetEnvironmentVariable("AGENTISLAND_MONTHLY_SNAPSHOT") is not null)
+        {
+            return true;
+        }
         _singleInstance = new System.Threading.Mutex(
             initiallyOwned: false, @"Local\AgentIsland.SingleInstance");
         try
@@ -80,6 +87,35 @@ public partial class App : System.Windows.Application
         // and this start are the three gates; restore by re-enabling them.
         // Trigger.TriggerEngine.Shared.Start();
         Model.AlertEngine.Shared.Start();
+
+        // Weekly report moment: once per ISO week, surface the card shortly
+        // after launch. Suppressed for demo/debug/snapshot runs.
+        var reportSnapshot = Environment.GetEnvironmentVariable("AGENTISLAND_REPORT_SNAPSHOT");
+        var monthlySnapshot = Environment.GetEnvironmentVariable("AGENTISLAND_MONTHLY_SNAPSHOT");
+        if (AppEnvironment.Current == AppMode.Normal
+            && reportSnapshot is null && monthlySnapshot is null)
+        {
+            UI.Report.ReportWindow.ArmWeeklyMoment();
+        }
+
+        // Headless card renders for tooling/screenshots, mirroring macOS.
+        if (!string.IsNullOrEmpty(reportSnapshot) || !string.IsNullOrEmpty(monthlySnapshot))
+        {
+            var snapshotDelay = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5), // the cost scan needs a beat
+            };
+            snapshotDelay.Tick += (_, _) =>
+            {
+                snapshotDelay.Stop();
+                if (!string.IsNullOrEmpty(reportSnapshot))
+                    UI.Report.ReportWindow.WritePng(UI.Report.ReportWindow.Kind.Weekly, reportSnapshot!);
+                if (!string.IsNullOrEmpty(monthlySnapshot))
+                    UI.Report.ReportWindow.WritePng(UI.Report.ReportWindow.Kind.Monthly, monthlySnapshot!);
+                Shutdown();
+            };
+            snapshotDelay.Start();
+        }
 
         // Scripted-verification hooks, mirroring the demo-only buttons on
         // macOS: never set in normal use.

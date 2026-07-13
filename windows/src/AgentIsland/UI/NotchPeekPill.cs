@@ -87,8 +87,10 @@ public sealed class NotchPeekPill : TextBlock
 
     public static string CompactCountdown(TimeSpan remaining)
     {
-        // Nh when >= 1h remaining (floored — 107m reads "1h"), Nm under 1h.
-        // Never mixed: "1h 47m" is too noisy for a glance pill.
+        // Day-unit first: a weekly window reads "6d", never "150h". Then Nh
+        // when >= 1h (floored — 107m reads "1h"), Nm under 1h. Never mixed:
+        // "1h 47m" is too noisy for a glance pill.
+        if (remaining.TotalDays >= 2) return $"{(int)remaining.TotalDays}d";
         if (remaining.TotalHours >= 1) return $"{(int)remaining.TotalHours}h";
         return $"{Math.Max(1, (int)Math.Round(remaining.TotalMinutes))}m";
     }
