@@ -167,6 +167,7 @@
 "Monthly" = "月报";
 "Share monthly report" = "分享月报";
 "Share monthly report…" = "分享本月月报…";
+"network drop" = "网络中断,已保留上次数据";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传";
 "Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧:隔空投送到 iPhone,图片直接进相册,随手就能发 📲";
 "Drifter" = "漂流者";
@@ -329,13 +330,9 @@
 "Usage tiles and top-bar percentages follow this." = "用量图和顶栏百分比都跟随这里。";
 
 /* 1.5.6 Claude jump preference */
-"Open Claude sessions with" = "Claude 会话跳转方式";
 "CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链后才能直达具体会话。";
-"CLI resume" = "CLI 恢复";
-"Desktop app" = "桌面应用";
 
 /* 1.5.6 per-provider jump rows */
-"Open threads via" = "跳转方式";
 "CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链。";
 "The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead." = "桌面应用直达具体线程；CLI 恢复则改在终端里重开。";
 

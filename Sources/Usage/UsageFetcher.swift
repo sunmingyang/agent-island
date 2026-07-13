@@ -1,6 +1,40 @@
 import Foundation
 
 enum UsageFetcher {
+    // MARK: - Transport
+
+    /// SSL handshakes through flaky proxies/VPNs fail in bursts that clear
+    /// within seconds ("安全连接失败"). Retry transient transport errors
+    /// twice (0.8s / 2.4s backoff) before letting anything reach the UI.
+    private static func transientRetryData(for req: URLRequest) async throws -> (Data, URLResponse) {
+        var attempt = 0
+        while true {
+            do {
+                return try await URLSession.shared.data(for: req)
+            } catch let error as URLError where isTransient(error.code) && attempt < 2 {
+                attempt += 1
+                try? await Task.sleep(nanoseconds: attempt == 1 ? 800_000_000 : 2_400_000_000)
+            }
+        }
+    }
+
+    private static func isTransient(_ code: URLError.Code) -> Bool {
+        switch code {
+        case .secureConnectionFailed, .networkConnectionLost, .timedOut,
+             .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+             .notConnectedToInternet:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Tile-sized message instead of the full system sentence — the values
+    /// themselves are preserved upstream, this only captions the staleness.
+    private static func shortError(_ error: Error) -> String {
+        (error is URLError) ? L10n.tr("network drop") : error.localizedDescription
+    }
+
     // MARK: - Codex
 
     /// Codex usage lives at chatgpt.com/backend-api/wham/usage and accepts
@@ -16,7 +50,7 @@ enum UsageFetcher {
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await transientRetryData(for: req)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
             // 401 means the access_token in ~/.codex/auth.json has expired.
@@ -52,7 +86,7 @@ enum UsageFetcher {
             }
             return usage
         } catch {
-            return errorPair(error.localizedDescription)
+            return errorPair(shortError(error))
         }
     }
 
@@ -140,7 +174,7 @@ enum UsageFetcher {
         req.setValue("claude-code/2.1.121", forHTTPHeaderField: "User-Agent")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await transientRetryData(for: req)
             guard let http = response as? HTTPURLResponse else {
                 return .otherError("bad response")
             }
@@ -165,7 +199,7 @@ enum UsageFetcher {
             }
             return .otherError("parse error")
         } catch {
-            return .otherError(error.localizedDescription)
+            return .otherError(shortError(error))
         }
     }
 

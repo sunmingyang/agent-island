@@ -18,8 +18,6 @@ struct SettingsView: View {
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
     @ObservedObject private var missionControlHide = MissionControlHideStore.shared
-    @ObservedObject private var claudeJump = ClaudeJumpPreferenceStore.shared
-    @ObservedObject private var codexJump = CodexJumpPreferenceStore.shared
     @ObservedObject private var alertPrefs = AlertThresholdStore.shared
     @ObservedObject private var spacing = IslandSpacingStore.shared
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
@@ -515,17 +513,6 @@ struct SettingsView: View {
                 }
             }
             SettingsRow(
-                title: "Open threads via",
-                subtitle: nil
-            ) {
-                SegmentedControl(
-                    items: [false, true],
-                    selected: $claudeJump.prefersCLI,
-                    label: { $0 ? "CLI resume" : "Desktop app" },
-                    accessibilityPrefix: "Claude open threads via"
-                )
-            }
-            SettingsRow(
                 title: "Codex",
                 subtitle: providerSubtitle(usage.codex),
                 dot: IslandColor.codex,
@@ -546,17 +533,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-            }
-            SettingsRow(
-                title: "Open threads via",
-                subtitle: nil
-            ) {
-                SegmentedControl(
-                    items: [false, true],
-                    selected: $codexJump.prefersCLI,
-                    label: { $0 ? "CLI resume" : "Desktop app" },
-                    accessibilityPrefix: "Codex open threads via"
-                )
             }
         }
         .padding(.horizontal, 14)
@@ -852,7 +828,11 @@ struct SettingsView: View {
             guard let updated = usage.lastUpdated else { return L10n.tr("idle") }
             return L10n.tr("synced %@", Self.relativeFormatter.localizedString(for: updated, relativeTo: Date()))
         }()
-        let nums = "\(Self.windowCaption(u.fiveHour)) / \(Self.windowCaption(u.weekly))"
+        // Codex's weekly-only world: one window, one number — the second
+        // slot would just read "⚠ no data" forever.
+        let nums = u.secondaryMissing
+            ? Self.windowCaption(u.fiveHour)
+            : "\(Self.windowCaption(u.fiveHour)) / \(Self.windowCaption(u.weekly))"
         return "\(synced) · \(nums)"
     }
 

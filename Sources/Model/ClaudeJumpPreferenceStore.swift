@@ -17,6 +17,9 @@ final class ClaudeJumpPreferenceStore: ObservableObject {
     }
 
     private init() {
-        prefersCLI = UserDefaults.standard.bool(forKey: Self.key)
+        // The picker is gone from Settings (2026-07-14) — desktop app is
+        // the one behavior. The stored value is ignored, not erased, so
+        // the picker can return without losing anyone's old choice.
+        prefersCLI = false
     }
 }
