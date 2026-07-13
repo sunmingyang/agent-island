@@ -61,18 +61,20 @@ struct PanelFooter: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 9.5, weight: .semibold))
-                            Text(L10n.tr("Weekly report"))
-                                .font(Typography.label)
+                                .font(.system(size: 10, weight: .bold))
+                            Text(L10n.tr("Share weekly report"))
+                                .font(Typography.label.weight(.bold))
                         }
-                        .foregroundStyle(.white.opacity(0.68))
-                        .padding(.horizontal, 10)
-                        .frame(height: 22)
-                        .background(Capsule().fill(.white.opacity(0.08)))
+                        // The panel's one true call-to-action — bright pill,
+                        // unmissable (the dim ghost pill was invisible).
+                        .foregroundStyle(.black.opacity(0.85))
+                        .padding(.horizontal, 11)
+                        .frame(height: 23)
+                        .background(Capsule().fill(.white.opacity(0.92)))
                     }
                     .buttonStyle(.plain)
-                    .help(L10n.tr("Weekly report"))
-                    .accessibilityLabel(L10n.tr("Weekly report"))
+                    .help(L10n.tr("Share weekly report"))
+                    .accessibilityLabel(L10n.tr("Share weekly report"))
 
                     liveStatus
                 }

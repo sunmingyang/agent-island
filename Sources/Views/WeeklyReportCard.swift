@@ -181,7 +181,13 @@ struct WeeklyReportCard: View {
     private var hero: some View {
         let zh = L10n.locale.identifier.hasPrefix("zh")
         let parts = Self.compactParts(data.totalTokens, zh: zh)
-        return VStack(alignment: .leading, spacing: 7) {
+        // Title ABOVE the number, money line below — a bare "100亿" with no
+        // label read as a number from nowhere.
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.tr("tokens this week"))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .tracking(0.4)
+                .foregroundStyle(.white.opacity(0.55))
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(parts.0)
                     .font(.system(size: 74, weight: .heavy, design: .rounded))
@@ -197,15 +203,10 @@ struct WeeklyReportCard: View {
                 LinearGradient(colors: [.white, .white.opacity(0.72)],
                                startPoint: .top, endPoint: .bottom)
             )
-            HStack(spacing: 8) {
-                Text(L10n.tr("tokens this week"))
-                    .font(.system(size: 13.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.5))
-                if data.totalDollars >= 1 {
-                    Text(L10n.tr("≈ $%@ API value", Self.money(data.totalDollars)))
-                        .font(.system(size: 13.5, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
-                }
+            if data.totalDollars >= 1 {
+                Text(L10n.tr("≈ $%@ API value", Self.money(data.totalDollars)))
+                    .font(.system(size: 13.5, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
             }
         }
     }

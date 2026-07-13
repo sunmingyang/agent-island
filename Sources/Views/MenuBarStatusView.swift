@@ -54,15 +54,17 @@ struct MenuBarStatusView: View {
         Button(L10n.tr("Refresh usage")) {
             usage.refresh()
         }
-        Button(L10n.tr("Weekly report…")) {
-            WeeklyReportWindowController.shared.show()
-        }
         Button(L10n.tr("Open Settings")) {
             SettingsWindowController.shared.show()
         }
-        Divider()
         Button(L10n.tr("Quit Agent Island")) {
             NSApp.terminate(nil)
+        }
+        Divider()
+        // The bottom slot is the prime slot — share lives there, not Quit
+        // (owner's call, 2026-07-14).
+        Button(L10n.tr("Share weekly report…")) {
+            WeeklyReportWindowController.shared.show()
         }
     }
 }

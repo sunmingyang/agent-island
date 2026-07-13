@@ -67,7 +67,7 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
                 // Hugs the content exactly (card 420 + 26pt margins; buttons
                 // below) — a window wider than its content reads as a ghost
                 // slab around the card.
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 656)),
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 676)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -114,9 +114,29 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
 
 private struct WeeklyReportSheet: View {
     @State private var copied = false
+    @State private var toast: String?
+
+    /// "Share to <platform>" = copy the PNG to the clipboard, then open that
+    /// platform's composer/upload page — paste (or drop) and post. No SDKs,
+    /// no upload from us; works for every platform that has a web composer.
+    private struct Platform: Identifiable {
+        let id: String
+        let nameKey: String
+        let url: String?
+        let appBundleID: String?
+    }
+
+    private static let platforms: [Platform] = [
+        .init(id: "wechat", nameKey: "WeChat", url: nil, appBundleID: "com.tencent.xinWeChat"),
+        .init(id: "mp", nameKey: "WeChat Official Accounts", url: "https://mp.weixin.qq.com/", appBundleID: nil),
+        .init(id: "x", nameKey: "X (Twitter)", url: "https://x.com/intent/post?text=Agent%20Island%20Weekly%20%E2%80%94%20agent-island.dev", appBundleID: nil),
+        .init(id: "xhs", nameKey: "Xiaohongshu", url: "https://creator.xiaohongshu.com/publish/publish", appBundleID: nil),
+        .init(id: "douyin", nameKey: "Douyin", url: "https://creator.douyin.com/creator-micro/content/upload", appBundleID: nil),
+        .init(id: "instagram", nameKey: "Instagram", url: "https://www.instagram.com/", appBundleID: nil),
+    ]
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 14) {
             WeeklyReportCard(data: .current())
                 // A tight, grounded shadow — the old radius-34/0.6 halo was
                 // the "floating on fog" feel, not any system glass.
@@ -124,21 +144,65 @@ private struct WeeklyReportSheet: View {
 
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
-                    if let image = WeeklyReportRenderer.image() {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.writeObjects([image])
+                    if copyImage() {
                         copied = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
                 actionButton(L10n.tr("Save PNG…")) { savePNG() }
+                shareToMenu
                 ShareAnchor()
-                    .frame(width: 92, height: 30)
+                    .frame(width: 40, height: 30)
             }
+
+            // One-line coach mark after picking a platform.
+            Text(toast ?? " ")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
+                .opacity(toast == nil ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: toast == nil)
         }
         .padding(.horizontal, 26)
         .padding(.top, 22)
-        .padding(.bottom, 24)
+        .padding(.bottom, 14)
+    }
+
+    private var shareToMenu: some View {
+        Menu {
+            ForEach(Self.platforms) { p in
+                Button(L10n.tr(p.nameKey)) { share(to: p) }
+            }
+        } label: {
+            Text(L10n.tr("Share to…"))
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 14)
+                .frame(height: 30)
+                .background(Capsule().fill(Color.white.opacity(0.12)))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    @discardableResult
+    private func copyImage() -> Bool {
+        guard let image = WeeklyReportRenderer.image() else { return false }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+        return true
+    }
+
+    private func share(to platform: Platform) {
+        guard copyImage() else { return }
+        toast = L10n.tr("Image copied — paste it into the composer")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { toast = nil }
+        if let bundleID = platform.appBundleID,
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            NSWorkspace.shared.openApplication(at: appURL, configuration: .init())
+        } else if let raw = platform.url, let url = URL(string: raw) {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func actionButton(_ title: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {

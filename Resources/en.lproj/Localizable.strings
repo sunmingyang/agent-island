@@ -163,6 +163,16 @@
 "tokens this week" = "tokens this week";
 "≈ $%@ API value" = "≈ $%@ API value";
 "Close" = "Close";
+"Share weekly report" = "Share weekly report";
+"Share weekly report…" = "Share weekly report…";
+"Share to…" = "Share to…";
+"WeChat" = "WeChat";
+"WeChat Official Accounts" = "WeChat Official Accounts";
+"X (Twitter)" = "X (Twitter)";
+"Xiaohongshu" = "Xiaohongshu";
+"Douyin" = "Douyin";
+"Instagram" = "Instagram";
+"Image copied — paste it into the composer" = "Image copied — paste it into the composer";
 "Details unavailable right now." = "Details unavailable right now.";
 "Earned resets appear here with their expiry." = "Earned resets appear here with their expiry.";
 "expired" = "expired";
