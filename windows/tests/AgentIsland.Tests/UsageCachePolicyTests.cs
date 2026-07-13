@@ -14,6 +14,7 @@ public static class UsageCachePolicyTests
             ("real usage caches only when fresh", TestRealUsageCachesAndStripsOnlyFreshNoErrorUsage),
             ("mixed provider preserve policy", TestMixedProviderPreservesExistingOnlyWhenPeerIsFresh),
             ("single-provider save does not renew peer", TestSingleProviderSaveDoesNotRenewUnfetchedPeer),
+            ("healthy single-window fetch is cacheable", TestSingleWindowShapeIsCacheable),
         };
 
         foreach (var (name, test) in tests)
@@ -42,6 +43,35 @@ public static class UsageCachePolicyTests
         plan);
 
     private static DateTimeOffset Epoch(long seconds) => DateTimeOffset.FromUnixTimeSeconds(seconds);
+
+    private static void TestSingleWindowShapeIsCacheable()
+    {
+        // Codex's July 2026 shape: a healthy fetch reporting only the weekly
+        // primary window — the secondary slot carries the "no data" sentinel.
+        // Requiring BOTH windows clean would silently stop caching Codex
+        // forever; the copy must keep the marker (so a cold start hides the
+        // ghost tile) plus the reported period and the banked reset cards.
+        var singleWindow = new AppUsage(
+            new WindowUsage(0.47, Epoch(5_000), null, PeriodSeconds: 604800),
+            WindowUsage.Unknown,
+            "pro",
+            ResetCards: 2,
+            ResetCardDetails: new[] { new ResetCard("c1", "Full reset", Epoch(9_000)) });
+        var copy = UsageCachePolicy.CacheableCopy(singleWindow);
+        Expect(copy is not null, "healthy single-window usage must be cacheable");
+        Expect(copy!.SecondaryMissing, "the single-window marker must survive the cacheable copy");
+        Expect(copy.FiveHour.PeriodSeconds == 604800, "the reported period must survive the copy");
+        Expect(copy.ResetCards == 2, "banked reset count must survive the copy");
+        Expect(copy.ResetCardDetails is { Count: 1 }, "reset card details must survive the copy");
+
+        // A genuinely errored secondary (not the missing-window sentinel)
+        // still blocks caching.
+        var erroredSecondary = new AppUsage(
+            new WindowUsage(0.47, Epoch(5_000), null),
+            new WindowUsage(0.2, null, "http 500"));
+        Expect(UsageCachePolicy.CacheableCopy(erroredSecondary) is null,
+            "a real secondary error is still not cacheable");
+    }
 
     private static void TestErrorBearingPreservedUsageIsNotCacheableAndDoesNotRenew()
     {

@@ -61,6 +61,18 @@ public sealed class UsageStore : INotifyPropertyChanged
     public bool ClaudeReauthInProgress { get => _claudeReauthInProgress; private set { _claudeReauthInProgress = value; Raise(nameof(ClaudeReauthInProgress)); } }
     public bool CodexReauthInProgress { get => _codexReauthInProgress; private set { _codexReauthInProgress = value; Raise(nameof(CodexReauthInProgress)); } }
 
+    /// Refresh only when the last successful update is older than the poll
+    /// interval — the panel-open freshness hook. Capped by the user's refresh
+    /// interval so opening the island never polls the rate-limited endpoints
+    /// any faster than the background schedule already would.
+    public void RefreshIfStale()
+    {
+        if (AppEnvironment.IsDemo) return;
+        var interval = TimeSpan.FromSeconds(RefreshIntervalStore.Shared.Seconds);
+        if (LastUpdated is { } last && DateTimeOffset.Now - last < interval) return;
+        Refresh();
+    }
+
     public void Refresh()
     {
         // Self-heal instead of early-return when a refresh has been "in
@@ -82,13 +94,31 @@ public sealed class UsageStore : INotifyPropertyChanged
                     null),
                 new WindowUsage(0.0 + DemoDouble("AGENTISLAND_DEMO_CLAUDE_WEEKLY", 0.81), now.AddSeconds(4 * 86400 + 11 * 3600), null),
                 "max");
-            Codex = new AppUsage(
-                new WindowUsage(
-                    DemoDouble("AGENTISLAND_DEMO_CODEX_5H", 0.67),
-                    now.AddMinutes(DemoMinutes("AGENTISLAND_DEMO_CODEX_RESET_MINUTES", 143)),
-                    null),
-                new WindowUsage(DemoDouble("AGENTISLAND_DEMO_CODEX_WEEKLY", 0.76), now.AddSeconds(4 * 86400 + 18 * 3600), null),
-                "pro");
+            // AGENTISLAND_DEMO_CODEX_SINGLE=1 shows Codex's July 2026 shape:
+            // one weekly window, secondary gone, plus banked reset cards.
+            var codexSingle = Environment.GetEnvironmentVariable("AGENTISLAND_DEMO_CODEX_SINGLE") == "1";
+            Codex = codexSingle
+                ? new AppUsage(
+                    new WindowUsage(
+                        DemoDouble("AGENTISLAND_DEMO_CODEX_5H", 0.67),
+                        now.AddSeconds(5 * 86400 + 4 * 3600),
+                        null,
+                        PeriodSeconds: 604800),
+                    WindowUsage.Unknown,
+                    "pro",
+                    ResetCards: 2,
+                    ResetCardDetails: new[]
+                    {
+                        new ResetCard("demo-1", "Full reset", now.AddDays(9)),
+                        new ResetCard("demo-2", "Full reset", now.AddDays(23)),
+                    })
+                : new AppUsage(
+                    new WindowUsage(
+                        DemoDouble("AGENTISLAND_DEMO_CODEX_5H", 0.67),
+                        now.AddMinutes(DemoMinutes("AGENTISLAND_DEMO_CODEX_RESET_MINUTES", 143)),
+                        null),
+                    new WindowUsage(DemoDouble("AGENTISLAND_DEMO_CODEX_WEEKLY", 0.76), now.AddSeconds(4 * 86400 + 18 * 3600), null),
+                    "pro");
             LastUpdated = now;
             RefreshWarning = null;
             return;
@@ -177,9 +207,15 @@ public sealed class UsageStore : INotifyPropertyChanged
         if (!IsErrorOnly(fetched) || IsErrorOnly(existing)) return fetched;
         var error = fetched.FiveHour.Error ?? fetched.Weekly.Error;
         return new AppUsage(
-            new WindowUsage(existing.FiveHour.UsedPercent, existing.FiveHour.ResetAt, error),
-            new WindowUsage(existing.Weekly.UsedPercent, existing.Weekly.ResetAt, error),
-            existing.Plan);
+            new WindowUsage(
+                existing.FiveHour.UsedPercent, existing.FiveHour.ResetAt, error,
+                existing.FiveHour.PeriodSeconds),
+            new WindowUsage(
+                existing.Weekly.UsedPercent, existing.Weekly.ResetAt, error,
+                existing.Weekly.PeriodSeconds),
+            existing.Plan,
+            existing.ResetCards,
+            existing.ResetCardDetails);
     }
 
     private static string? WarningFor(bool codexFailed, bool claudeFailed) => (claudeFailed, codexFailed) switch
@@ -355,6 +391,7 @@ public sealed class UsageStore : INotifyPropertyChanged
         RefreshIntervalStore.Shared.PropertyChanged += OnIntervalChanged;
         StartNetworkMonitor();
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.SessionSwitch += OnSessionSwitch;
         _powerMonitorArmed = true;
     }
 
@@ -373,8 +410,20 @@ public sealed class UsageStore : INotifyPropertyChanged
         if (_powerMonitorArmed)
         {
             Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            Microsoft.Win32.SystemEvents.SessionSwitch -= OnSessionSwitch;
             _powerMonitorArmed = false;
         }
+    }
+
+    /// Refresh on unlock, the macOS screenIsUnlocked mirror: the timers keep
+    /// running while locked on Windows, but modern-standby machines may still
+    /// have dozed midway — a stale-gated refresh at unlock is cheap insurance
+    /// that a reset which landed during the lock is caught the moment you're
+    /// back, not up to a poll interval later.
+    private void OnSessionSwitch(object? sender, Microsoft.Win32.SessionSwitchEventArgs e)
+    {
+        if (e.Reason != Microsoft.Win32.SessionSwitchReason.SessionUnlock) return;
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(RefreshIfStale);
     }
 
     /// Refresh right after waking from sleep — the poll timer's schedule

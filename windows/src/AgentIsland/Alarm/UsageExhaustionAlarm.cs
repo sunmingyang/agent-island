@@ -94,12 +94,17 @@ public sealed class UsageExhaustionAlarm
         bool codexVisible = true,
         bool quotaAlarmEnabled = true)
     {
+        // Codex dropped its 5-hour window for a single weekly quota (July
+        // 2026), and a full-screen "you're out for the week" panel is noise,
+        // not an actionable interruption — so Codex no longer raises the
+        // quota alarm at all (product call, 2026-07-13). Codex quota still
+        // shows in the tiles and still drives the threshold warnings; Claude
+        // keeps the alarm (its 5h window lives).
+        _ = codex;
         var all = new (TriggerTool Provider, QuotaWindowKind Window, WindowUsage Usage)[]
         {
             (TriggerTool.Claude, QuotaWindowKind.FiveHour, claude.FiveHour),
             (TriggerTool.Claude, QuotaWindowKind.Weekly, claude.Weekly),
-            (TriggerTool.Codex, QuotaWindowKind.FiveHour, codex.FiveHour),
-            (TriggerTool.Codex, QuotaWindowKind.Weekly, codex.Weekly),
         };
         // Providers switched off in Settings never alarm — same contract as
         // the island's red attention glow.
@@ -147,7 +152,11 @@ public sealed class UsageExhaustionAlarm
             if (!hasNewCycle) continue;
 
             var binding = group.MaxBy(w => w.Usage.ResetAt!.Value);
-            _fire(binding.Provider, binding.Window, binding.Usage.ResetAt!.Value);
+            // Name the window by its REAL period, not its slot: an alarm
+            // that says "5-hour limit reached" for a week-long block would
+            // be a lie if a provider re-shapes its windows.
+            var namedWindow = binding.Usage.IsLongPeriod ? QuotaWindowKind.Weekly : binding.Window;
+            _fire(binding.Provider, namedWindow, binding.Usage.ResetAt!.Value);
         }
     }
 

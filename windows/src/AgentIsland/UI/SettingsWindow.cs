@@ -154,6 +154,9 @@ public sealed class SettingsWindow : Window
 
         var savedTab = Preferences.Get<string?>("Settings.activeTab");
         if (Enum.TryParse<Tab>(savedTab, out var restored)) _active = restored;
+        // A window last parked on the retired Triggers tab lands on General
+        // instead of an orphaned tab with no button.
+        if (_active == Tab.Triggers) _active = Tab.General;
         // Scripted-verification hook: jump straight to a tab.
         if (Enum.TryParse<Tab>(
                 Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_SETTINGS_TAB"),
@@ -234,7 +237,9 @@ public sealed class SettingsWindow : Window
     {
         _tabBar.Children.Clear();
         _tabCells.Clear();
-        foreach (var tab in Enum.GetValues<Tab>())
+        // Auto-resume is retired (2026-07-13); the Triggers tab is gated out
+        // rather than deleted so restoring it is this one filter.
+        foreach (var tab in Enum.GetValues<Tab>().Where(t => t != Tab.Triggers))
         {
             var label = tab switch
             {

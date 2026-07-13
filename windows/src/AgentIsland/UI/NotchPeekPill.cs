@@ -59,11 +59,14 @@ public sealed class NotchPeekPill : TextBlock
             ? CompactCountdown(resetAt - now)
             : null;
         var mirrored = _tool == Core.TriggerTool.Codex;
+        // The no-countdown placeholder names the window's REAL period —
+        // Codex's primary slot has been a weekly window since July 2026.
+        var periodTag = Charts.ChartTile.PeriodLabel(usage, "5h");
 
         if (mirrored)
         {
             if (countdown is not null) Inlines.Add(Dim(countdown + " · ", 0.70));
-            else Inlines.Add(Dim("5h · ", 0.40));
+            else Inlines.Add(Dim(periodTag + " · ", 0.40));
             Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
             if (severity != Model.AlertSeverity.None)
             {
@@ -78,7 +81,7 @@ public sealed class NotchPeekPill : TextBlock
             }
             Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
             if (countdown is not null) Inlines.Add(Dim(" · " + countdown, 0.70));
-            else Inlines.Add(Dim(" · 5h", 0.40));
+            else Inlines.Add(Dim(" · " + periodTag, 0.40));
         }
     }
 

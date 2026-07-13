@@ -33,18 +33,75 @@ public static class UsageFetcher
             if (status != 200) return AppUsage.ErrorPair($"http {status}");
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(ct));
+            // The payload gained credits/spend_control alongside the July
+            // 2026 weekly-only shape; only the fields below are read, so any
+            // additions are ignored by construction.
             if (Jsonl.GetObject(doc.RootElement, "rate_limit") is not { } rateLimit)
             {
                 return AppUsage.ErrorPair("parse error");
             }
+
+            // Banked rate-limit resets ("reset cards") — the escape hatches
+            // of the weekly-only era. Count from the usage payload; per-card
+            // detail from its own endpoint, best-effort (null keeps the
+            // count-only display).
+            int? resetCards = null;
+            if (Jsonl.GetObject(doc.RootElement, "rate_limit_reset_credits") is { } credits
+                && credits.TryGetProperty("available_count", out var available)
+                && available.ValueKind == JsonValueKind.Number)
+            {
+                resetCards = available.GetInt32();
+            }
+            var details = await FetchResetCardDetails(token, ct);
+            resetCards ??= details?.Count;
+
             return new AppUsage(
                 ParseCodexWindow(Jsonl.GetObject(rateLimit, "primary_window")),
                 ParseCodexWindow(Jsonl.GetObject(rateLimit, "secondary_window")),
-                Jsonl.GetString(doc.RootElement, "plan_type"));
+                Jsonl.GetString(doc.RootElement, "plan_type"),
+                resetCards,
+                details);
         }
         catch (Exception error)
         {
             return AppUsage.ErrorPair(error.Message);
+        }
+    }
+
+    /// GET wham/rate-limit-reset-credits → the available cards, each with
+    /// OpenAI's own title ("Full reset") and expires_at. Returns null on any
+    /// failure so the caller keeps the count-only display.
+    private static async Task<IReadOnlyList<ResetCard>?> FetchResetCardDetails(
+        string token, CancellationToken ct)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get, "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits");
+            request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
+            using var response = await Http.Client.SendAsync(request, ct);
+            if ((int)response.StatusCode != 200) return null;
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync(ct));
+            if (!doc.RootElement.TryGetProperty("credits", out var rows)
+                || rows.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            var cards = new List<ResetCard>();
+            foreach (var row in rows.EnumerateArray())
+            {
+                if (Jsonl.GetString(row, "status") != "available") continue;
+                if (Jsonl.GetString(row, "id") is not { } id) continue;
+                var title = Jsonl.GetString(row, "title") ?? "Reset";
+                DateTimeOffset? expires = Jsonl.GetString(row, "expires_at") is { } iso
+                    && DateTimeOffset.TryParse(iso, out var parsed) ? parsed : null;
+                cards.Add(new ResetCard(id, title, expires));
+            }
+            return cards;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -71,7 +128,10 @@ public static class UsageFetcher
         DateTimeOffset? resetAt = Jsonl.GetDouble(window, "reset_at") is { } epoch
             ? DateTimeOffset.FromUnixTimeMilliseconds((long)(epoch * 1000))
             : null;
-        return new WindowUsage(used / 100, resetAt, null);
+        // The payload states its own window length (604800s = the single
+        // weekly window Codex moved to in July 2026). Labels render from it.
+        var period = Jsonl.GetDouble(window, "limit_window_seconds");
+        return new WindowUsage(used / 100, resetAt, null, period);
     }
 
     // MARK: - Claude
@@ -132,8 +192,8 @@ public static class UsageFetcher
                 return new ClaudeCredentials.ProbeOutcome.RateLimited();
             }
             return new ClaudeCredentials.ProbeOutcome.Success(new AppUsage(
-                ParseClaudeWindow(Jsonl.GetObject(root, "five_hour")),
-                ParseClaudeWindow(Jsonl.GetObject(root, "seven_day")),
+                ParseClaudeWindow(Jsonl.GetObject(root, "five_hour"), periodSeconds: 5 * 3600),
+                ParseClaudeWindow(Jsonl.GetObject(root, "seven_day"), periodSeconds: 7 * 86400),
                 plan));
         }
         catch (Exception error)
@@ -142,7 +202,7 @@ public static class UsageFetcher
         }
     }
 
-    private static WindowUsage ParseClaudeWindow(JsonElement? obj)
+    private static WindowUsage ParseClaudeWindow(JsonElement? obj, double periodSeconds)
     {
         if (obj is not { } window) return WindowUsage.Unknown;
         // Anthropic returns `utilization` as a percentage in [0, 100], not a
@@ -160,6 +220,6 @@ public static class UsageFetcher
         {
             resetAt = Jsonl.ParseIso8601(iso);
         }
-        return new WindowUsage(Math.Min(1, Math.Max(0, normalized)), resetAt, null);
+        return new WindowUsage(Math.Min(1, Math.Max(0, normalized)), resetAt, null, periodSeconds);
     }
 }

@@ -80,9 +80,23 @@ public sealed class ScreenPref : INotifyPropertyChanged
         }
     }
 
+    // Auto-resume is retired entirely (product call, 2026-07-13): Codex no
+    // longer has an intra-day reset at all, and unattended resumption at a
+    // WEEKLY boundary is a budget hazard. The page, the settings tab, and
+    // the engine start are all gated; stores and views stay in the tree so
+    // each is one line to restore. The ctor's VisibleScreens guard already
+    // lands anyone parked on Triggers back on Usage.
     public IReadOnlyList<IslandScreen> VisibleScreens => _showCostPage
-        ? new[] { IslandScreen.Usage, IslandScreen.Cost, IslandScreen.Overview, IslandScreen.Triggers }
-        : new[] { IslandScreen.Usage, IslandScreen.Overview, IslandScreen.Triggers };
+        ? new[] { IslandScreen.Usage, IslandScreen.Cost, IslandScreen.Overview }
+        : new[] { IslandScreen.Usage, IslandScreen.Overview };
+
+    /// Verification-only: point the carousel without persisting the choice,
+    /// so a scripted screenshot never rewrites the user's parked page.
+    internal void ForceForVerification(IslandScreen screen)
+    {
+        _screen = screen;
+        Raise(nameof(Screen));
+    }
 
     public void ShowNext(int direction)
     {

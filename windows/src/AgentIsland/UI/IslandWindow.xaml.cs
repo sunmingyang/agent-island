@@ -25,6 +25,7 @@ public partial class IslandWindow : Window
     private bool _hovering;
     private System.Windows.Controls.StackPanel? _claudeTitle;
     private System.Windows.Controls.StackPanel? _codexTitle;
+    private ResetCardChip? _resetCards;
     private System.Windows.Controls.TextBlock? _claudeChip;
     private System.Windows.Controls.TextBlock? _codexChip;
 
@@ -225,6 +226,11 @@ public partial class IslandWindow : Window
         _codexTitle.HorizontalAlignment = HorizontalAlignment.Right;
         _codexTitle.Margin = new Thickness(0, 0, 8, 0);
         System.Windows.Controls.Grid.SetColumn(_codexTitle, 2);
+        // Banked-reset count ("reset cards") — the escape hatches of the
+        // weekly-only quota era. Always shown, ×0 included, in the dead
+        // space left of the title; click for per-card expiry.
+        _resetCards = new ResetCardChip { Margin = new Thickness(0, 0, 10, 0) };
+        _codexTitle.Children.Insert(0, _resetCards);
         TopStrip.Children.Add(_codexTitle);
 
         System.ComponentModel.PropertyChangedEventHandler onPlanChips =
@@ -305,6 +311,7 @@ public partial class IslandWindow : Window
         var store = UsageStore.Shared;
         UpdateChip(_claudeChip, store.Claude.Plan);
         UpdateChip(_codexChip, store.Codex.Plan);
+        _resetCards?.Update(store.Codex.ResetCards, store.Codex.ResetCardDetails);
     }
 
     private static void UpdateChip(System.Windows.Controls.TextBlock? chip, string? plan)
@@ -613,6 +620,10 @@ public partial class IslandWindow : Window
                 break;
             case IslandState.Expanded:
                 ShowExpandedContent();
+                // Opening the island refreshes usage when it has gone stale,
+                // so the numbers are current the moment you look — gated by
+                // the poll interval, so it never out-polls the schedule.
+                UsageStore.Shared.RefreshIfStale();
                 // Pills travel with the growing shape, then cross-fade out
                 // after the expanded content has settled.
                 FadePills(visible: false, delayMs: 250, seconds: 0.18);
@@ -753,6 +764,9 @@ public partial class IslandWindow : Window
         ContentSlide.BeginAnimation(TranslateTransform.YProperty, slide);
         _claudeTitle?.BeginAnimation(OpacityProperty, fade.Clone());
         _codexTitle?.BeginAnimation(OpacityProperty, fade.Clone());
+        // The titles are built hit-test-off so the invisible strip never eats
+        // bar clicks; expanded they host a real control (the reset-card chip).
+        if (_codexTitle is not null) _codexTitle.IsHitTestVisible = true;
         SettingsGear.BeginAnimation(OpacityProperty, fade.Clone());
     }
 
@@ -775,6 +789,7 @@ public partial class IslandWindow : Window
         ExpandedContent.BeginAnimation(OpacityProperty, fade);
         _claudeTitle?.BeginAnimation(OpacityProperty, fade.Clone());
         _codexTitle?.BeginAnimation(OpacityProperty, fade.Clone());
+        if (_codexTitle is not null) _codexTitle.IsHitTestVisible = false;
         SettingsGear.BeginAnimation(OpacityProperty, fade.Clone());
     }
 

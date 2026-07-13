@@ -120,6 +120,12 @@ public sealed class UsagePage : Border
         return button;
     }
 
+    private static void ApplySingleWindow(ChartTile primary, ChartTile secondary, bool single)
+    {
+        secondary.Visibility = single ? Visibility.Collapsed : Visibility.Visible;
+        Grid.SetColumnSpan(primary, single ? 3 : 1);
+    }
+
     private void Update()
     {
         var store = UsageStore.Shared;
@@ -141,6 +147,12 @@ public sealed class UsagePage : Border
         _claudeWeekly.Update(store.Claude.Weekly, style);
         _codexFiveHour.Update(store.Codex.FiveHour, style);
         _codexWeekly.Update(store.Codex.Weekly, style);
+
+        // A provider reporting one window gets one tile spanning the block —
+        // Codex's July 2026 shape (single weekly quota) — instead of a
+        // permanent "no data" ghost beside the real one.
+        ApplySingleWindow(_claudeFiveHour, _claudeWeekly, store.Claude.SecondaryMissing);
+        ApplySingleWindow(_codexFiveHour, _codexWeekly, store.Codex.SecondaryMissing);
 
         // Keep a manual Claude auth escape hatch available whenever the
         // Claude usage fetch is unhealthy — even when the CLI can't be

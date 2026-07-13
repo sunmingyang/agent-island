@@ -75,48 +75,79 @@ public sealed class ChartFoot : TextBlock
 /// across cells with a ~7ms stagger (~210ms full sweep).
 public sealed class SteppedMeter : Grid
 {
-    private const int Segments = 30;
-    private readonly Rectangle[] _cells = new Rectangle[Segments];
+    /// Fixed tick PITCH, variable count: a tile that spans the full block
+    /// (Codex's single weekly window) draws ~2x thin ticks at the same
+    /// density instead of stretching 30 into fat battery blocks. 30 ticks
+    /// over the standard half-block tile ≈ 4px per tick.
+    private const double TickPitch = 4.0;
+    private const int MinSegments = 10;
+
+    private Rectangle[] _cells = Array.Empty<Rectangle>();
     private readonly Color _color;
     private double _lastFilled = -1;
+    private double _lastValue;
 
     public SteppedMeter(Color color)
     {
         _color = color;
         Height = 16;
+        SizeChanged += (_, e) => Rebuild(e.NewSize.Width);
+    }
+
+    private void Rebuild(double width)
+    {
+        var count = Math.Max(MinSegments, (int)(width / TickPitch));
+        if (count == _cells.Length) return;
+        Children.Clear();
         ColumnDefinitions.Clear();
-        for (var i = 0; i < Segments; i++)
+        _cells = new Rectangle[count];
+        for (var i = 0; i < count; i++)
         {
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var cell = new Rectangle
             {
                 RadiusX = 1.5,
                 RadiusY = 1.5,
-                Margin = new Thickness(i == 0 ? 0 : 1, 0, i == Segments - 1 ? 0 : 1, 0),
+                Margin = new Thickness(i == 0 ? 0 : 1, 0, i == count - 1 ? 0 : 1, 0),
                 Fill = IslandColors.Brush(IslandColors.White(0.10)),
             };
             SetColumn(cell, i);
             _cells[i] = cell;
             Children.Add(cell);
         }
+        // Repaint at the new density without the fill sweep — a resize is a
+        // relayout, not a data change.
+        _lastFilled = -1;
+        var filledNow = Math.Floor(_lastValue / 100 * count);
+        for (var i = 0; i < count; i++)
+        {
+            _cells[i].Fill = IslandColors.Brush(i < filledNow ? _color : IslandColors.White(0.10));
+        }
+        _lastFilled = filledNow;
     }
 
     public void Update(double value)
     {
-        var filled = Math.Floor(value / 100 * Segments);
+        _lastValue = value;
+        var segments = _cells.Length;
+        if (segments == 0) return; // first layout pass hasn't sized us yet
+        var filled = Math.Floor(value / 100 * segments);
         if (Math.Abs(filled - _lastFilled) < 0.5 && _lastFilled >= 0)
         {
             return;
         }
         _lastFilled = filled;
-        for (var i = 0; i < Segments; i++)
+        // Sweep stagger scales to the count so the fill wave crosses a wide
+        // tile in the same ~210ms it crosses a half-block one.
+        var stagger = 210.0 / segments;
+        for (var i = 0; i < segments; i++)
         {
             var target = i < filled ? _color : IslandColors.White(0.10);
             var brush = new SolidColorBrush(((SolidColorBrush)_cells[i].Fill).Color);
             _cells[i].Fill = brush;
             var animation = new ColorAnimation(target, IslandAnimations.StrongEaseOutDuration)
             {
-                BeginTime = TimeSpan.FromMilliseconds(i * 7),
+                BeginTime = TimeSpan.FromMilliseconds(i * stagger),
                 EasingFunction = IslandAnimations.StrongEaseOut(),
             };
             brush.BeginAnimation(SolidColorBrush.ColorProperty, animation);
@@ -562,7 +593,7 @@ public sealed class ChartTile : StackPanel
     {
         // 0-100; flips to "percent left" when the user prefers remaining.
         var value = Model.QuotaDisplayModeStore.Shared.DisplayValue(window.UsedPercent);
-        var label = Localization.L10n.Tr(_labelKey);
+        var label = PeriodLabel(window, _labelKey);
 
         // Ring and Numeric render their own heads; the shared head serves
         // the three label+number styles.
@@ -597,6 +628,21 @@ public sealed class ChartTile : StackPanel
                 break;
         }
         _foot.Text = SubCaption(window, style);
+    }
+
+    /// Tiles label themselves from the window length the provider actually
+    /// reports — Codex swapped its 5-hour window for a single weekly one in
+    /// July 2026, and a hardcoded "5h" would lie under it. Old caches carry
+    /// no period; those fall back to the slot's historical label.
+    internal static string PeriodLabel(WindowUsage window, string fallbackKey)
+    {
+        if (window.PeriodSeconds is not { } period || period <= 0)
+        {
+            return Localization.L10n.Tr(fallbackKey);
+        }
+        if (window.IsLongPeriod) return Localization.L10n.Tr("week");
+        var hours = Math.Max(1, (int)Math.Round(period / 3600));
+        return $"{hours}h";
     }
 
     /// "no data" is the internal sentinel for "API returned null for this

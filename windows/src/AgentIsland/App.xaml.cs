@@ -75,7 +75,10 @@ public partial class App : System.Windows.Application
         Update.UpdateInstaller.CleanupAtStartup();
         Update.UpdateChecker.Shared.Start();
         Cost.CostStore.Shared.StartAutoRefresh();
-        Trigger.TriggerEngine.Shared.Start();
+        // Auto-resume is retired (product call, 2026-07-13): the engine no
+        // longer starts, so nothing is ever spawned — the page, settings tab,
+        // and this start are the three gates; restore by re-enabling them.
+        // Trigger.TriggerEngine.Shared.Start();
         Model.AlertEngine.Shared.Start();
 
         // Scripted-verification hooks, mirroring the demo-only buttons on
@@ -94,6 +97,19 @@ public partial class App : System.Windows.Application
             if (Enum.TryParse<ActivityState>(stateName, ignoreCase: true, out var forced))
             {
                 ActivityMonitor.Shared.Demo(forced);
+            }
+            // _EXPANDED=1 renders the open panel (header chip, tiles, footer)
+            // instead of the compact bar; _SCREEN picks the carousel page
+            // without persisting it over the user's parked choice.
+            if (Enum.TryParse<UI.IslandScreen>(
+                    Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_ISLAND_SCREEN"),
+                    ignoreCase: true, out var screen))
+            {
+                UI.ScreenPref.Shared.ForceForVerification(screen);
+            }
+            if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_ISLAND_EXPANDED") == "1")
+            {
+                _island?.PopUp();
             }
             _island?.SaveVisualSnapshot(islandPng);
         }

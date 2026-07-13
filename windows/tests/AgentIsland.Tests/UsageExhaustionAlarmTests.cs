@@ -29,6 +29,8 @@ public static class UsageExhaustionAlarmTests
             ("a second window crossing in a later pass is its own event", TestSeparateWindowSeparatePass),
             ("alarm key matches the macOS shape", TestAlarmKeyShape),
             ("hidden provider never fires", TestHiddenProviderNeverFires),
+            ("codex never raises the quota alarm (weekly-only era)", TestCodexNeverFires),
+            ("the alarm names the window's real period", TestAlarmNamesRealPeriod),
         };
 
         foreach (var (name, test) in tests)
@@ -196,6 +198,40 @@ public static class UsageExhaustionAlarmTests
             UsageExhaustionAlarm.QuotaAlarmKey(TriggerTool.Claude, QuotaWindowKind.FiveHour, null)
                 == "exhausted-claude-fiveHour-none",
             "a null reset stamps 'none', matching macOS");
+    }
+
+    private static void TestCodexNeverFires()
+    {
+        var (alarm, fired) = Make();
+        // Warmup healthy on both providers.
+        alarm.Recompute(Usage(0.2, ResetA), Usage(0.2, ResetA), remindersEnabled: true);
+        // Codex exhausts its (weekly-only) quota: tiles and threshold
+        // warnings cover it; the full-screen panel stays away.
+        alarm.Recompute(Usage(0.2, ResetA), Usage(1.0, ResetA), remindersEnabled: true);
+        alarm.Recompute(Usage(0.2, ResetA), UsageBoth(1.0, ResetA, 1.0, ResetWeekly), remindersEnabled: true);
+        Expect(fired.Count == 0, "codex exhaustion must never raise the quota alarm");
+        // Claude still alarms normally alongside.
+        alarm.Recompute(Usage(1.0, ResetA), UsageBoth(1.0, ResetA, 1.0, ResetWeekly), remindersEnabled: true);
+        Expect(fired.Count == 1 && fired[0].StartsWith("exhausted-claude-", StringComparison.Ordinal),
+            "claude keeps the alarm while codex stays silent");
+    }
+
+    private static void TestAlarmNamesRealPeriod()
+    {
+        var (alarm, fired) = Make();
+        // Claude's primary slot hypothetically re-shaped to a week-long
+        // window (periodSeconds = 604800): the alarm must say "weekly", not
+        // "5-hour", even though it sits in the fiveHour slot.
+        var weekLongPrimary = new AppUsage(
+            new WindowUsage(0.2, ResetA, null, PeriodSeconds: 604800),
+            new WindowUsage(0.1, null, null));
+        alarm.Recompute(weekLongPrimary, AppUsage.Empty, remindersEnabled: true);
+        alarm.Recompute(
+            weekLongPrimary with { FiveHour = new WindowUsage(1.0, ResetA, null, 604800) },
+            AppUsage.Empty, remindersEnabled: true);
+        Expect(fired.Count == 1, "week-long primary crossing fires once");
+        Expect(fired[0] == "exhausted-claude-weekly-1800000000",
+            $"the alarm must carry the real (weekly) period, got {fired[0]}");
     }
 
     private static void TestHiddenProviderNeverFires()

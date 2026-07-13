@@ -74,16 +74,29 @@ public static class UsageCachePolicy
 
     public static AppUsage? CacheableCopy(AppUsage usage)
     {
+        // A healthy fetch is cacheable even when the provider reports only
+        // one window (Codex's July 2026 shape: secondary_window gone, so the
+        // weekly slot carries a permanent "no data"). Requiring BOTH windows
+        // clean would have silently stopped caching Codex forever.
         if (usage.FiveHour.Error is not null
-            || usage.Weekly.Error is not null
+            || (usage.Weekly.Error is not null && !usage.SecondaryMissing)
             || !HasUsageValues(usage))
         {
             return null;
         }
         return new AppUsage(
-            new WindowUsage(usage.FiveHour.UsedPercent, usage.FiveHour.ResetAt, null),
-            new WindowUsage(usage.Weekly.UsedPercent, usage.Weekly.ResetAt, null),
-            usage.Plan);
+            new WindowUsage(
+                usage.FiveHour.UsedPercent, usage.FiveHour.ResetAt, null,
+                usage.FiveHour.PeriodSeconds),
+            new WindowUsage(
+                usage.Weekly.UsedPercent, usage.Weekly.ResetAt,
+                // Keep the "single window" marker so a cold start straight
+                // from cache hides the empty tile instead of showing 0%.
+                usage.SecondaryMissing ? usage.Weekly.Error : null,
+                usage.Weekly.PeriodSeconds),
+            usage.Plan,
+            usage.ResetCards,
+            usage.ResetCardDetails);
     }
 
     private static bool HasUsageValues(AppUsage usage) =>
