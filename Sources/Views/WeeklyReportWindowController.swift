@@ -39,8 +39,9 @@ enum WeeklyReportRenderer {
     }
 }
 
-/// Borderless panel: the window IS the card — no chrome, no frame around
-/// the frame. Esc or the ✕ closes it; drag anywhere to move.
+/// The window IS the card — transparent titled window so the NATIVE red
+/// traffic-light close button appears at the top-left (no hand-drawn ✕).
+/// Esc also closes; drag anywhere to move.
 private final class ReportPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { close() }
@@ -61,10 +62,16 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
         if window == nil {
             let panel = ReportPanel(
                 contentRect: NSRect(origin: .zero, size: NSSize(width: 520, height: 700)),
-                styleMask: [.borderless, .fullSizeContentView],
+                styleMask: [.titled, .closable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
+            panel.title = L10n.tr("Weekly report")
+            panel.titleVisibility = .hidden
+            panel.titlebarAppearsTransparent = true
+            // Native red close only — minimize/zoom make no sense on a card.
+            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            panel.standardWindowButton(.zoomButton)?.isHidden = true
             panel.backgroundColor = .clear
             panel.isOpaque = false
             panel.hasShadow = false // the card paints its own shadow
@@ -90,12 +97,8 @@ private struct WeeklyReportSheet: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            ZStack(alignment: .topTrailing) {
-                WeeklyReportCard(data: .current())
-                    .shadow(color: .black.opacity(0.6), radius: 34, y: 16)
-                closeButton
-                    .padding(10)
-            }
+            WeeklyReportCard(data: .current())
+                .shadow(color: .black.opacity(0.6), radius: 34, y: 16)
 
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
@@ -111,23 +114,9 @@ private struct WeeklyReportSheet: View {
                     .frame(width: 92, height: 30)
             }
         }
-        .padding(.horizontal, 44)
-        .padding(.top, 44)
-        .padding(.bottom, 28)
-    }
-
-    private var closeButton: some View {
-        Button {
-            WeeklyReportWindowController.shared.window?.close()
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 9.5, weight: .bold))
-                .foregroundStyle(.white.opacity(0.55))
-                .frame(width: 22, height: 22)
-                .background(Circle().fill(.white.opacity(0.10)))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L10n.tr("Close"))
+        .padding(.horizontal, 26)
+        .padding(.top, 22)
+        .padding(.bottom, 24)
     }
 
     private func actionButton(_ title: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
