@@ -163,12 +163,8 @@
 "Close" = "Close";
 "Share weekly report" = "Share weekly report";
 "Share weekly report…" = "Share weekly report…";
-"Send to your phone" = "Send to your phone";
-"WeChat · WhatsApp · Instagram · X · anywhere" = "WeChat · WhatsApp · Instagram · X · anywhere";
-"Scan with your phone → long-press the image → share to any app, or save it" = "Scan with your phone → long-press the image\n→ share to any app, or save it";
-"Or AirDrop to your iPhone →" = "Or AirDrop to your iPhone →";
-"Same Wi-Fi as your Mac · image travels over your local network only, no servers" = "Same Wi-Fi as your Mac · image travels over your local network only, no servers";
-"Couldn't start local sharing — is Wi-Fi on?" = "Couldn't start local sharing — is Wi-Fi on?";
+"Share…" = "Share…";
+"Others" = "Others";
 "Details unavailable right now." = "Details unavailable right now.";
 "Earned resets appear here with their expiry." = "Earned resets appear here with their expiry.";
 "expired" = "expired";

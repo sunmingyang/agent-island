@@ -140,6 +140,9 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
 
 private struct WeeklyReportSheet: View {
     @State private var copied = false
+    @State private var shareAnchor: NSView?
+    // NSSharingServicePicker dies if released while on screen — park it.
+    @State private var pickerHolder = PickerHolder()
 
     var body: some View {
         VStack(spacing: 14) {
@@ -148,10 +151,9 @@ private struct WeeklyReportSheet: View {
                 // the "floating on fog" feel, not any system glass.
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
 
-            // Two actions, both white, both instant (renders come from the
-            // warm cache). Copy → paste anywhere on the Mac; phone → the
-            // handoff QR, where the PHONE's native share sheet reaches
-            // WeChat / WhatsApp / Instagram / X / everything.
+            // Two actions, identical pills, both instant (renders come from
+            // the warm cache). Copy → paste anywhere; Share → the system
+            // share picker (AirDrop / Messages / installed extensions).
             HStack(spacing: 10) {
                 actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
                     if copyImage() {
@@ -159,14 +161,27 @@ private struct WeeklyReportSheet: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
-                actionButton(L10n.tr("Send to your phone"), prominent: true) {
-                    PhoneHandoffWindowController.shared.show()
-                }
+                actionButton(L10n.tr("Share…"), prominent: true) { openSharePicker() }
+                    .background(
+                        // Invisible AppKit anchor the picker popover attaches
+                        // to — keeps the visible control a pixel-identical
+                        // SwiftUI pill (a real NSButton never matched).
+                        ShareAnchorView { shareAnchor = $0 }
+                            .frame(width: 1, height: 1)
+                    )
             }
         }
         .padding(.horizontal, 26)
         .padding(.top, 22)
         .padding(.bottom, 14)
+    }
+
+    @MainActor
+    private func openSharePicker() {
+        guard let image = WeeklyReportRenderer.image(), let anchor = shareAnchor else { return }
+        let picker = NSSharingServicePicker(items: [image])
+        pickerHolder.picker = picker
+        picker.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
     }
 
     @discardableResult
@@ -190,4 +205,22 @@ private struct WeeklyReportSheet: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+/// Zero-size AppKit view used purely as the NSSharingServicePicker anchor.
+private struct ShareAnchorView: NSViewRepresentable {
+    let onReady: (NSView) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { onReady(view) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+@MainActor
+private final class PickerHolder {
+    var picker: NSSharingServicePicker?
 }

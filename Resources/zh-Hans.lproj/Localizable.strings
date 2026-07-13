@@ -163,12 +163,8 @@
 "Close" = "关闭";
 "Share weekly report" = "分享周报";
 "Share weekly report…" = "分享本周周报…";
-"Send to your phone" = "发到手机";
-"WeChat · WhatsApp · Instagram · X · anywhere" = "微信 · WhatsApp · Instagram · X · 任何平台";
-"Scan with your phone → long-press the image → share to any app, or save it" = "手机扫码打开 → 长按图片\n→ 原生分享到任何 App,或保存到相册";
-"Or AirDrop to your iPhone →" = "或:隔空投送到 iPhone →";
-"Same Wi-Fi as your Mac · image travels over your local network only, no servers" = "手机与 Mac 需连同一 Wi-Fi · 图片仅走本地局域网,不经过任何服务器";
-"Couldn't start local sharing — is Wi-Fi on?" = "本地分享启动失败——检查一下 Wi-Fi";
+"Share…" = "分享…";
+"Others" = "其他";
 "Details unavailable right now." = "明细暂时不可用。";
 "Earned resets appear here with their expiry." = "获得的重置卡会显示在这里,附有效期。";
 "expired" = "已过期";

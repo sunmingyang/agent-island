@@ -19,6 +19,7 @@ struct WeeklyReportData {
         let percent: Double   // 0...1 of the combined week's dollars
         let isClaude: Bool
         let color: Color
+        var isOthers: Bool = false
     }
 
     let rangeText: String
@@ -71,30 +72,41 @@ struct WeeklyReportData {
                        percent: $0.dollars / dollarUniverse, isClaude: false,
                        color: IslandColor.codex)
         }
-        var models = (claudeRows + codexRows).sorted { $0.percent > $1.percent }
-        // No "0%" tail rows — a model must have earned at least half a
-        // percent of the week's spend to make the card.
-        models = Array(models.filter { $0.percent >= 0.005 }.prefix(4))
-        // Donut segments need each model distinguishable — same-provider
-        // models step through brand-color shades instead of all sharing one.
-        let claudeShades = [IslandColor.claude,
-                            Color(red: 235/255, green: 168/255, blue: 140/255),
-                            Color(red: 146/255, green: 82/255, blue: 60/255)]
-        let codexShades = [IslandColor.codex,
-                           Color(red: 152/255, green: 202/255, blue: 250/255),
-                           Color(red: 50/255, green: 114/255, blue: 184/255)]
-        var claudeSeen = 0, codexSeen = 0
-        models = models.map { m in
-            let shade: Color
-            if m.isClaude {
-                shade = claudeShades[min(claudeSeen, claudeShades.count - 1)]
-                claudeSeen += 1
-            } else {
-                shade = codexShades[min(codexSeen, codexShades.count - 1)]
-                codexSeen += 1
+        let all = (claudeRows + codexRows).sorted { $0.percent > $1.percent }
+        // Top 5 by spend (fewer if the week only touched fewer); everything
+        // past the fold folds into one dim "Others" row, so a 12-model week
+        // renders exactly like a 5-model week. ≥0.5% keeps noise rows off.
+        // Colors are a RANKED categorical palette — provider-shaded hues
+        // made neighboring segments indistinguishable (owner, 2026-07-14);
+        // the provider still reads from the model name itself.
+        let palette: [Color] = [
+            Color(red: 90/255, green: 168/255, blue: 240/255),   // blue
+            Color(red: 204/255, green: 120/255, blue: 92/255),   // coral
+            Color(red: 232/255, green: 194/255, blue: 104/255),  // amber
+            Color(red: 91/255, green: 200/255, blue: 175/255),   // teal
+            Color(red: 167/255, green: 139/255, blue: 250/255),  // violet
+        ]
+        var models = Array(all.filter { $0.percent >= 0.005 }.prefix(5))
+            .enumerated().map { i, m in
+                ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
+                           percent: m.percent, isClaude: m.isClaude,
+                           color: palette[min(i, palette.count - 1)])
             }
-            return ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
-                              percent: m.percent, isClaude: m.isClaude, color: shade)
+        let shownNames = Set(models.map(\.name))
+        let rest = all.filter { !shownNames.contains($0.name) }
+        if !rest.isEmpty {
+            let restPercent = rest.reduce(0.0) { $0 + $1.percent }
+            if restPercent >= 0.005 {
+                models.append(ModelShare(
+                    name: L10n.tr("Others"),
+                    tokens: rest.reduce(0) { $0 + $1.tokens },
+                    dollars: rest.reduce(0.0) { $0 + $1.dollars },
+                    percent: restPercent,
+                    isClaude: false,
+                    color: Color(white: 0.42),
+                    isOthers: true
+                ))
+            }
         }
 
         // The card follows the app language — a card destined for WeChat
@@ -143,15 +155,15 @@ struct WeeklyReportCard: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 header
-                Spacer(minLength: 18)
+                Spacer(minLength: 14)
                 hero
-                Spacer(minLength: 22)
+                Spacer(minLength: 16)
                 providerSplit
-                Spacer(minLength: 24)
+                Spacer(minLength: 18)
                 weekBars
-                Spacer(minLength: 24)
+                Spacer(minLength: 18)
                 modelRows
-                Spacer(minLength: 20)
+                Spacer(minLength: 16)
                 footer // brand strip — doubles as the future sponsor slot
             }
             .padding(30)
@@ -325,14 +337,14 @@ struct WeeklyReportCard: View {
             // rotation so it stays upright.
             .rotationEffect(.degrees(-90))
             .overlay {
-                Text("TOP \(data.topModels.count)")
+                Text("TOP \(data.topModels.filter { !$0.isOthers }.count)")
                     .font(.system(size: 10.5, weight: .heavy, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(.white.opacity(0.5))
             }
-            .frame(width: 94, height: 94)
+            .frame(width: 90, height: 90)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(data.topModels) { row in
                     HStack(spacing: 7) {
                         Circle()
@@ -340,7 +352,7 @@ struct WeeklyReportCard: View {
                             .frame(width: 7, height: 7)
                         Text(row.name)
                             .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.85))
+                            .foregroundStyle(.white.opacity(row.isOthers ? 0.5 : 0.85))
                             .lineLimit(1)
                         Spacer(minLength: 6)
                         Text(Self.compactString(row.tokens, zh: zh))
