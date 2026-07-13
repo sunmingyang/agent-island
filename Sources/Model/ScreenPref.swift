@@ -53,10 +53,15 @@ final class ScreenPref: ObservableObject {
     }
 
     var visibleScreens: [Screen] {
+        // Auto-resume is retired entirely (product call, 2026-07-13): a
+        // flagship can't be a feature the owner doesn't trust himself — and
+        // Codex no longer has an intra-day reset at all. The page, the
+        // settings section, and the engine start are all gated; stores and
+        // views stay in the tree so each is one line to restore.
         if CostPanelVisibilityStore.shared.showInTopPanel {
-            return [.usage, .cost, .overview, .triggers]
+            return [.usage, .cost, .overview]
         }
-        return [.usage, .overview, .triggers]
+        return [.usage, .overview]
     }
 
     var visiblePageIndex: Int {

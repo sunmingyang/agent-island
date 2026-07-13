@@ -63,10 +63,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 100% pops the distinct "out of quota until <time>" alarm.
         UsageExhaustionAlarm.shared.start()
 
-        // Auto-trigger engine rides the same usage signal: a changed
-        // fiveHour.resetAt means a window rolled over → resume the target
-        // session. Started after the usage store for the same reason.
-        TriggerEngine.shared.start()
+        // Auto-resume is retired (product call, 2026-07-13): the engine no
+        // longer starts, so nothing is ever spawned — the page, settings tab,
+        // and this start are the three gates; restore by re-enabling them.
+        // TriggerEngine.shared.start()
 
         AgentReminderCenter.shared.start()
         ActivityMonitor.shared.start()

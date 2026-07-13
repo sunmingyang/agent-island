@@ -31,7 +31,12 @@ struct SettingsView: View {
     @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.general.rawValue
 
     private var activeTab: SettingsTab {
-        get { SettingsTab(rawValue: activeTabRaw) ?? .general }
+        get {
+            let tab = SettingsTab(rawValue: activeTabRaw) ?? .general
+            // A window last parked on the retired Triggers tab lands on
+            // General instead of an orphaned tab with no button.
+            return tab == .triggers ? .general : tab
+        }
         nonmutating set { activeTabRaw = newValue.rawValue }
     }
 
@@ -96,7 +101,9 @@ struct SettingsView: View {
 
     private var tabBar: some View {
         HStack(spacing: 4) {
-            ForEach(SettingsTab.allCases, id: \.self) { tab in
+            // Auto-resume is retired (2026-07-13); the Triggers tab is gated
+            // out rather than deleted so restoring it is this one filter.
+            ForEach(SettingsTab.allCases.filter { $0 != .triggers }, id: \.self) { tab in
                 tabButton(tab)
             }
         }

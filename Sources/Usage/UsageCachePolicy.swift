@@ -106,7 +106,8 @@ enum UsageCachePolicy {
                 error: usage.secondaryMissing ? usage.weekly.error : nil,
                 periodSeconds: usage.weekly.periodSeconds
             ),
-            plan: usage.plan
+            plan: usage.plan,
+            resetCards: usage.resetCards
         )
     }
 

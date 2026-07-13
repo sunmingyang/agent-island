@@ -22,16 +22,56 @@ struct PanelHeader: View {
                 .animation(.openMorph, value: claudeOn)
                 .accessibilityHidden(!claudeOn)
             Color.clear.frame(width: notch.width)
-            providerTitle(name: "Codex", tag: usageStore.codex.plan?.uppercased(),
-                          color: IslandColor.codex, alignment: .trailing)
-                .opacity(codexOn ? 1 : 0)
-                .animation(.openMorph, value: codexOn)
-                .accessibilityHidden(!codexOn)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                // Banked-reset count ("reset cards") — the escape hatches of
+                // the weekly-only quota era, read straight from the usage
+                // payload (rate_limit_reset_credits.available_count). Sits in
+                // the dead space left of the Codex title; hidden when the
+                // provider reports none.
+                if let cards = usageStore.codex.resetCards, cards > 0 {
+                    resetCardChip(cards)
+                        .padding(.trailing, 10)
+                }
+                providerTitle(name: "Codex", tag: usageStore.codex.plan?.uppercased(),
+                              color: IslandColor.codex, alignment: .trailing)
+                    .fixedSize()
+            }
+            .frame(maxWidth: .infinity)
+            .opacity(codexOn ? 1 : 0)
+            .animation(.openMorph, value: codexOn)
+            .accessibilityHidden(!codexOn)
         }
         .frame(height: 22)
         .padding(.horizontal, 16)
         .padding(.top, 4)
         .padding(.bottom, min(14, max(0, notch.height - 22 - 4)))
+    }
+
+    /// "⎌ ×2" chip: banked Codex resets. Same chip vocabulary as the plan
+    /// tag — quiet by default, codex-blue accents so it reads as Codex's.
+    private func resetCardChip(_ count: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.counterclockwise.circle")
+                .font(.system(size: 9.5, weight: .semibold))
+                .foregroundStyle(IslandColor.codex.opacity(0.9))
+            Text("×\(count)")
+                .font(Typography.chip)
+                .tracking(0.6)
+                .foregroundStyle(.white.opacity(0.72))
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2.5)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(IslandColor.codex.opacity(0.10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(IslandColor.codex.opacity(0.22), lineWidth: 0.5)
+                )
+        )
+        .help(L10n.tr("%d banked resets available", count))
+        .accessibilityLabel(L10n.tr("%d banked resets available", count))
     }
 
     @ViewBuilder

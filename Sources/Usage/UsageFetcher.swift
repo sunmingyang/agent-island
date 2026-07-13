@@ -33,11 +33,18 @@ enum UsageFetcher {
                   let rl = obj["rate_limit"] as? [String: Any] else {
                 return errorPair("parse error")
             }
-            return AppUsage(
+            var usage = AppUsage(
                 fiveHour: parseCodexWindow(rl["primary_window"]),
                 weekly: parseCodexWindow(rl["secondary_window"]),
                 plan: obj["plan_type"] as? String
             )
+            // Banked resets ("reset cards") ride the same payload:
+            // rate_limit_reset_credits.available_count.
+            if let credits = obj["rate_limit_reset_credits"] as? [String: Any] {
+                usage.resetCards = (credits["available_count"] as? Int)
+                    ?? (credits["available_count"] as? Double).map(Int.init)
+            }
+            return usage
         } catch {
             return errorPair(error.localizedDescription)
         }

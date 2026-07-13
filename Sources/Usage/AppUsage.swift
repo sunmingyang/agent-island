@@ -28,11 +28,18 @@ struct AppUsage: Codable {
     /// Provider-reported plan tier — Claude's `subscriptionType` (free/pro/max)
     /// or Codex's `plan_type` (free/plus/pro). nil when unknown.
     var plan: String?
+    /// Codex banked rate-limit resets ("reset cards") — the count OpenAI
+    /// reports in `rate_limit_reset_credits.available_count`. In the
+    /// weekly-only quota era these are the user's escape hatches, so the
+    /// panel surfaces the count. nil = provider doesn't report any (Claude,
+    /// old caches).
+    var resetCards: Int? = nil
 
-    init(fiveHour: WindowUsage, weekly: WindowUsage, plan: String? = nil) {
+    init(fiveHour: WindowUsage, weekly: WindowUsage, plan: String? = nil, resetCards: Int? = nil) {
         self.fiveHour = fiveHour
         self.weekly = weekly
         self.plan = plan
+        self.resetCards = resetCards
     }
 
     static let empty = AppUsage(fiveHour: .unknown, weekly: .unknown)
