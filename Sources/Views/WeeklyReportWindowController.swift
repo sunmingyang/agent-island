@@ -39,8 +39,11 @@ enum WeeklyReportRenderer {
     }
 }
 
-/// The window IS the card — transparent titled window so the NATIVE red
-/// traffic-light close button appears at the top-left (no hand-drawn ✕).
+/// The window IS the card — fully borderless, because on macOS 26 a titled
+/// window brings a liquid-glass slab behind the content (the "虚无缥缈的
+/// 背景"). The genuine traffic-light close button is mounted manually
+/// instead: NSWindow.standardWindowButton(...) gives the real AppKit
+/// control (hover ✕ included), placed on the card's top-left corner.
 /// Esc also closes; drag anywhere to move.
 private final class ReportPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -62,16 +65,10 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
         if window == nil {
             let panel = ReportPanel(
                 contentRect: NSRect(origin: .zero, size: NSSize(width: 520, height: 700)),
-                styleMask: [.titled, .closable, .fullSizeContentView],
+                styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
-            panel.title = L10n.tr("Weekly report")
-            panel.titleVisibility = .hidden
-            panel.titlebarAppearsTransparent = true
-            // Native red close only — minimize/zoom make no sense on a card.
-            panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-            panel.standardWindowButton(.zoomButton)?.isHidden = true
             panel.backgroundColor = .clear
             panel.isOpaque = false
             panel.hasShadow = false // the card paints its own shadow
@@ -83,6 +80,23 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
             panel.isReleasedWhenClosed = false
             panel.level = .floating
             panel.contentView = NSHostingView(rootView: WeeklyReportSheet())
+
+            // The REAL red traffic light (hover ✕ and all), mounted onto the
+            // card's top-left like a normal window — without the titled
+            // style that drags the macOS 26 glass slab along.
+            if let contentView = panel.contentView,
+               let close = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable]) {
+                close.target = panel
+                close.action = #selector(NSWindow.close)
+                contentView.addSubview(close)
+                // Card sits at (26, 22) from the top-left of the content;
+                // native windows inset the light ~12pt into the corner.
+                let inset: CGFloat = 12
+                close.setFrameOrigin(NSPoint(
+                    x: 26 + inset,
+                    y: contentView.bounds.height - 22 - inset - close.frame.height
+                ))
+            }
             panel.delegate = self
             window = panel
         }
