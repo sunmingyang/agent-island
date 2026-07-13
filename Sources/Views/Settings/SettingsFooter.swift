@@ -20,6 +20,7 @@ struct SettingsFooter: View {
             } label: {
                 Text(L10n.tr("Quit"))
                     .font(Typography.label)
+                    .fixedSize()
                     .foregroundStyle(.white.opacity(quitHovered ? 0.92 : 0.55))
                     .padding(.horizontal, 11)
                     .padding(.vertical, 5)
@@ -39,10 +40,13 @@ struct SettingsFooter: View {
 
             Spacer()
 
-            sharePill(L10n.tr("Share weekly report")) {
+            // Short labels — the full 'Share weekly report' pair overflowed
+            // the 480pt window in English and crushed Quit into a vertical
+            // letter-stack. Hover help carries the full wording.
+            sharePill(L10n.tr("Weekly"), help: L10n.tr("Share weekly report")) {
                 WeeklyReportWindowController.shared.show()
             }
-            sharePill(L10n.tr("Share monthly report")) {
+            sharePill(L10n.tr("Monthly"), help: L10n.tr("Share monthly report")) {
                 MonthlyReportWindowController.shared.show()
             }
         }
@@ -52,8 +56,9 @@ struct SettingsFooter: View {
     }
 
     @ViewBuilder
-    private func sharePill(_ title: String, action: @escaping () -> Void) -> some View {
-        SharePillButton(title: title, action: action)
+    private func sharePill(_ title: String, help: String,
+                           action: @escaping () -> Void) -> some View {
+        SharePillButton(title: title, help: help, action: action)
     }
 
     @ViewBuilder
@@ -66,6 +71,7 @@ struct SettingsFooter: View {
 
 private struct SharePillButton: View {
     let title: String
+    let help: String
     let action: () -> Void
     @State private var hovered = false
 
@@ -89,7 +95,7 @@ private struct SharePillButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
-        .help(title)
+        .help(help)
         .animation(.strongEaseOut, value: hovered)
     }
 }

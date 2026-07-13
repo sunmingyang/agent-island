@@ -114,6 +114,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Settings-footer layout check (EN overflow regression had to be
+        // seen to be believed): renders the footer at window width and exits.
+        if let path = ProcessInfo.processInfo.environment["AGENTISLAND_FOOTER_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                let view = SettingsFooter()
+                    .frame(width: 480)
+                    .background(Color(red: 0.03, green: 0.03, blue: 0.04))
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 3
+                if let tiff = renderer.nsImage?.tiffRepresentation,
+                   let rep = NSBitmapImageRep(data: tiff),
+                   let png = rep.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: path))
+                }
+                NSApp.terminate(nil)
+            }
+        }
+
         // Same idea for the reset-card chip (taste iterations need eyes):
         // renders the chip at 10x against the panel background and exits.
         if let path = ProcessInfo.processInfo.environment["AGENTISLAND_CHIP_SNAPSHOT"] {
