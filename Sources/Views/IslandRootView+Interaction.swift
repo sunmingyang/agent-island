@@ -171,6 +171,51 @@ extension IslandRootView {
         }
     }
 
+    // MARK: - Demo driver (AGENTISLAND_UI_SCRIPT)
+
+    /// Recording-rig commands. Each one replays the same choreography the
+    /// real hover/tap handlers run, so scripted footage is indistinguishable
+    /// from a human driving the island — minus the cursor in frame.
+    func handleDemoCommand(_ cmd: String) {
+        switch cmd {
+        case "peek":
+            enterPeekFromHover()
+        case "expand":
+            guard model.state == .peek || model.state == .compact else { return }
+            withAnimation(.openMorph) {
+                model.setState(.expanded)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                guard model.state == .expanded else { return }
+                withAnimation(.strongEaseOut) {
+                    contentVisible = true
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                withAnimation(.easeIn(duration: 0.18)) {
+                    pillsVisible = false
+                }
+            }
+        case "collapse":
+            withAnimation(.easeOut(duration: 0.10)) {
+                contentVisible = false
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                withAnimation(.closeMorph) {
+                    model.setState(.compact)
+                }
+            }
+        case "page:usage":
+            withAnimation(.pageSwipe) { model.showScreen(.usage) }
+        case "page:cost":
+            withAnimation(.pageSwipe) { model.showScreen(.cost) }
+        case "page:overview":
+            withAnimation(.pageSwipe) { model.showScreen(.overview) }
+        default:
+            break
+        }
+    }
+
     private func exitPeekForAlwaysShow() {
         guard model.state == .peek else { return }
         withAnimation(.easeOut(duration: 0.08)) {

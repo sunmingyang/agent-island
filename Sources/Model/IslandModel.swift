@@ -1,6 +1,11 @@
 import SwiftUI
 import Combine
 
+extension Notification.Name {
+    /// Recording-rig command channel (AGENTISLAND_UI_SCRIPT steps).
+    static let islandDemoCommand = Notification.Name("AgentIsland.demoCommand")
+}
+
 @MainActor
 final class IslandModel: ObservableObject {
     enum State {

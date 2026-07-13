@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var island: IslandWindowController?
     private var settingsShortcutMonitor: Any?
     private var backgroundActivity: NSObjectProtocol?
+    private var recordingBackdrop: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -111,6 +112,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 MonthlyReportRenderer.writePNG(to: path)
                 NSApp.terminate(nil)
+            }
+        }
+
+        // Recording backdrop: a fullscreen card-style gradient UNDER the
+        // island, so scripted clips never leak the real desktop (private
+        // windows, notes, chats). Recording-rig only.
+        if ProcessInfo.processInfo.environment["AGENTISLAND_BACKDROP"] != nil,
+           let screen = NSScreen.main {
+            let win = NSWindow(contentRect: screen.frame,
+                               styleMask: [.borderless],
+                               backing: .buffered, defer: false)
+            win.level = .normal
+            win.isOpaque = true
+            win.contentView = NSHostingView(rootView: RecordingBackdropView())
+            win.orderFrontRegardless()
+            recordingBackdrop = win
+        }
+
+        // Recording rig: AGENTISLAND_UI_SCRIPT="wait:2,peek,wait:1.5,expand,
+        // wait:3,page:cost,wait:3,collapse,wait:2,quit" — comma-separated
+        // steps, executed in order; pairs with `screencapture -v -R` for
+        // hands-free, cursor-free product clips.
+        if let script = ProcessInfo.processInfo.environment["AGENTISLAND_UI_SCRIPT"] {
+            Task { @MainActor in
+                for rawStep in script.split(separator: ",") {
+                    let step = rawStep.trimmingCharacters(in: .whitespaces)
+                    if step.hasPrefix("wait:"), let seconds = Double(step.dropFirst(5)) {
+                        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                    } else if step == "quit" {
+                        NSApp.terminate(nil)
+                    } else {
+                        NotificationCenter.default.post(
+                            name: .islandDemoCommand, object: nil, userInfo: ["cmd": step]
+                        )
+                    }
+                }
             }
         }
 

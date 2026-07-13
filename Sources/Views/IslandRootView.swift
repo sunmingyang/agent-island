@@ -130,6 +130,11 @@ struct IslandRootView: View {
         .accessibilityLabel(L10n.tr("AgentIsland panel"))
         .accessibilityHint(accessibilityHintForState)
         .onAppear(perform: handleAppear)
+        // Recording rig: scripted clips drive the EXACT production
+        // choreography through these commands (see AGENTISLAND_UI_SCRIPT).
+        .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
+            if let cmd = note.userInfo?["cmd"] as? String { handleDemoCommand(cmd) }
+        }
         .onChange(of: alwaysShow.enabled, perform: handleAlwaysShowChange)
         .onReceive(AlertEngine.shared.$pulseEvent) { event in
             guard let event, event.id != pulseToken else { return }
