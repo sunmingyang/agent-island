@@ -6,41 +6,14 @@ import AppKit
 /// header at the top of the window.
 struct SettingsFooter: View {
     @State private var quitHovered = false
-    @State private var shareHovered = false
 
     private static let githubURL = URL(string: "https://github.com/tristan666666/agent-island")!
-    private static let licenseURL = URL(string: "https://github.com/tristan666666/agent-island/blob/main/LICENSE")!
 
     var body: some View {
+        // GitHub + Quit on the left, the two share CTAs flush right
+        // (owner's layout, 2026-07-14; License link dropped).
         HStack(alignment: .center, spacing: 14) {
             link("GitHub", url: Self.githubURL)
-            link("License", url: Self.licenseURL)
-
-            Spacer()
-
-            // The report entry rides next to Quit — settings is chrome the
-            // user actually visits, so the share CTA shows here too.
-            Button {
-                WeeklyReportWindowController.shared.show()
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 9.5, weight: .bold))
-                    Text(L10n.tr("Share weekly report"))
-                        .font(Typography.label.weight(.bold))
-                }
-                .foregroundStyle(.black.opacity(0.85))
-                .padding(.horizontal, 11)
-                .padding(.vertical, 5)
-                .background {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.white.opacity(shareHovered ? 1.0 : 0.92))
-                }
-            }
-            .buttonStyle(.plain)
-            .onHover { shareHovered = $0 }
-            .help(L10n.tr("Share weekly report"))
-            .animation(.strongEaseOut, value: shareHovered)
 
             Button {
                 NSApp.terminate(nil)
@@ -63,6 +36,15 @@ struct SettingsFooter: View {
             .onHover { quitHovered = $0 }
             .help(L10n.tr("Quit AgentIsland"))
             .animation(.strongEaseOut, value: quitHovered)
+
+            Spacer()
+
+            sharePill(L10n.tr("Share weekly report")) {
+                WeeklyReportWindowController.shared.show()
+            }
+            sharePill(L10n.tr("Share monthly report")) {
+                MonthlyReportWindowController.shared.show()
+            }
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)
@@ -70,10 +52,43 @@ struct SettingsFooter: View {
     }
 
     @ViewBuilder
+    private func sharePill(_ title: String, action: @escaping () -> Void) -> some View {
+        SharePillButton(title: title, action: action)
+    }
+
+    @ViewBuilder
     private func link(_ title: String, url: URL) -> some View {
         DottedLink(title: title) {
             NSWorkspace.shared.open(url)
         }
+    }
+}
+
+private struct SharePillButton: View {
+    let title: String
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 9.5, weight: .bold))
+                Text(title)
+                    .font(Typography.label.weight(.bold))
+            }
+            .foregroundStyle(.black.opacity(0.85))
+            .padding(.horizontal, 11)
+            .padding(.vertical, 5)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.white.opacity(hovered ? 1.0 : 0.92))
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .help(title)
+        .animation(.strongEaseOut, value: hovered)
     }
 }
 

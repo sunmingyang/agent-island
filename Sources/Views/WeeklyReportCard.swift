@@ -29,6 +29,9 @@ struct WeeklyReportData {
     let dailyTokens: [Int]    // oldest → today, exactly 7
     let dayLetters: [String]
     let topModels: [ModelShare]
+    /// "🏆 百亿俱乐部 · 累计 227 亿 Token" — the in-card milestone caption;
+    /// nil until the first tier (100M lifetime) is crossed.
+    let milestoneText: String?
 
     /// Assembles the last 7 calendar days from CostStore. All local.
     @MainActor
@@ -128,6 +131,14 @@ struct WeeklyReportData {
             letters = days.map { letterFmt.string(from: $0) }
         }
 
+        // Lifetime milestone caption — recognition rides the card itself.
+        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
+            .reduce(0) { $0 + $1.tokens }
+        let milestoneText = MilestoneLadder.tokenTier(lifetime: lifetime).map { tier in
+            "🏆 " + L10n.tr(tier.titleKey) + " · "
+                + L10n.tr("lifetime %@ tokens", WeeklyReportCard.compactString(lifetime, zh: zh))
+        }
+
         return WeeklyReportData(
             rangeText: range,
             totalTokens: total,
@@ -135,7 +146,8 @@ struct WeeklyReportData {
             claudeShare: total > 0 ? Double(claudeWeek) / Double(total) : 0,
             dailyTokens: daily,
             dayLetters: letters,
-            topModels: models
+            topModels: models,
+            milestoneText: milestoneText
         )
     }
 }
@@ -384,7 +396,14 @@ struct WeeklyReportCard: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
+            // The milestone caption — the "你已经很牛逼了" line, in the card.
+            if let milestone = data.milestoneText {
+                Text(milestone)
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.42))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Rectangle()
                 .fill(LinearGradient(colors: [.white.opacity(0.0), .white.opacity(0.14), .white.opacity(0.0)],
                                      startPoint: .leading, endPoint: .trailing))

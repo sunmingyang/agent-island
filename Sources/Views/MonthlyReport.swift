@@ -18,6 +18,7 @@ struct MonthlyReportData {
     let streakDays: Int
     let activeDays: Int
     let peakText: String           // e.g. "35.7亿" / "3.57B"
+    let milestoneText: String?     // "🏆 百亿俱乐部 · 累计 227 亿 Token"
 
     @MainActor
     static func current() -> MonthlyReportData {
@@ -105,6 +106,12 @@ struct MonthlyReportData {
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "yyyy年M月" : "MMMM yyyy"
 
+        let lifetime = daily.values.reduce(0, +)
+        let milestoneText = MilestoneLadder.tokenTier(lifetime: lifetime).map { tier in
+            "🏆 " + L10n.tr(tier.titleKey) + " · "
+                + L10n.tr("lifetime %@ tokens", WeeklyReportCard.compactString(lifetime, zh: zh))
+        }
+
         return MonthlyReportData(
             monthText: df.string(from: today),
             totalTokens: totalTokens,
@@ -114,7 +121,8 @@ struct MonthlyReportData {
             weeksCount: weeks,
             streakDays: streak,
             activeDays: activeDays,
-            peakText: WeeklyReportCard.compactString(peak, zh: zh)
+            peakText: WeeklyReportCard.compactString(peak, zh: zh),
+            milestoneText: milestoneText
         )
     }
 }
@@ -318,7 +326,13 @@ struct MonthlyReportCard: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
+            if let milestone = data.milestoneText {
+                Text(milestone)
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.42))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Rectangle()
                 .fill(LinearGradient(colors: [.white.opacity(0.0), .white.opacity(0.14), .white.opacity(0.0)],
                                      startPoint: .leading, endPoint: .trailing))

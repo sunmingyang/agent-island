@@ -167,6 +167,13 @@
 "Monthly" = "月报";
 "Share monthly report" = "分享月报";
 "Share monthly report…" = "分享本月月报…";
+"First 100M" = "首亿达成";
+"The 1B Club" = "十亿俱乐部";
+"5B Deep" = "五十亿深水区";
+"The 10B Club" = "百亿俱乐部";
+"The 50B Club" = "五百亿俱乐部";
+"The 100B Legend" = "千亿传说";
+"lifetime %@ tokens" = "累计 %@ Token";
 "tokens this month" = "本月 Token 消耗量";
 "Past %d weeks" = "过去 %d 周";
 "%d-day streak 🔥" = "连续 %d 天 🔥";
