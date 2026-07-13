@@ -167,6 +167,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else {
                         switch step {
                         case "style:next": StylePref.shared.cycle()
+                        case "costpage:toggle":
+                            CostPanelVisibilityStore.shared.showInTopPanel.toggle()
+                        case "alwaysshow:toggle":
+                            AlwaysShowUsageStore.shared.enabled.toggle()
+                        case "spacing:toggle":
+                            IslandSpacingStore.shared.mode =
+                                IslandSpacingStore.shared.mode == .compact ? .notchStyle : .compact
                         case "coststyle:next": CostStylePref.shared.cycle()
                         case "quota:toggle":
                             QuotaDisplayModeStore.shared.showsRemaining.toggle()

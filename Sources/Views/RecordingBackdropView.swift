@@ -6,6 +6,11 @@ import AppKit
 /// look like a clean real desktop while guaranteeing no private windows,
 /// desktop widgets, or note titles ever enter frame.
 struct RecordingBackdropView: View {
+    /// AGENTISLAND_BACKDROP=dark → dark gradient stage (the "深色桌面" set);
+    /// any other value → stock wallpaper.
+    private static let dark =
+        ProcessInfo.processInfo.environment["AGENTISLAND_BACKDROP"] == "dark"
+
     private static let wallpaper: NSImage? = {
         let candidates = [
             "/System/Library/Desktop Pictures/Sonoma.heic",
@@ -20,7 +25,19 @@ struct RecordingBackdropView: View {
 
     var body: some View {
         Group {
-            if let wallpaper = Self.wallpaper {
+            if Self.dark {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(red: 0.09, green: 0.095, blue: 0.12),
+                                 Color(red: 0.03, green: 0.032, blue: 0.045)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    RadialGradient(colors: [IslandColor.claude.opacity(0.06), .clear],
+                                   center: .init(x: 0.2, y: 0.15), startRadius: 0, endRadius: 700)
+                    RadialGradient(colors: [IslandColor.codex.opacity(0.06), .clear],
+                                   center: .init(x: 0.85, y: 0.7), startRadius: 0, endRadius: 800)
+                }
+            } else if let wallpaper = Self.wallpaper {
                 Image(nsImage: wallpaper)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
