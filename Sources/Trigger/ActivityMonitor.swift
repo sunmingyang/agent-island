@@ -80,6 +80,28 @@ final class ActivityMonitor: ObservableObject {
     private var pendingKick: Task<Void, Never>?
 
     func start() {
+        // 电影模式 (recording rig): AGENTISLAND_DEMO_ACTIVITY=
+        // "claude=idle,codex=working" pins the published states so clips
+        // can stage any combination regardless of what's really running.
+        if let raw = ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_ACTIVITY"] {
+            func parse(_ value: Substring) -> State? {
+                switch value {
+                case "idle": return .idle
+                case "working": return .working
+                case "needsYou": return .needsYou
+                case "stalled": return .stalled
+                case "rateLimited": return .rateLimited
+                case "authRequired": return .authRequired
+                default: return nil
+                }
+            }
+            for pair in raw.split(separator: ",") {
+                let kv = pair.split(separator: "=")
+                guard kv.count == 2 else { continue }
+                if kv[0] == "claude" { demoClaude = parse(kv[1]) }
+                if kv[0] == "codex" { demoCodex = parse(kv[1]) }
+            }
+        }
         tick()
         timer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [weak self] _ in
             guard let self else { return }

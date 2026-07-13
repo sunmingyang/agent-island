@@ -25,6 +25,14 @@ struct TurnAlarmView: View {
     @ObservedObject private var reminders = AgentReminderStore.shared
     @State private var glowPulse = false
 
+    private func openThreadAndDismiss() {
+        // Navigate FIRST: this is an .accessory app, so closing our only key
+        // window hands focus back to the previous app, after which macOS 14+
+        // may refuse or delay the cooperative activation the jump relies on.
+        TurnAlarmNavigator.open(provider: provider, thread: thread)
+        dismiss()
+    }
+
     var body: some View {
         ZStack {
             alarmBackground
@@ -66,12 +74,7 @@ struct TurnAlarmView: View {
 
                 if !isExhausted {
                     Button {
-                        // Navigate FIRST: this is an .accessory app, so closing
-                        // our only key window hands focus back to the previous
-                        // app, after which macOS 14+ may refuse or delay the
-                        // cooperative activation the jump relies on.
-                        TurnAlarmNavigator.open(provider: provider, thread: thread)
-                        dismiss()
+                        openThreadAndDismiss()
                     } label: {
                         Text(L10n.tr("Open thread"))
                             .font(.system(size: 18, weight: .bold))
@@ -84,6 +87,12 @@ struct TurnAlarmView: View {
                             }
                     }
                     .buttonStyle(.plain)
+                    .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
+                        // Recording rig: replay the open-thread interaction.
+                        if (note.userInfo?["cmd"] as? String) == "alarm:open" {
+                            openThreadAndDismiss()
+                        }
+                    }
                 }
 
                 Button {

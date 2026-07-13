@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsShortcutMonitor: Any?
     private var backgroundActivity: NSObjectProtocol?
     private var recordingBackdrop: NSWindow?
+    private var recordingStrip: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -128,6 +129,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             win.contentView = NSHostingView(rootView: RecordingBackdropView())
             win.orderFrontRegardless()
             recordingBackdrop = win
+
+            // Menu-bar extras (WeChat badge & co.) photobomb every
+            // peek-state clip, and presentationOptions can't hide the bar
+            // from an .accessory app — so cover it: a full-width wallpaper
+            // strip at statusBar+1, still far below the island (.popUpMenu).
+            let stripHeight: CGFloat = 44
+            let strip = NSWindow(
+                contentRect: NSRect(x: screen.frame.minX,
+                                    y: screen.frame.maxY - stripHeight,
+                                    width: screen.frame.width,
+                                    height: stripHeight),
+                styleMask: [.borderless], backing: .buffered, defer: false
+            )
+            strip.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
+            strip.isOpaque = true
+            strip.contentView = NSHostingView(
+                rootView: RecordingTopStripView(screenSize: screen.frame.size,
+                                                stripHeight: stripHeight)
+            )
+            strip.orderFrontRegardless()
+            recordingStrip = strip
         }
 
         // Recording rig: AGENTISLAND_UI_SCRIPT="wait:2,peek,wait:1.5,expand,

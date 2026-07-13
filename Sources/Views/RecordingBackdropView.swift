@@ -35,3 +35,19 @@ struct RecordingBackdropView: View {
         .ignoresSafeArea()
     }
 }
+
+/// Top slice of the same wallpaper, used to paint OVER the menu bar during
+/// recordings (status items would photobomb peek-state clips otherwise).
+/// Drawn with the identical fullscreen scaledToFill math, so it lines up
+/// seamlessly with the backdrop below it.
+struct RecordingTopStripView: View {
+    let screenSize: CGSize
+    let stripHeight: CGFloat
+
+    var body: some View {
+        RecordingBackdropView()
+            .frame(width: screenSize.width, height: screenSize.height)
+            .frame(width: screenSize.width, height: stripHeight, alignment: .top)
+            .clipped()
+    }
+}
