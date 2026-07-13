@@ -71,11 +71,12 @@ struct NotchPeekPill: View {
             .foregroundStyle(.white.opacity(0.40))
     }
 
-    /// Lower opacity on the fallback differentiates a passive "5-hour
-    /// window" label from an active "5h until reset" countdown — same
-    /// glyph shape, weaker visual presence.
+    /// Lower opacity on the fallback differentiates a passive window-length
+    /// label from an active "time until reset" countdown — same glyph shape,
+    /// weaker presence. The fallback names the window the provider actually
+    /// has (Codex has been weekly-only since July 2026).
     private var resetLabel: some View {
-        Text(resetText ?? "5h")
+        Text(resetText ?? (usage.isLongPeriod ? "7d" : "5h"))
             .font(Typography.bodyNumber)
             .foregroundStyle(.white.opacity(resetText == nil ? 0.45 : 0.70))
     }

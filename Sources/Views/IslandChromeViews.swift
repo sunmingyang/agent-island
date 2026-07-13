@@ -239,18 +239,29 @@ struct PeekPillOverlay: View {
     }
 
     private func peekLabel(for window: WindowUsage, provider: String) -> String {
+        // Codex's tracked window is weekly since July 2026; speak the window
+        // the provider actually has instead of a hardcoded "5-hour".
+        let weekly = window.isLongPeriod
         if window.error != nil && window.usedPercent == 0 {
-            return L10n.tr("%@: no data for 5-hour window", provider)
+            return L10n.tr(weekly ? "%@: no data for weekly window"
+                                  : "%@: no data for 5-hour window", provider)
         }
         let pct = window.percentInt
         guard let resetAt = window.resetAt else {
-            return L10n.tr("%@: %d percent of 5-hour window used", provider, pct)
+            return L10n.tr(weekly ? "%@: %d percent of weekly window used"
+                                  : "%@: %d percent of 5-hour window used", provider, pct)
         }
         let remaining = max(0, resetAt.timeIntervalSinceNow)
-        let resetPhrase: String = remaining >= 3600
-            ? L10n.tr("resets in %d hours", Int((remaining / 3600).rounded(.down)))
-            : L10n.tr("resets in %d minutes", max(1, Int((remaining / 60).rounded(.down))))
-        return L10n.tr("%@: %d percent of 5-hour window used, %@", provider, pct, resetPhrase)
+        let resetPhrase: String
+        if remaining >= 2 * 86400 {
+            resetPhrase = L10n.tr("resets in %d days", Int((remaining / 86400).rounded(.down)))
+        } else if remaining >= 3600 {
+            resetPhrase = L10n.tr("resets in %d hours", Int((remaining / 3600).rounded(.down)))
+        } else {
+            resetPhrase = L10n.tr("resets in %d minutes", max(1, Int((remaining / 60).rounded(.down))))
+        }
+        return L10n.tr(weekly ? "%@: %d percent of weekly window used, %@"
+                              : "%@: %d percent of 5-hour window used, %@", provider, pct, resetPhrase)
     }
 }
 

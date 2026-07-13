@@ -63,7 +63,10 @@ enum UsageFetcher {
         guard let d = obj as? [String: Any] else { return .unknown }
         let used = (d["used_percent"] as? Double) ?? 0
         let resetAt = (d["reset_at"] as? Double).map { Date(timeIntervalSince1970: $0) }
-        return WindowUsage(usedPercent: used / 100, resetAt: resetAt, error: nil)
+        // The payload states its own window length (604800s = the single
+        // weekly window Codex moved to in July 2026). Labels render from it.
+        let period = d["limit_window_seconds"] as? Double
+        return WindowUsage(usedPercent: used / 100, resetAt: resetAt, error: nil, periodSeconds: period)
     }
 
     // MARK: - Claude
@@ -117,8 +120,8 @@ enum UsageFetcher {
                     return .rateLimited
                 }
                 return .success(AppUsage(
-                    fiveHour: parseClaudeWindow(obj["five_hour"]),
-                    weekly: parseClaudeWindow(obj["seven_day"]),
+                    fiveHour: parseClaudeWindow(obj["five_hour"], periodSeconds: 5 * 3600),
+                    weekly: parseClaudeWindow(obj["seven_day"], periodSeconds: 7 * 86400),
                     plan: plan
                 ))
             }
@@ -128,7 +131,7 @@ enum UsageFetcher {
         }
     }
 
-    private static func parseClaudeWindow(_ obj: Any?) -> WindowUsage {
+    private static func parseClaudeWindow(_ obj: Any?, periodSeconds: TimeInterval) -> WindowUsage {
         guard let d = obj as? [String: Any] else { return .unknown }
         // Anthropic returns `utilization` as a percentage in [0, 100], not a
         // normalized [0, 1] fraction. An earlier `raw > 1 ? raw / 100 : raw`
@@ -145,6 +148,6 @@ enum UsageFetcher {
             f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             resetAt = f.date(from: s) ?? ISO8601DateFormatter().date(from: s)
         }
-        return WindowUsage(usedPercent: min(1, max(0, normalized)), resetAt: resetAt, error: nil)
+        return WindowUsage(usedPercent: min(1, max(0, normalized)), resetAt: resetAt, error: nil, periodSeconds: periodSeconds)
     }
 }

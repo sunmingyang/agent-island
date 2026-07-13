@@ -8,6 +8,9 @@ tag was cut.
 
 Targeting 1.6.1 — staged, held to ship together with the matching Windows parity work.
 
+### Changed
+- Codex moved to a single weekly quota in July 2026 (the 5-hour window is gone from its API). The usage tiles now label themselves from the window length the provider actually reports — Codex shows one "week" tile with the true reset countdown instead of a mislabeled "5h" plus a dead "no data" tile — and the out-of-quota alarm names the real window. Claude is unchanged (still 5-hour + weekly). macOS; Windows to follow.
+
 ### Fixed
 - macOS: auto-resume now keeps working while the screen is locked. As a menu-bar app, macOS suspended our background timers when the screen locked (App Nap), so a quota window that reset while you were away went unnoticed and the session never continued. We now opt out of that suspension — without keeping your Mac from sleeping — and refresh the instant you unlock, so a reset that landed during the lock is caught immediately. (Windows already kept running while locked.)
 

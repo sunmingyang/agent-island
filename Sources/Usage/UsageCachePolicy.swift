@@ -82,8 +82,12 @@ enum UsageCachePolicy {
     }
 
     static func cacheableCopy(_ usage: AppUsage) -> AppUsage? {
+        // A healthy fetch is cacheable even when the provider reports only
+        // one window (Codex's July 2026 shape: secondary_window gone, so the
+        // weekly slot carries a permanent "no data"). Requiring BOTH windows
+        // clean would have silently stopped caching Codex forever.
         guard usage.fiveHour.error == nil,
-              usage.weekly.error == nil,
+              usage.weekly.error == nil || usage.secondaryMissing,
               hasUsageValues(usage) else {
             return nil
         }
@@ -91,12 +95,16 @@ enum UsageCachePolicy {
             fiveHour: WindowUsage(
                 usedPercent: usage.fiveHour.usedPercent,
                 resetAt: usage.fiveHour.resetAt,
-                error: nil
+                error: nil,
+                periodSeconds: usage.fiveHour.periodSeconds
             ),
             weekly: WindowUsage(
                 usedPercent: usage.weekly.usedPercent,
                 resetAt: usage.weekly.resetAt,
-                error: nil
+                // Keep the "single window" marker so a cold start straight
+                // from cache hides the empty tile instead of showing 0%.
+                error: usage.secondaryMissing ? usage.weekly.error : nil,
+                periodSeconds: usage.weekly.periodSeconds
             ),
             plan: usage.plan
         )

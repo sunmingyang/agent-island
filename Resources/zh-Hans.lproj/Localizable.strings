@@ -149,6 +149,10 @@
 "Preview" = "预览";
 "resets in %d hours" = "%d 小时后重置";
 "resets in %d minutes" = "%d 分钟后重置";
+"resets in %d days" = "%d 天后重置";
+"%@: %d percent of weekly window used" = "%@：已使用周窗口的 %d%%";
+"%@: %d percent of weekly window used, %@" = "%@：已使用周窗口的 %d%%，%@";
+"%@: no data for weekly window" = "%@：周窗口暂无数据";
 "Swipe to change pages." = "滑动切换页面。";
 
 /* Auto-Trigger (Triggers tab) */

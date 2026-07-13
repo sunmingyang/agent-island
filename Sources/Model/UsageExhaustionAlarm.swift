@@ -141,10 +141,15 @@ final class UsageExhaustionAlarm {
         // and joins all Spaces, so it surfaces over fullscreen work on any
         // display. Posting a Notification Center banner alongside it just
         // showed the same thing twice (half of the "2-3 popups" report).
+        //
+        // Name the window by its REAL period, not its slot: Codex's primary
+        // slot has held a weekly window since July 2026, and an alarm that
+        // says "5-hour limit reached" for a week-long block would be a lie.
+        let window: QuotaWindowKind = ref.usage.isLongPeriod ? .weekly : ref.window
         TurnAlarmWindowController.shared.show(
             provider: ref.provider,
             thread: nil,
-            kind: .quotaExhausted(window: ref.window, resetAt: resetAt)
+            kind: .quotaExhausted(window: window, resetAt: resetAt)
         )
     }
 

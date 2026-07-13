@@ -149,6 +149,10 @@
 "Preview" = "Preview";
 "resets in %d hours" = "resets in %d hours";
 "resets in %d minutes" = "resets in %d minutes";
+"resets in %d days" = "resets in %d days";
+"%@: %d percent of weekly window used" = "%@: %d percent of weekly window used";
+"%@: %d percent of weekly window used, %@" = "%@: %d percent of weekly window used, %@";
+"%@: no data for weekly window" = "%@: no data for weekly window";
 "Swipe to change pages." = "Swipe to change pages.";
 "Triggers" = "Auto Resume";
 "Auto-Trigger" = "Auto Resume";

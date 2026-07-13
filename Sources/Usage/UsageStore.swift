@@ -210,12 +210,14 @@ final class UsageStore: ObservableObject {
             fiveHour: WindowUsage(
                 usedPercent: existing.fiveHour.usedPercent,
                 resetAt: existing.fiveHour.resetAt,
-                error: error
+                error: error,
+                periodSeconds: existing.fiveHour.periodSeconds
             ),
             weekly: WindowUsage(
                 usedPercent: existing.weekly.usedPercent,
                 resetAt: existing.weekly.resetAt,
-                error: error
+                error: error,
+                periodSeconds: existing.weekly.periodSeconds
             ),
             plan: existing.plan
         )

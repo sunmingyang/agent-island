@@ -6,10 +6,20 @@ struct WindowUsage: Codable {
     let usedPercent: Double
     let resetAt: Date?
     let error: String?
+    /// Window length as reported by the provider (Codex sends
+    /// limit_window_seconds; Claude's windows are the documented 5h/7d).
+    /// Drives display labels, so when a provider changes its quota model —
+    /// Codex replaced its 5-hour window with a single weekly one in July
+    /// 2026 — the tile relabels itself instead of lying under a hardcoded
+    /// "5h". nil on old cached snapshots; labels fall back to the slot name.
+    var periodSeconds: TimeInterval? = nil
 
     static let unknown = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data")
 
     var percentInt: Int { Int((usedPercent * 100).rounded()) }
+
+    /// A multi-day window (weekly-style) as opposed to an intra-day one.
+    var isLongPeriod: Bool { (periodSeconds ?? 0) >= 2 * 86400 }
 }
 
 struct AppUsage: Codable {
@@ -26,6 +36,13 @@ struct AppUsage: Codable {
     }
 
     static let empty = AppUsage(fiveHour: .unknown, weekly: .unknown)
+
+    /// True when the provider reported only ONE window on a healthy fetch —
+    /// Codex's July 2026 shape (a single weekly quota, secondary_window
+    /// gone). The UI hides the empty tile instead of pinning "no data".
+    /// Cold start (both unknown) and fetch failures (both carry the same
+    /// error) don't qualify, because the primary slot has an error too.
+    var secondaryMissing: Bool { weekly.error == "no data" && fiveHour.error == nil }
 
     /// Placeholder values shown when a provider is toggled off. Non-zero
     /// so the chart vocabulary stays visible (a 0% ring reads as broken,

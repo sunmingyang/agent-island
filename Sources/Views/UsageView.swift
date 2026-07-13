@@ -96,10 +96,18 @@ struct ChartsBlock: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack(spacing: 18) {
-                ChartTile(style: style, color: color, labelKey: "5h",
+                // Label the primary tile by the window length the provider
+                // actually reports — Codex's primary became a weekly window
+                // in July 2026, so it reads "week", not a hardcoded "5h".
+                ChartTile(style: style, color: color,
+                          labelKey: usage.fiveHour.isLongPeriod ? "week" : "5h",
                           window: usage.fiveHour, seed: seed)
-                ChartTile(style: style, color: color, labelKey: "week",
-                          window: usage.weekly, seed: seed + 1)
+                // A provider that reports only one window gets one tile — no
+                // permanent "no data" ghost for a window gone upstream.
+                if !usage.secondaryMissing {
+                    ChartTile(style: style, color: color, labelKey: "week",
+                              window: usage.weekly, seed: seed + 1)
+                }
             }
             if shouldOfferClaudeReauth {
                 ReauthButton()
