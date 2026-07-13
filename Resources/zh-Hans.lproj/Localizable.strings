@@ -165,11 +165,15 @@
 "Close" = "关闭";
 "Share weekly report" = "分享周报";
 "Share weekly report…" = "分享本周周报…";
-"WeChat" = "微信";
-"WeChat Official Accounts" = "微信公众号";
+"WeChat" = "微信（好友 / 朋友圈）";
 "X (Twitter)" = "X（Twitter）";
 "Xiaohongshu" = "小红书";
 "Douyin" = "抖音";
+"Send to your phone" = "发到手机";
+"Scan with WeChat → long-press the image → send to a chat, or save it and post to Moments" = "用微信「扫一扫」→ 长按图片\n→ 发送给朋友,或保存后发朋友圈";
+"Scan with your camera → save the image → post it in the app" = "用相机扫一扫 → 长按保存图片\n→ 到 App 里发布";
+"Same Wi-Fi as your Mac · image travels over your local network only, no servers" = "手机与 Mac 需连同一 Wi-Fi · 图片仅走本地局域网,不经过任何服务器";
+"Couldn't start local sharing — is Wi-Fi on?" = "本地分享启动失败——检查一下 Wi-Fi";
 "Instagram" = "Instagram";
 "Image copied — paste it into the composer" = "图片已复制——到发布框里粘贴即可";
 "Details unavailable right now." = "明细暂时不可用。";

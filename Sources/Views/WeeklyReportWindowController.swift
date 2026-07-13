@@ -130,7 +130,9 @@ private struct WeeklyReportSheet: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
-                actionButton(L10n.tr("Save PNG…")) { savePNG() }
+                // All three buttons white — the ghost pills were invisible
+                // against the dark backdrop (owner's call, 2026-07-14).
+                actionButton(L10n.tr("Save PNG…"), prominent: true) { savePNG() }
                 // The one native share button; WeChat/Xiaohongshu/… live
                 // INSIDE the system sheet (see ShareAnchor below).
                 ShareAnchor {
@@ -198,13 +200,17 @@ private struct ShareAnchor: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSButton {
         // The native macOS share control: icon-only square.and.arrow.up,
-        // exactly what every system app uses.
+        // exactly what every system app uses — restyled as a white pill so
+        // it matches the two buttons beside it (dark bezels were invisible).
         let button = NSButton(image: NSImage(systemSymbolName: "square.and.arrow.up",
                                              accessibilityDescription: L10n.tr("Share…"))!,
                               target: context.coordinator,
                               action: #selector(Coordinator.share(_:)))
-        button.bezelStyle = .rounded
-        button.controlSize = .regular
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor.white.cgColor
+        button.layer?.cornerRadius = 15
+        button.contentTintColor = .black
         return button
     }
 
@@ -249,12 +255,23 @@ private struct ShareAnchor: NSViewRepresentable {
                                          bottom: platform.bottomColor),
                     alternateImage: nil
                 ) { [weak self] in
-                    if let image {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.writeObjects([image])
+                    switch platform.action {
+                    case .phoneHandoff:
+                        // Mobile-first platforms (WeChat Moments, XHS, Douyin,
+                        // IG): the ONLY native-feeling path on macOS is to put
+                        // the image on the phone — QR over the local network,
+                        // then the platform's own share UI takes over.
+                        PhoneHandoffWindowController.shared.show(platformKey: platform.nameKey)
+                    case .webComposer(let raw):
+                        // Desktop-native platforms: copy the PNG, open the
+                        // composer, paste.
+                        if let image {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.writeObjects([image])
+                        }
+                        if let url = URL(string: raw) { NSWorkspace.shared.open(url) }
+                        self?.onPlatformPicked?()
                     }
-                    platform.open()
-                    self?.onPlatformPicked?()
                 }
             } + proposedServices
         }
@@ -266,45 +283,39 @@ private struct ShareAnchor: NSViewRepresentable {
 
         // MARK: Platforms
 
+        private enum PlatformAction {
+            case phoneHandoff
+            case webComposer(String)
+        }
+
         private struct Platform {
             let nameKey: String
             let glyph: String
             let topColor: NSColor
             let bottomColor: NSColor?
-            let appBundleID: String?
-            let url: String?
-
-            func open() {
-                if let appBundleID,
-                   let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: appBundleID) {
-                    NSWorkspace.shared.openApplication(at: appURL, configuration: .init())
-                } else if let url, let target = URL(string: url) {
-                    NSWorkspace.shared.open(target)
-                }
-            }
+            let action: PlatformAction
         }
 
+        // 公众号 removed — it's a publishing backend, not a social share
+        // target (owner's call, 2026-07-14).
         private static let platforms: [Platform] = [
             Platform(nameKey: "WeChat", glyph: "微",
-                     topColor: NSColor(srgbRed: 0.03, green: 0.76, blue: 0.38, alpha: 1), bottomColor: nil,
-                     appBundleID: "com.tencent.xinWeChat", url: nil),
-            Platform(nameKey: "WeChat Official Accounts", glyph: "公",
-                     topColor: NSColor(srgbRed: 0.02, green: 0.56, blue: 0.28, alpha: 1), bottomColor: nil,
-                     appBundleID: nil, url: "https://mp.weixin.qq.com/"),
+                     topColor: NSColor(srgbRed: 0.03, green: 0.76, blue: 0.38, alpha: 1),
+                     bottomColor: nil, action: .phoneHandoff),
             Platform(nameKey: "X (Twitter)", glyph: "𝕏",
-                     topColor: NSColor(srgbRed: 0.06, green: 0.08, blue: 0.10, alpha: 1), bottomColor: nil,
-                     appBundleID: nil,
-                     url: "https://x.com/intent/post?text=Agent%20Island%20Weekly%20%E2%80%94%20agent-island.dev"),
+                     topColor: NSColor(srgbRed: 0.06, green: 0.08, blue: 0.10, alpha: 1),
+                     bottomColor: nil,
+                     action: .webComposer("https://x.com/intent/post?text=Agent%20Island%20Weekly%20%E2%80%94%20agent-island.dev")),
             Platform(nameKey: "Xiaohongshu", glyph: "红",
-                     topColor: NSColor(srgbRed: 1.00, green: 0.14, blue: 0.26, alpha: 1), bottomColor: nil,
-                     appBundleID: nil, url: "https://creator.xiaohongshu.com/publish/publish"),
+                     topColor: NSColor(srgbRed: 1.00, green: 0.14, blue: 0.26, alpha: 1),
+                     bottomColor: nil, action: .phoneHandoff),
             Platform(nameKey: "Douyin", glyph: "抖",
-                     topColor: NSColor(srgbRed: 0.09, green: 0.09, blue: 0.14, alpha: 1), bottomColor: nil,
-                     appBundleID: nil, url: "https://creator.douyin.com/creator-micro/content/upload"),
+                     topColor: NSColor(srgbRed: 0.09, green: 0.09, blue: 0.14, alpha: 1),
+                     bottomColor: nil, action: .phoneHandoff),
             Platform(nameKey: "Instagram", glyph: "IG",
                      topColor: NSColor(srgbRed: 0.31, green: 0.36, blue: 0.84, alpha: 1),
                      bottomColor: NSColor(srgbRed: 0.84, green: 0.16, blue: 0.46, alpha: 1),
-                     appBundleID: nil, url: "https://www.instagram.com/"),
+                     action: .phoneHandoff),
         ]
 
         /// App-Store-style rounded tile with a bold white glyph — reads as an

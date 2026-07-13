@@ -165,11 +165,15 @@
 "Close" = "Close";
 "Share weekly report" = "Share weekly report";
 "Share weekly report…" = "Share weekly report…";
-"WeChat" = "WeChat";
-"WeChat Official Accounts" = "WeChat Official Accounts";
+"WeChat" = "WeChat (chats / Moments)";
 "X (Twitter)" = "X (Twitter)";
 "Xiaohongshu" = "Xiaohongshu";
 "Douyin" = "Douyin";
+"Send to your phone" = "Send to your phone";
+"Scan with WeChat → long-press the image → send to a chat, or save it and post to Moments" = "Scan with WeChat → long-press the image\n→ send to a chat, or save it and post to Moments";
+"Scan with your camera → save the image → post it in the app" = "Scan with your camera → save the image\n→ post it in the app";
+"Same Wi-Fi as your Mac · image travels over your local network only, no servers" = "Same Wi-Fi as your Mac · image travels over your local network only, no servers";
+"Couldn't start local sharing — is Wi-Fi on?" = "Couldn't start local sharing — is Wi-Fi on?";
 "Instagram" = "Instagram";
 "Image copied — paste it into the composer" = "Image copied — paste it into the composer";
 "Details unavailable right now." = "Details unavailable right now.";

@@ -104,6 +104,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Handoff-server smoke test: starts the LAN share server with the
+        // report PNG and logs the URL, so tooling can curl both routes
+        // without driving the UI. Stays running until killed.
+        if ProcessInfo.processInfo.environment["AGENTISLAND_HANDOFF_TEST"] != nil {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                let png = WeeklyReportRenderer.pngData() ?? Data()
+                let url = HandoffServer.shared.start(png: png)
+                NSLog("HANDOFF_URL=%@ bytes=%d", url?.absoluteString ?? "FAILED", png.count)
+            }
+        }
+
         // Same idea for the reset-card chip (taste iterations need eyes):
         // renders the chip at 10x against the panel background and exits.
         if let path = ProcessInfo.processInfo.environment["AGENTISLAND_CHIP_SNAPSHOT"] {
