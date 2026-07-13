@@ -131,12 +131,13 @@ struct WeeklyReportData {
             letters = days.map { letterFmt.string(from: $0) }
         }
 
-        // Lifetime milestone caption — recognition rides the card itself.
+        // Lifetime rank caption — recognition rides the card itself.
         let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
             .reduce(0) { $0 + $1.tokens }
         let milestoneText = MilestoneLadder.tokenTier(lifetime: lifetime).map { tier in
-            "🏆 " + L10n.tr(tier.titleKey) + " · "
-                + L10n.tr("lifetime %@ tokens", WeeklyReportCard.compactString(lifetime, zh: zh))
+            tier.emoji + " " + L10n.tr("%@ rank · lifetime %@ tokens",
+                                       L10n.tr(tier.nameKey),
+                                       WeeklyReportCard.compactString(lifetime, zh: zh))
         }
 
         return WeeklyReportData(

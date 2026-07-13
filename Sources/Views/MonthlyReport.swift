@@ -108,8 +108,9 @@ struct MonthlyReportData {
 
         let lifetime = daily.values.reduce(0, +)
         let milestoneText = MilestoneLadder.tokenTier(lifetime: lifetime).map { tier in
-            "🏆 " + L10n.tr(tier.titleKey) + " · "
-                + L10n.tr("lifetime %@ tokens", WeeklyReportCard.compactString(lifetime, zh: zh))
+            tier.emoji + " " + L10n.tr("%@ rank · lifetime %@ tokens",
+                                       L10n.tr(tier.nameKey),
+                                       WeeklyReportCard.compactString(lifetime, zh: zh))
         }
 
         return MonthlyReportData(

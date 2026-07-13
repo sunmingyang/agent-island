@@ -1,21 +1,26 @@
 import Foundation
 
-/// Token-tier ladder for the in-card milestone caption. Pure lookup — the
-/// recognition lives INSIDE the weekly/monthly cards as one line with an
-/// emoji (owner's call, 2026-07-14), not as any separate popup.
+/// The rank ladder for the in-card milestone caption — 方案 A "岛民史诗":
+/// one person drifts to the island, takes root, rules, then sails beyond.
+/// One coherent story from wave to crown; the top two tiers wear the
+/// diamond and the crown (owner's call — prestige metals cap the ladder,
+/// 王者荣耀-style). Every share teaches the brand name.
 enum MilestoneLadder {
     struct Tier {
         let threshold: Int
-        let titleKey: String
+        let nameKey: String   // L10n key for the rank name
+        let emoji: String
     }
 
     static let tokenTiers: [Tier] = [
-        Tier(threshold: 100_000_000, titleKey: "First 100M"),
-        Tier(threshold: 1_000_000_000, titleKey: "The 1B Club"),
-        Tier(threshold: 5_000_000_000, titleKey: "5B Deep"),
-        Tier(threshold: 10_000_000_000, titleKey: "The 10B Club"),
-        Tier(threshold: 50_000_000_000, titleKey: "The 50B Club"),
-        Tier(threshold: 100_000_000_000, titleKey: "The 100B Legend"),
+        Tier(threshold: 10_000_000, nameKey: "Drifter", emoji: "🌊"),
+        Tier(threshold: 100_000_000, nameKey: "Islander", emoji: "🏝️"),
+        Tier(threshold: 500_000_000, nameKey: "Settler", emoji: "⛺"),
+        Tier(threshold: 2_000_000_000, nameKey: "Pioneer", emoji: "🛖"),
+        Tier(threshold: 6_000_000_000, nameKey: "Chieftain", emoji: "🗿"),
+        Tier(threshold: 15_000_000_000, nameKey: "Island Lord", emoji: "🏰"),
+        Tier(threshold: 40_000_000_000, nameKey: "Archipelago King", emoji: "💎"),
+        Tier(threshold: 100_000_000_000, nameKey: "Legendary Navigator", emoji: "👑"),
     ]
 
     /// Highest tier the lifetime total has crossed, nil below the first.
