@@ -6,7 +6,9 @@ tag was cut.
 
 ## [Unreleased]
 
-Targeting 1.6.1 — macOS and Windows ship together.
+## [1.6.1] - 2026-07-14
+
+macOS and Windows ship together.
 
 ### Added
 - Weekly & monthly report cards (macOS + Windows): shareable cards with your total tokens and an "≈ API value" line, the Claude/Codex split, 7-day bars (weekly) or a 24-week activity heatmap with your current streak (monthly), and a TOP-5 model donut where every row carries tokens, dollars, and share — rows sum to the headline number. Copy image or share via the system sheet; the weekly card also greets you once per ISO week. Entries live in the panel footer, the menu-bar/tray menu, and Settings.
