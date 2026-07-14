@@ -14,14 +14,20 @@ public static class Pricing
     {
         // Anthropic
         ["claude-fable-5"] = new(10, 50, 12.5, 1.0),
+        ["claude-mythos-5"] = new(10, 50, 12.5, 1.0),
         ["claude-opus-4-8"] = new(5, 25, 6.25, 0.5),
         ["claude-opus-4-7"] = new(5, 25, 6.25, 0.5),
         ["claude-opus-4-6"] = new(5, 25, 6.25, 0.5),
         ["claude-opus-4-5"] = new(5, 25, 6.25, 0.5),
+        ["claude-opus-4-1"] = new(15, 75, 18.75, 1.5),
+        ["claude-sonnet-5"] = new(3, 15, 3.75, 0.3),
         ["claude-sonnet-4-6"] = new(3, 15, 3.75, 0.3),
         ["claude-sonnet-4-5"] = new(3, 15, 3.75, 0.3),
         ["claude-haiku-4-5"] = new(1, 5, 1.25, 0.1),
         // OpenAI
+        ["gpt-5.6-sol"] = new(5, 30, 5, 0.5),
+        ["gpt-5.6-terra"] = new(2.5, 15, 2.5, 0.25),
+        ["gpt-5.6-luna"] = new(1, 6, 1, 0.1),
         ["gpt-5.5"] = new(5, 30, 5, 0.5),
         ["gpt-5.4"] = new(2.5, 15, 2.5, 0.25),
         ["gpt-5.2"] = new(1.75, 14, 1.75, 0.175),

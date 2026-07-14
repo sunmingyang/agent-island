@@ -17,6 +17,15 @@ public static class ActivityStateExtensions
 {
     public static bool IsAttentionState(this ActivityState state) => state is
         ActivityState.Stalled or ActivityState.RateLimited or ActivityState.AuthRequired;
+
+    /// Live activity — a session is running, or something needs you. The
+    /// rotating comet sweep spins on these and rests otherwise: Idle and
+    /// NeedsYou (finished, waiting for your reply) are steady states where a
+    /// spinning comet reads as a stuck loader and needlessly drives the WPF
+    /// render thread.
+    public static bool IsActiveState(this ActivityState state) => state is
+        ActivityState.Working
+        or ActivityState.Stalled or ActivityState.RateLimited or ActivityState.AuthRequired;
 }
 
 public enum TriggerTool

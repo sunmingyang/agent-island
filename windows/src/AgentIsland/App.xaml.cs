@@ -23,6 +23,13 @@ public partial class App : System.Windows.Application
     private bool ClaimSingleInstance()
     {
         if (AppEnvironment.Current != AppMode.Normal) return true;
+        // One-shot headless card renders run beside the live instance and
+        // exit on their own; preference writes merge (P15), so this is safe.
+        if (Environment.GetEnvironmentVariable("AGENTISLAND_REPORT_SNAPSHOT") is not null
+            || Environment.GetEnvironmentVariable("AGENTISLAND_MONTHLY_SNAPSHOT") is not null)
+        {
+            return true;
+        }
         _singleInstance = new System.Threading.Mutex(
             initiallyOwned: false, @"Local\AgentIsland.SingleInstance");
         try
@@ -75,8 +82,40 @@ public partial class App : System.Windows.Application
         Update.UpdateInstaller.CleanupAtStartup();
         Update.UpdateChecker.Shared.Start();
         Cost.CostStore.Shared.StartAutoRefresh();
-        Trigger.TriggerEngine.Shared.Start();
+        // Auto-resume is retired (product call, 2026-07-13): the engine no
+        // longer starts, so nothing is ever spawned — the page, settings tab,
+        // and this start are the three gates; restore by re-enabling them.
+        // Trigger.TriggerEngine.Shared.Start();
         Model.AlertEngine.Shared.Start();
+
+        // Weekly report moment: once per ISO week, surface the card shortly
+        // after launch. Suppressed for demo/debug/snapshot runs.
+        var reportSnapshot = Environment.GetEnvironmentVariable("AGENTISLAND_REPORT_SNAPSHOT");
+        var monthlySnapshot = Environment.GetEnvironmentVariable("AGENTISLAND_MONTHLY_SNAPSHOT");
+        if (AppEnvironment.Current == AppMode.Normal
+            && reportSnapshot is null && monthlySnapshot is null)
+        {
+            UI.Report.ReportWindow.ArmWeeklyMoment();
+        }
+
+        // Headless card renders for tooling/screenshots, mirroring macOS.
+        if (!string.IsNullOrEmpty(reportSnapshot) || !string.IsNullOrEmpty(monthlySnapshot))
+        {
+            var snapshotDelay = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5), // the cost scan needs a beat
+            };
+            snapshotDelay.Tick += (_, _) =>
+            {
+                snapshotDelay.Stop();
+                if (!string.IsNullOrEmpty(reportSnapshot))
+                    UI.Report.ReportWindow.WritePng(UI.Report.ReportWindow.Kind.Weekly, reportSnapshot!);
+                if (!string.IsNullOrEmpty(monthlySnapshot))
+                    UI.Report.ReportWindow.WritePng(UI.Report.ReportWindow.Kind.Monthly, monthlySnapshot!);
+                Shutdown();
+            };
+            snapshotDelay.Start();
+        }
 
         // Scripted-verification hooks, mirroring the demo-only buttons on
         // macOS: never set in normal use.
@@ -94,6 +133,19 @@ public partial class App : System.Windows.Application
             if (Enum.TryParse<ActivityState>(stateName, ignoreCase: true, out var forced))
             {
                 ActivityMonitor.Shared.Demo(forced);
+            }
+            // _EXPANDED=1 renders the open panel (header chip, tiles, footer)
+            // instead of the compact bar; _SCREEN picks the carousel page
+            // without persisting it over the user's parked choice.
+            if (Enum.TryParse<UI.IslandScreen>(
+                    Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_ISLAND_SCREEN"),
+                    ignoreCase: true, out var screen))
+            {
+                UI.ScreenPref.Shared.ForceForVerification(screen);
+            }
+            if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_ISLAND_EXPANDED") == "1")
+            {
+                _island?.PopUp();
             }
             _island?.SaveVisualSnapshot(islandPng);
         }

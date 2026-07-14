@@ -59,11 +59,14 @@ public sealed class NotchPeekPill : TextBlock
             ? CompactCountdown(resetAt - now)
             : null;
         var mirrored = _tool == Core.TriggerTool.Codex;
+        // The no-countdown placeholder names the window's REAL period —
+        // Codex's primary slot has been a weekly window since July 2026.
+        var periodTag = Charts.ChartTile.PeriodLabel(usage, "5h");
 
         if (mirrored)
         {
             if (countdown is not null) Inlines.Add(Dim(countdown + " · ", 0.70));
-            else Inlines.Add(Dim("5h · ", 0.40));
+            else Inlines.Add(Dim(periodTag + " · ", 0.40));
             Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
             if (severity != Model.AlertSeverity.None)
             {
@@ -78,14 +81,16 @@ public sealed class NotchPeekPill : TextBlock
             }
             Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
             if (countdown is not null) Inlines.Add(Dim(" · " + countdown, 0.70));
-            else Inlines.Add(Dim(" · 5h", 0.40));
+            else Inlines.Add(Dim(" · " + periodTag, 0.40));
         }
     }
 
     public static string CompactCountdown(TimeSpan remaining)
     {
-        // Nh when >= 1h remaining (floored — 107m reads "1h"), Nm under 1h.
-        // Never mixed: "1h 47m" is too noisy for a glance pill.
+        // Day-unit first: a weekly window reads "6d", never "150h". Then Nh
+        // when >= 1h (floored — 107m reads "1h"), Nm under 1h. Never mixed:
+        // "1h 47m" is too noisy for a glance pill.
+        if (remaining.TotalDays >= 2) return $"{(int)remaining.TotalDays}d";
         if (remaining.TotalHours >= 1) return $"{(int)remaining.TotalHours}h";
         return $"{Math.Max(1, (int)Math.Round(remaining.TotalMinutes))}m";
     }

@@ -123,8 +123,27 @@ public sealed class PanelFooter : Grid
             UsageStore.Shared.Refresh();
             args.Handled = true;
         };
-        SetColumn(syncButton, 2);
-        row.Children.Add(syncButton);
+
+        // Report entries — labeled, because a bare glyph is invisible and
+        // nobody shares what they can't find. Weekly + monthly, same bright
+        // pill, every page (the panel's call-to-action).
+        var rightCluster = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        rightCluster.Children.Add(ReportPill(
+            Localization.L10n.Tr("Weekly"),
+            Localization.L10n.Tr("Share weekly report"),
+            () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly)));
+        rightCluster.Children.Add(ReportPill(
+            Localization.L10n.Tr("Monthly"),
+            Localization.L10n.Tr("Share monthly report"),
+            () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Monthly)));
+        rightCluster.Children.Add(syncButton);
+        SetColumn(rightCluster, 2);
+        row.Children.Add(rightCluster);
 
         // A single named handler so every subscription and the timer tear
         // down on Unloaded — a rebuilt island (e.g. language switch) would
@@ -155,6 +174,49 @@ public sealed class PanelFooter : Grid
         };
 
         Update();
+    }
+
+    /// Bright white pill with the share glyph — the report entry.
+    private static UIElement ReportPill(string label, string help, Action open)
+    {
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(new TextBlock
+        {
+            Text = "", // Segoe Fluent share glyph
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontSize = 9,
+            Foreground = Brushes.Black,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 4, 0),
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontFamily = IslandFonts.Ui,
+            FontSize = 10,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.Black,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var pill = new Border
+        {
+            Child = content,
+            CornerRadius = new CornerRadius(9),
+            Background = IslandColors.Brush(Colors.White, 0.92),
+            Padding = new Thickness(8, 2.5, 8, 2.5),
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = help,
+        };
+        pill.MouseEnter += (_, _) => pill.Background = Brushes.White;
+        pill.MouseLeave += (_, _) => pill.Background = IslandColors.Brush(Colors.White, 0.92);
+        pill.MouseLeftButtonUp += (_, args) =>
+        {
+            open();
+            args.Handled = true;
+        };
+        return pill;
     }
 
     private void Update()
@@ -263,6 +325,10 @@ public sealed class LiveDot : Grid
             (_, _) => Dispatcher.BeginInvoke(MaybeBump);
         Usage.UsageStore.Shared.PropertyChanged += onSync;
         Unloaded += (_, _) => Usage.UsageStore.Shared.PropertyChanged -= onSync;
+        // Pause/resume the breath as the dot enters/leaves the visual tree —
+        // a compact island collapses the footer, and a forever animation on
+        // the hidden dot would keep repainting the whole transparent window.
+        IsVisibleChanged += (_, _) => ApplyBreath();
         SetActive(false);
     }
 
@@ -270,11 +336,23 @@ public sealed class LiveDot : Grid
     {
         if (_active == active) return;
         _active = active;
-        if (active)
+        _core.Fill = active
+            ? IslandColors.Brush(IslandColors.LiveTeal, 0.9)
+            : IslandColors.Brush(IslandColors.White(0.25));
+        ApplyBreath();
+    }
+
+    /// The ~2.4s breath runs only while the dot is BOTH active AND actually
+    /// visible. On the collapsed compact footer a forever animation would
+    /// otherwise repaint the transparent window every frame for a dot nobody
+    /// can see — the dominant idle-CPU cost on Windows (a layered window
+    /// re-composites in full on each animation tick, however small the tick).
+    private void ApplyBreath()
+    {
+        var scale = (ScaleTransform)_halo.RenderTransform;
+        if (_active && IsVisible)
         {
-            _core.Fill = IslandColors.Brush(IslandColors.LiveTeal, 0.9);
-            var scale = (ScaleTransform)_halo.RenderTransform;
-            // ~2.4s breath: halo swells 1 -> 1.6 while fading out.
+            // halo swells 1 -> 1.6 while fading out.
             var grow = new DoubleAnimation(1.0, 1.6, new Duration(TimeSpan.FromSeconds(1.2)))
             {
                 AutoReverse = true,
@@ -293,12 +371,10 @@ public sealed class LiveDot : Grid
         }
         else
         {
-            var scale = (ScaleTransform)_halo.RenderTransform;
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
             _halo.BeginAnimation(OpacityProperty, null);
             _halo.Opacity = 0;
-            _core.Fill = IslandColors.Brush(IslandColors.White(0.25));
         }
     }
 
