@@ -32,7 +32,11 @@ SPARKLE_FW="$SPARKLE_DIR/Sparkle.framework"
 # changing it strands them.
 SU_PUBLIC_KEY="6WJHeBVv3Ft3hRGnmsSEQ8T7AW8jurRQiBfTPtJ5gK0="
 
-SU_FEED_URL="${SU_FEED_URL:-https://github.com/tristan666666/agent-island/releases/latest/download/appcast.xml}"
+# Default EMPTY for local/dev builds: a dev instance with a live feed will
+# Sparkle-update ITSELF the moment a new release ships — it trashes its own
+# bundle out of the build dir and leaves a ghost process with no resources
+# (2026-07-14 incident). The release workflow passes the real feed URL.
+SU_FEED_URL="${SU_FEED_URL:-}"
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$MACOS_DIR" "$RES_DIR" "$FRAMEWORKS_DIR"
