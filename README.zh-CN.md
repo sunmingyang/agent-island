@@ -14,7 +14,7 @@
 [![Windows 10+](https://img.shields.io/badge/Windows-10%2B%20·%20%E5%8E%9F%E7%94%9F%20WPF-0078d4?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
 [![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
-[![已收录 中国独立开发者项目列表](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-%E4%B8%AD%E5%9B%BD%E7%8B%AC%E7%AB%8B%E5%BC%80%E5%8F%91%E8%80%85%E9%A1%B9%E7%9B%AE%E5%88%97%E8%A1%A8-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/blob/2848c43662cae8a727065068e7d7d5ce697f4d77/README.md#L29-L30)
+[![已收录 中国独立开发者项目列表](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-%E4%B8%AD%E5%9B%BD%E7%8B%AC%E7%AB%8B%E5%BC%80%E5%8F%91%E8%80%85%E9%A1%B9%E7%9B%AE%E5%88%97%E8%A1%A8-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
 [![已收录 awesome-mac](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README-zh.md#%E8%8F%9C%E5%8D%95%E6%A0%8F%E5%B7%A5%E5%85%B7)
 [![已收录 awesome-swift-macos-apps](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
 [![已收录 awesome-codex-cli](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--codex--cli-10b981?style=flat-square)](https://github.com/milisp/awesome-codex-cli)
