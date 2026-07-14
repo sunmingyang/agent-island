@@ -6,16 +6,30 @@ tag was cut.
 
 ## [Unreleased]
 
-Targeting 1.6.1 — staged, held to ship together with the matching Windows parity work.
-
-### Changed
-- Codex moved to a single weekly quota in July 2026 (the 5-hour window is gone from its API). The usage tiles now label themselves from the window length the provider actually reports — Codex shows one "week" tile with the true reset countdown instead of a mislabeled "5h" plus a dead "no data" tile — and the out-of-quota alarm names the real window. Claude is unchanged (still 5-hour + weekly). macOS; Windows to follow.
-
-### Fixed
-- macOS: auto-resume now keeps working while the screen is locked. As a menu-bar app, macOS suspended our background timers when the screen locked (App Nap), so a quota window that reset while you were away went unnoticed and the session never continued. We now opt out of that suspension — without keeping your Mac from sleeping — and refresh the instant you unlock, so a reset that landed during the lock is caught immediately. (Windows already kept running while locked.)
+Targeting 1.6.1 — macOS and Windows ship together.
 
 ### Added
-- macOS: opening the island refreshes usage when it has gone stale, so the numbers are current the moment you look — capped by your refresh interval, so it never polls the rate-limited endpoint any faster than the background schedule already would.
+- Weekly & monthly report cards (macOS + Windows): shareable cards with your total tokens and an "≈ API value" line, the Claude/Codex split, 7-day bars (weekly) or a 24-week activity heatmap with your current streak (monthly), and a TOP-5 model donut where every row carries tokens, dollars, and share — rows sum to the headline number. Copy image or share via the system sheet; the weekly card also greets you once per ISO week. Entries live in the panel footer, the menu-bar/tray menu, and Settings.
+- Island ranks: seven lifetime-token tiers, from 🌊 Drifter (100M) to 👑 Legendary Navigator (100B), printed on both cards.
+- Codex reset cards: an ×N chip shows your banked resets; clicking it lists each card with its expiry.
+- Usage fetches now retry transient network failures (SSL hiccups, timeouts) with backoff before showing anything; if the network stays down, the panel keeps your last data with a short "network drop" caption instead of a raw system error.
+
+### Changed
+- Codex moved to a single weekly quota in July 2026 (the 5-hour window is gone from its API). The usage tiles label themselves from the window length the provider actually reports — Codex shows one "week" tile with the true reset countdown — and the out-of-quota alarm names the real window. Claude is unchanged (still 5-hour + weekly).
+- Model pricing snapshot refreshed (2026-07-13): Claude Fable 5 / Mythos 5 / Sonnet 5 / Opus 4.5–4.8 / Haiku 4.5, GPT-5.6 sol·terra·luna, GPT-5.5/5.4 and pro tiers — cost figures track current list prices.
+- The cost page is the panel's default page; the weekly model breakdown counts all tokens (cache included) over the calendar week, so what you share adds up.
+- Settings: share entries for the weekly/monthly cards sit bottom-right, Quit moved next to GitHub, the License link is gone, and the "Open threads via" picker is removed — threads always open in the desktop app.
+
+### Fixed
+- macOS: background timers now survive the locked screen (App Nap opt-out) — quota tracking and alarms stay live while you're away, without keeping the Mac awake — and usage refreshes the instant you unlock. Opening the island also refreshes stale numbers, capped by your refresh interval.
+- Report windows rebuild their content on every open, so a language switch or fresh data is always reflected immediately.
+- Codex's single-window world no longer renders a dead second tile or a permanent "no data" caption.
+- Settings footer no longer overflows in English (the Quit button was being crushed into a vertical letter-stack).
+- Windows: reset-card popup no longer snaps the panel shut; report-card layout is elastic with a visible close control; idle animations no longer peg the CPU; session scans cache turn-parses on an (mtime, size) fingerprint.
+
+### Removed
+- Auto-resume is retired on both platforms. OpenAI's move to weekly quotas removed the 5-hour reset cycle it was built around, and its real-world reliability never met the bar. All trigger surfaces are hidden; the code remains for a possible future return.
+- The Codex 5-hour quota alarm and Codex credits displays.
 
 ## [1.5.7] - 2026-07-12
 

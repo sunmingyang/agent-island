@@ -493,6 +493,7 @@ final class MonthlyReportWindowController: NSWindowController, NSWindowDelegate 
     }
 }
 
+@MainActor
 private struct MonthlyReportSheet: View {
     @State private var copied = false
     @State private var coach: String?

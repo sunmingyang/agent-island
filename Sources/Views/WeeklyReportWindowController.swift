@@ -144,6 +144,7 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
+@MainActor
 private struct WeeklyReportSheet: View {
     @State private var copied = false
     @State private var coach: String?
