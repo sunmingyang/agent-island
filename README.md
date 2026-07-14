@@ -4,13 +4,11 @@
 
 # Agent Island
 
-**A status companion for Claude Code and Codex.**
-
-It lives in your MacBook's notch — or in a native top bar / floating widget on Windows. Spinning logo = agent working. Alarm = your turn. Red = something needs you.
-
-On the Mac it fits notched and non-notched machines alike (notch-style or compact top bar). On Windows it's a native WPF companion with the same detection engine — as far as we know, the only one of its kind on Windows.
+**A status companion for Claude Code and Codex — it lives in your notch.**
 
 **[agent-island.dev](https://agent-island.dev)** · [简体中文](README.zh-CN.md)
+
+<img src="Assets/hero-banner-en.png" alt="Agent Island — live status, usage & cost, report cards & ranks, your-turn alarm" width="900">
 
 [![Latest release](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
@@ -43,8 +41,6 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
 
 <p><strong>If Agent Island saves you one stalled overnight Claude/Codex run, star it so more people running these agents — on Mac or Windows — can find it.</strong></p>
 
-<img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760">
-
 </div>
 
 ## Why
@@ -62,6 +58,8 @@ That's the whole point: maximum throughput from the machines, and your life back
 
 ### ⚡ Live status in the top bar
 
+<img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760">
+
 The Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
 
 | Cue | Meaning |
@@ -71,6 +69,13 @@ The Claude and Codex logos mirror what your sessions are actually doing. Detecti
 | Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
 
 <img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
+
+### 📊 Usage island
+
+Live usage, cost, and reset countdowns appear on swipeable pages in the notch, fed by each provider's own usage API. Claude shows 5-hour and weekly usage.
+Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
+
+<img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
 
 ### 🏆 Weekly & monthly report cards — new in 1.6.1
 
@@ -87,9 +92,27 @@ Codex **reset cards** ride along: an ×N chip in the island shows your banked re
 
 ### 🎨 Five looks for your quota
 
-Command-click the island to cycle the chart style — stepped, digits, line, ring, or bars — and flip between used/remaining. Your quota, your way.
+One island, five dials — ⌘-click to switch, flip used ↔ remaining anytime.
 
-<img src="Assets/chart-styles-en.png" alt="The five chart styles: stepped, digits, line, ring, bars" width="900">
+**Stepped**
+
+<img src="Assets/style-stepped-en.png" alt="Stepped chart style" width="900">
+
+**Digits**
+
+<img src="Assets/style-digits-en.png" alt="Digits chart style" width="900">
+
+**Line**
+
+<img src="Assets/style-line-en.png" alt="Line chart style" width="900">
+
+**Ring**
+
+<img src="Assets/style-ring-en.png" alt="Ring chart style" width="900">
+
+**Bars**
+
+<img src="Assets/style-bars-en.png" alt="Bars chart style" width="900">
 
 ### 🖥️ Fits your desk — Mac and Windows
 
@@ -105,6 +128,18 @@ On Windows, [Agent Island for Windows](windows/) runs the same detection engine 
 
 Either way it stays a lightweight native companion — no Electron on either platform.
 
+### ⛽ Out-of-quota alarm
+
+Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a Claude quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). It fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent.
+
+<img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm for Claude with the reset time" width="420">
+
+### 🌏 Native and bilingual
+
+Native SwiftUI — no Electron. English and 简体中文, switchable in Settings. macOS 13+, universal binary (Apple Silicon + Intel).
+
+Windows is here too: [Agent Island for Windows](windows/) is a native WPF port with the same detection engine. More platform notes on [agent-island.dev](https://agent-island.dev).
+
 ### 🔔 "It's your turn" alarms
 
 When a turn finishes in a background session, Agent Island opens a foreground alarm window, posts a system notification, and plays a sound (built-in choices, or bring your own file). Alarms land a few seconds after the turn actually ends.
@@ -119,25 +154,6 @@ When a turn finishes in a background session, Agent Island opens a foreground al
     <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Turn alarm for a finished Codex thread" width="420"></td>
   </tr>
 </table>
-
-### ⛽ Out-of-quota alarm
-
-Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a Claude quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). It fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent.
-
-<img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm for Claude with the reset time" width="420">
-
-### 📊 Usage island
-
-Live usage, cost, and reset countdowns appear on swipeable pages in the notch, fed by each provider's own usage API. Claude shows 5-hour and weekly usage.
-Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
-
-<img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
-
-### 🌏 Native and bilingual
-
-Native SwiftUI — no Electron. English and 简体中文, switchable in Settings. macOS 13+, universal binary (Apple Silicon + Intel).
-
-Windows is here too: [Agent Island for Windows](windows/) is a native WPF port with the same detection engine. More platform notes on [agent-island.dev](https://agent-island.dev).
 
 ## Install
 

@@ -4,13 +4,11 @@
 
 # Agent Island
 
-**Claude Code 和 Codex 的状态伴侣。**
-
-它住在你 MacBook 的刘海里 —— 在 Windows 上则是原生顶部条 / 悬浮小窗。logo 旋转 = agent 在跑；闹钟响 = 该你了；变红 = 有事要你处理。
-
-Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows 版是同一套检测引擎的原生 WPF 伴侣 —— 据我们所知，Windows 上目前没有第二个这样的东西。
+**Claude Code 和 Codex 的状态伴侣——常驻你的刘海。**
 
 **[agent-island.dev](https://agent-island.dev/zh/)** · [English](README.md)
+
+<img src="Assets/hero-banner-zh.png" alt="Agent Island——实时状态、用量与成本、战绩卡与段位、轮到你提醒" width="900">
 
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
@@ -43,8 +41,6 @@ Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows
 
 <p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多在 Mac 和 Windows 上跑这些 agent 的人找到它。</strong></p>
 
-<img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760">
-
 </div>
 
 ## 为什么做它
@@ -61,6 +57,8 @@ Agent Island 出自一个 Claude Code + Codex 重度用户的两个日常：
 
 ### ⚡ 顶部条上的实时状态
 
+<img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760">
+
 Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
 
 | 表现 | 含义 |
@@ -70,6 +68,12 @@ Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动
 | logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
 
 <img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
+
+### 📊 用量岛
+
+Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
+
+<img src="Assets/agent-island-usage-zh.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
 
 ### 🏆 周报 / 月报战绩卡 —— 1.6.1 新增
 
@@ -86,9 +90,27 @@ Codex **重置卡**同步登岛：岛上的 ×N 徽标显示你囤的重置卡�
 
 ### 🎨 额度的五种画法
 
-⌘点击小岛即可轮换图表样式——阶梯、数字、折线、环形、柱状——还能一键切换「已用 / 剩余」口径。你的额度，按你的习惯看。
+一座岛，五种表盘——⌘ 点击即换，已用 / 剩余随手切。
 
-<img src="Assets/chart-styles-zh.png" alt="五种图表样式：阶梯、数字、折线、环形、柱状" width="900">
+**阶梯**
+
+<img src="Assets/style-stepped-zh.png" alt="阶梯样式" width="900">
+
+**数字**
+
+<img src="Assets/style-digits-zh.png" alt="数字样式" width="900">
+
+**折线**
+
+<img src="Assets/style-line-zh.png" alt="折线样式" width="900">
+
+**环形**
+
+<img src="Assets/style-ring-zh.png" alt="环形样式" width="900">
+
+**柱状**
+
+<img src="Assets/style-bars-zh.png" alt="柱状样式" width="900">
 
 ### 🖥️ Mac 和 Windows 都有它的位置
 
@@ -104,6 +126,18 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
 
 无论哪种形态，都是原生轻量伴侣 —— 两个平台都没有 Electron。
 
+### ⛽ 额度用完弹窗
+
+撞上限流和跑完一轮是两种事件，配得上两种打断：Claude 的额度窗口一到 100%，会弹一个独立提醒，真实重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。
+
+<img src="docs/assets/releases/quota-alarm.png" alt="Claude 额度用完弹窗与重置时间" width="420">
+
+### 🌏 原生、双语
+
+原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
+
+Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测引擎的原生 WPF 移植。更多平台说明见 [agent-island.dev](https://agent-island.dev/zh/)。
+
 ### 🔔 到你回复提醒
 
 后台会话一轮跑完时，Agent Island 会弹出前台闹钟窗口、发系统通知、播放提示音（内置几种，也可以用你自己的音频文件）。提醒在轮次真正结束后的几秒内送达。
@@ -118,24 +152,6 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
     <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
   </tr>
 </table>
-
-### ⛽ 额度用完弹窗
-
-撞上限流和跑完一轮是两种事件，配得上两种打断：Claude 的额度窗口一到 100%，会弹一个独立提醒，真实重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。
-
-<img src="docs/assets/releases/quota-alarm.png" alt="Claude 额度用完弹窗与重置时间" width="420">
-
-### 📊 用量岛
-
-Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
-
-<img src="Assets/agent-island-usage-zh.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
-
-### 🌏 原生、双语
-
-原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
-
-Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测引擎的原生 WPF 移植。更多平台说明见 [agent-island.dev](https://agent-island.dev/zh/)。
 
 ## 安装
 
