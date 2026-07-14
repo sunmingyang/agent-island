@@ -27,7 +27,9 @@ if ! command -v create-dmg >/dev/null 2>&1; then
   exit 1
 fi
 
-./build.sh
+# Release builds carry the live Sparkle feed; dev builds default to none
+# (a dev instance once self-updated and trashed its own bundle).
+SU_FEED_URL="https://github.com/tristan666666/agent-island/releases/latest/download/appcast.xml" ./build.sh
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
