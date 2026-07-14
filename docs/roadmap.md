@@ -5,11 +5,11 @@ Agent Island is focused on one job first: keep Claude Code and Codex status visi
 ## Shipping now
 
 - Native macOS top-bar companion for Claude Code, Claude Desktop, Codex CLI, and the Codex app.
-- Agent Island for Windows: a native WPF port with the same detection engine ([windows/](../windows/)).
+- One app, native on both platforms: SwiftUI on macOS, WPF on Windows ([windows/](../windows/)), same detection engine.
 - Turn alarms when a background run finishes and needs your reply.
 - Live provider logo states: working, idle, your turn, and needs attention.
-- Claude and Codex usage, reset windows, and cost pages.
-- Auto-continue rules after usage resets, with a kill switch, project allow list, and run logs.
+- Claude and Codex usage, reset windows, and cost pages — plus Codex reset-card tracking.
+- Weekly & monthly report cards with island ranks: your tokens, API value, and model mix as a shareable image, rendered locally.
 - English and Simplified Chinese.
 - Notch-style and compact top-bar layouts, so both notched and non-notched Macs can use it.
 
