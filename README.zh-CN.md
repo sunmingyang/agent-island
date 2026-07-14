@@ -8,8 +8,6 @@
 
 **[agent-island.dev](https://agent-island.dev/zh/)** · [English](README.md)
 
-<img src="Assets/hero-banner-zh.png" alt="Agent Island——实时状态、用量与成本、战绩卡与段位、轮到你提醒" width="900">
-
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
 [![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
@@ -42,16 +40,6 @@
 <p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多在 Mac 和 Windows 上跑这些 agent 的人找到它。</strong></p>
 
 </div>
-
-## 为什么做它
-
-Agent Island 出自一个 Claude Code + Codex 重度用户的两个日常：
-
-**把每一分 token 用到位。** 两个工具一起用，就要同时盯不同的额度时钟——Claude 的 5 小时与周额度、Codex 的周额度。交叉用好它们，才对得起你付的钱。所以：双家用量、成本、重置倒计时，顶部条一眼看完。
-
-**AI 在干活，你不必盯着。** 任务在跑的时候不需要你，它停下来的那一刻才需要你。Agent Island 盯的就是那个时刻——轮到你时，岛会亮起来，把你叫回来。写代码不该霸占你的整个晚上。
-
-这就是全部初心：机器的产出拉满，人从循环里拿回自己的生活。
 
 ## 功能
 
@@ -112,31 +100,12 @@ Codex **重置卡**同步登岛：岛上的 ×N 徽标显示你囤的重置卡�
 
 <img src="Assets/style-bars-zh.png" alt="柱状样式" width="900">
 
-### 🖥️ Mac 和 Windows 都有它的位置
+### 🖥️ 一个应用，macOS 和 Windows 原生
 
-Mac 上，Agent Island 不只适合有摄像头刘海的 MacBook。你可以在设置里选择：
+同一个产品、同一套检测引擎，双端都无 Electron。中英双语，设置里即切。
 
-- **宽版顶部条**：适合 MacBook 的刘海风格布局。
-- **紧凑顶部条**：适合无刘海 Mac、外接显示器、iMac、Mac mini 和旧款 MacBook。
-
-Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检测引擎，有自己的摆放模式：
-
-- **顶部条** —— 标志性的岛屿造型，居中贴在屏幕顶边。
-- **悬浮小窗** —— 可拖动、记住位置；品牌托盘图标常驻显示用量环和状态色。
-
-无论哪种形态，都是原生轻量伴侣 —— 两个平台都没有 Electron。
-
-### ⛽ 额度用完弹窗
-
-撞上限流和跑完一轮是两种事件，配得上两种打断：Claude 的额度窗口一到 100%，会弹一个独立提醒，真实重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。
-
-<img src="docs/assets/releases/quota-alarm.png" alt="Claude 额度用完弹窗与重置时间" width="420">
-
-### 🌏 原生、双语
-
-原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
-
-Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测引擎的原生 WPF 移植。更多平台说明见 [agent-island.dev](https://agent-island.dev/zh/)。
+- **macOS 13+**（SwiftUI，通用二进制）：刘海机用宽版顶部条，其余设备用紧凑顶部条。
+- **Windows 10/11**（WPF）：顶部条或可拖动悬浮小窗，托盘图标常显用量环。
 
 ### 🔔 到你回复提醒
 
@@ -144,6 +113,7 @@ Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测�
 
 - **回复了就自动消失** —— 你在线程里接上话，闹钟自己收窗，不留死窗口。
 - **多个完成不互吞** —— 几轮同时跑完会排队提醒，关掉一个，下一个接着来。
+- **额度也算数** —— Claude 某个额度窗口打满 100% 时，会单独弹一次提醒，写明真实恢复时间，每个周期只弹一次。
 - **「回去处理」带你回去** —— Codex 会话经 `codex://threads/…` 直投正在运行的应用、落在具体线程上；Claude CLI 会话在终端里从会话自己的目录 `claude --resume` 真正续跑；Claude Desktop 会话把 Claude Desktop 带到前台（Claude 没有任何能落到具体对话的外部入口 —— 装作能做到才是骗人）。
 
 <table>
@@ -154,8 +124,6 @@ Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测�
 </table>
 
 ## 安装
-
-> **用 Windows?** 这里有 [**Agent Island for Windows**](windows/) —— 同一套检测引擎的原生 WPF 移植([下载](https://github.com/tristan666666/agent-island/releases/latest))。
 
 ```sh
 brew install tristan666666/tap/agentisland

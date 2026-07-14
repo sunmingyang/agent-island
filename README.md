@@ -8,8 +8,6 @@
 
 **[agent-island.dev](https://agent-island.dev)** · [简体中文](README.zh-CN.md)
 
-<img src="Assets/hero-banner-en.png" alt="Agent Island — live status, usage & cost, report cards & ranks, your-turn alarm" width="900">
-
 [![Latest release](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
 [![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
@@ -42,17 +40,6 @@
 <p><strong>If Agent Island saves you one stalled overnight Claude/Codex run, star it so more people running these agents — on Mac or Windows — can find it.</strong></p>
 
 </div>
-
-## Why
-
-Agent Island was built by a heavy Claude Code + Codex user, out of two everyday realities:
-
-**Squeeze every token.** Running both tools daily means juggling different quota clocks. Claude reports 5-hour and weekly windows.
-Codex reports one weekly window. Cross-using them well is how you get the most out of what you pay for. So: live usage, cost, and reset countdowns for both, one glance in the top bar.
-
-**Start the run, then go live your life.** You brief the agent for one round — then you should be able to walk away: play with your kids, hit the gym, watch a movie. The agent doesn't need you while it runs; it needs you when it stops. Agent Island watches for that exact moment and rings you when it's your turn, so coding doesn't own your evening.
-
-That's the whole point: maximum throughput from the machines, and your life back from the loop.
 
 ## Features
 
@@ -114,31 +101,12 @@ One island, five dials — ⌘-click to switch, flip used ↔ remaining anytime.
 
 <img src="Assets/style-bars-en.png" alt="Bars chart style" width="900">
 
-### 🖥️ Fits your desk — Mac and Windows
+### 🖥️ One app, native on macOS and Windows
 
-On the Mac, Agent Island is not limited to MacBooks with a camera notch. In Settings you can choose:
+Same product, same detection engine, no Electron. English and 简体中文, switchable in Settings.
 
-- **Wide top bar** for MacBook notch-style layouts.
-- **Compact top bar** for non-notched Macs, external displays, iMac, Mac mini, and older MacBooks.
-
-On Windows, [Agent Island for Windows](windows/) runs the same detection engine in a native WPF shell, with its own placement modes:
-
-- **Top bar** — the signature island look, centered on the top edge.
-- **Floating widget** — a draggable card that remembers its spot; a brand tray icon shows a usage ring and state color at all times.
-
-Either way it stays a lightweight native companion — no Electron on either platform.
-
-### ⛽ Out-of-quota alarm
-
-Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a Claude quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). It fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent.
-
-<img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm for Claude with the reset time" width="420">
-
-### 🌏 Native and bilingual
-
-Native SwiftUI — no Electron. English and 简体中文, switchable in Settings. macOS 13+, universal binary (Apple Silicon + Intel).
-
-Windows is here too: [Agent Island for Windows](windows/) is a native WPF port with the same detection engine. More platform notes on [agent-island.dev](https://agent-island.dev).
+- **macOS 13+** (SwiftUI, universal binary): wide top bar for notched MacBooks, compact top bar for everything else.
+- **Windows 10/11** (WPF): top bar or a draggable floating widget, with a tray icon showing a usage ring at all times.
 
 ### 🔔 "It's your turn" alarms
 
@@ -146,6 +114,7 @@ When a turn finishes in a background session, Agent Island opens a foreground al
 
 - **Reply and it goes away** — the alarm auto-dismisses once you answer in the thread; no stale windows.
 - **Nothing gets swallowed** — if several turns finish, alarms queue; dismissing one recalls the next.
+- **Quota counts too** — if a Claude window hits 100%, one separate alarm shows the real reset time, once per cycle.
 - **Open thread** takes you back: Codex sessions land on the exact thread via `codex://threads/…` delivered to the running app; Claude CLI sessions resume for real with `claude --resume` from the session's own directory; Claude Desktop sessions bring Claude Desktop to the front (no conversation-level deep link exists — anything more would be pretend).
 
 <table>
@@ -157,13 +126,11 @@ When a turn finishes in a background session, Agent Island opens a foreground al
 
 ## Install
 
-> **On Windows?** Grab [**Agent Island for Windows**](windows/) — a native WPF port with the same detection engine ([download](https://github.com/tristan666666/agent-island/releases/latest)).
-
 ```sh
 brew install tristan666666/tap/agentisland
 ```
 
-**Windows** (new):
+**Windows**:
 
 Download [`AgentIsland-win-x64.zip`](https://github.com/tristan666666/agent-island/releases/latest) from the latest release, unzip, and run `AgentIsland.exe`.
 
