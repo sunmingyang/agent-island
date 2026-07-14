@@ -41,88 +41,6 @@
 
 </div>
 
-## 功能
-
-### ⚡ 顶部条上的实时状态
-
-<img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760">
-
-Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
-
-| 表现 | 含义 |
-|---|---|
-| logo **旋转** | 有会话正在跑 |
-| logo **静止** | 没有任务在跑 —— 或者这一轮结束，该你了 |
-| logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
-
-<img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
-
-### 📊 用量岛
-
-Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
-
-<img src="Assets/agent-island-usage-zh.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
-
-### 🏆 周报 / 月报战绩卡 —— 1.6.1 新增
-
-一键把你的一周（或半年）渲染成一张可分享的卡片：Token 总量与「≈ API 费用」、Claude/Codex 占比、TOP-5 模型明细（用量 · 花费 · 占比）、24 周活跃热力图与连击天数——还有你的**岛民段位**：从 🌊 漂流者（1 亿）到 👑 传奇航海家（1000 亿）共七级。全部在本机渲染，图片由你自己复制、自己发。
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/report-weekly-zh.png" alt="周报卡：Token 总量、API 费用、双引擎占比、TOP-5 模型环形图、岛民段位" width="380"></td>
-    <td align="center"><img src="Assets/report-monthly-zh.png" alt="月报卡：24 周活跃热力图、连击天数、岛民段位" width="380"></td>
-  </tr>
-</table>
-
-Codex **重置卡**同步登岛：岛上的 ×N 徽标显示你囤的重置卡，点开看每张的到期时间。
-
-### 🎨 额度的五种画法
-
-一座岛，五种表盘——⌘ 点击即换，已用 / 剩余随手切。
-
-**阶梯**
-
-<img src="Assets/style-stepped-zh.png" alt="阶梯样式" width="900">
-
-**数字**
-
-<img src="Assets/style-digits-zh.png" alt="数字样式" width="900">
-
-**折线**
-
-<img src="Assets/style-line-zh.png" alt="折线样式" width="900">
-
-**环形**
-
-<img src="Assets/style-ring-zh.png" alt="环形样式" width="900">
-
-**柱状**
-
-<img src="Assets/style-bars-zh.png" alt="柱状样式" width="900">
-
-### 🖥️ 一个应用，macOS 和 Windows 原生
-
-同一个产品、同一套检测引擎，双端都无 Electron。中英双语，设置里即切。
-
-- **macOS 13+**（SwiftUI，通用二进制）：刘海机用宽版顶部条，其余设备用紧凑顶部条。
-- **Windows 10/11**（WPF）：顶部条或可拖动悬浮小窗，托盘图标常显用量环。
-
-### 🔔 到你回复提醒
-
-后台会话一轮跑完时，Agent Island 会弹出前台闹钟窗口、发系统通知、播放提示音（内置几种，也可以用你自己的音频文件）。提醒在轮次真正结束后的几秒内送达。
-
-- **回复了就自动消失** —— 你在线程里接上话，闹钟自己收窗，不留死窗口。
-- **多个完成不互吞** —— 几轮同时跑完会排队提醒，关掉一个，下一个接着来。
-- **额度也算数** —— Claude 某个额度窗口打满 100% 时，会单独弹一次提醒，写明真实恢复时间，每个周期只弹一次。
-- **「回去处理」带你回去** —— Codex 会话经 `codex://threads/…` 直投正在运行的应用、落在具体线程上；Claude CLI 会话在终端里从会话自己的目录 `claude --resume` 真正续跑；Claude Desktop 会话把 Claude Desktop 带到前台（Claude 没有任何能落到具体对话的外部入口 —— 装作能做到才是骗人）。
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude 线程跑完后的到你回复提醒" width="420"></td>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
-  </tr>
-</table>
-
 ## 安装
 
 ```sh
@@ -162,6 +80,68 @@ cd agent-island
 ./scripts/verify.sh
 open build/AgentIsland.app
 ```
+
+## 功能
+
+### 🖥️ 一个应用，macOS 和 Windows 原生
+
+同一个产品、同一套检测引擎，双端都无 Electron。中英双语，设置里即切。
+
+- **macOS 13+**（SwiftUI，通用二进制）：刘海机用宽版顶部条，其余设备用紧凑顶部条。
+- **Windows 10/11**（WPF）：顶部条或可拖动悬浮小窗，托盘图标常显用量环。
+
+### ⚡ 顶部条上的实时状态
+
+<img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760">
+
+Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
+
+| 表现 | 含义 |
+|---|---|
+| logo **旋转** | 有会话正在跑 |
+| logo **静止** | 没有任务在跑 —— 或者这一轮结束，该你了 |
+| logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
+
+<img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
+
+### 📊 用量岛
+
+Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
+
+<img src="Assets/agent-island-usage-zh.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
+
+**重置卡（Reset bank）**：Codex 的 ×N 徽标显示你囤的重置卡，点开看每张的到期时间。
+
+### 🏆 周报 / 月报战绩卡 —— 1.6.1 新增
+
+一键把你的一周（或半年）渲染成一张可分享的卡片：Token 总量与「≈ API 费用」、Claude/Codex 占比、TOP-5 模型明细（用量 · 花费 · 占比）、24 周活跃热力图与连击天数——还有你的**岛民段位**：从 🌊 漂流者（1 亿）到 👑 传奇航海家（1000 亿）共七级。全部在本机渲染，图片由你自己复制、自己发。
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-zh.png" alt="周报卡：Token 总量、API 费用、双引擎占比、TOP-5 模型环形图、岛民段位" width="380"></td>
+    <td align="center"><img src="Assets/report-monthly-zh.png" alt="月报卡：24 周活跃热力图、连击天数、岛民段位" width="380"></td>
+  </tr>
+</table>
+
+### 🔔 到你回复提醒
+
+后台会话一轮跑完，闹钟窗口 + 系统通知 + 提示音，几秒内送达。
+
+- **回复了就自动消失**；多个完成会排队，不互吞。
+- **额度也算数** —— Claude 额度打满时单独提醒一次，写明真实恢复时间。
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude 线程跑完后的到你回复提醒" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
+  </tr>
+</table>
+
+### 🎨 顺带一提：五种表盘
+
+⌘ 点击小岛即可轮换图表样式，已用 / 剩余随手切。
+
+<img src="Assets/chart-styles-zh.png" alt="五种图表样式" width="760">
 
 ## 原理
 

@@ -41,89 +41,6 @@
 
 </div>
 
-## Features
-
-### ⚡ Live status in the top bar
-
-<img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760">
-
-The Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
-
-| Cue | Meaning |
-|---|---|
-| Logo **rotates** | a session is working |
-| Logo **still** | nothing running — or the turn is over and it's yours |
-| Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
-
-<img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
-
-### 📊 Usage island
-
-Live usage, cost, and reset countdowns appear on swipeable pages in the notch, fed by each provider's own usage API. Claude shows 5-hour and weekly usage.
-Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
-
-<img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
-
-### 🏆 Weekly & monthly report cards — new in 1.6.1
-
-One click renders your week (or your half-year) into a shareable card: total tokens with an "≈ API value" line, the Claude/Codex split, a TOP-5 model breakdown (tokens · dollars · share), a 24-week activity heatmap with your streak — and your **island rank**, seven lifetime tiers from 🌊 Drifter (100M) to 👑 Legendary Navigator (100B). Rendered entirely on your machine; you copy the image and post it yourself.
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/report-weekly-en.png" alt="Weekly report card: tokens, API value, provider split, TOP-5 model donut, island rank" width="380"></td>
-    <td align="center"><img src="Assets/report-monthly-en.png" alt="Monthly report card: 24-week activity heatmap with streak and island rank" width="380"></td>
-  </tr>
-</table>
-
-Codex **reset cards** ride along: an ×N chip in the island shows your banked resets, with an expiry popover.
-
-### 🎨 Five looks for your quota
-
-One island, five dials — ⌘-click to switch, flip used ↔ remaining anytime.
-
-**Stepped**
-
-<img src="Assets/style-stepped-en.png" alt="Stepped chart style" width="900">
-
-**Digits**
-
-<img src="Assets/style-digits-en.png" alt="Digits chart style" width="900">
-
-**Line**
-
-<img src="Assets/style-line-en.png" alt="Line chart style" width="900">
-
-**Ring**
-
-<img src="Assets/style-ring-en.png" alt="Ring chart style" width="900">
-
-**Bars**
-
-<img src="Assets/style-bars-en.png" alt="Bars chart style" width="900">
-
-### 🖥️ One app, native on macOS and Windows
-
-Same product, same detection engine, no Electron. English and 简体中文, switchable in Settings.
-
-- **macOS 13+** (SwiftUI, universal binary): wide top bar for notched MacBooks, compact top bar for everything else.
-- **Windows 10/11** (WPF): top bar or a draggable floating widget, with a tray icon showing a usage ring at all times.
-
-### 🔔 "It's your turn" alarms
-
-When a turn finishes in a background session, Agent Island opens a foreground alarm window, posts a system notification, and plays a sound (built-in choices, or bring your own file). Alarms land a few seconds after the turn actually ends.
-
-- **Reply and it goes away** — the alarm auto-dismisses once you answer in the thread; no stale windows.
-- **Nothing gets swallowed** — if several turns finish, alarms queue; dismissing one recalls the next.
-- **Quota counts too** — if a Claude window hits 100%, one separate alarm shows the real reset time, once per cycle.
-- **Open thread** takes you back: Codex sessions land on the exact thread via `codex://threads/…` delivered to the running app; Claude CLI sessions resume for real with `claude --resume` from the session's own directory; Claude Desktop sessions bring Claude Desktop to the front (no conversation-level deep link exists — anything more would be pretend).
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-claude.png" alt="Turn alarm for a finished Claude thread" width="420"></td>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Turn alarm for a finished Codex thread" width="420"></td>
-  </tr>
-</table>
-
 ## Install
 
 ```sh
@@ -164,6 +81,69 @@ cd agent-island
 open build/AgentIsland.app
 ```
 
+## Features
+
+### 🖥️ One app, native on macOS and Windows
+
+Same product, same detection engine, no Electron. English and 简体中文, switchable in Settings.
+
+- **macOS 13+** (SwiftUI, universal binary): wide top bar for notched MacBooks, compact top bar for everything else.
+- **Windows 10/11** (WPF): top bar or a draggable floating widget, with a tray icon showing a usage ring at all times.
+
+### ⚡ Live status, one glance up
+
+<img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760">
+
+In your menu bar (macOS) or top bar (Windows), the Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
+
+| Cue | Meaning |
+|---|---|
+| Logo **rotates** | a session is working |
+| Logo **still** | nothing running — or the turn is over and it's yours |
+| Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
+
+<img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
+
+### 📊 Usage island
+
+Live usage, cost, and reset countdowns appear on swipeable pages in the notch, fed by each provider's own usage API. Claude shows 5-hour and weekly usage.
+Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
+
+<img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
+
+**Reset bank**: an ×N chip shows your banked Codex resets — click it for each card's expiry.
+
+### 🏆 Weekly & monthly report cards — new in 1.6.1
+
+One click renders your week (or your half-year) into a shareable card: total tokens with an "≈ API value" line, the Claude/Codex split, a TOP-5 model breakdown (tokens · dollars · share), a 24-week activity heatmap with your streak — and your **island rank**, seven lifetime tiers from 🌊 Drifter (100M) to 👑 Legendary Navigator (100B). Rendered entirely on your machine; you copy the image and post it yourself.
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-en.png" alt="Weekly report card: tokens, API value, provider split, TOP-5 model donut, island rank" width="380"></td>
+    <td align="center"><img src="Assets/report-monthly-en.png" alt="Monthly report card: 24-week activity heatmap with streak and island rank" width="380"></td>
+  </tr>
+</table>
+
+### 🔔 "It's your turn" alarms
+
+A turn finishes in a background session → an alarm window, a system notification, and a sound, within seconds.
+
+- **Reply and it goes away**; multiple finishes queue instead of swallowing each other.
+- **Quota counts too** — a maxed Claude window gets one separate alarm with its real reset time.
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude.png" alt="Turn alarm for a finished Claude thread" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Turn alarm for a finished Codex thread" width="420"></td>
+  </tr>
+</table>
+
+### 🎨 Also in the box: five dials
+
+⌘-click the island to cycle chart styles; flip used ↔ remaining anytime.
+
+<img src="Assets/chart-styles-en.png" alt="Five chart styles" width="760">
+
 ## How it works
 
 - **Session state** is read from the transcript files Claude Code, Claude Desktop, and Codex already write on your disk: FSEvents watches for writes, and end-of-turn markers (Claude's `stop_reason: end_turn`, Codex's `task_complete`) plus file activity decide spin / alarm / red.
@@ -185,7 +165,9 @@ No. Agent Island reads local transcript files and calls the providers' usage API
 
 ## WeChat Community (中文交流群)
 
-Chinese-speaking users: scan the QR code in the [中文 README](README.zh-CN.md#用户交流群) to join our WeChat group for feedback and discussion.
+Chinese-speaking users — scan to join our WeChat group:
+
+<img src="Assets/wechat-qr.jpg" alt="WeChat group QR — add the author, note Agent Island" width="300">
 
 ## Credits & license
 
