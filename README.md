@@ -29,7 +29,7 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
 </a>
 
-<video src="https://github.com/user-attachments/assets/2c482580-e9c3-4753-96af-f97033b5b0e1" controls width="900"></video>
+<video src="https://github.com/tristan666666/agent-island/raw/main/docs/media/agentisland-1.6.1-launch-en.mp4" controls width="900"></video>
 
 <p>
   <a href="#install"><strong>Install</strong></a> ·
@@ -65,6 +65,19 @@ Codex reports one weekly window. Cross-using them well is how you get the most o
 That's the whole point: maximum throughput from the machines, and your life back from the loop.
 
 ## Features
+
+### 🏆 Weekly & monthly report cards — new in 1.6.1
+
+One click renders your week (or your half-year) into a shareable card: total tokens with an "≈ API value" line, the Claude/Codex split, a TOP-5 model breakdown (tokens · dollars · share), a 24-week activity heatmap with your streak — and your **island rank**, seven lifetime tiers from 🌊 Drifter (100M) to 👑 Legendary Navigator (100B). Rendered entirely on your machine; you copy the image and post it yourself.
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-en.png" alt="Weekly report card: tokens, API value, provider split, TOP-5 model donut, island rank" width="380"></td>
+    <td align="center"><img src="Assets/report-monthly-en.png" alt="Monthly report card: 24-week activity heatmap with streak and island rank" width="380"></td>
+  </tr>
+</table>
+
+Codex **reset cards** ride along: an ×N chip in the island shows your banked resets, with an expiry popover.
 
 ### ⚡ Live status in the top bar
 
@@ -126,8 +139,6 @@ Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-a
 Native SwiftUI — no Electron. English and 简体中文, switchable in Settings. macOS 13+, universal binary (Apple Silicon + Intel).
 
 Windows is here too: [Agent Island for Windows](windows/) is a native WPF port with the same detection engine. More platform notes on [agent-island.dev](https://agent-island.dev).
-
-<!-- launch video: coming soon -->
 
 ## Install
 

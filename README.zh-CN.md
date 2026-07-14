@@ -29,7 +29,7 @@ Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
 </a>
 
-<video src="https://github.com/user-attachments/assets/d69b41e0-9298-4f17-b6c9-6014f3bd956b" controls width="900"></video>
+<video src="https://github.com/tristan666666/agent-island/raw/main/docs/media/agentisland-1.6.1-launch-en.mp4" controls width="900"></video>
 
 <p>
   <a href="#安装"><strong>安装</strong></a> ·
@@ -59,11 +59,24 @@ Agent Island 出自一个 Claude Code + Codex 重度用户的两个日常：
 
 **把每一分 token 用到位。** 两个工具一起用，就要同时盯不同的额度时钟——Claude 的 5 小时与周额度、Codex 的周额度。交叉用好它们，才对得起你付的钱。所以：双家用量、成本、重置倒计时，顶部条一眼看完。
 
-**发完一轮，就去生活。** 跟 agent 讲完一轮逻辑，你本该可以离开——陪孩子、去健身、看场电影。它跑的时候不需要你，它停下来的那一刻才需要你。Agent Island 盯的就是那个时刻：该你了就叫你——写代码不该霸占你的整个晚上。
+**AI 在干活，你不必盯着。** 任务在跑的时候不需要你，它停下来的那一刻才需要你。Agent Island 盯的就是那个时刻——轮到你时，岛会亮起来，把你叫回来。写代码不该霸占你的整个晚上。
 
 这就是全部初心：机器的产出拉满，人从循环里拿回自己的生活。
 
 ## 功能
+
+### 🏆 周报 / 月报战绩卡 —— 1.6.1 新增
+
+一键把你的一周（或半年）渲染成一张可分享的卡片：Token 总量与「≈ API 费用」、Claude/Codex 占比、TOP-5 模型明细（用量 · 花费 · 占比）、24 周活跃热力图与连击天数——还有你的**岛民段位**：从 🌊 漂流者（1 亿）到 👑 传奇航海家（1000 亿）共七级。全部在本机渲染，图片由你自己复制、自己发。
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-zh.png" alt="周报卡：Token 总量、API 费用、双引擎占比、TOP-5 模型环形图、岛民段位" width="380"></td>
+    <td align="center"><img src="Assets/report-monthly-zh.png" alt="月报卡：24 周活跃热力图、连击天数、岛民段位" width="380"></td>
+  </tr>
+</table>
+
+Codex **重置卡**同步登岛：岛上的 ×N 徽标显示你囤的重置卡，点开看每张的到期时间。
 
 ### ⚡ 顶部条上的实时状态
 
@@ -116,15 +129,13 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
 
 Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
 
-<img src="Assets/agent-island-usage.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
+<img src="Assets/agent-island-usage-zh.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
 
 ### 🌏 原生、双语
 
 原生 SwiftUI，不是 Electron。英文和简体中文，设置里可切换。macOS 13+，通用二进制（Apple 芯片 + Intel）。
 
 Windows 版也有了：[Agent Island for Windows](windows/) 是同一套检测引擎的原生 WPF 移植。更多平台说明见 [agent-island.dev](https://agent-island.dev/zh/)。
-
-<!-- launch video: coming soon -->
 
 ## 安装
 
