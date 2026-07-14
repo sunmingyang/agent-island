@@ -70,7 +70,12 @@ enum ClaudeLogReader {
         formatterNoFractional.formatOptions = [.withInternetDateTime]
 
         var out: [CachedEvent] = []
-        LogParseCache.streamLines(at: url) { lineData in
+        // Memory backstop, NOT a filter (unlike Codex's 1 MiB skip): Claude
+        // usage rides on assistant lines that can legitimately carry large
+        // tool payloads, and dropping one would break ccusage parity. 64 MiB
+        // is far above any real assistant line but keeps a pathological line
+        // (pasted-image base64 and the like) from buffering unbounded.
+        LogParseCache.streamLines(at: url, maxLineBytes: 64 << 20) { lineData in
             if let event = parseLine(
                 lineData,
                 formatter: formatter,

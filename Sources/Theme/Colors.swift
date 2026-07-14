@@ -28,3 +28,16 @@ enum IslandColor {
     /// as "stop, you're cooked" without going full red-alert pure.
     static let alertRed = Color(red: 229/255, green: 72/255, blue: 77/255)
 }
+
+/// Shared chrome for the floating card windows (report cards, turn alarms).
+/// One radius, one base coat — they must read as one family; 26 vs 18 with
+/// two different blacks was the "your two popups don't even match" review
+/// finding.
+enum CardWindow {
+    /// Continuous-corner radius for every floating card window.
+    static let cornerRadius: CGFloat = 26
+
+    /// #0E0F13 — near-black with a breath of luminance. A flat #000 window
+    /// reads as a hole next to the report cards' lifted base.
+    static let base = Color(red: 14/255, green: 15/255, blue: 19/255)
+}

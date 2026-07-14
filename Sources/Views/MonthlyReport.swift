@@ -161,12 +161,12 @@ struct MonthlyReportCard: View {
             .padding(30)
         }
         .frame(width: Self.size.width, height: Self.size.height)
-        .clipShape(RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous))
     }
 
     private var background: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous)
+            RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [Color(red: 0.075, green: 0.08, blue: 0.09),
@@ -179,7 +179,7 @@ struct MonthlyReportCard: View {
                            center: .init(x: 0.9, y: 0.06), startRadius: 0, endRadius: 360)
             RadialGradient(colors: [IslandColor.claude.opacity(0.09), .clear],
                            center: .init(x: 0.06, y: 0.9), startRadius: 0, endRadius: 340)
-            RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous)
+            RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous)
                 .strokeBorder(
                     LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.02)],
                                    startPoint: .top, endPoint: .bottom),
@@ -212,10 +212,17 @@ struct MonthlyReportCard: View {
         let zh = L10n.locale.identifier.hasPrefix("zh")
         let parts = WeeklyReportCard.compactParts(data.totalTokens, zh: zh)
         return VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.tr("tokens this month"))
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .tracking(0.4)
-                .foregroundStyle(.white.opacity(0.55))
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.tr("tokens this month"))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .tracking(0.4)
+                    .foregroundStyle(.white.opacity(0.55))
+                Spacer()
+                // Same counting-policy fine print as the weekly card.
+                Text(L10n.tr("all tokens · incl. cache reads"))
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(parts.0)
                     .font(.system(size: 74, weight: .heavy, design: .rounded))

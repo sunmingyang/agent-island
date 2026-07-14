@@ -6,6 +6,21 @@ tag was cut.
 
 ## [Unreleased]
 
+First pass on the external design review (2026-07-15): craft and restraint.
+
+### Changed
+- macOS: visual effects are now a two-mode choice in Settings — **Calm** (new default: the island stays a quiet black pill and glows only on hover, refresh, or alerts) and **Vivid** (the previous always-on halo + orbiting sweep). System Low Power Mode still forces Calm either way.
+- macOS: the island silhouette now matches the physical notch height exactly. It was sized to the menu bar, which macOS can draw taller than the housing — on those machines the island hung below the real notch as a grey chin.
+- macOS: the silhouette's top corners flare outward into the screen edge the way the hardware housing does, instead of meeting the menu bar as bare 90° corners.
+- macOS: the turn alarm and the report cards now share one card style — same 26pt continuous corners, same near-black base — instead of two different corner radii and two different blacks.
+- macOS: a provider that needs a login shows a steady red logo (the usage page still offers one-click re-authentication). The endless red blink is reserved for stalls and rate limits.
+- Report cards label their counting policy — "all tokens · incl. cache reads" — so totals don't read as inflated next to provider dashboards, which count input + output only (roughly 10× smaller).
+- Product name is written "Agent Island" everywhere user-facing.
+
+### Fixed
+- macOS: the expanded panel's hairline border no longer traces the top edge, which read as a light-leak seam against the bezel.
+- macOS: a pathological multi-MB line in a Claude session log can no longer buffer unbounded during cost scans (64 MiB backstop; totals unchanged).
+
 ## [1.6.1] - 2026-07-14
 
 macOS and Windows ship together.

@@ -219,12 +219,10 @@ struct SettingsView: View {
                 languagePicker
             }
             SettingsRow(
-                title: "Low Power Mode",
-                subtitle: "Glow only on refresh, hover, or limit alerts."
+                title: "Visual effects",
+                subtitle: effectsSubtitle
             ) {
-                SettingsToggle(isOn: lowPower.enabled) {
-                    lowPower.enabled.toggle()
-                }
+                effectsPicker
             }
         }
         .padding(.horizontal, 14)
@@ -471,6 +469,32 @@ struct SettingsView: View {
                 }
             }
         )
+    }
+
+    /// Calm / Vivid — the ambient-effects choice (LowPowerModeStore's
+    /// `enabled` is true for Calm).
+    private var effectsPicker: some View {
+        Picker("", selection: Binding(
+            get: { lowPower.enabled },
+            set: { lowPower.enabled = $0 }
+        )) {
+            Text(L10n.tr("Calm")).tag(true)
+            Text(L10n.tr("Vivid")).tag(false)
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .fixedSize()
+        .accessibilityLabel(L10n.tr("Visual effects"))
+    }
+
+    private var effectsSubtitle: String {
+        if lowPower.enabled {
+            return L10n.tr("Quiet by default — glow only on hover, refresh, or alerts.")
+        }
+        if lowPower.systemLowPowerEnabled {
+            return L10n.tr("macOS Low Power Mode is on — staying calm for now.")
+        }
+        return L10n.tr("Constant halo and orbiting light. A bit more power.")
     }
 
     /// The switch is live — settings and island text re-render right away.

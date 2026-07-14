@@ -27,18 +27,23 @@ struct GlowLayer: View {
                 .overlay {
                     IslandShape()
                         .strokeBorder(.white.opacity(isExpanded ? 0.12 : 0), lineWidth: 0.5)
+                        // Never trace the top edge: the shape sits flush with
+                        // the screen top, and a hairline there reads as a
+                        // light leak between panel and bezel (design review:
+                        // "顶部漏光,上面一条缝"). Mask off the first point.
+                        .mask(Rectangle().padding(.top, 1))
                 }
                 .shadow(
                     color: glowColor.opacity(attentionActive
-                        ? (stallPulse ? 0.85 : 0.35)
+                        ? (attentionPulsing ? (stallPulse ? 0.85 : 0.35) : 0.55)
                         : (lowPower.effectiveEnabled ? (glowEventActive ? 0.35 : 0) : 0.35)),
-                    radius: attentionActive ? (stallPulse ? 22 : 14) : 14,
+                    radius: attentionActive ? (attentionPulsing ? (stallPulse ? 22 : 14) : 14) : 14,
                     y: 0
                 )
-                .animation(attentionActive
+                .animation(attentionPulsing
                     ? .easeInOut(duration: 0.42).repeatForever(autoreverses: true)
                     : .easeInOut(duration: 0.25),
-                    value: attentionActive ? stallPulse : glowEventActive)
+                    value: attentionPulsing ? stallPulse : glowEventActive)
                 .onAppear { stallPulse = true }
                 .animation(.easeInOut(duration: 0.45), value: alerts.severity)
                 .shadow(color: isExpanded ? .black.opacity(0.5) : .clear, radius: 20, y: 10)
@@ -65,6 +70,13 @@ struct GlowLayer: View {
         // out of the whole-island pulse.
         (visibility.claudeVisible && monitor.claude.isAttentionState)
             || (visibility.codexVisible && monitor.codex.isAttentionState)
+    }
+
+    /// Attention that should PULSE. authRequired is attention (red, steady
+    /// 0.55 glow) but not pulsing — see `State.pulsesAttention`.
+    private var attentionPulsing: Bool {
+        (visibility.claudeVisible && monitor.claude.pulsesAttention)
+            || (visibility.codexVisible && monitor.codex.pulsesAttention)
     }
 }
 
@@ -123,9 +135,11 @@ struct LogoOverlay: View {
 
     private var scale: CGFloat {
         switch st {
-        case .idle, .needsYou: return 1.0
+        // authRequired holds still: a login can stay pending for hours and
+        // an endless blink reads as a crash, not a state.
+        case .idle, .needsYou, .authRequired: return 1.0
         case .working: return pulse ? 1.05 : 1.0
-        case .stalled, .authRequired, .rateLimited: return pulse ? 1.16 : 1.0
+        case .stalled, .rateLimited: return pulse ? 1.16 : 1.0
         }
     }
 
@@ -133,15 +147,16 @@ struct LogoOverlay: View {
         switch st {
         case .idle, .needsYou: return 0
         case .working: return pulse ? 5 : 2
-        case .stalled, .authRequired, .rateLimited: return pulse ? 11 : 4
+        case .authRequired: return 4
+        case .stalled, .rateLimited: return pulse ? 11 : 4
         }
     }
 
     private var pulseAnimation: Animation {
         switch st {
-        case .idle, .needsYou: return .easeOut(duration: 0.3)
+        case .idle, .needsYou, .authRequired: return .easeOut(duration: 0.3)
         case .working: return .easeInOut(duration: 1.7).repeatForever(autoreverses: true)
-        case .stalled, .authRequired, .rateLimited: return .easeInOut(duration: 0.42).repeatForever(autoreverses: true)
+        case .stalled, .rateLimited: return .easeInOut(duration: 0.42).repeatForever(autoreverses: true)
         }
     }
 
@@ -192,7 +207,9 @@ struct PeekPillOverlay: View {
             severity: severity
         )
         .frame(width: pillContentWidth, alignment: provider == .claude ? .leading : .trailing)
-        .padding(provider == .claude ? .leading : .trailing, 14)
+        // 14pt from the silhouette BODY edge; the frame is topCurl wider
+        // per side (flare region), which holds no body to align against.
+        .padding(provider == .claude ? .leading : .trailing, 14 + IslandShape.topCurl)
         .padding(.top, topPadding)
         .opacity((pillsVisible && isVisible) ? 1 : 0)
         .animation(.openMorph, value: isVisible)

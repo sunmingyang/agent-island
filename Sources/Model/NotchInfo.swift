@@ -5,17 +5,18 @@ struct NotchInfo {
     let height: CGFloat
     let hasNotch: Bool
 
-    /// `screen.frame.maxY - screen.visibleFrame.maxY` reports the actual
-    /// pixel distance between the top of the screen and the top of the app
-    /// content area — i.e., where the menu bar visually ends. Use that as
-    /// the silhouette height so the dark pill's bottom edge always sits
-    /// flush with the menu bar's bottom, in both default notched mode
-    /// (≈37pt) and "Scaled to avoid the notch" mode (≈24pt, menu bar sits
-    /// below the dead notch area).
+    /// On a notched screen the silhouette must match the PHYSICAL notch, so
+    /// `safeAreaInsets.top` is the height source there. The visible menu bar
+    /// is NOT a safe proxy: macOS sizes it on its own grid and it can run
+    /// taller than the housing (33pt menu bar vs 32pt notch measured on an
+    /// M5 14"; larger deltas on other machines), and a menu-bar-height pill
+    /// hangs below the hardware as a grey chin under the real notch —
+    /// exactly the "taller than my notch" report from the first external
+    /// design review. Upstream codex-island shipped the same fix (#57).
     ///
-    /// `safeAreaInsets.top` reports the *physical notch* and can disagree
-    /// with the visible menu bar in scaled modes — use it only as a
-    /// fallback when visibleFrame is unmeasurable (auto-hide menu bar).
+    /// In "Scaled to avoid the notch" mode `safeAreaInsets.top` is 0, so we
+    /// fall through to the visible-menu-bar path (≈24pt bar below the dead
+    /// notch strip) — no notch blending applies there.
     ///
     /// auxiliaryTopLeftArea / auxiliaryTopRightArea give the menu-bar regions
     /// on either side of the notch; the notch's own width is
@@ -25,7 +26,6 @@ struct NotchInfo {
             return NotchInfo(width: IslandSpacingStore.compactWidth, height: menuBarFallback(), hasNotch: false)
         }
         let safeTop = screen.safeAreaInsets.top
-        let visualHeight = visibleMenuBarHeight(of: screen)
 
         if safeTop > 0 {
             let leftW = screen.auxiliaryTopLeftArea?.width ?? 0
@@ -33,9 +33,9 @@ struct NotchInfo {
             let width: CGFloat = (leftW > 0 && rightW > 0)
                 ? screen.frame.width - leftW - rightW
                 : 200
-            return NotchInfo(width: width, height: visualHeight, hasNotch: true)
+            return NotchInfo(width: width, height: safeTop, hasNotch: true)
         }
-        return NotchInfo(width: IslandSpacingStore.compactWidth, height: visualHeight, hasNotch: false)
+        return NotchInfo(width: IslandSpacingStore.compactWidth, height: visibleMenuBarHeight(of: screen), hasNotch: false)
     }
 
     private static func visibleMenuBarHeight(of screen: NSScreen) -> CGFloat {

@@ -1,24 +1,31 @@
 import Foundation
 import Combine
 
-/// User preference for the ambient halo + loading sweep.
+/// User preference for the ambient halo + loading sweep, surfaced in
+/// Settings as the two visual-effect modes:
 ///
-/// Default off: both the halo glow and the cobalt orbit run continuously.
-/// With low-power mode on, both surfaces are gated on a "glow event"
-/// predicate — they appear only while a fetch is in flight, the cursor is
-/// hovering the island, or an alert is active. At rest the island goes
-/// dark, saving the per-frame angular-gradient + blur work.
+///   Calm  (`enabled == true`, the DEFAULT): both surfaces gate on a "glow
+///   event" — they appear only while a fetch is in flight, the cursor
+///   hovers the island, or an alert is active. At rest the island is a
+///   quiet black pill.
 ///
-/// `effectiveEnabled` ORs the user toggle with macOS's system-wide Low
-/// Power Mode. When the user enables battery saving in System Settings,
-/// our LPM gating activates automatically — same convention Apple's own
-/// apps follow. AC users see no change.
+///   Vivid (`enabled == false`): the halo glow and the cobalt orbit run
+///   continuously — full ambience, more per-frame gradient + blur work.
+///
+/// Calm-by-default is deliberate (2026-07-15): the always-on sweep was the
+/// top "light pollution" finding of the first external design review, and
+/// restraint is the stronger default. Vivid stays one click away.
+///
+/// `effectiveEnabled` ORs the user choice with macOS's system-wide Low
+/// Power Mode: system battery saving forces Calm regardless of the picker —
+/// same convention Apple's own apps follow.
 @MainActor
 final class LowPowerModeStore: ObservableObject {
     static let shared = LowPowerModeStore()
 
     private static let key = "MacIsland.lowPowerMode"
 
+    /// true = Calm (event-gated effects), false = Vivid (continuous).
     @Published var enabled: Bool {
         didSet { UserDefaults.standard.set(enabled, forKey: Self.key) }
     }
@@ -34,9 +41,14 @@ final class LowPowerModeStore: ObservableObject {
     private var observer: NSObjectProtocol?
 
     private init() {
-        // UserDefaults.bool returns false for missing keys, which matches our
-        // intended default (off → continuous sweep).
-        self.enabled = UserDefaults.standard.bool(forKey: Self.key)
+        // Calm unless the user explicitly chose Vivid. A missing key means
+        // "never touched", which must land on Calm — so read presence, not
+        // `bool(forKey:)` (whose false-for-missing would mean Vivid).
+        if UserDefaults.standard.object(forKey: Self.key) == nil {
+            self.enabled = true
+        } else {
+            self.enabled = UserDefaults.standard.bool(forKey: Self.key)
+        }
         self.systemLowPowerEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
 
         observer = NotificationCenter.default.addObserver(

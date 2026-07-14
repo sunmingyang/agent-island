@@ -182,14 +182,14 @@ struct WeeklyReportCard: View {
             .padding(30)
         }
         .frame(width: Self.size.width, height: Self.size.height)
-        .clipShape(RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous))
     }
 
     // MARK: - Texture
 
     private var background: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous)
+            RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [Color(red: 0.075, green: 0.08, blue: 0.09),
@@ -202,7 +202,7 @@ struct WeeklyReportCard: View {
                            center: .init(x: 0.12, y: 0.02), startRadius: 0, endRadius: 340)
             RadialGradient(colors: [IslandColor.codex.opacity(0.11), .clear],
                            center: .init(x: 0.95, y: 0.85), startRadius: 0, endRadius: 380)
-            RoundedRectangle(cornerRadius: rounded ? 26 : 0, style: .continuous)
+            RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous)
                 .strokeBorder(
                     LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.02)],
                                    startPoint: .top, endPoint: .bottom),
@@ -239,10 +239,20 @@ struct WeeklyReportCard: View {
         // Title ABOVE the number, money line below — a bare "100亿" with no
         // label read as a number from nowhere.
         return VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.tr("tokens this week"))
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .tracking(0.4)
-                .foregroundStyle(.white.opacity(0.55))
+            HStack(alignment: .firstTextBaseline) {
+                Text(L10n.tr("tokens this week"))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .tracking(0.4)
+                    .foregroundStyle(.white.opacity(0.55))
+                Spacer()
+                // Counting-policy fine print: the hero is WIRE tokens
+                // (ccusage parity), ~10× the input+output the provider
+                // dashboards show. Unlabeled, every cross-check reads as
+                // "your app is wrong" — it did within a day of 1.6.1.
+                Text(L10n.tr("all tokens · incl. cache reads"))
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(parts.0)
                     .font(.system(size: 74, weight: .heavy, design: .rounded))

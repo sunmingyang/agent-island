@@ -35,7 +35,7 @@
 "Click to refresh now" = "点击立即刷新";
 "click to cycle" = "点击切换";
 "Codex" = "Codex";
-"AgentIsland panel" = "AgentIsland 面板";
+"AgentIsland panel" = "Agent Island 面板";
 "Cost" = "成本";
 "Counts everything — input, output, and cache. Mirrors ccusage." = "统计所有 token：输入、输出和缓存；与 ccusage 一致。";
 "Crit" = "危急";
@@ -44,7 +44,7 @@
 "Display" = "显示";
 "General" = "通用";
 "Follows macOS" = "跟随 macOS";
-"Glow only on refresh, hover, or limit alerts." = "仅在刷新、悬停或限额提醒时显示辉光。";
+"Constant halo and orbiting light. A bit more power." = "常亮光晕与环绕流光，氛围更足，功耗略高。";
 "Idle" = "空闲";
 "idle" = "空闲";
 "Input + output" = "输入 + 输出";
@@ -56,7 +56,12 @@
 "License" = "许可证";
 "Live" = "实时";
 "Look for a new version immediately." = "立即检查是否有新版本。";
-"Low Power Mode" = "低功耗模式";
+"Visual effects" = "视觉效果";
+"Calm" = "清爽";
+"Vivid" = "流光";
+"Quiet by default — glow only on hover, refresh, or alerts." = "平时安静——仅在悬停、刷新、警报时发光。";
+"macOS Low Power Mode is on — staying calm for now." = "系统低电量模式开启中，暂以清爽模式运行。";
+"all tokens · incl. cache reads" = "全量口径 · 含缓存读取";
 "Mixed Use" = "混合使用";
 "Mostly Claude" = "主要是 Claude";
 "Mostly Codex" = "主要是 Codex";
@@ -65,7 +70,7 @@
 "No-notch Mac" = "无刘海";
 "Notched Mac" = "有刘海";
 "Numeric" = "数字";
-"Open AgentIsland when you sign in." = "登录系统时打开 AgentIsland。";
+"Open AgentIsland when you sign in." = "登录系统时打开 Agent Island。";
 "Overview" = "概览";
 "Overview shows %@ usage history" = "概览显示 %@ 年使用历史";
 "Pinned to a specific display. Falls back to Auto if unplugged." = "固定到指定屏幕；断开后回退为自动。";
@@ -74,7 +79,7 @@
 "Providers" = "服务";
 "Providers Hidden" = "服务已隐藏";
 "Quit" = "退出";
-"Quit AgentIsland" = "退出 AgentIsland";
+"Quit AgentIsland" = "退出 Agent Island";
 "Re-authenticate" = "重新认证";
 "Claude" = "Claude";
 "Re-enable in Settings → Providers" = "在设置 → 服务中重新启用";
@@ -85,7 +90,7 @@
 "resets in %@" = "%@ 后重置";
 "Resets in %@" = "%@ 后重置";
 "Language changed" = "语言已切换";
-"The new language applies now. A few date and number labels update after AgentIsland restarts." = "新语言立即生效；个别日期和数字标签会在 AgentIsland 重启后更新。";
+"The new language applies now. A few date and number labels update after AgentIsland restarts." = "新语言立即生效；个别日期和数字标签会在 Agent Island 重启后更新。";
 "OK" = "好";
 "Restart now" = "立即重启";
 "Ring" = "环形";

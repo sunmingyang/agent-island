@@ -121,13 +121,14 @@ struct TurnAlarmView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
         .background(Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: CardWindow.cornerRadius, style: .continuous))
         .preferredColorScheme(.dark)
         .onAppear(perform: startAnimations)
     }
 
     private var alarmBackground: some View {
         ZStack {
-            Color(red: 0.020, green: 0.020, blue: 0.027)
+            CardWindow.base
             RadialGradient(
                 colors: [
                     providerColor.opacity(glowPulse ? 0.34 : 0.20),

@@ -115,8 +115,12 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
         panel.isRestorable = false
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
-        panel.backgroundColor = NSColor(calibratedRed: 0.020, green: 0.020, blue: 0.027, alpha: 1)
-        panel.isOpaque = true
+        // Transparent window; TurnAlarmView draws the rounded card itself
+        // (CardWindow.cornerRadius + CardWindow.base) so the alarm matches
+        // the report cards instead of shipping its own square-ish system
+        // corners and its own black.
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
         panel.hasShadow = true
         panel.ignoresMouseEvents = false
         panel.acceptsMouseMovedEvents = true

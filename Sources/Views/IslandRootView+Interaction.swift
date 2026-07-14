@@ -113,9 +113,11 @@ extension IslandRootView {
     }
 
     var logoEdgePadding: CGFloat {
+        // 9pt from the silhouette BODY edge; the frame is topCurl wider per
+        // side (the flare region), which holds no body to align against.
         switch model.state {
-        case .compact, .expanded: return 9
-        case .peek: return model.pillSlotWidth + 9
+        case .compact, .expanded: return 9 + IslandShape.topCurl
+        case .peek: return model.pillSlotWidth + 9 + IslandShape.topCurl
         }
     }
 

@@ -38,7 +38,7 @@ struct IslandRootView: View {
                         // exit the offset never matters because the
                         // content fully fades before the shape shrinks.
                         .offset(y: contentVisible ? 0 : -8)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, 18 + IslandShape.topCurl)
                         .padding(.vertical, 14)
                         .allowsHitTesting(contentVisible)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -118,6 +118,7 @@ struct IslandRootView: View {
                         SettingsButton()
                             .opacity(contentVisible ? 1 : 0)
                             .padding(6)
+                            .padding(.leading, IslandShape.topCurl)
                     }
                 }
                 .contentShape(IslandShape())

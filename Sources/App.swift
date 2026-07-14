@@ -331,7 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static func writeAlarmSnapshot(_ view: TurnAlarmView, to path: String) {
         let card = view
             .frame(width: 520, height: 520)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .clipShape(RoundedRectangle(cornerRadius: CardWindow.cornerRadius, style: .continuous))
         let renderer = ImageRenderer(content: card)
         renderer.scale = 2
         guard let cg = renderer.cgImage else {

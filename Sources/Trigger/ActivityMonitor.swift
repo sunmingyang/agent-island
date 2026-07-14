@@ -30,6 +30,18 @@ final class ActivityMonitor: ObservableObject {
             }
         }
 
+        /// Attention states that keep the island/logo pulsing. authRequired
+        /// is deliberately excluded: it can persist for hours, and an
+        /// unexplained endless red blink reads as a crash — the first
+        /// external tester filed it as "Claude 一直在跳" within minutes.
+        /// It gets a static red treatment instead.
+        var pulsesAttention: Bool {
+            switch self {
+            case .stalled, .rateLimited: return true
+            case .idle, .working, .needsYou, .authRequired: return false
+            }
+        }
+
         var label: String {
             switch self {
             case .idle: return L10n.tr("idle")

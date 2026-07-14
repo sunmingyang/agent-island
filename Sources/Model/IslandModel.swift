@@ -169,20 +169,24 @@ final class IslandModel: ObservableObject {
     }
 
     private func recomputeSize() {
+        // The silhouette's top flares sit OUTSIDE the visual body
+        // (IslandShape.topCurl per side); grow the frame so the body keeps
+        // its width in every state.
+        let curlPad = IslandShape.topCurl * 2
         switch state {
         case .compact:
             size = CGSize(
-                width: notch.width + tabWidth * 2,
+                width: notch.width + tabWidth * 2 + curlPad,
                 height: notch.height
             )
         case .peek:
             size = CGSize(
-                width: notch.width + tabWidth * 2 + pillSlotWidth * 2,
+                width: notch.width + tabWidth * 2 + pillSlotWidth * 2 + curlPad,
                 height: notch.height
             )
         case .expanded:
             size = CGSize(
-                width: expandedWidth,
+                width: expandedWidth + curlPad,
                 height: expandedContentHeight + notch.height
             )
         }
