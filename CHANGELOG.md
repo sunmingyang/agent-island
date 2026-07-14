@@ -8,6 +8,12 @@ tag was cut.
 
 First pass on the external design review (2026-07-15): craft and restraint.
 
+### Added
+- The DMG now opens as a styled installer window — dark backdrop with the mark and wordmark, the app on the left, a drag arrow, Applications on the right, volume icon in the title bar (was: a bare default Finder window).
+
+### Fixed (pre-existing)
+- Launch at Login no longer dead-ends at "Operation not permitted": the toggle clears any stale Background Task Management record before registering (ad-hoc builds change signature every update, which strands the old record), detects Gatekeeper app translocation and says to move the app into Applications, and on macOS pushback opens System Settings → Login Items with a plain instruction instead of relaying the errno string.
+
 ### Changed
 - macOS: visual effects are now a two-mode choice in Settings — **Calm** (new default: the island stays a quiet black pill and glows only on hover, refresh, or alerts) and **Vivid** (the previous always-on halo + orbiting sweep). System Low Power Mode still forces Calm either way.
 - macOS: the island silhouette now matches the physical notch height exactly. It was sized to the menu bar, which macOS can draw taller than the housing — on those machines the island hung below the real notch as a grey chin.
@@ -16,6 +22,9 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - macOS: a provider that needs a login shows a steady red logo (the usage page still offers one-click re-authentication). The endless red blink is reserved for stalls and rate limits.
 - Report cards label their counting policy — "all tokens · incl. cache reads" — so totals don't read as inflated next to provider dashboards, which count input + output only (roughly 10× smaller).
 - Product name is written "Agent Island" everywhere user-facing.
+- App icon, first pass: the six sharp needles are now round-capped rays on an even 12-spoke wheel, and the background lifts off pure black onto a dark luminous gradient — both prerequisites for an Icon Composer / liquid-glass treatment (sharp acute shapes and flat #000 render badly there). Full identity redesign still pending.
+- Settings: "Visual effects" now sits with the island-appearance controls (Top bar group, next to Cost display) as title + picker only — the explanatory sentence is gone.
+- Trailing full stops removed from every caption and subtitle, both languages (59 strings each).
 
 ### Fixed
 - macOS: the expanded panel's hairline border no longer traces the top edge, which read as a light-leak seam against the bezel.

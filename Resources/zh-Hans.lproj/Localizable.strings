@@ -4,12 +4,12 @@
 "%@ tab" = "%@标签";
 "%@, %@" = "%@，%@";
 "%@, %d%%" = "%@，%d%%";
-"%@, all tokens. Total %@, Claude %@, Codex %@." = "%@，全部 token。总计 %@，Claude %@，Codex %@。";
+"%@, all tokens. Total %@, Claude %@, Codex %@." = "%@，全部 token。总计 %@，Claude %@，Codex %@";
 "%@: %@ tokens" = "%@：%@ 个 token";
 "%@: %@, %@" = "%@：%@，%@";
-"%@: %@. Claude %@, Codex %@." = "%@：%@。Claude %@，Codex %@。";
+"%@: %@. Claude %@, Codex %@." = "%@：%@。Claude %@，Codex %@";
 "%@%@ tokens" = "%@%@ 个 token";
-"%@ in %@. %d active days. Claude %@, Codex %@." = "%@，%@ 年。%d 个活跃日。Claude %@，Codex %@。";
+"%@ in %@. %d active days. Claude %@, Codex %@." = "%@，%@ 年。%d 个活跃日。Claude %@，Codex %@";
 "%@ TOKENS" = "%@ TOKEN";
 "%d Active Days" = "%d 个活跃日";
 "⚠ %d unpriced" = "⚠ %d 个模型缺价格";
@@ -22,14 +22,14 @@
 "Approaching-limit alerts" = "接近限额提醒";
 "Alerts" = "提醒";
 "Auto" = "自动";
-"Auto — showing on %@." = "自动 — 当前显示在 %@。";
-"Auto — picks the best available screen." = "自动 — 选择最合适的屏幕。";
+"Auto — showing on %@." = "自动 — 当前显示在 %@";
+"Auto — picks the best available screen." = "自动 — 选择最合适的屏幕";
 "Bar" = "柱状";
 "Both" = "两者";
 "Both providers hidden" = "两个服务都已隐藏";
 "BY MODEL" = "按模型";
 "Check" = "检查";
-"Check for new versions in the background and notify you when one's available." = "在后台检查新版本，有可用更新时通知你。";
+"Check for new versions in the background and notify you when one's available." = "在后台检查新版本，有可用更新时通知你";
 "Check for updates automatically" = "自动检查更新";
 "Check now" = "立即检查";
 "Click to refresh now" = "点击立即刷新";
@@ -37,30 +37,29 @@
 "Codex" = "Codex";
 "AgentIsland panel" = "Agent Island 面板";
 "Cost" = "成本";
-"Counts everything — input, output, and cache. Mirrors ccusage." = "统计所有 token：输入、输出和缓存；与 ccusage 一致。";
+"Counts everything — input, output, and cache. Mirrors ccusage." = "统计所有 token：输入、输出和缓存；与 ccusage 一致";
 "Crit" = "危急";
 "Critical" = "危急";
 "Daily token usage in %@" = "%@ 年每日 token 用量";
 "Display" = "显示";
 "General" = "通用";
 "Follows macOS" = "跟随 macOS";
-"Constant halo and orbiting light. A bit more power." = "常亮光晕与环绕流光，氛围更足，功耗略高。";
 "Idle" = "空闲";
 "idle" = "空闲";
 "Input + output" = "输入 + 输出";
-"Input + output only. Matches Anthropic's claude.ai stats." = "只统计输入 + 输出；与 Anthropic 的 claude.ai 统计一致。";
+"Input + output only. Matches Anthropic's claude.ai stats." = "只统计输入 + 输出；与 Anthropic 的 claude.ai 统计一致";
 "last scan %@" = "上次扫描 %@";
 "last scan %@ · pricing data %dd old" = "上次扫描 %@ · 价格数据已过 %d 天";
 "Launch at Login" = "登录时启动";
+"Move Agent Island into Applications, then relaunch it and try again" = "请先把 Agent Island 移入「应用程序」，重新打开后再试";
+"Allow Agent Island under System Settings → General → Login Items" = "请在系统设置 → 通用 → 登录项中允许 Agent Island";
 "Language" = "语言";
 "License" = "许可证";
 "Live" = "实时";
-"Look for a new version immediately." = "立即检查是否有新版本。";
+"Look for a new version immediately." = "立即检查是否有新版本";
 "Visual effects" = "视觉效果";
 "Calm" = "清爽";
 "Vivid" = "流光";
-"Quiet by default — glow only on hover, refresh, or alerts." = "平时安静——仅在悬停、刷新、警报时发光。";
-"macOS Low Power Mode is on — staying calm for now." = "系统低电量模式开启中，暂以清爽模式运行。";
 "all tokens · incl. cache reads" = "全量口径 · 含缓存读取";
 "Mixed Use" = "混合使用";
 "Mostly Claude" = "主要是 Claude";
@@ -70,10 +69,10 @@
 "No-notch Mac" = "无刘海";
 "Notched Mac" = "有刘海";
 "Numeric" = "数字";
-"Open AgentIsland when you sign in." = "登录系统时打开 Agent Island。";
+"Open AgentIsland when you sign in." = "登录系统时打开 Agent Island";
 "Overview" = "概览";
 "Overview shows %@ usage history" = "概览显示 %@ 年使用历史";
-"Pinned to a specific display. Falls back to Auto if unplugged." = "固定到指定屏幕；断开后回退为自动。";
+"Pinned to a specific display. Falls back to Auto if unplugged." = "固定到指定屏幕；断开后回退为自动";
 "Plan" = "套餐";
 "Plan: %@" = "套餐：%@";
 "Providers" = "服务";
@@ -90,7 +89,7 @@
 "resets in %@" = "%@ 后重置";
 "Resets in %@" = "%@ 后重置";
 "Language changed" = "语言已切换";
-"The new language applies now. A few date and number labels update after AgentIsland restarts." = "新语言立即生效；个别日期和数字标签会在 Agent Island 重启后更新。";
+"The new language applies now. A few date and number labels update after AgentIsland restarts." = "新语言立即生效；个别日期和数字标签会在 Agent Island 重启后更新";
 "OK" = "好";
 "Restart now" = "立即重启";
 "Ring" = "环形";
@@ -110,7 +109,7 @@
 "Syncing" = "同步中";
 "Syncing…" = "同步中…";
 "Usage refresh failed" = "用量刷新失败";
-"Tint the island and pulse the peek pill when 5-hour usage nears your limit." = "当 5 小时用量接近限额时，为岛和预览胶囊显示提醒效果。";
+"Tint the island and pulse the peek pill when 5-hour usage nears your limit." = "当 5 小时用量接近限额时，为岛和预览胶囊显示提醒效果";
 "Tip: Command-click to cycle visualization" = "提示：Command 点击可切换可视化";
 "Today" = "今天";
 "Token counting" = "Token 统计";
@@ -124,18 +123,18 @@
 "Top bar" = "顶部条";
 "Screen" = "屏幕";
 "Mac type" = "Mac 机型";
-"Pick Notch for MacBooks with a camera notch. No notch suits Macs and external displays without one — the top bar gets narrower." = "有刘海的 MacBook 选「有刘海」；没有刘海的 Mac 或外接显示器选「无刘海」，顶部条会更窄。";
+"Pick Notch for MacBooks with a camera notch. No notch suits Macs and external displays without one — the top bar gets narrower." = "有刘海的 MacBook 选「有刘海」；没有刘海的 Mac 或外接显示器选「无刘海」，顶部条会更窄";
 "Screen position" = "显示位置";
 "This Mac's screen" = "这台 Mac 的屏幕";
 "Show cost page in top panel" = "在顶部面板显示成本页";
-"Include local token cost/value as a swipe page in the island." = "把本地 token 成本和价值页加入顶部面板，可左右滑动查看。";
+"Include local token cost/value as a swipe page in the island." = "把本地 token 成本和价值页加入顶部面板，可左右滑动查看";
 "Always show usage in top bar" = "在顶部常显用量";
-"Keep the 5-hour and weekly percentages beside the logos without hovering." = "无需悬停，也在 Logo 两侧显示 5 小时和本周用量百分比。";
+"Keep the 5-hour and weekly percentages beside the logos without hovering." = "无需悬停，也在 Logo 两侧显示 5 小时和本周用量百分比";
 "Updates" = "更新";
 "VALUE" = "价值";
 "Warn" = "警告";
 "Warning" = "警告";
-"Warning: %d unpriced models — totals may be incomplete." = "警告：%d 个模型缺少价格，成本总额可能偏低。";
+"Warning: %d unpriced models — totals may be incomplete." = "警告：%d 个模型缺少价格，成本总额可能偏低";
 "week" = "周";
 "waiting for login…" = "等待登录…";
 "You" = "你";
@@ -146,11 +145,11 @@
 "%@: %d percent of 5-hour window used" = "%@：已使用 5 小时窗口的 %d%%";
 "%@: %d percent of 5-hour window used, %@" = "%@：已使用 5 小时窗口的 %d%%，%@";
 "%@: no data for 5-hour window" = "%@：5 小时窗口暂无数据";
-"Click to expand. Command-click to cycle visualization." = "点击展开。Command 点击可切换可视化。";
-"Command-click to cycle visualization." = "Command 点击可切换可视化。";
-"Hover to peek usage. Click to expand. Command-click to cycle visualization." = "悬停预览用量。点击展开。Command 点击可切换可视化。";
-"How often to refresh." = "刷新频率。";
-"Inject test percentages. Visible only when launched with CODEXISLAND_DEBUG=1." = "注入测试百分比。仅在使用 CODEXISLAND_DEBUG=1 启动时显示。";
+"Click to expand. Command-click to cycle visualization." = "点击展开。Command 点击可切换可视化";
+"Command-click to cycle visualization." = "Command 点击可切换可视化";
+"Hover to peek usage. Click to expand. Command-click to cycle visualization." = "悬停预览用量。点击展开。Command 点击可切换可视化";
+"How often to refresh." = "刷新频率";
+"Inject test percentages. Visible only when launched with CODEXISLAND_DEBUG=1." = "注入测试百分比。仅在使用 CODEXISLAND_DEBUG=1 启动时显示";
 "Preview" = "预览";
 "resets in %d hours" = "%d 小时后重置";
 "resets in %d minutes" = "%d 分钟后重置";
@@ -191,17 +190,17 @@
 "more" = "多";
 "Share…" = "分享…";
 "Others" = "其他";
-"Details unavailable right now." = "明细暂时不可用。";
-"Earned resets appear here with their expiry." = "获得的重置卡会显示在这里,附有效期。";
+"Details unavailable right now." = "明细暂时不可用";
+"Earned resets appear here with their expiry." = "获得的重置卡会显示在这里,附有效期";
 "expired" = "已过期";
 "valid %@ · %@" = "有效 %@ · %@ 到期";
-"Swipe to change pages." = "滑动切换页面。";
+"Swipe to change pages." = "滑动切换页面";
 
 /* Auto-Trigger (Triggers tab) */
 "Triggers" = "自动续跑";
 "Auto-Trigger" = "自动续跑";
-"When your AI limit resets, auto-send a message so a session keeps running." = "用量恢复后，让 Agent Island 自动续跑指定会话。";
-"No triggers yet — add one below." = "还没有规则，在下面加一条。";
+"When your AI limit resets, auto-send a message so a session keeps running." = "用量恢复后，让 Agent Island 自动续跑指定会话";
+"No triggers yet — add one below." = "还没有规则，在下面加一条";
 "New trigger" = "新建续跑规则";
 "Message" = "消息";
 "When" = "时机";
@@ -218,7 +217,7 @@
 "every %dh" = "每 %d 小时";
 "fired %@" = "上次 %@";
 "%@ resets %@" = "%@ 将于 %@ 重置";
-"%@: reset time loads with usage data." = "%@：重置时间随用量数据一起加载。";
+"%@: reset time loads with usage data." = "%@：重置时间随用量数据一起加载";
 "Tool" = "服务";
 "Thread" = "要续跑的会话";
 "No active threads" = "没有可续跑的会话";
@@ -226,25 +225,25 @@
 /* Auto-trigger island page (4th page) */
 "Auto-trigger" = "自动续跑";
 "Manage" = "管理";
-"No triggers yet." = "还没有规则。";
+"No triggers yet." = "还没有规则";
 "Add a trigger" = "新建规则";
 
 /* Status guide (legend) */
 "Working" = "正在跑";
-"The logo rotates while a session is running." = "会话运行时，图标会持续旋转。";
+"The logo rotates while a session is running." = "会话运行时，图标会持续旋转";
 "Your turn" = "该你回复";
-"A thread finished — Agent Island opens an alarm window so you can reply." = "会话已经结束时，Agent Island 会像闹钟一样弹出来提醒你回复。";
+"A thread finished — Agent Island opens an alarm window so you can reply." = "会话已经结束时，Agent Island 会像闹钟一样弹出来提醒你回复";
 
 /* Status guide tab */
 "Status" = "状态说明";
 "Logo states" = "图标状态";
 "Sound" = "声音";
-"What the island's two logos are telling you." = "顶部条里的两个图标在告诉你什么。";
+"What the island's two logos are telling you." = "顶部条里的两个图标在告诉你什么";
 "Safety" = "执行安全";
 "Auto-resume kill switch" = "自动续跑总开关";
-"When off, Agent Island will never spawn Claude or Codex resume commands." = "关闭后，Agent Island 不会启动任何 Claude 或 Codex 续跑命令。";
+"When off, Agent Island will never spawn Claude or Codex resume commands." = "关闭后，Agent Island 不会启动任何 Claude 或 Codex 续跑命令";
 "Records" = "运行日志";
-"Open the folder with blocked and executed auto-resume records." = "打开日志文件夹，查看被拦截或已执行的续跑操作。";
+"Open the folder with blocked and executed auto-resume records." = "打开日志文件夹，查看被拦截或已执行的续跑操作";
 "Allow resume" = "允许续跑";
 "Disallow resume" = "取消允许";
 "resume allowed" = "已允许自动续跑";
@@ -256,17 +255,17 @@
 "stalled" = "暂停";
 "auth required" = "需要登录";
 "Needs attention" = "需要处理";
-"Limits, login, network, or provider errors make the logo pulse red." = "额度、登录、网络或服务异常时，图标会变红并放大提示。";
+"Limits, login, network, or provider errors make the logo pulse red." = "额度、登录、网络或服务异常时，图标会变红并放大提示";
 "rate limited" = "查询暂停";
 "Reminders" = "提醒";
 "Turn alarm" = "到你回复提醒";
-"Pop up a foreground alarm and system notification when a background run needs you." = "后台会话轮到你回复时，弹出前台提醒窗口并发送系统通知。";
+"Pop up a foreground alarm and system notification when a background run needs you." = "后台会话轮到你回复时，弹出前台提醒窗口并发送系统通知";
 "Show thread details" = "显示会话详情";
-"Show session and project names in alarms and notifications." = "在提醒和通知里显示会话名、项目名。";
+"Show session and project names in alarms and notifications." = "在提醒和通知里显示会话名、项目名";
 "Alarm sound" = "提示声音";
-"Choose a built-in sound or use your own file." = "选择提示音，也可以使用自己的音频文件。";
+"Choose a built-in sound or use your own file." = "选择提示音，也可以使用自己的音频文件";
 "Volume" = "音量";
-"Adjust how loud the alarm sound is." = "调节提示音音量。";
+"Adjust how loud the alarm sound is." = "调节提示音音量";
 "Basso" = "低音";
 "Blow" = "吹气";
 "Bottle" = "瓶子";
@@ -288,25 +287,25 @@
 "Auth" = "登录";
 "Rate" = "查询暂停";
 "%@ is waiting for you" = "%@ 正在等你回复";
-"A background coding session finished a turn. It is your turn." = "后台编码会话已经完成这一轮，现在该你回复。";
-"A background coding session finished a turn: %@." = "后台编码会话已经完成这一轮：%@。";
+"A background coding session finished a turn. It is your turn." = "后台编码会话已经完成这一轮，现在该你回复";
+"A background coding session finished a turn: %@." = "后台编码会话已经完成这一轮：%@";
 "Demo thread" = "演示会话";
 "It's your turn" = "现在到你了";
 "%@ is waiting" = "%@ 正在等你";
-"The thread finished. Come back and reply." = "会话已结束，请回来回复。";
+"The thread finished. Come back and reply." = "会话已结束，请回来回复";
 "Open thread" = "回去处理";
 "I know" = "我知道了";
 "Out of quota" = "额度用完了";
 "5-hour limit" = "5 小时额度";
 "Weekly limit" = "周额度";
-"You're rate-limited for now." = "暂时被限流。";
+"You're rate-limited for now." = "暂时被限流";
 "~%dh" = "约 %d 小时后";
 "~%dm" = "约 %d 分钟后";
 "Resets at %@ (%@)" = "%@ 恢复（%@）";
 "%@ %@ reached" = "%@ %@ 已用满";
-"You're out until it resets at %@." = "已用满，%@ 才恢复。";
+"You're out until it resets at %@." = "已用满，%@ 才恢复";
 "Alarm on subagent threads" = "子线程也弹窗";
-"Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly." = "Codex 子线程(subagent)结束时也弹窗提醒。默认关——这类线程结束得非常频繁。";
+"Also alarm when a Codex subagent (child) thread finishes. Off by default — those finish constantly." = "Codex 子线程(subagent)结束时也弹窗提醒。默认关——这类线程结束得非常频繁";
 "Alarm provider" = "提供商";
 "Alarm thread" = "会话";
 "Alarm project" = "项目";
@@ -319,35 +318,35 @@
 
 /* 1.5.3 quota display mode + Claude clipboard assist */
 "Show remaining instead of used" = "显示剩余而不是已用";
-"Percent readouts count down what's left of each window rather than up what's spent." = "百分比倒着数每个窗口还剩多少，而不是正着数用了多少。";
+"Percent readouts count down what's left of each window rather than up what's spent." = "百分比倒着数每个窗口还剩多少，而不是正着数用了多少";
 "Session name copied" = "会话名已复制";
-"Paste it in Claude's search to jump to “%@”." = "在 Claude 的搜索里粘贴，即可找到「%@」。";
+"Paste it in Claude's search to jump to “%@”." = "在 Claude 的搜索里粘贴，即可找到「%@」";
 
 /* 1.5.4 Mission Control hide */
 "Mission Control" = "调度中心";
 "Hide in Mission Control" = "在调度中心里隐藏";
-"On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations." = "外接显示器没有刘海，空间栏贴着顶边，岛可能会挡住它。开启后，切换空间的动画里岛也会跟着滑动。";
+"On external displays the Spaces bar hugs the top edge and the island can cover it. Hiding also makes the island ride space-switch animations." = "外接显示器没有刘海，空间栏贴着顶边，岛可能会挡住它。开启后，切换空间的动画里岛也会跟着滑动";
 
 /* 1.5.5 quota display segmented */
 "Quota shows" = "额度显示";
 "Used" = "已用";
 "Remaining" = "剩余";
-"Usage tiles and top-bar percentages follow this." = "用量图和顶栏百分比都跟随这里。";
+"Usage tiles and top-bar percentages follow this." = "用量图和顶栏百分比都跟随这里";
 
 /* 1.5.6 Claude jump preference */
-"CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链后才能直达具体会话。";
+"CLI resume lands on the exact conversation in a terminal; the Desktop app can't jump to a specific chat until Anthropic unlocks its deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链后才能直达具体会话";
 
 /* 1.5.6 per-provider jump rows */
-"CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链。";
-"The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead." = "桌面应用直达具体线程；CLI 恢复则改在终端里重开。";
+"CLI resume lands on the exact conversation in a terminal; the Desktop app waits on Anthropic's deep link." = "CLI 恢复会在终端里精确续上那条对话；桌面应用要等 Anthropic 开放深链";
+"The desktop app jumps straight to the exact thread; CLI resume reopens it in a terminal instead." = "桌面应用直达具体线程；CLI 恢复则改在终端里重开";
 
 /* 1.5.6 copy cleanup */
 "Subagent alarms" = "子线程弹窗";
-"Input, output, and cache." = "统计输入、输出和缓存。";
-"Input and output only." = "只统计输入和输出。";
+"Input, output, and cache." = "统计输入、输出和缓存";
+"Input and output only." = "只统计输入和输出";
 
-"Notch width for MacBooks with a camera notch; narrower for those without." = "有刘海的 MacBook 用刘海宽度,没有的更窄。";
-"Codex spawns child threads that finish constantly. Off by default." = "Codex 会派生子线程,它们结束得非常频繁。默认关。";
+"Notch width for MacBooks with a camera notch; narrower for those without." = "有刘海的 MacBook 用刘海宽度,没有的更窄";
+"Codex spawns child threads that finish constantly. Off by default." = "Codex 会派生子线程,它们结束得非常频繁。默认关";
 
 /* quota alarm toggle */
 "Out-of-quota alarm" = "额度用完弹窗";

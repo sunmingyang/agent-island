@@ -1,79 +1,160 @@
 <div align="center">
 
-<img src="Assets/agent-island-logo.png" alt="Agent Island logo" width="110">
+<img src="Assets/agent-island-logo.png" alt="Agent Island 标志" width="110">
 
 # Agent Island
 
-**Claude Code 和 Codex 的状态伴侣——常驻你的刘海。**
+**Claude Code 和 Codex 的状态伴侣。**
 
-**[agent-island.dev](https://agent-island.dev/zh/)** · [English](README.md)
+看清每个任务正在做什么。你可以先去做别的事，轮到你时，Agent Island 会把你叫回来。监控留在本机，无需 Agent Island 账号，也没有产品遥测。
+
+**[agent-island.dev](https://agent-island.dev)** · [English](README.md)
 
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
-[![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
-[![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
-[![Windows 10+](https://img.shields.io/badge/Windows-10%2B%20·%20%E5%8E%9F%E7%94%9F%20WPF-0078d4?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
+[![平台](https://img.shields.io/badge/platforms-macOS%2013%2B%20%7C%20Windows%2010%2F11-24292f?style=flat-square)](#macos-与-windows)
 [![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
-[![已收录 中国独立开发者项目列表](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-%E4%B8%AD%E5%9B%BD%E7%8B%AC%E7%AB%8B%E5%BC%80%E5%8F%91%E8%80%85%E9%A1%B9%E7%9B%AE%E5%88%97%E8%A1%A8-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
-[![已收录 awesome-mac](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README-zh.md#%E8%8F%9C%E5%8D%95%E6%A0%8F%E5%B7%A5%E5%85%B7)
-[![已收录 awesome-swift-macos-apps](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
-[![已收录 awesome-codex-cli](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--codex--cli-10b981?style=flat-square)](https://github.com/milisp/awesome-codex-cli)
-[![已收录 awesome-coding-agents](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--coding--agents-7c3aed?style=flat-square)](https://github.com/kailiu42/awesome-coding-agents)
-[![已收录 awesome-claude-code-and-skills](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--claude--code--and--skills-8b5cf6?style=flat-square)](https://github.com/GetBindu/awesome-claude-code-and-skills)
-[![已收录 awesome-vibe-coding-resources](https://img.shields.io/badge/%E5%B7%B2%E6%94%B6%E5%BD%95-awesome--vibe--coding--resources-ec4899?style=flat-square)](https://github.com/acvnace/awesome-vibe-coding-resources#desktop-apps)
+<!-- README 核心 Demo 占位：后续加入 8-12 秒 running -> your turn -> open session 无缝循环。 -->
 
-<a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
-  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
-</a>
-
-<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 发布短片：周报/月报战绩卡与岛民段位" width="900">
-
-<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;高清版</a></sub>
-
-<p>
-  <a href="#安装"><strong>安装</strong></a> ·
-  <a href="https://agent-island.dev/zh/">官网</a> ·
-  <a href="https://github.com/tristan666666/agent-island/releases/latest">最新 release</a> ·
-  <a href="docs/roadmap.md">路线图</a> ·
-  <a href="CONTRIBUTING.md">参与贡献</a>
-</p>
-
-<p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多在 Mac 和 Windows 上跑这些 agent 的人找到它。</strong></p>
+[快速开始](#快速开始) · [工作原理](#工作原理) · [最新版本](https://github.com/tristan666666/agent-island/releases/latest) · [参与贡献](#参与贡献)
 
 </div>
 
-## 安装
+## 为什么需要 Agent Island
+
+长时间运行的编程 Agent，不应该要求你把所有终端一直摆在眼前。Agent Island 为 Claude Code 和 Codex 提供一个持续可见的小型状态界面，让你知道哪些任务正在运行、哪些需要注意，以及什么时候控制权已经回到你手里。
+
+它适合这些开发者：
+
+- 同时运行多个编程 Agent 会话；
+- 让长任务在后台运行，同时处理其他工作；
+- 希望在不上传会话数据的情况下获得状态和提醒。
+
+## 快速开始
+
+从最新 Release 下载当前 `v1.6.1` 安装包：
+
+- **macOS 13 或更高版本：** [AgentIsland-1.6.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1.dmg)
+- **Windows 10/11 x64：** [AgentIsland-1.6.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1-win-x64.zip)
+
+在 macOS 上，将 AgentIsland 拖入“应用程序”。如果因为尚未公证而在首次启动时被 Gatekeeper 拦截，请在 Finder 中右键应用并选择一次**打开**。
+
+在 Windows 上，解压 ZIP 后运行 `AgentIsland.exe`。
+
+也可以通过包管理器安装，但包管理器中的版本可能晚于 GitHub 最新 Release：
 
 ```sh
 brew install tristan666666/tap/agentisland
 ```
 
-**Windows**(新):
-
-从 [最新 Release](https://github.com/tristan666666/agent-island/releases/latest) 下载 `AgentIsland-win-x64.zip`,解压运行 `AgentIsland.exe`。
-
-或用 Scoop:
+```powershell
+winget install TristanTang.AgentIsland
+```
 
 ```powershell
 scoop bucket add agent-island https://github.com/tristan666666/scoop-bucket
 scoop install agent-island/agentisland
 ```
 
-或用 winget:
+## 目录
 
-```powershell
-winget install TristanTang.AgentIsland
+- [为什么需要 Agent Island](#为什么需要-agent-island)
+- [快速开始](#快速开始)
+- [随时知道每个任务正在做什么](#随时知道每个任务正在做什么)
+- [轮到你时再回来](#轮到你时再回来)
+- [不上传会话也能理解用量](#不上传会话也能理解用量)
+- [macOS 与 Windows](#macos-与-windows)
+- [工作原理](#工作原理)
+- [隐私与安全](#隐私与安全)
+- [常见问题](#常见问题)
+- [参与贡献](#参与贡献)
+
+## 随时知道每个任务正在做什么
+
+Agent Island 把本地会话活动转成抬眼就能看懂的状态，无需反复打开每一个终端。
+
+<img src="Assets/agent-island-bar-working.png" alt="Agent Island 显示正在运行的 Claude Code 会话" width="760">
+
+- Provider 标志旋转：会话正在工作。
+- Provider 标志静止：当前没有运行，或者这一轮已经结束、轮到你了。
+- 红色脉冲：会话因为错误或 Provider 状态而需要注意。
+
+状态检测由 Claude Code 和 Codex 已经写入本机的文件事件驱动。监控这些会话不需要 Agent Island 云端账号。
+
+## 轮到你时再回来
+
+当后台任务结束并把控制权交还给你时，Agent Island 可以显示提醒窗口、发送系统通知，并播放你在设置中选择的提示音。多个已完成任务会排队，不会互相覆盖。
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude Code 会话的轮到你提醒" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 会话的轮到你提醒" width="420"></td>
+  </tr>
+</table>
+
+当已安装客户端和所在平台支持会话直达时，可以使用 **Open Session** 返回对应任务。
+
+## 不上传会话也能理解用量
+
+用量界面把 Provider 窗口和本地活动信息放在会话状态旁边。用量请求会使用本机已有凭据直接访问 Provider API，不会经过 Agent Island 服务器代理。
+
+<img src="Assets/agent-island-usage-zh.png" alt="Agent Island 的 Claude Code 和 Codex 用量界面" width="760">
+
+`v1.6.1` 还包含在本机渲染的周报和月报卡。API 费用估算只用于参考，不是 Provider 账单，也不能证明节省了多少钱。准确发布范围请查看 [v1.6.1 Release Notes](https://github.com/tristan666666/agent-island/releases/tag/v1.6.1)。
+
+## macOS 与 Windows
+
+Agent Island 为 macOS 和 Windows 分别提供原生应用。核心产品范围一致：本地会话状态、注意信号和轮到你提醒。展示方式遵循各自平台：macOS 使用菜单栏/顶部条，Windows 使用顶部条或可移动组件，并在系统托盘中保持入口。
+
+<!-- 平台对照表占位：完成 macOS 与 Windows 行为验收后加入经过验证的能力矩阵。 -->
+
+<!-- Windows 视觉证据占位：后续加入真实的运行/等待、轮到你提醒和用量截图。 -->
+
+当前安装包和平台说明以[最新 Release](https://github.com/tristan666666/agent-island/releases/latest)为准。Windows 贡献者可以从 [`windows/`](windows/) 项目开始。
+
+## 工作原理
+
+```mermaid
+flowchart LR
+    A[Claude Code 与 Codex 本地会话文件] --> B[本地解析器与状态机]
+    B --> C[状态界面]
+    B --> D[轮到你提醒]
+    E[Provider 用量 API] --> F[本地用量界面]
 ```
 
-或直接下载 DMG:
+- **会话状态：**本地 transcript 活动和回合结束标记进入本地状态机。
+- **注意信号：**当前状态驱动状态岛、系统通知和排队提醒。
+- **用量：**请求从应用直接访问 Provider API，不经过 Agent Island 后端。
+- **报告：**聚合和图片渲染在本机完成，分享必须由用户主动触发。
 
-下载 DMG，把 AgentIsland 拖进 Applications，打开：
+工程说明：[Agent Island 如何检测 Claude Code 和 Codex 会话状态](docs/how-agent-island-detects-session-state.md)。
 
-[**下载最新版 AgentIsland.dmg**](https://github.com/tristan666666/agent-island/releases/latest)
+## 隐私与安全
 
-如果 macOS 第一次启动时提示应用未公证，在 Finder 里右键 AgentIsland，选择一次 **打开** 即可。
+- 不需要 Agent Island 账号。
+- Agent Island 没有产品分析或遥测端点。
+- 会话监控和报告生成在本机运行。
+- Provider 用量调用使用 Provider 工具已经保存在本机的凭据。
+- 只有当你主动复制或分享时，报告图片才会离开应用。
+- macOS 构建使用 ad-hoc 签名，尚未经过 Apple 公证；Sparkle 会另外使用 EdDSA 签名验证每次应用更新。
 
-或者源码构建：
+## 常见问题
+
+### 为什么不直接把所有终端一直放在眼前？
+
+当然可以，但并行任务越多，持续盯着终端的成本就越高。Agent Island 提供持续可见的摘要，只在会话状态变化或需要你时吸引注意。
+
+### Agent Island 会上传我的 transcript 吗？
+
+不会。会话解析在本机完成。应用会为用量信息直接访问 Provider API，但不会把 transcript 发送给 Agent Island。
+
+### 为什么 macOS 第一次启动时要求手动打开？
+
+项目目前没有使用付费 Apple Developer ID，因此应用尚未公证。请在 Finder 中右键应用并选择一次**打开**。后续更新包会由 Sparkle 使用独立的 EdDSA 签名检查。
+
+### 可以自己构建吗？
+
+可以。macOS 构建方式：
 
 ```sh
 git clone https://github.com/tristan666666/agent-island.git
@@ -82,95 +163,35 @@ cd agent-island
 open build/AgentIsland.app
 ```
 
-## 功能
+Windows 项目请查看 [`windows/README.md`](windows/README.md)。
 
-### 🖥️ 一个应用，macOS 和 Windows 原生
+## 参与贡献
 
-同一个产品、同一套检测引擎，双端都无 Electron。中英双语，设置里即切。
+欢迎范围清晰、可以验证的小型贡献。当前适合开始的任务包括：
 
-- **macOS 13+**（SwiftUI，通用二进制）：刘海机用宽版顶部条，其余设备用紧凑顶部条。
-- **Windows 10/11**（WPF）：顶部条或可拖动悬浮小窗，托盘图标常显用量环。
+- [#15 为已退役功能口径增加公开文案防回归检查](https://github.com/tristan666666/agent-island/issues/15)
+- [#17 更新 GitHub Issue 表单，使其符合当前产品范围](https://github.com/tristan666666/agent-island/issues/17)
+- [#10 编写 Windows 贡献者构建与测试说明](https://github.com/tristan666666/agent-island/issues/10)
 
-### ⚡ 顶部条上的实时状态
+提交 Pull Request 前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。本地化任务也统一标记为 [`good first issue`](https://github.com/tristan666666/agent-island/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22)。
 
-<img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760">
+## 路线图与更新记录
 
-Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
+- [路线图](docs/roadmap.md)
+- [最新 Release](https://github.com/tristan666666/agent-island/releases/latest)
+- [所有 Releases](https://github.com/tristan666666/agent-island/releases)
+- [v1.6.1 发布片](docs/media/agentisland-1.6.1-launch-en.mp4)
 
-| 表现 | 含义 |
-|---|---|
-| logo **旋转** | 有会话正在跑 |
-| logo **静止** | 没有任务在跑 —— 或者这一轮结束，该你了 |
-| logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
+这段发布片用于介绍 `v1.6.1`，不作为本 README 首屏预留的核心状态工作流 Demo。
 
-<img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
+## 社区与公开收录
 
-### 📊 用量岛
+[Product Hunt](https://www.producthunt.com/products/agent-island-2) · [中国独立开发者项目列表](https://github.com/1c7/chinese-independent-developer) · [awesome-mac](https://github.com/jaywcjlove/awesome-mac) · [awesome-swift-macos-apps](https://github.com/jaywcjlove/awesome-swift-macos-apps)
 
-Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
-
-<img src="Assets/agent-island-usage-zh.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
-
-**重置卡（Reset bank）**：Codex 的 ×N 徽标显示你囤的重置卡，点开看每张的到期时间。
-
-### 🏆 周报 / 月报战绩卡 —— 1.6.1 新增
-
-一键把你的一周（或半年）渲染成一张可分享的卡片：Token 总量与「≈ API 费用」、Claude/Codex 占比、TOP-5 模型明细（用量 · 花费 · 占比）、24 周活跃热力图与连击天数——还有你的**岛民段位**：从 🌊 漂流者（1 亿）到 👑 传奇航海家（1000 亿）共七级。全部在本机渲染，图片由你自己复制、自己发。
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/report-weekly-zh.png" alt="周报卡：Token 总量、API 费用、双引擎占比、TOP-5 模型环形图、岛民段位" width="380"></td>
-    <td align="center"><img src="Assets/report-monthly-zh.png" alt="月报卡：24 周活跃热力图、连击天数、岛民段位" width="380"></td>
-  </tr>
-</table>
-
-### 🔔 到你回复提醒
-
-后台会话一轮跑完，闹钟窗口 + 系统通知 + 提示音，几秒内送达。
-
-- **回复了就自动消失**；多个完成会排队，不互吞。
-- **额度也算数** —— Claude 额度打满时单独提醒一次，写明真实恢复时间。
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude 线程跑完后的到你回复提醒" width="420"></td>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
-  </tr>
-</table>
-
-### 🎨 顺带一提：五种表盘
-
-⌘ 点击小岛即可轮换图表样式，已用 / 剩余随手切。
-
-<img src="Assets/chart-styles-zh.png" alt="五种图表样式" width="760">
-
-## 原理
-
-- **会话状态**读自 Claude Code / Claude Desktop / Codex 本来就写在你磁盘上的记录文件：FSEvents 监听写入，再结合轮次完成标记（Claude 的 `stop_reason: end_turn`、Codex 的 `task_complete`）和文件活动，判定旋转 / 闹钟 / 红色。
-- **用量和重置时间**来自各家真实的用量 API，用的是你机器上已有的凭据。
-- 全程在本机以你的身份运行，不上传任何东西。
-
-更完整的实现拆解（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
-
-## FAQ 与安全
-
-**为什么应用没有公证（notarize）？**
-没有付费的 Apple 开发者账号。应用是 ad-hoc 签名的，所以首次启动 macOS 会拦一次，右键 → 打开即可。自动更新有独立校验：Sparkle 在安装前会验证每个更新包的 EdDSA 签名。
-
-**我的数据会离开这台 Mac 吗？**
-不会。Agent Island 读本地记录文件，用你本机已有的 token 调各家用量 API。应用里没有任何遥测。
-
-**跟 codex-island 有什么不一样？**
-[codex-island](https://github.com/ericjypark/codex-island) 是个被动电表 —— 告诉你用了多少。Agent Island 保留了这部分（用量、成本、重置），再加上主动的那一半：logo 上的实时会话状态和到你回复提醒。
-
-## 用户交流群
-
-扫码加作者微信,备注「Agent Island」,拉你进开源交流反馈群——聊使用体验、报问题、提想法,欢迎一起参与共建。
-
-<img src="Assets/wechat-qr.jpg" alt="加作者微信,备注 Agent Island 进交流群" width="300" />
+中文用户也可以加入[微信交流群](Assets/wechat-qr.jpg)。
 
 ## 致谢与许可
 
-Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入到你回复提醒、实时状态动效、跨平台支持，并走出了自己的产品方向。
+Agent Island 是 [Eric Park](https://github.com/ericjypark) 的 [codex-island](https://github.com/ericjypark/codex-island) 项目的 fork。最初的用量岛和成本追踪基础由他完成。Provider 名称和标志归各自所有者所有；本项目与 Anthropic 或 OpenAI 无隶属关系。
 
-MIT 许可 —— © 2026 Eric Park，本 fork 保留该声明。见 [LICENSE](LICENSE)。
+项目采用 [MIT License](LICENSE) 发布。Copyright © 2026 Eric Park；本 fork 保留原版权声明。

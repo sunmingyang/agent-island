@@ -1,8 +1,10 @@
 #!/bin/bash
 # Builds the .app and packages a DMG for distribution.
-# Requires `npm install --global create-dmg` (Node 20+). Unsigned — no Apple
-# Developer Program certificates involved. Ad-hoc codesign keeps Apple Silicon
-# Macs from rejecting the binary as "damaged" after re-download.
+# Requires `dmgbuild` (pipx install dmgbuild, or: python3 -m pip install
+# dmgbuild) — it writes the styled installer window's .DS_Store directly,
+# no Finder scripting, so it runs headless on CI. Unsigned — no Apple
+# Developer Program certificates involved. Ad-hoc codesign keeps Apple
+# Silicon Macs from rejecting the binary as "damaged" after re-download.
 #
 # Update flow: after the DMG is built, sign it with the Sparkle EdDSA key
 # and generate dist/appcast.xml. CI uploads the DMG and appcast as GitHub
@@ -20,11 +22,15 @@ APP_NAME="AgentIsland"
 DIST="dist"
 APP="$DIST/$APP_NAME.app"
 DMG="$DIST/AgentIsland-$VERSION.dmg"
-CREATE_DMG_OUT="$DIST/AgentIsland $VERSION.dmg"
 
-if ! command -v create-dmg >/dev/null 2>&1; then
-  echo "error: create-dmg is required. Install with: npm install --global create-dmg" >&2
-  exit 1
+DMGBUILD="dmgbuild"
+if ! command -v dmgbuild >/dev/null 2>&1; then
+  if python3 -c "import dmgbuild" >/dev/null 2>&1; then
+    DMGBUILD="python3 -m dmgbuild"
+  else
+    echo "error: dmgbuild is required. Install with: pipx install dmgbuild (or: python3 -m pip install dmgbuild)" >&2
+    exit 1
+  fi
 fi
 
 # Release builds carry the live Sparkle feed; dev builds default to none
@@ -40,17 +46,20 @@ cp -R "build/$APP_NAME.app" "$DIST/"
 # unsigned Apple Silicon binaries hit after a download round-trip.
 codesign --force --deep --sign - "$APP"
 
-rm -f "$DMG" "$CREATE_DMG_OUT"
-create-dmg \
-  --overwrite \
-  --no-code-sign \
-  --dmg-title "AgentIsland $VERSION" \
-  "$APP" \
-  "$DIST"
+# Styled installer window: dark backdrop + wordmark + drag arrow (the bare
+# create-dmg window read as a debug artifact next to polished installers).
+# 1x/2x PNGs combine into a retina-aware TIFF Finder picks per display.
+tiffutil -cathidpicheck packaging/dmg/background.png packaging/dmg/background@2x.png \
+  -out "$DIST/dmg-background.tiff" >/dev/null
 
-if [[ -f "$CREATE_DMG_OUT" ]]; then
-  mv "$CREATE_DMG_OUT" "$DMG"
-fi
+rm -f "$DMG"
+$DMGBUILD \
+  -s packaging/dmg/settings.py \
+  -D app="$APP" \
+  -D background="$DIST/dmg-background.tiff" \
+  -D icon="Assets/AgentIsland.icns" \
+  "Agent Island $VERSION" \
+  "$DMG"
 
 DMG_SHA256="$(shasum -a 256 "$DMG" | awk '{print $1}')"
 DMG_SIZE_BYTES="$(stat -f%z "$DMG")"

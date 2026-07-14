@@ -41,13 +41,8 @@ jobs:
         with:
           ref: ${{ steps.release.outputs.source_ref }}
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Install DMG tooling
-        run: npm install --global create-dmg
+        run: pipx install dmgbuild
 
       - name: Prepare Sparkle signing key
         shell: bash

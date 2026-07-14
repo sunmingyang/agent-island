@@ -218,12 +218,6 @@ struct SettingsView: View {
             ) {
                 languagePicker
             }
-            SettingsRow(
-                title: "Visual effects",
-                subtitle: effectsSubtitle
-            ) {
-                effectsPicker
-            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 18)
@@ -487,16 +481,6 @@ struct SettingsView: View {
         .accessibilityLabel(L10n.tr("Visual effects"))
     }
 
-    private var effectsSubtitle: String {
-        if lowPower.enabled {
-            return L10n.tr("Quiet by default — glow only on hover, refresh, or alerts.")
-        }
-        if lowPower.systemLowPowerEnabled {
-            return L10n.tr("macOS Low Power Mode is on — staying calm for now.")
-        }
-        return L10n.tr("Constant halo and orbiting light. A bit more power.")
-    }
-
     /// The switch is live — settings and island text re-render right away.
     /// Only a few date/number labels sit behind formatters created at app
     /// launch, so the prompt offers (not demands) a restart.
@@ -719,6 +703,14 @@ struct SettingsView: View {
     private var topPanelSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionLabel("Top bar")
+            // Lives here with the island-appearance controls (design review:
+            // next to Cost display), title + picker only — no sentence.
+            SettingsRow(
+                title: "Visual effects",
+                subtitle: nil
+            ) {
+                effectsPicker
+            }
             SettingsRow(
                 title: "Always show usage in top bar",
                 subtitle: nil
