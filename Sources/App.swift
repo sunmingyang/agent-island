@@ -124,7 +124,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let win = NSWindow(contentRect: screen.frame,
                                styleMask: [.borderless],
                                backing: .buffered, defer: false)
-            win.level = .normal
+            // .floating, NOT .normal: the stage must cover OTHER APPS' windows
+            // too — at .normal, Finder/docs/chat windows float above it and
+            // leak into recordings (the report-clip privacy incident). Report
+            // panels are also .floating but order in later, so they stay on
+            // top; the island window sits higher still.
+            win.level = .floating
             win.isOpaque = true
             win.contentView = NSHostingView(rootView: RecordingBackdropView())
             win.orderFrontRegardless()
