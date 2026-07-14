@@ -576,7 +576,10 @@ private struct MonthlyShareAnchorView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
-@MainActor
+// Plain retain box (no actor isolation): @MainActor here broke CI —
+// a @State default value is initialized in a nonisolated context, and
+// newer compilers reject the implicit hop. The picker itself is only
+// ever touched from the view body (main thread) anyway.
 private final class MonthlyPickerHolder {
     var picker: NSSharingServicePicker?
 }
