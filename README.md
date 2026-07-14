@@ -29,7 +29,11 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
 </a>
 
-<video src="https://github.com/tristan666666/agent-island/raw/main/docs/media/agentisland-1.6.1-launch-en.mp4" controls width="900"></video>
+<a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">
+  <img src="docs/media/launch-poster.png" alt="Agent Island 1.6.1 launch film — weekly and monthly report cards" width="900">
+</a>
+
+**[▶&nbsp; Watch the 1.6.1 launch film — 21s](https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4)**
 
 <p>
   <a href="#install"><strong>Install</strong></a> ·

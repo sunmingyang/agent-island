@@ -29,7 +29,11 @@ Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
 </a>
 
-<video src="https://github.com/tristan666666/agent-island/raw/main/docs/media/agentisland-1.6.1-launch-en.mp4" controls width="900"></video>
+<a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">
+  <img src="docs/media/launch-poster.png" alt="Agent Island 1.6.1 launch film — weekly and monthly report cards" width="900">
+</a>
+
+**[▶&nbsp; 看 1.6.1 发布短片 — 21 秒](https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4)**
 
 <p>
   <a href="#安装"><strong>安装</strong></a> ·
