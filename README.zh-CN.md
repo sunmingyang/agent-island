@@ -57,9 +57,9 @@ Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows
 
 Agent Island 出自一个 Claude Code + Codex 重度用户的两个日常：
 
-**把每一分 token 用到位。** 两个工具一起用，就要同时盯两个额度时钟——5 小时窗口什么时候重置、现在哪边还有余量。交叉用好它们，才对得起你付的钱。所以：双家用量、成本、重置倒计时，顶部条一眼看完。
+**把每一分 token 用到位。** 两个工具一起用，就要同时盯不同的额度时钟——Claude 的 5 小时与周额度、Codex 的周额度。交叉用好它们，才对得起你付的钱。所以：双家用量、成本、重置倒计时，顶部条一眼看完。
 
-**发完一轮，就去生活。** 跟 agent 讲完一轮逻辑，你本该可以离开——陪孩子、去健身、看场电影。它跑的时候不需要你，它停下来的那一刻才需要你。Agent Island 盯的就是那个时刻：该你了就叫你，额度回来了就自动续跑你指定的会话——写代码不该霸占你的整个晚上。
+**发完一轮，就去生活。** 跟 agent 讲完一轮逻辑，你本该可以离开——陪孩子、去健身、看场电影。它跑的时候不需要你，它停下来的那一刻才需要你。Agent Island 盯的就是那个时刻：该你了就叫你——写代码不该霸占你的整个晚上。
 
 这就是全部初心：机器的产出拉满，人从循环里拿回自己的生活。
 
@@ -103,7 +103,7 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
 
 ### ⛽ 额度用完弹窗
 
-撞上限流和跑完一轮是两种事件，配得上两种打断：5 小时或周额度窗口一到 100%，会弹一个独立提醒，重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。macOS 和 Windows 都有。
+撞上限流和跑完一轮是两种事件，配得上两种打断：服务方实际返回的额度窗口一到 100%，会弹一个独立提醒，真实重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。Claude 当前有 5 小时与周额度，Codex 当前只有周额度。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。macOS 和 Windows 都有。
 
 <table>
   <tr>
@@ -112,23 +112,9 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
   </tr>
 </table>
 
-### 🔁 额度重置后自动续跑
-
-给会话挂一条规则：等服务方的用量窗口重置 —— 或者按"每 N 小时"固定间隔 —— Agent Island 自动给它发一句话（`继续`、`OK`，随你设），半夜停住的任务自己接着跑。
-
-<img src="Assets/agent-island-auto-trigger.png" alt="岛内的自动续跑规则页" width="760">
-
-因为这个功能是无人值守运行的，配了几道闸：
-
-- 设置里有**总开关（kill switch）** —— 关掉后，永远不会生成任何 resume 命令。
-- **按项目的允许清单** —— 只有你明确放行的目录才会触发续跑。
-- **运行记录** —— 每次执行或拦截都有记录，从设置里一键打开记录文件夹。
-
-诚实的限制：Mac 必须醒着；每次续跑都会消耗 token。`--dangerously-*` 参数意味着什么，见 [FAQ 与安全](#faq-与安全)。
-
 ### 📊 用量岛
 
-Claude / Codex 的 5 小时与周用量、成本、重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
+Claude 的 5 小时与周用量、Codex 的周用量，以及双家的成本与重置倒计时 —— 刘海里左右滑动的几页，数据来自各家自己的用量 API。当 Claude 的接口要求重新登录时，「重新认证」按钮直接在浏览器里完成（真正的 claude.com 授权页，一次点击，本地回调接住）—— 不开终端、不贴验证码。
 
 <img src="Assets/agent-island-usage.png" alt="Claude 和 Codex 用量、成本与重置倒计时页" width="760">
 
@@ -186,15 +172,11 @@ open build/AgentIsland.app
 
 - **会话状态**读自 Claude Code / Claude Desktop / Codex 本来就写在你磁盘上的记录文件：FSEvents 监听写入，再结合轮次完成标记（Claude 的 `stop_reason: end_turn`、Codex 的 `task_complete`）和文件活动，判定旋转 / 闹钟 / 红色。
 - **用量和重置时间**来自各家真实的用量 API，用的是你机器上已有的凭据。
-- **自动续跑**执行 `claude --resume … -p "<消息>" --dangerously-skip-permissions` 或 `codex exec resume … "<消息>" --dangerously-bypass-approvals-and-sandbox`，运行记录在 `~/Library/Application Support/AgentIsland/trigger-runs/`。
 - 全程在本机以你的身份运行，不上传任何东西。
 
 更完整的实现拆解（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
 
 ## FAQ 与安全
-
-**`--dangerously-*` 这些续跑参数到底做了什么？**
-它们让 agent *无人值守、关掉权限确认*地恢复运行 —— 没有人点"允许"，会话才可能自己继续，这是唯一的办法。请相应地对待它：总开关、按项目允许清单、运行记录，都是为了让你把范围收在信得过的会话上。只给你放心无人值守跑的工作挂规则。
 
 **为什么应用没有公证（notarize）？**
 没有付费的 Apple 开发者账号。应用是 ad-hoc 签名的，所以首次启动 macOS 会拦一次，右键 → 打开即可。自动更新有独立校验：Sparkle 在安装前会验证每个更新包的 EdDSA 签名。
@@ -203,7 +185,7 @@ open build/AgentIsland.app
 不会。Agent Island 读本地记录文件，用你本机已有的 token 调各家用量 API。应用里没有任何遥测。
 
 **跟 codex-island 有什么不一样？**
-[codex-island](https://github.com/ericjypark/codex-island) 是个被动电表 —— 告诉你用了多少。Agent Island 保留了这部分（用量、成本、重置），再加上主动的那一半：logo 上的实时会话状态、到你回复提醒、自动续跑。
+[codex-island](https://github.com/ericjypark/codex-island) 是个被动电表 —— 告诉你用了多少。Agent Island 保留了这部分（用量、成本、重置），再加上主动的那一半：logo 上的实时会话状态和到你回复提醒。
 
 ## 用户交流群
 
@@ -213,6 +195,6 @@ open build/AgentIsland.app
 
 ## 致谢与许可
 
-Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入自动续跑、到你回复提醒、实时状态动效，并走出了自己的产品方向。
+Agent Island fork 自 **[codex-island](https://github.com/ericjypark/codex-island)**（作者 **Eric Park**）—— 用量岛与成本统计的底子是他的。Agent Island 在此之上加入到你回复提醒、实时状态动效、跨平台支持，并走出了自己的产品方向。
 
 MIT 许可 —— © 2026 Eric Park，本 fork 保留该声明。见 [LICENSE](LICENSE)。

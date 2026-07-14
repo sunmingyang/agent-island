@@ -57,9 +57,9 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
 
 Agent Island was built by a heavy Claude Code + Codex user, out of two everyday realities:
 
-**Squeeze every token.** Running both tools daily means juggling two quota clocks — when does the 5-hour window reset, which tool has headroom right now. Cross-using them well is how you get the most out of what you pay for. So: live usage, cost, and reset countdowns for both, one glance in the top bar.
+**Squeeze every token.** Running both tools daily means juggling different quota clocks — Claude's 5-hour and weekly windows, and Codex's weekly window. Cross-using them well is how you get the most out of what you pay for. So: live usage, cost, and reset countdowns for both, one glance in the top bar.
 
-**Start the run, then go live your life.** You brief the agent for one round — then you should be able to walk away: play with your kids, hit the gym, watch a movie. The agent doesn't need you while it runs; it needs you when it stops. Agent Island watches for that exact moment — rings you when it's your turn, resumes chosen sessions when the quota comes back — so coding doesn't own your evening.
+**Start the run, then go live your life.** You brief the agent for one round — then you should be able to walk away: play with your kids, hit the gym, watch a movie. The agent doesn't need you while it runs; it needs you when it stops. Agent Island watches for that exact moment and rings you when it's your turn, so coding doesn't own your evening.
 
 That's the whole point: maximum throughput from the machines, and your life back from the loop.
 
@@ -103,7 +103,7 @@ The screenshots at the top are this alarm, one per provider.
 
 ### ⛽ Out-of-quota alarm
 
-Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: the moment a 5-hour or weekly window reaches 100%, a distinct alarm fires with the reset time on it ("Resets at 15:55 (~2h)"). Once per reset cycle, warmup-gated so launching into an already-exhausted window stays silent — on both macOS and Windows.
+Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a provider-reported quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). Claude currently reports 5-hour and weekly windows; Codex reports one weekly window. The alarm fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent — on both macOS and Windows.
 
 <table>
   <tr>
@@ -112,23 +112,9 @@ Hitting a rate limit is a different event than a finished turn, so it gets a dif
   </tr>
 </table>
 
-### 🔁 Auto-resume when the quota resets
-
-Attach a rule to a session: when the provider's usage window resets — or on a fixed every-N-hours schedule — Agent Island sends it a message (`continue`, `OK`, whatever you set) so overnight work picks itself back up.
-
-<img src="Assets/agent-island-auto-trigger.png" alt="Auto-resume rules page in the island" width="760">
-
-Built-in guardrails, because this feature runs unattended:
-
-- A **kill switch** in Settings — when off, no resume command is ever spawned.
-- A **per-project allow list** — resume only fires for directories you explicitly allow.
-- **Records** — every run, executed or blocked, is logged; open the folder from Settings.
-
-Honest limits: your Mac must be awake, and every resumed run spends tokens. See [FAQ & safety](#faq--safety) for what the `--dangerously-*` flags mean.
-
 ### 📊 Usage island
 
-Live Claude & Codex 5-hour and weekly usage, cost, and reset countdowns — swipeable pages in the notch, fed by each provider's own usage API. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
+Live Claude 5-hour + weekly usage and Codex weekly usage, with cost and reset countdowns — swipeable pages in the notch, fed by each provider's own usage API. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
 
 <img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
 
@@ -186,15 +172,11 @@ open build/AgentIsland.app
 
 - **Session state** is read from the transcript files Claude Code, Claude Desktop, and Codex already write on your disk: FSEvents watches for writes, and end-of-turn markers (Claude's `stop_reason: end_turn`, Codex's `task_complete`) plus file activity decide spin / alarm / red.
 - **Usage and reset times** come from each provider's real usage API, using the credentials already on your machine.
-- **Auto-resume** runs `claude --resume … -p "<msg>" --dangerously-skip-permissions` or `codex exec resume … "<msg>" --dangerously-bypass-approvals-and-sandbox`. Run records land in `~/Library/Application Support/AgentIsland/trigger-runs/`.
 - Everything runs locally as you. Nothing is uploaded anywhere.
 
 Deeper write-up: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
 
 ## FAQ & safety
-
-**What do the `--dangerously-*` resume flags actually do?**
-They restore the agent *unattended, with permission checks off* — that's the only way a session can continue without a human clicking "allow". Treat it accordingly: the kill switch, the per-project allow list, and the run records exist exactly so you can scope this to sessions you trust. Only attach rules to work you'd be comfortable running unattended.
 
 **Why isn't the app notarized?**
 No paid Apple Developer account. The app is ad-hoc signed, so macOS asks for one right-click → Open on first launch. Auto-updates are independently verified: Sparkle checks every update against an EdDSA signature before installing.
@@ -203,7 +185,7 @@ No paid Apple Developer account. The app is ad-hoc signed, so macOS asks for one
 No. Agent Island reads local transcript files and calls the providers' usage APIs with your existing local tokens. There is no telemetry in the app.
 
 **How is this different from codex-island?**
-[codex-island](https://github.com/ericjypark/codex-island) is a passive usage meter — it shows how much you've used. Agent Island keeps that (usage, cost, resets) and adds the active half: live session state on the logos, turn alarms, and auto-resume.
+[codex-island](https://github.com/ericjypark/codex-island) is a passive usage meter — it shows how much you've used. Agent Island keeps that (usage, cost, resets) and adds the active half: live session state on the logos and turn alarms.
 
 ## WeChat Community (中文交流群)
 
@@ -211,6 +193,6 @@ Chinese-speaking users: scan the QR code in the [中文 README](README.zh-CN.md#
 
 ## Credits & license
 
-Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park** — the usage-island and cost-tracking foundation are his work. Agent Island adds auto-resume, turn alarms, live session-state animations, and its own product direction.
+Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park** — the usage-island and cost-tracking foundation are his work. Agent Island adds turn alarms, live session-state animations, cross-platform support, and its own product direction.
 
 MIT licensed — © 2026 Eric Park. This fork retains that notice. See [LICENSE](LICENSE).

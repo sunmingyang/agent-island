@@ -103,52 +103,6 @@ That gives one visible Claude state and one visible Codex state in the notch.
 
 The scanner also prunes `lastWorking` entries to only files still considered candidates, so long-running app sessions do not leak unbounded path state.
 
-## Auto-Resume Is Separate From State Detection
-
-The visual state monitor is passive. Auto-resume is explicit and opt-in.
-
-Triggers are stored locally in `UserDefaults` by `TriggerStore`. A trigger contains:
-
-- provider: Claude or Codex;
-- session id;
-- working directory;
-- message to send;
-- trigger mode;
-- enabled state;
-- last fired time.
-
-There are two trigger modes:
-
-- **after reset**: fire once after the provider's real 5-hour reset boundary advances;
-- **every N hours**: fire on a fixed local interval.
-
-The reset-based mode is deliberately not "wait five hours from now." `TriggerEngine` watches the provider usage store and treats a changed `fiveHour.resetAt` as the reset signal. It persists the last handled reset boundary under:
-
-```text
-AgentIsland.triggerResetBaselines
-```
-
-That prevents relaunches from firing immediately and lets the app catch up once if the Mac slept through a genuine rollover.
-
-## The Risk Boundary
-
-When a trigger fires, Agent Island resumes the selected CLI session:
-
-```text
-claude --resume <id> -p "<message>" --dangerously-skip-permissions
-codex exec resume <id> "<message>" --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check
-```
-
-Those flags are powerful. They bypass normal approval prompts and can spend tokens. Agent Island makes that explicit in the README and in the UI: only attach triggers to sessions you trust.
-
-The app also has a hard stop for demo/debug environments. Synthetic demo usage can move reset timers repeatedly, so `TriggerEngine.fire()` refuses to spawn real resume commands unless the app is running in normal mode.
-
-Run logs are written locally under:
-
-```text
-~/Library/Application Support/AgentIsland/trigger-runs/
-```
-
 ## Why This Belongs In The Notch
 
 The implementation is not trying to replace a terminal UI, dashboard, or session browser. Those are useful when you want detail.

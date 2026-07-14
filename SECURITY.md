@@ -6,7 +6,7 @@ Security fixes are handled for the latest public release of Agent Island.
 
 | Version | Supported |
 | --- | --- |
-| 1.0.x | Yes |
+| 1.6.x | Yes |
 
 ## Reporting a Vulnerability
 
@@ -22,7 +22,6 @@ Useful reports include:
 
 - A way for Agent Island to expose Claude Code or Codex session contents unexpectedly.
 - Incorrect handling of local credentials, OAuth refresh state, or usage API responses.
-- Auto-resume behavior that can trigger outside the user-configured session or without explicit opt-in.
 - Packaging, update, or release integrity issues.
 
 Out of scope:
