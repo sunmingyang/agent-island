@@ -57,7 +57,8 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
 
 Agent Island was built by a heavy Claude Code + Codex user, out of two everyday realities:
 
-**Squeeze every token.** Running both tools daily means juggling different quota clocks — Claude's 5-hour and weekly windows, and Codex's weekly window. Cross-using them well is how you get the most out of what you pay for. So: live usage, cost, and reset countdowns for both, one glance in the top bar.
+**Squeeze every token.** Running both tools daily means juggling different quota clocks. Claude reports 5-hour and weekly windows.
+Codex reports one weekly window. Cross-using them well is how you get the most out of what you pay for. So: live usage, cost, and reset countdowns for both, one glance in the top bar.
 
 **Start the run, then go live your life.** You brief the agent for one round — then you should be able to walk away: play with your kids, hit the gym, watch a movie. The agent doesn't need you while it runs; it needs you when it stops. Agent Island watches for that exact moment and rings you when it's your turn, so coding doesn't own your evening.
 
@@ -103,7 +104,8 @@ The screenshots at the top are this alarm, one per provider.
 
 ### ⛽ Out-of-quota alarm
 
-Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a provider-reported quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). Claude currently reports 5-hour and weekly windows; Codex reports one weekly window. The alarm fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent — on both macOS and Windows.
+Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a provider-reported quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). Claude currently reports 5-hour and weekly windows.
+Codex reports one weekly window. The alarm fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent — on both macOS and Windows.
 
 <table>
   <tr>
@@ -114,7 +116,8 @@ Hitting a rate limit is a different event than a finished turn, so it gets a dif
 
 ### 📊 Usage island
 
-Live Claude 5-hour + weekly usage and Codex weekly usage, with cost and reset countdowns — swipeable pages in the notch, fed by each provider's own usage API. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
+Live usage, cost, and reset countdowns appear on swipeable pages in the notch, fed by each provider's own usage API. Claude shows 5-hour and weekly usage.
+Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
 
 <img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
 
