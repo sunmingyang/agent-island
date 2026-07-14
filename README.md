@@ -29,11 +29,9 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
 </a>
 
-<a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">
-  <img src="docs/media/launch-poster.png" alt="Agent Island 1.6.1 launch film — weekly and monthly report cards" width="900">
-</a>
+<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 launch film: weekly and monthly report cards, island ranks" width="900">
 
-**[▶&nbsp; Watch the 1.6.1 launch film — 21s](https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4)**
+<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;HD version</a></sub>
 
 <p>
   <a href="#install"><strong>Install</strong></a> ·
@@ -45,15 +43,7 @@ On the Mac it fits notched and non-notched machines alike (notch-style or compac
 
 <p><strong>If Agent Island saves you one stalled overnight Claude/Codex run, star it so more people running these agents — on Mac or Windows — can find it.</strong></p>
 
-<table>
-  <tr>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-claude.png" alt="Turn alarm for a finished Claude thread" width="420"></td>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Turn alarm for a finished Codex thread" width="420"></td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2"><img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760"></td>
-  </tr>
-</table>
+<img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760">
 
 </div>
 
@@ -70,6 +60,18 @@ That's the whole point: maximum throughput from the machines, and your life back
 
 ## Features
 
+### ⚡ Live status in the top bar
+
+The Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
+
+| Cue | Meaning |
+|---|---|
+| Logo **rotates** | a session is working |
+| Logo **still** | nothing running — or the turn is over and it's yours |
+| Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
+
+<img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
+
 ### 🏆 Weekly & monthly report cards — new in 1.6.1
 
 One click renders your week (or your half-year) into a shareable card: total tokens with an "≈ API value" line, the Claude/Codex split, a TOP-5 model breakdown (tokens · dollars · share), a 24-week activity heatmap with your streak — and your **island rank**, seven lifetime tiers from 🌊 Drifter (100M) to 👑 Legendary Navigator (100B). Rendered entirely on your machine; you copy the image and post it yourself.
@@ -83,17 +85,11 @@ One click renders your week (or your half-year) into a shareable card: total tok
 
 Codex **reset cards** ride along: an ×N chip in the island shows your banked resets, with an expiry popover.
 
-### ⚡ Live status in the top bar
+### 🎨 Five looks for your quota
 
-The Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
+Command-click the island to cycle the chart style — stepped, digits, line, ring, or bars — and flip between used/remaining. Your quota, your way.
 
-| Cue | Meaning |
-|---|---|
-| Logo **rotates** | a session is working |
-| Logo **still** | nothing running — or the turn is over and it's yours |
-| Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
-
-<img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
+<img src="Assets/chart-styles-en.png" alt="The five chart styles: stepped, digits, line, ring, bars" width="900">
 
 ### 🖥️ Fits your desk — Mac and Windows
 
@@ -117,19 +113,18 @@ When a turn finishes in a background session, Agent Island opens a foreground al
 - **Nothing gets swallowed** — if several turns finish, alarms queue; dismissing one recalls the next.
 - **Open thread** takes you back: Codex sessions land on the exact thread via `codex://threads/…` delivered to the running app; Claude CLI sessions resume for real with `claude --resume` from the session's own directory; Claude Desktop sessions bring Claude Desktop to the front (no conversation-level deep link exists — anything more would be pretend).
 
-The screenshots at the top are this alarm, one per provider.
+<table>
+  <tr>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude.png" alt="Turn alarm for a finished Claude thread" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Turn alarm for a finished Codex thread" width="420"></td>
+  </tr>
+</table>
 
 ### ⛽ Out-of-quota alarm
 
-Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a provider-reported quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). Claude currently reports 5-hour and weekly windows.
-Codex reports one weekly window. The alarm fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent — on both macOS and Windows.
+Hitting a rate limit is a different event than a finished turn, so it gets a different interruption: when a Claude quota window reaches 100%, a distinct alarm fires with its real reset time ("Resets at 15:55 (~2h)"). It fires once per reset cycle and is warmup-gated, so launching into an already-exhausted window stays silent.
 
-<table>
-  <tr>
-    <td align="center"><img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm for Claude with the reset time" width="420"></td>
-    <td align="center"><img src="docs/assets/releases/quota-alarm-codex.png" alt="Out of quota alarm for Codex with the reset time" width="420"></td>
-  </tr>
-</table>
+<img src="docs/assets/releases/quota-alarm.png" alt="Out of quota alarm for Claude with the reset time" width="420">
 
 ### 📊 Usage island
 

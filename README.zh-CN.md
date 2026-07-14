@@ -29,11 +29,9 @@ Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
 </a>
 
-<a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">
-  <img src="docs/media/launch-poster.png" alt="Agent Island 1.6.1 launch film — weekly and monthly report cards" width="900">
-</a>
+<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 发布短片：周报/月报战绩卡与岛民段位" width="900">
 
-**[▶&nbsp; 看 1.6.1 发布短片 — 21 秒](https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4)**
+<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;高清版</a></sub>
 
 <p>
   <a href="#安装"><strong>安装</strong></a> ·
@@ -45,15 +43,7 @@ Mac 上有刘海无刘海都能用（刘海风格或紧凑顶部条）；Windows
 
 <p><strong>如果 Agent Island 让你少守一次半夜卡住的 Claude/Codex 任务，给它一个 Star，让更多在 Mac 和 Windows 上跑这些 agent 的人找到它。</strong></p>
 
-<table>
-  <tr>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude 线程跑完后的到你回复提醒" width="420"></td>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2"><img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760"></td>
-  </tr>
-</table>
+<img src="Assets/agent-island-bar-working.png" alt="会话运行时刘海条上的 Claude logo 在旋转" width="760">
 
 </div>
 
@@ -69,6 +59,18 @@ Agent Island 出自一个 Claude Code + Codex 重度用户的两个日常：
 
 ## 功能
 
+### ⚡ 顶部条上的实时状态
+
+Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
+
+| 表现 | 含义 |
+|---|---|
+| logo **旋转** | 有会话正在跑 |
+| logo **静止** | 没有任务在跑 —— 或者这一轮结束，该你了 |
+| logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
+
+<img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
+
 ### 🏆 周报 / 月报战绩卡 —— 1.6.1 新增
 
 一键把你的一周（或半年）渲染成一张可分享的卡片：Token 总量与「≈ API 费用」、Claude/Codex 占比、TOP-5 模型明细（用量 · 花费 · 占比）、24 周活跃热力图与连击天数——还有你的**岛民段位**：从 🌊 漂流者（1 亿）到 👑 传奇航海家（1000 亿）共七级。全部在本机渲染，图片由你自己复制、自己发。
@@ -82,17 +84,11 @@ Agent Island 出自一个 Claude Code + Codex 重度用户的两个日常：
 
 Codex **重置卡**同步登岛：岛上的 ×N 徽标显示你囤的重置卡，点开看每张的到期时间。
 
-### ⚡ 顶部条上的实时状态
+### 🎨 额度的五种画法
 
-Claude 和 Codex 的 logo 跟着会话的真实状态动。检测是事件驱动的（FSEvents 监听本地记录文件），所以旋转的起停和真实运行只差一秒上下 —— 不是轮询式的延迟。
+⌘点击小岛即可轮换图表样式——阶梯、数字、折线、环形、柱状——还能一键切换「已用 / 剩余」口径。你的额度，按你的习惯看。
 
-| 表现 | 含义 |
-|---|---|
-| logo **旋转** | 有会话正在跑 |
-| logo **静止** | 没有任务在跑 —— 或者这一轮结束，该你了 |
-| logo **红色脉冲** | 需要处理：限流、登录、网络或服务方异常 |
-
-<img src="Assets/agent-island-bar-alert.png" alt="Claude logo 红色脉冲告警的刘海条" width="760">
+<img src="Assets/chart-styles-zh.png" alt="五种图表样式：阶梯、数字、折线、环形、柱状" width="900">
 
 ### 🖥️ Mac 和 Windows 都有它的位置
 
@@ -116,18 +112,18 @@ Windows 上，[Agent Island for Windows](windows/) 用原生 WPF 跑同一套检
 - **多个完成不互吞** —— 几轮同时跑完会排队提醒，关掉一个，下一个接着来。
 - **「回去处理」带你回去** —— Codex 会话经 `codex://threads/…` 直投正在运行的应用、落在具体线程上；Claude CLI 会话在终端里从会话自己的目录 `claude --resume` 真正续跑；Claude Desktop 会话把 Claude Desktop 带到前台（Claude 没有任何能落到具体对话的外部入口 —— 装作能做到才是骗人）。
 
-顶部那两张截图就是这个闹钟，两家各一张。
+<table>
+  <tr>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude-zh.png" alt="Claude 线程跑完后的到你回复提醒" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Codex 线程跑完后的到你回复提醒" width="420"></td>
+  </tr>
+</table>
 
 ### ⛽ 额度用完弹窗
 
-撞上限流和跑完一轮是两种事件，配得上两种打断：服务方实际返回的额度窗口一到 100%，会弹一个独立提醒，真实重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。Claude 当前有 5 小时与周额度，Codex 当前只有周额度。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。macOS 和 Windows 都有。
+撞上限流和跑完一轮是两种事件，配得上两种打断：Claude 的额度窗口一到 100%，会弹一个独立提醒，真实重置时间就写在上面（「22:10 恢复（约 2 小时后）」）。每个重置周期只弹一次，启动时有 warmup —— 在已经打满的窗口里打开 app 不会弹。
 
-<table>
-  <tr>
-    <td align="center"><img src="docs/assets/releases/quota-alarm.png" alt="Claude 额度用完弹窗与重置时间" width="420"></td>
-    <td align="center"><img src="docs/assets/releases/quota-alarm-codex.png" alt="Codex 额度用完弹窗与重置时间" width="420"></td>
-  </tr>
-</table>
+<img src="docs/assets/releases/quota-alarm.png" alt="Claude 额度用完弹窗与重置时间" width="420">
 
 ### 📊 用量岛
 
