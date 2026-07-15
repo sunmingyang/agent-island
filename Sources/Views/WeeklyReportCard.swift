@@ -223,7 +223,7 @@ struct WeeklyReportCard: View {
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(3.2)
                 .foregroundStyle(
-                    LinearGradient(colors: [IslandColor.claude, IslandColor.codex],
+                    LinearGradient(colors: [IslandColor.brandTeal, Color(red: 0.49, green: 0.94, blue: 0.89)],
                                    startPoint: .leading, endPoint: .trailing)
                 )
             Spacer()
@@ -239,20 +239,10 @@ struct WeeklyReportCard: View {
         // Title ABOVE the number, money line below — a bare "100亿" with no
         // label read as a number from nowhere.
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(L10n.tr("tokens this week"))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .tracking(0.4)
-                    .foregroundStyle(.white.opacity(0.55))
-                Spacer()
-                // Counting-policy fine print: the hero is WIRE tokens
-                // (ccusage parity), ~10× the input+output the provider
-                // dashboards show. Unlabeled, every cross-check reads as
-                // "your app is wrong" — it did within a day of 1.6.1.
-                Text(L10n.tr("all tokens · incl. cache reads"))
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.35))
-            }
+            Text(L10n.tr("tokens this week"))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .tracking(0.4)
+                .foregroundStyle(.white.opacity(0.55))
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(parts.0)
                     .font(.system(size: 74, weight: .heavy, design: .rounded))
@@ -271,7 +261,7 @@ struct WeeklyReportCard: View {
             if data.totalDollars >= 1 {
                 Text(L10n.tr("≈ $%@ API value", Self.money(data.totalDollars)))
                     .font(.system(size: 13.5, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62))
+                    .foregroundStyle(IslandColor.liveTeal)
             }
         }
     }
@@ -287,25 +277,22 @@ struct WeeklyReportCard: View {
             }
             .frame(height: 7)
             HStack(spacing: 18) {
-                providerTag(logo: ProviderLogos.claude, name: "Claude",
+                providerTag(name: "Claude",
                             pct: data.claudeShare, color: IslandColor.claude)
-                providerTag(logo: ProviderLogos.openAI, name: "Codex",
+                providerTag(name: "Codex",
                             pct: 1 - data.claudeShare, color: IslandColor.codex)
                 Spacer()
             }
         }
     }
 
-    private func providerTag(logo: NSImage?, name: String, pct: Double, color: Color) -> some View {
+    private func providerTag(name: String, pct: Double, color: Color) -> some View {
         HStack(spacing: 6) {
-            if let logo {
-                Image(nsImage: logo)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 11)
-                    .foregroundStyle(color)
-            }
+            // One logo per card (the brand's, in the footer) — providers get
+            // color dots, not marks (owner: 只能出现一个 logo).
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
             Text(name)
                 .font(.system(size: 11.5, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.78))
@@ -326,7 +313,7 @@ struct WeeklyReportCard: View {
                             .fill(
                                 isPeak
                                 ? AnyShapeStyle(LinearGradient(
-                                    colors: [IslandColor.claude, IslandColor.codex],
+                                    colors: [Color(red: 0.49, green: 0.94, blue: 0.89), IslandColor.brandTeal],
                                     startPoint: .top, endPoint: .bottom))
                                 : AnyShapeStyle(Color.white.opacity(tokens > 0 ? 0.22 : 0.07))
                             )
@@ -423,57 +410,24 @@ struct WeeklyReportCard: View {
             // slot; the QR is the cross-platform landing hook — anyone who
             // sees the shared image (WeChat, Douyin, Android, anywhere)
             // scans straight into agent-island.dev.
+            // Share-clean strip: no QR, no URL (they read as ads on social
+            // feeds) — one logo, one name, centered.
             HStack(alignment: .center, spacing: 10) {
+                Spacer()
                 if let icon = NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 34, height: 34)
+                        .frame(width: 30, height: 30)
                 }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Agent Island")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.88))
-                    Text("github.com/tristan666666/agent-island")
-                        .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.38))
-                }
+                Text("Agent Island")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.88))
                 Spacer()
-                qrTile
             }
         }
     }
 
-    /// White tile + crisp QR → agent-island.dev. The landing page that
-    /// catches every share, on every platform, no share-API needed.
-    private var qrTile: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(.white)
-            if let qr = Self.landingQR {
-                Image(nsImage: qr)
-                    .interpolation(.none)
-                    .resizable()
-                    .frame(width: 40, height: 40)
-            }
-        }
-        .frame(width: 50, height: 50)
-    }
-
-    private static let landingQR: NSImage? = makeQR("https://agent-island.dev")
-
-    private static func makeQR(_ text: String) -> NSImage? {
-        guard let data = text.data(using: .utf8),
-              let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-        filter.setValue(data, forKey: "inputMessage")
-        filter.setValue("M", forKey: "inputCorrectionLevel")
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
-        let rep = NSCIImageRep(ciImage: scaled)
-        let image = NSImage(size: rep.size)
-        image.addRepresentation(rep)
-        return image
-    }
 
     // MARK: - Formatting
 

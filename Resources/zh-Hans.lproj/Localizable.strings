@@ -62,7 +62,6 @@
 "Non-notch screens only" = "仅无刘海屏幕生效";
 "Calm" = "清爽";
 "Vivid" = "流光";
-"all tokens · incl. cache reads" = "全量口径 · 含缓存读取";
 "Mixed Use" = "混合使用";
 "Mostly Claude" = "主要是 Claude";
 "Mostly Codex" = "主要是 Codex";

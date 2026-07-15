@@ -23,7 +23,7 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - macOS: the silhouette's top corners flare outward into the screen edge the way the hardware housing does, instead of meeting the menu bar as bare 90° corners.
 - macOS: the turn alarm and the report cards now share one card style — same 26pt continuous corners, same near-black base — instead of two different corner radii and two different blacks.
 - macOS: a provider that needs a login shows a steady red logo (the usage page still offers one-click re-authentication). The endless red blink is reserved for stalls and rate limits.
-- Report cards label their counting policy — "all tokens · incl. cache reads" — so totals don't read as inflated next to provider dashboards, which count input + output only (roughly 10× smaller).
+- Report cards v2: the weekly and monthly cards share one skeleton (identical header/hero/split/footer rhythm), drop the QR tile and repo URL (share-clean for social feeds), keep exactly one logo (the brand's, centered in the footer — provider legends use color dots), and follow the brand-teal palette (title wordmark, heat ramp, peak bar, value line).
 - Product name is written "Agent Island" everywhere user-facing.
 - Settings: "Visual effects" now sits with the island-appearance controls (Top bar group, next to Cost display) as title + picker only — the explanatory sentence is gone.
 - New "Interface scale" dial (100–150%) magnifies the island on screens without a notch — for 4K externals running large scaled or native modes where a point shrinks well below MacBook size. Notched MacBooks stay 1:1 so the silhouette keeps matching the housing.
