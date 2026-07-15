@@ -1,15 +1,27 @@
 import Foundation
 
 /// Walks the local Codex CLI rollout files and emits a TokenEvent for every
-/// turn that recorded usage. Mirrors @ccusage/codex's data path:
-///   - reads from ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
+/// turn that recorded usage:
+///   - reads ~/.codex/sessions/ AND ~/.codex/archived_sessions/ (archiving
+///     moves files — zero filename overlap measured — and the archive held
+///     2.5B July tokens the live tree no longer had; reconciliation audit
+///     2026-07-16)
 ///   - tracks the most recent `turn_context.payload.model` as the active
 ///     model for subsequent `event_msg.token_count` events
 ///   - uses `last_token_usage` (per-turn delta) rather than diffing the
 ///     accumulating `total_token_usage`, which is a known footgun for
-///     forked sessions
+///     forked sessions — BUT guards against replayed deltas: an event whose
+///     cumulative `total_token_usage` pair is exactly unchanged re-reports
+///     tokens already counted (marathon sessions re-emit these; one file
+///     carried +331M phantom tokens), so it is skipped. A real turn always
+///     advances the cumulative counter; a compaction reset moves it
+///     backward — both keep the event.
 ///
-/// Per-file parse results are memoized in `~/Library/Caches/.../codex-parse-cache.v1.json`
+/// This intentionally diverges from ccusage's bucketing: we attribute usage
+/// to the moment it happened (event timestamp), not to the session's start
+/// day, which misplaces multi-day auto-resumed sessions wholesale.
+///
+/// Per-file parse results are memoized in `~/Library/Caches/.../codex-parse-cache.v2.json`
 /// keyed by (path, mtime, size). Between two 5/15/30-minute polls almost no
 /// rollout file has changed, so the steady-state refresh skips re-parsing.
 enum CodexLogReader {
@@ -18,9 +30,9 @@ enum CodexLogReader {
         var out: [TokenEvent] = []
 
         LogParseCache.walk(
-            roots: [sessionsRoot()],
+            roots: [sessionsRoot(), archivedSessionsRoot()],
             cutoff: cutoff,
-            cacheFilename: "codex-parse-cache.v1.json",
+            cacheFilename: "codex-parse-cache.v2.json",
             cacheVersion: cacheVersion,
             fileFilter: { $0.lastPathComponent.hasPrefix("rollout-") },
             parse: parseFile(at:),
@@ -41,11 +53,19 @@ enum CodexLogReader {
     }
 
     private static func sessionsRoot() -> URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
+        codexHome().appendingPathComponent("sessions", isDirectory: true)
+    }
+
+    private static func archivedSessionsRoot() -> URL {
+        codexHome().appendingPathComponent("archived_sessions", isDirectory: true)
+    }
+
+    private static func codexHome() -> URL {
         if let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"], !codexHome.isEmpty {
-            return URL(fileURLWithPath: codexHome).appendingPathComponent("sessions", isDirectory: true)
+            return URL(fileURLWithPath: codexHome)
         }
-        return home.appendingPathComponent(".codex/sessions", isDirectory: true)
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".codex", isDirectory: true)
     }
 
     /// Parse a single file end-to-end. Threads the active model through the
@@ -58,6 +78,9 @@ enum CodexLogReader {
         formatterNoFractional.formatOptions = [.withInternetDateTime]
 
         var currentModel: String?
+        // Cumulative (input, output) from the last usage line that carried
+        // `total_token_usage` — the replay guard's memory.
+        var previousCumulative: (input: Int, output: Int)?
         var out: [CachedEvent] = []
 
         // `maxLineBytes` skips the multi-MB `response_item` blobs (base64
@@ -86,6 +109,22 @@ enum CodexLogReader {
                   let info = payload["info"] as? [String: Any],
                   let last = info["last_token_usage"] as? [String: Any]
             else { return }
+
+            // Replay guard: a real turn ADVANCES the cumulative counter and
+            // a compaction reset moves it BACKWARD — an event whose
+            // cumulative pair is exactly unchanged is the runtime
+            // re-reporting a delta already counted (measured +331M phantom
+            // tokens in one marathon file). Events without a cumulative
+            // (early CLI builds) pass through unguarded.
+            if let total = info["total_token_usage"] as? [String: Any] {
+                let cumulative = (
+                    input: (total["input_tokens"] as? Int) ?? 0,
+                    output: (total["output_tokens"] as? Int) ?? 0
+                )
+                let isReplay = previousCumulative.map { $0 == cumulative } ?? false
+                previousCumulative = cumulative
+                if isReplay { return }
+            }
 
             let timestampString = raw["timestamp"] as? String ?? ""
             let timestamp = formatter.date(from: timestampString)
@@ -130,7 +169,7 @@ enum CodexLogReader {
 
     // MARK: - Per-file cache
 
-    private static let cacheVersion = 1
+    private static let cacheVersion = 2
 
     private struct CachedEvent: Codable {
         let timestamp: Date
