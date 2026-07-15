@@ -180,9 +180,20 @@ Read the implementation overview: [How Agent Island detects Claude Code and Code
 
 ## Community
 
-Chinese-speaking users can join the WeChat community:
+Chinese-speaking users — scan the group QR to join directly. Group codes rotate every 7 days; if it has expired, add the author and mention "Agent Island" to be invited:
 
-<img src="Assets/wechat-qr.jpg" alt="WeChat group QR code; add the author and mention Agent Island" width="260">
+<table>
+  <tr>
+    <td align="center">
+      <img src="Assets/wechat-group-qr.jpg" alt="WeChat group QR code for the Agent Island community" width="260"><br>
+      <sub>WeChat group — scan to join</sub>
+    </td>
+    <td align="center">
+      <img src="Assets/wechat-qr.jpg" alt="Author's WeChat QR code; mention Agent Island to be invited" width="260"><br>
+      <sub>Group code expired? Add the author, mention "Agent Island"</sub>
+    </td>
+  </tr>
+</table>
 
 See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
 

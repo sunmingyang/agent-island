@@ -180,9 +180,20 @@ flowchart LR
 
 ## 社区
 
-中文用户可以加入微信交流群：
+优先扫群二维码直接进群；群码每 7 天轮换，过期时加作者微信（备注 Agent Island）拉你进群：
 
-<img src="Assets/wechat-qr.jpg" alt="微信交流群二维码；添加作者时请备注 Agent Island" width="260">
+<table>
+  <tr>
+    <td align="center">
+      <img src="Assets/wechat-group-qr.jpg" alt="Agent Island 微信交流群二维码" width="260"><br>
+      <sub>微信交流群 — 扫码直接进</sub>
+    </td>
+    <td align="center">
+      <img src="Assets/wechat-qr.jpg" alt="作者微信二维码；备注 Agent Island 拉群" width="260"><br>
+      <sub>群码过期时加作者，备注 Agent Island</sub>
+    </td>
+  </tr>
+</table>
 
 也可以在 [Product Hunt](https://www.producthunt.com/products/agent-island-2) 查看 Agent Island。
 
