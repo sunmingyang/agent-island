@@ -95,6 +95,7 @@ Windows 构建与测试文档正在 [issue #10](https://github.com/tristan666666
   - [状态监视](#状态监视)
   - [轮到你闹钟](#轮到你闹钟)
   - [用量与报告](#用量与报告)
+  - [周报与月报卡片](#周报与月报卡片)
   - [macOS 和 Windows](#macos-和-windows)
 - [工作原理](#工作原理)
 - [社区](#社区)
@@ -138,7 +139,16 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 
 <img src="Assets/agent-island-usage-zh.png" alt="macOS 上的 Claude 和 Codex 用量页面" width="760">
 
-Agent Island 也可以在本机生成周报和更长周期的报告卡。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
+### 周报与月报卡片
+
+在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、Claude/Codex 占比、7 天柱状图（周报）或 24 周活跃热力图与连续天数（月报）、TOP 模型环形分布、岛民段位。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-zh.webp" alt="周报卡片（演示数据）：Token 总量、API 费用换算、模型环形图、岛民段位" width="420"></td>
+    <td align="center"><img src="Assets/report-monthly-zh.webp" alt="月报卡片（演示数据）：24 周热力图、连续天数、岛民段位" width="420"></td>
+  </tr>
+</table>
 
 <!-- OPTIMIZED_REPORT_SCREENSHOTS_PLACEHOLDER
 导出并验收 README 专用 WebP 后，再在这里加入报告卡示例。

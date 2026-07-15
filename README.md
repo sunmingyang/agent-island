@@ -95,6 +95,7 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
   - [Status monitoring](#status-monitoring)
   - [It's-your-turn clock](#its-your-turn-clock)
   - [Usage & reports](#usage--reports)
+  - [Weekly & monthly report cards](#weekly--monthly-report-cards)
   - [macOS and Windows](#macos-and-windows)
 - [How it works](#how-it-works)
 - [Community](#community)
@@ -138,12 +139,16 @@ Swipe through local usage and cost views for Claude and Codex. Provider usage da
 
 <img src="Assets/agent-island-usage.png" alt="Agent Island usage view for Claude and Codex on macOS" width="760">
 
-Agent Island also renders weekly and longer-range report cards on your machine. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
+### Weekly & monthly report cards
 
-<!-- OPTIMIZED_REPORT_SCREENSHOTS_PLACEHOLDER
-Add README-sized WebP report examples here after export and visual review.
-Do not restore the multi-megabyte PNG pair to the README.
--->
+Shareable cards rendered locally: total tokens with an ≈ API value line, the Claude/Codex split, 7-day bars (weekly) or a 24-week activity heatmap with your streak (monthly), a TOP model breakdown, and your island rank. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-en.webp" alt="Weekly report card with demo data: tokens, API value, provider split, model donut, island rank" width="420"></td>
+    <td align="center"><img src="Assets/report-monthly-en.webp" alt="Monthly report card with demo data: 24-week heatmap, streak, island rank" width="420"></td>
+  </tr>
+</table>
 
 ### macOS and Windows
 
