@@ -14,8 +14,8 @@ struct PanelHeader: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            let claudeOn = visibility.claudeVisible
-            let codexOn = visibility.codexVisible
+            let claudeOn = visibility.claudeShown
+            let codexOn = visibility.codexShown
             providerTitle(name: "Claude", tag: usageStore.claude.plan?.uppercased(),
                           color: IslandColor.claude, alignment: .leading)
                 .opacity(claudeOn ? 1 : 0)

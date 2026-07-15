@@ -16,8 +16,8 @@ struct CostView: View {
     @ObservedObject private var stylePref = CostStylePref.shared
 
     var body: some View {
-        let claudeOn = visibility.claudeVisible
-        let codexOn = visibility.codexVisible
+        let claudeOn = visibility.claudeShown
+        let codexOn = visibility.codexShown
 
         HStack(spacing: 0) {
             switch (claudeOn, codexOn) {

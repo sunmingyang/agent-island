@@ -12,6 +12,9 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - The DMG now opens as a styled installer window — dark backdrop with the mark and wordmark, the app on the left, a drag arrow, Applications on the right, volume icon in the title bar (was: a bare default Finder window).
 
 ### Fixed (pre-existing)
+- The expanded panel can no longer open as an empty black slab: a state-driven watchdog forces the content visible whenever the panel has been expanded for 300ms — the fade-in choreography could lose a timing race against fast hover flicks and strand the panel black.
+- Classic mouse wheels now flip pages in the expanded panel (one notch = one page, debounced). Wheel mice have no horizontal swipe, and dragging out of the panel collapsed it — Shift+wheel and trackpad swipes are unchanged.
+- Single-subscription machines get the solo split layout automatically: a provider with no CLI footprint (no `~/.claude` / `~/.config/claude`, or no `~/.codex`) yields its half of the island — live charts on the subscribed side, per-model breakdown filling the other — without hunting for the Settings toggle. Flipping a provider toggle still wins, and a machine with neither footprint keeps showing both.
 - Launch at Login no longer dead-ends at "Operation not permitted": the toggle clears any stale Background Task Management record before registering (ad-hoc builds change signature every update, which strands the old record), detects Gatekeeper app translocation and says to move the app into Applications, and on macOS pushback opens System Settings → Login Items with a plain instruction instead of relaying the errno string.
 
 ### Changed

@@ -17,6 +17,10 @@ final class IslandHostingView: NSHostingView<IslandRootView> {
     private var swipeAccumX: CGFloat = 0
     private var swipeAccumY: CGFloat = 0
 
+    /// Last classic-wheel page flip; debounces wheel ticks to one page per
+    /// notch instead of one per event.
+    private var lastWheelPageTime: TimeInterval = 0
+
     init(rootView: IslandRootView, model: IslandModel) {
         self.islandModel = model
         super.init(rootView: rootView)
@@ -88,7 +92,23 @@ final class IslandHostingView: NSHostingView<IslandRootView> {
         }
 
         guard event.hasPreciseScrollingDeltas else {
-            super.scrollWheel(with: event)
+            // Classic mouse-wheel ticks page directly: a wheel mouse has no
+            // horizontal axis to swipe with, and dragging out of the panel
+            // collapses it (mac-mini user report). 250ms debounce keeps one
+            // notch = one page and an accelerated flick from skipping
+            // across every screen.
+            let delta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+                ? event.scrollingDeltaX
+                : event.scrollingDeltaY
+            guard abs(delta) > 0.5 else { return }
+            let now = ProcessInfo.processInfo.systemUptime
+            guard now - lastWheelPageTime > 0.25 else { return }
+            lastWheelPageTime = now
+            if delta < 0 {
+                islandModel.advanceScreen()
+            } else {
+                islandModel.rewindScreen()
+            }
             return
         }
 

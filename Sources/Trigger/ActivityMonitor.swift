@@ -167,10 +167,10 @@ final class ActivityMonitor: ObservableObject {
                 // who only runs Claude keeps Codex hidden — its missing login
                 // must not pulse the island red forever.
                 let visibility = ProviderVisibilityStore.shared
-                let claude = visibility.claudeVisible
+                let claude = visibility.claudeShown
                     ? self.overlayUsageAttention(claudeResult.state, usage: UsageStore.shared.claude)
                     : claudeResult.state
-                let codex = visibility.codexVisible
+                let codex = visibility.codexShown
                     ? self.overlayUsageAttention(codexResult.state, usage: UsageStore.shared.codex)
                     : codexResult.state
                 self.updateLastWorking(from: sessions, now: now)

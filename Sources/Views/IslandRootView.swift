@@ -143,6 +143,20 @@ struct IslandRootView: View {
             if let cmd = note.userInfo?["cmd"] as? String { handleDemoCommand(cmd) }
         }
         .onChange(of: alwaysShow.enabled, perform: handleAlwaysShowChange)
+        // Watchdog for the black-panel bug: the expand choreography flips
+        // `contentVisible` from timers guarded by state checks, and a fast
+        // hover flick can strand the panel expanded with content still at
+        // opacity 0 (user report: "打开的时候界面直接是黑的"). State is the
+        // truth — expanded for 300ms means content MUST be visible.
+        .onChange(of: model.state) { newState in
+            guard newState == .expanded else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if model.state == .expanded && !contentVisible {
+                    withAnimation(.strongEaseOut) { contentVisible = true }
+                    withAnimation(.easeIn(duration: 0.18)) { pillsVisible = false }
+                }
+            }
+        }
         .onReceive(AlertEngine.shared.$pulseEvent) { event in
             guard let event, event.id != pulseToken else { return }
             pulseToken = event.id

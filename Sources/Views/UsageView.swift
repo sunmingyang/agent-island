@@ -18,8 +18,8 @@ struct UsageView: View {
     private var style: ChartStyle { pref.style }
 
     var body: some View {
-        let claudeOn = visibility.claudeVisible
-        let codexOn = visibility.codexVisible
+        let claudeOn = visibility.claudeShown
+        let codexOn = visibility.codexShown
 
         HStack(spacing: 0) {
             switch (claudeOn, codexOn) {

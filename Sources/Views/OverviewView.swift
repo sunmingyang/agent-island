@@ -12,8 +12,8 @@ struct OverviewView: View {
 
     private var days: [OverviewDay] {
         Self.joinDays(
-            claudeBuckets: visibility.claudeVisible ? costStore.claude.dailyTokens : [],
-            codexBuckets: visibility.codexVisible ? costStore.codex.dailyTokens : [],
+            claudeBuckets: visibility.claudeShown ? costStore.claude.dailyTokens : [],
+            codexBuckets: visibility.codexShown ? costStore.codex.dailyTokens : [],
             mode: .all
         )
     }
@@ -63,8 +63,8 @@ struct OverviewView: View {
             if let selectedDay {
                 DayDetailStrip(
                     day: selectedDay,
-                    claudeVisible: visibility.claudeVisible,
-                    codexVisible: visibility.codexVisible
+                    claudeVisible: visibility.claudeShown,
+                    codexVisible: visibility.codexShown
                 )
                 .transition(.detailReveal)
             }
@@ -131,8 +131,8 @@ struct OverviewView: View {
             ProviderSplitRow(
                 claudeTokens: displayedClaudeTokens,
                 codexTokens: displayedCodexTokens,
-                claudeVisible: visibility.claudeVisible,
-                codexVisible: visibility.codexVisible
+                claudeVisible: visibility.claudeShown,
+                codexVisible: visibility.codexShown
             )
             .padding(.bottom, 5)
 
