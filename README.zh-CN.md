@@ -27,10 +27,11 @@
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
 </a>
 
-<!-- README_CORE_DEMO_PLACEHOLDER
-在这里替换为正式验收过的 8-12 秒无缝循环 Demo：running -> your turn -> open session。
-不要重新放回 docs/media/launch.gif：它是版本发布片，不是核心产品 Demo。
--->
+<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 发布影片：周报月报卡与岛民段位" width="900">
+
+<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;高清版</a></sub>
+
+<!-- 8-12 秒产品 Demo（running -> your turn -> open session）做好后替换上面的发布影片。 -->
 
 <p>
   <a href="#快速开始"><strong>快速开始</strong></a> ·
