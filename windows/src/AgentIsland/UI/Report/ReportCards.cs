@@ -23,6 +23,11 @@ public static class ReportCards
     private static readonly Color InkDeep = Color.FromRgb(0x07, 0x08, 0x0A);  // 0.028/0.03/0.038
     private static readonly Color MoneyGreen = Color.FromRgb(0x8C, 0xD9, 0x9E);
     private static readonly Color MilestoneGold = Color.FromRgb(0xFF, 0xC7, 0x6B);
+    // The card's own voice is the brand teal; provider colors stay semantic
+    // (split bar, dots) but no longer carry the headline.
+    private static readonly Color BrandTeal = Color.FromRgb(0x20, 0xC0, 0xB0);
+    private static readonly Color BrandTealLight = Color.FromRgb(0x7D, 0xF0, 0xE3);
+    private static readonly Color LiveTeal = Color.FromRgb(0x3D, 0xD6, 0x8C);
 
     public static FrameworkElement Weekly(WeeklyReportData data, bool rounded = true)
     {
@@ -31,27 +36,27 @@ public static class ReportCards
         // their minimum breathing room and the leftover height distributes
         // evenly, so the card reads composed instead of packed.
         var body = FlexColumn(
-            (Header("WEEKLY", data.RangeText, IslandColors.Claude, IslandColors.Codex), 0),
+            (Header("WEEKLY", data.RangeText), 0),
             (Hero(Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, zh), 14),
             (ProviderSplit(data.ClaudeShare), 16),
             (WeekBars(data), 18),
             (ModelDonut(data, zh), 18));
         return Card(body, Footer(data.MilestoneText), rounded,
-            auraA: (IslandColors.Claude, new Point(0.12, 0.02), 340),
-            auraB: (IslandColors.Codex, new Point(0.95, 0.85), 380));
+            auraA: (IslandColors.Claude, 0.13, new Point(0.12, 0.02), 340),
+            auraB: (IslandColors.Codex, 0.11, new Point(0.95, 0.85), 380));
     }
 
     public static FrameworkElement Monthly(MonthlyReportData data, bool rounded = true)
     {
         var zh = ReportFormat.IsChinese;
         var body = FlexColumn(
-            (Header("MONTHLY", data.MonthText, IslandColors.Codex, IslandColors.Claude), 0),
+            (Header("MONTHLY", data.MonthText), 0),
             (Hero(Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, zh), 14),
             (ProviderSplit(data.ClaudeShare), 16),
-            (HeatBlock(data), 20));
+            (HeatBlock(data), 18));
         return Card(body, Footer(data.MilestoneText), rounded,
-            auraA: (IslandColors.Codex, new Point(0.9, 0.06), 360),
-            auraB: (IslandColors.Claude, new Point(0.06, 0.9), 340));
+            auraA: (IslandColors.Codex, 0.14, new Point(0.9, 0.06), 360),
+            auraB: (IslandColors.Claude, 0.09, new Point(0.06, 0.9), 340));
     }
 
     /// Sections interleaved with star-sized spacer rows carrying a minimum
@@ -83,8 +88,8 @@ public static class ReportCards
 
     private static FrameworkElement Card(
         UIElement body, UIElement footer, bool rounded,
-        (Color Color, Point Center, double Radius) auraA,
-        (Color Color, Point Center, double Radius) auraB)
+        (Color Color, double Opacity, Point Center, double Radius) auraA,
+        (Color Color, double Opacity, Point Center, double Radius) auraB)
     {
         var radius = rounded ? 26.0 : 0.0;
         var root = new Grid { Width = CardWidth, Height = CardHeight };
@@ -95,8 +100,8 @@ public static class ReportCards
             Background = new LinearGradientBrush(Ink, InkDeep, new Point(0, 0), new Point(1, 1)),
         });
         // Faint provider auras — enough to feel alive, never loud.
-        root.Children.Add(Aura(auraA.Color, 0.13, auraA.Center, auraA.Radius, radius));
-        root.Children.Add(Aura(auraB.Color, 0.11, auraB.Center, auraB.Radius, radius));
+        root.Children.Add(Aura(auraA.Color, auraA.Opacity, auraA.Center, auraA.Radius, radius));
+        root.Children.Add(Aura(auraB.Color, auraB.Opacity, auraB.Center, auraB.Radius, radius));
         root.Children.Add(new Border
         {
             CornerRadius = new CornerRadius(radius),
@@ -143,7 +148,7 @@ public static class ReportCards
         };
     }
 
-    private static UIElement Header(string tag, string rangeText, Color gradFrom, Color gradTo)
+    private static UIElement Header(string tag, string rangeText)
     {
         var row = new DockPanel { LastChildFill = false };
         var brand = new StackPanel { Orientation = Orientation.Horizontal };
@@ -161,7 +166,9 @@ public static class ReportCards
             FontFamily = IslandFonts.Ui,
             FontSize = 11,
             FontWeight = FontWeights.ExtraBold,
-            Foreground = new LinearGradientBrush(gradFrom, gradTo, 0),
+            // Brand teal carries the wordmark on both cards (v2); provider
+            // colors no longer take the headline.
+            Foreground = new LinearGradientBrush(BrandTeal, BrandTealLight, 0),
         });
         DockPanel.SetDock(brand, Dock.Left);
         row.Children.Add(brand);
@@ -229,7 +236,7 @@ public static class ReportCards
                 FontFamily = IslandFonts.Ui,
                 FontSize = 13.5,
                 FontWeight = FontWeights.ExtraBold,
-                Foreground = IslandColors.Brush(MoneyGreen),
+                Foreground = IslandColors.Brush(LiveTeal),
                 Margin = new Thickness(0, 4, 0, 0),
             });
         }
@@ -258,13 +265,15 @@ public static class ReportCards
         stack.Children.Add(track);
 
         var tags = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
-        tags.Children.Add(ProviderTag(BrandGeometry.ClaudePath, "Claude", claudeShare, IslandColors.Claude));
-        tags.Children.Add(ProviderTag(BrandGeometry.OpenAiPath, "Codex", 1 - claudeShare, IslandColors.Codex, leftMargin: 18));
+        tags.Children.Add(ProviderTag("Claude", claudeShare, IslandColors.Claude));
+        tags.Children.Add(ProviderTag("Codex", 1 - claudeShare, IslandColors.Codex, leftMargin: 18));
         stack.Children.Add(tags);
         return stack;
     }
 
-    private static UIElement ProviderTag(string logoPath, string name, double pct, Color color, double leftMargin = 0)
+    /// Color dot, not a brand mark: exactly one logo per card (v2), and
+    /// that one is Agent Island's in the footer.
+    private static UIElement ProviderTag(string name, double pct, Color color, double leftMargin = 0)
     {
         var row = new StackPanel
         {
@@ -272,12 +281,11 @@ public static class ReportCards
             Margin = new Thickness(leftMargin, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        row.Children.Add(new System.Windows.Shapes.Path
+        row.Children.Add(new Ellipse
         {
-            Data = Geometry.Parse("F1 " + logoPath),
+            Width = 7,
+            Height = 7,
             Fill = IslandColors.Brush(color),
-            Height = 11,
-            Stretch = Stretch.Uniform,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 6, 0),
         });
@@ -326,7 +334,7 @@ public static class ReportCards
                 Height = Math.Max(5, 64.0 * tokens / peak),
                 CornerRadius = new CornerRadius(3),
                 Background = isPeak
-                    ? new LinearGradientBrush(IslandColors.Claude, IslandColors.Codex, 90)
+                    ? new LinearGradientBrush(BrandTealLight, BrandTeal, 90)
                     : IslandColors.Brush(IslandColors.White(tokens > 0 ? 0.22 : 0.07)),
             });
             cell.Children.Add(new TextBlock
@@ -483,13 +491,14 @@ public static class ReportCards
 
     // MARK: - Monthly section
 
+    // Brand-teal ramp (v2); the top level IS the brand teal.
     private static readonly Color[] HeatRamp =
     {
         IslandColors.White(0.06),
-        Color.FromRgb(0x15, 0x2A, 0x42),
-        Color.FromRgb(0x17, 0x50, 0x80),
-        Color.FromRgb(0x1C, 0x7C, 0xC4),
-        Color.FromRgb(0x41, 0xAA, 0xFF),
+        Color.FromRgb(0x0B, 0x2F, 0x2A),
+        Color.FromRgb(0x0E, 0x54, 0x4B),
+        Color.FromRgb(0x13, 0x87, 0x7A),
+        Color.FromRgb(0x20, 0xC0, 0xB0),
     };
 
     private static UIElement HeatBlock(MonthlyReportData data)
@@ -599,8 +608,10 @@ public static class ReportCards
         VerticalAlignment = VerticalAlignment.Center,
     };
 
-    // MARK: - Footer (brand strip — doubles as the reserved sponsor slot)
+    // MARK: - Footer (brand strip)
 
+    /// Share-clean (v2): no QR, no repo URL — a centered app mark and the
+    /// name are the card's entire sign-off.
     private static UIElement Footer(string? milestoneText)
     {
         var stack = new StackPanel();
@@ -630,113 +641,31 @@ public static class ReportCards
                 new Point(0, 0), new Point(1, 0)),
         });
 
-        var row = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 12, 0, 0) };
-        var brand = new StackPanel { Orientation = Orientation.Horizontal };
+        var brand = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 12, 0, 0),
+        };
         brand.Children.Add(new Image
         {
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/agentisland_logo.png")),
-            Width = 34,
-            Height = 34,
+            Width = 30,
+            Height = 30,
             VerticalAlignment = VerticalAlignment.Center,
         });
-        var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
-        titles.Children.Add(new TextBlock
+        brand.Children.Add(new TextBlock
         {
             Text = "Agent Island",
             FontFamily = IslandFonts.Ui,
             FontSize = 13,
             FontWeight = FontWeights.ExtraBold,
             Foreground = IslandColors.Brush(IslandColors.White(0.88)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0),
         });
-        titles.Children.Add(new TextBlock
-        {
-            Text = "github.com/tristan666666/agent-island",
-            FontFamily = IslandFonts.Mono,
-            FontSize = 8.5,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.38)),
-            Margin = new Thickness(0, 3, 0, 0),
-        });
-        brand.Children.Add(titles);
-        DockPanel.SetDock(brand, Dock.Left);
-        row.Children.Add(brand);
-
-        var qr = QrTile();
-        DockPanel.SetDock(qr, Dock.Right);
-        row.Children.Add(qr);
-        stack.Children.Add(row);
+        stack.Children.Add(brand);
         return stack;
-    }
-
-    // MARK: - QR (agent-island.dev — the landing page that catches every
-    // share, on every platform, no share-API needed)
-
-    /// 25×25 version-2 EC-M QR for "https://agent-island.dev", generated
-    /// offline once and pinned here — same parameters the macOS
-    /// CIQRCodeGenerator uses, with zero runtime encoding risk.
-    private static readonly string[] QrRows =
-    {
-        "1111111011111110001111111",
-        "1000001011010110001000001",
-        "1011101010101111001011101",
-        "1011101001101101101011101",
-        "1011101011111110101011101",
-        "1000001000000110001000001",
-        "1111111010101010101111111",
-        "0000000001101111000000000",
-        "1001111110000011010010111",
-        "0000110100011011000111110",
-        "0110101110100001101111001",
-        "1101000011011000100001111",
-        "1000011111000010101100001",
-        "1101100010101011100010010",
-        "1100111001100011011011111",
-        "1011000000001010011101101",
-        "1001111001011100111110110",
-        "0000000011010000100010110",
-        "1111111010001100101010001",
-        "1000001010010110100010001",
-        "1011101011111011111110000",
-        "1011101010101010111000011",
-        "1011101001011000010011111",
-        "1000001001100011000110111",
-        "1111111010010000110001001",
-    };
-
-    private static UIElement QrTile()
-    {
-        const int modules = 25;
-        const int scale = 8; // crisp when downsampled into the 40pt tile
-        var bitmap = new WriteableBitmap(modules * scale, modules * scale, 96, 96, PixelFormats.Pbgra32, null);
-        var pixels = new uint[modules * scale * modules * scale];
-        for (var y = 0; y < modules * scale; y++)
-        {
-            var row = QrRows[y / scale];
-            for (var x = 0; x < modules * scale; x++)
-            {
-                pixels[y * modules * scale + x] = row[x / scale] == '1' ? 0xFF000000 : 0xFFFFFFFF;
-            }
-        }
-        bitmap.WritePixels(new Int32Rect(0, 0, modules * scale, modules * scale), pixels, modules * scale * 4, 0);
-        bitmap.Freeze();
-        var image = new Image
-        {
-            Source = bitmap,
-            Width = 40,
-            Height = 40,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
-        return new Border
-        {
-            Width = 50,
-            Height = 50,
-            CornerRadius = new CornerRadius(7),
-            Background = Brushes.White,
-            Child = image,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
     }
 }
 

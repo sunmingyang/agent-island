@@ -16,7 +16,6 @@ public sealed class PagedContent : Grid
     private readonly Canvas _track = new();
     private readonly TranslateTransform _slide = new();
     private readonly List<(IslandScreen Screen, FrameworkElement View)> _pages = new();
-    private int _wheelAccumulator;
     private bool _pressed;
     private bool _dragging;
     private Point _dragOrigin;
@@ -200,13 +199,18 @@ public sealed class PagedContent : Grid
         _slide.BeginAnimation(TranslateTransform.XProperty, slide);
     }
 
+    // Last wheel page flip; debounces ticks to one page per notch (macOS
+    // scrollWheel: an accelerated flick must not skip across every screen).
+    private long _lastWheelPageMs;
+
     private void OnWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
-        _wheelAccumulator += e.Delta;
-        if (Math.Abs(_wheelAccumulator) < 120) return;
-        var direction = _wheelAccumulator < 0 ? 1 : -1;
-        _wheelAccumulator = 0;
-        ScreenPref.Shared.ShowNext(direction);
+        if (e.Delta == 0) return;
+        var now = Environment.TickCount64;
+        if (now - _lastWheelPageMs < 250) { e.Handled = true; return; }
+        _lastWheelPageMs = now;
+        // Wheel down (negative delta) advances, matching macOS.
+        ScreenPref.Shared.ShowNext(e.Delta < 0 ? 1 : -1);
         e.Handled = true;
     }
 }

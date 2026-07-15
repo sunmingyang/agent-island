@@ -407,11 +407,6 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Language", CurrentLanguageSubtitle(), language));
 
-        var lowPower = new CobaltToggle(LowPowerModeStore.Shared.Enabled);
-        lowPower.Toggled += enabled => LowPowerModeStore.Shared.Enabled = enabled;
-        stack.Children.Add(new SettingsRowControl(
-            "Low Power Mode", "Glow only on refresh, hover, or limit alerts.", lowPower));
-
         stack.Children.Add(SectionLabel("Alerts"));
         var alertsHost = new StackPanel();
         var alerts = new CobaltToggle(AlertThresholdStore.Shared.Enabled);
@@ -635,6 +630,19 @@ public sealed class SettingsWindow : Window
             null,
             alwaysShow));
 
+        // Visual effects lives with the island-appearance controls, title +
+        // picker only — no sentence (macOS design review).
+        var effects = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+        effects.Items.Add(L10n.Tr("Calm"));
+        effects.Items.Add(L10n.Tr("Vivid"));
+        effects.SelectedIndex = LowPowerModeStore.Shared.Enabled ? 0 : 1;
+        effects.SelectionChanged += (_, _) =>
+            LowPowerModeStore.Shared.Enabled = effects.SelectedIndex == 0;
+        stack.Children.Add(new SettingsRowControl(
+            "Visual effects",
+            null,
+            effects));
+
         // 屏幕. (The macOS bar-style choice — Compact vs Notched Mac — is
         // meaningless on Windows, where no display has a notch; the bar is
         // always the wide layout.)
@@ -778,7 +786,11 @@ public sealed class SettingsWindow : Window
     {
         var store = UsageStore.Shared;
         var usage = tool == TriggerTool.Claude ? store.Claude : store.Codex;
-        var visible = ProviderVisibilityStore.Shared.IsVisible(tool);
+        // The toggle reflects the STORED choice, not the detection-aware
+        // Shown value — flipping it is what records intent.
+        var visible = tool == TriggerTool.Claude
+            ? ProviderVisibilityStore.Shared.ClaudeVisible
+            : ProviderVisibilityStore.Shared.CodexVisible;
 
         var trailing = new StackPanel { Orientation = Orientation.Horizontal };
         // Always offered: the click spawns the login terminal directly, and

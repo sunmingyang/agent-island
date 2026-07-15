@@ -115,7 +115,7 @@ public sealed class IslandModel : INotifyPropertyChanged
         {
             if (!Model.SoloCenterStore.Shared.Enabled) return false;
             var visibility = Model.ProviderVisibilityStore.Shared;
-            return visibility.ClaudeVisible != visibility.CodexVisible;
+            return visibility.ClaudeShown != visibility.CodexShown;
         }
     }
 

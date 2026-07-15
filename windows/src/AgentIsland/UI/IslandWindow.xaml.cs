@@ -182,12 +182,12 @@ public partial class IslandWindow : Window
         // The logo's fixed grid column reserves its slot either way, so we
         // fade opacity (the macOS openMorph spring) rather than hard-toggle
         // Visibility — toggling a provider springs the mark in/out.
-        FadeLogo(ClaudeLogo, visibility.ClaudeVisible);
-        FadeLogo(CodexLogo, visibility.CodexVisible);
+        FadeLogo(ClaudeLogo, visibility.ClaudeShown);
+        FadeLogo(CodexLogo, visibility.CodexShown);
         if (_claudeTitle is not null)
-            _claudeTitle.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
+            _claudeTitle.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
         if (_codexTitle is not null)
-            _codexTitle.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
+            _codexTitle.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
         UpdatePills();
     }
 
@@ -642,6 +642,7 @@ public partial class IslandWindow : Window
                 // Pills travel with the growing shape, then cross-fade out
                 // after the expanded content has settled.
                 FadePills(visible: false, delayMs: 250, seconds: 0.18);
+                StartPanelHeartbeat();
                 break;
             case IslandState.Compact:
             default:
@@ -649,6 +650,43 @@ public partial class IslandWindow : Window
                 HideExpandedContent();
                 break;
         }
+        if (state != IslandState.Expanded) StopPanelHeartbeat();
+    }
+
+    // Heartbeat failsafe for the black expanded panel (macOS IslandRootView):
+    // expanded with invisible content is never a legal steady state. The
+    // WPF choreography triggers the content fade in the same call as the
+    // state flip, so the macOS timer races shouldn't exist here — but any
+    // path that strands the panel dark (an animation clobbered elsewhere, a
+    // visual rebuilt under an expanded model) gets healed within 0.6s
+    // instead of reading as a crash. Runs only while expanded, so the idle
+    // island keeps zero timers.
+    private DispatcherTimer? _panelHeartbeat;
+    private long _lastShowContentMs;
+
+    private void StartPanelHeartbeat()
+    {
+        if (_panelHeartbeat is not null) return;
+        _panelHeartbeat = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.6) };
+        _panelHeartbeat.Tick += (_, _) =>
+        {
+            if (_model.State != IslandState.Expanded) return;
+            // Give the entrance choreography (180ms delay + fade) room; only
+            // an opacity still pinned near zero well after it ran is stuck.
+            var settled = Environment.TickCount64 - _lastShowContentMs > 700;
+            if (ExpandedContent.Visibility != Visibility.Visible
+                || (ExpandedContent.Opacity < 0.01 && settled))
+            {
+                ShowExpandedContent();
+            }
+        };
+        _panelHeartbeat.Start();
+    }
+
+    private void StopPanelHeartbeat()
+    {
+        _panelHeartbeat?.Stop();
+        _panelHeartbeat = null;
     }
 
     private void AnimateSize(Size target, bool open)
@@ -671,10 +709,10 @@ public partial class IslandWindow : Window
         Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
         Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
         var visibility = Model.ProviderVisibilityStore.Shared;
-        SetColumnInstant(LeftPillColumn, PillSlotTarget(visibility.ClaudeVisible));
-        SetColumnInstant(RightPillColumn, PillSlotTarget(visibility.CodexVisible));
-        SetColumnInstant(ClaudeTabColumn, TabColumnTarget(visibility.ClaudeVisible));
-        SetColumnInstant(CodexTabColumn, TabColumnTarget(visibility.CodexVisible));
+        SetColumnInstant(LeftPillColumn, PillSlotTarget(visibility.ClaudeShown));
+        SetColumnInstant(RightPillColumn, PillSlotTarget(visibility.CodexShown));
+        SetColumnInstant(ClaudeTabColumn, TabColumnTarget(visibility.ClaudeShown));
+        SetColumnInstant(CodexTabColumn, TabColumnTarget(visibility.CodexShown));
     }
 
     private static void SetColumnInstant(System.Windows.Controls.ColumnDefinition column, double width)
@@ -722,15 +760,15 @@ public partial class IslandWindow : Window
     private void AnimatePillSlots(bool open)
     {
         var visibility = Model.ProviderVisibilityStore.Shared;
-        AnimateColumn(LeftPillColumn, PillSlotTarget(visibility.ClaudeVisible), open);
-        AnimateColumn(RightPillColumn, PillSlotTarget(visibility.CodexVisible), open);
+        AnimateColumn(LeftPillColumn, PillSlotTarget(visibility.ClaudeShown), open);
+        AnimateColumn(RightPillColumn, PillSlotTarget(visibility.CodexShown), open);
     }
 
     private void AnimateTabColumns(bool open)
     {
         var visibility = Model.ProviderVisibilityStore.Shared;
-        AnimateColumn(ClaudeTabColumn, TabColumnTarget(visibility.ClaudeVisible), open);
-        AnimateColumn(CodexTabColumn, TabColumnTarget(visibility.CodexVisible), open);
+        AnimateColumn(ClaudeTabColumn, TabColumnTarget(visibility.ClaudeShown), open);
+        AnimateColumn(CodexTabColumn, TabColumnTarget(visibility.CodexShown), open);
     }
 
     private static void AnimateColumn(System.Windows.Controls.ColumnDefinition column, double target, bool open)
@@ -763,6 +801,7 @@ public partial class IslandWindow : Window
 
     private void ShowExpandedContent()
     {
+        _lastShowContentMs = Environment.TickCount64;
         ExpandedContent.Visibility = Visibility.Visible;
         SettingsGear.Visibility = Visibility.Visible;
         var fade = new DoubleAnimation(1, IslandAnimations.StrongEaseOutDuration)
@@ -835,6 +874,7 @@ public partial class IslandWindow : Window
         Rest,
         WarningTint,
         CriticalTint,
+        AttentionSteady,
         AttentionPulse,
     }
 
@@ -844,22 +884,30 @@ public partial class IslandWindow : Window
     private bool _sweepActive;
     private bool _sweepSpinning;
 
-    /// Attention states pulse the halo red (opacity and radius breathe
-    /// together, macOS GlowLayer numbers); threshold alerts hold a sustained
-    /// amber/red tint; at rest the island keeps a soft cobalt aura.
+    /// Stalled/rate-limited pulse the halo red (opacity and radius breathe
+    /// together, macOS GlowLayer numbers); auth-required holds a static red
+    /// — a login can pend for hours and endless blinking reads as a crash;
+    /// threshold alerts hold a sustained amber/red tint; at rest the island
+    /// keeps a soft cobalt aura. Hidden providers don't get a vote.
     private void UpdateHalo()
     {
         var monitor = ActivityMonitor.Shared;
-        var attention = monitor.Claude.IsAttentionState() || monitor.Codex.IsAttentionState();
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        var pulsing = (visibility.ClaudeShown && monitor.Claude.PulsesAttention())
+            || (visibility.CodexShown && monitor.Codex.PulsesAttention());
+        var attention = (visibility.ClaudeShown && monitor.Claude.IsAttentionState())
+            || (visibility.CodexShown && monitor.Codex.IsAttentionState());
         var severity = Model.AlertEngine.Shared.Severity;
-        var mode = attention
+        var mode = pulsing
             ? HaloMode.AttentionPulse
-            : severity switch
-            {
-                Model.AlertSeverity.Critical => HaloMode.CriticalTint,
-                Model.AlertSeverity.Warning => HaloMode.WarningTint,
-                _ => HaloMode.Rest,
-            };
+            : attention
+                ? HaloMode.AttentionSteady
+                : severity switch
+                {
+                    Model.AlertSeverity.Critical => HaloMode.CriticalTint,
+                    Model.AlertSeverity.Warning => HaloMode.WarningTint,
+                    _ => HaloMode.Rest,
+                };
         if (mode != _haloMode)
         {
             _haloMode = mode;
@@ -888,6 +936,13 @@ public partial class IslandWindow : Window
                     Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty, radius);
                     Halo.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty, strength);
                     break;
+                case HaloMode.AttentionSteady:
+                    // authRequired: red, steady 0.55 — attention without the
+                    // pulse (macOS GlowLayer).
+                    Halo.Color = IslandColors.AlertRed;
+                    Halo.Opacity = 0.55;
+                    Halo.BlurRadius = 42;
+                    break;
                 case HaloMode.CriticalTint:
                     Halo.Color = IslandColors.AlertRed;
                     Halo.Opacity = 0.35;
@@ -906,10 +961,11 @@ public partial class IslandWindow : Window
                     break;
             }
         }
-        // Low Power drops the resting aura until something glows for a reason.
+        // Calm drops the resting aura until something glows for a reason;
+        // EffectiveEnabled also folds in the system battery saver.
         if (_haloMode == HaloMode.Rest)
         {
-            Halo.Opacity = Model.LowPowerModeStore.Shared.Enabled && !GlowEventActive() ? 0 : 0.35;
+            Halo.Opacity = Model.LowPowerModeStore.Shared.EffectiveEnabled && !GlowEventActive() ? 0 : 0.35;
         }
         UpdateSweep();
     }
@@ -929,7 +985,9 @@ public partial class IslandWindow : Window
     private void UpdateSweep()
     {
         var monitor = ActivityMonitor.Shared;
-        var attention = monitor.Claude.IsAttentionState() || monitor.Codex.IsAttentionState();
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        var attention = (visibility.ClaudeShown && monitor.Claude.IsAttentionState())
+            || (visibility.CodexShown && monitor.Codex.IsAttentionState());
         var tint = attention
             ? IslandColors.AlertRed
             : Model.AlertEngine.Shared.Severity switch
@@ -938,10 +996,15 @@ public partial class IslandWindow : Window
                 Model.AlertSeverity.Warning => IslandColors.AlertAmber,
                 _ => IslandColors.Cobalt,
             };
-        // Spin only for a live reason; an idle or your-turn island stays still.
-        var anyActivity = monitor.Claude.IsActiveState() || monitor.Codex.IsActiveState();
+        // Spin only for a live reason; an idle or your-turn island stays
+        // still. Vivid on macOS keeps the orbit always alive (Metal makes
+        // that free); the WPF layered window recomposites per frame, so even
+        // Vivid stays activity-driven here, and Calm narrows it further to
+        // glow events only.
+        var anyActivity = (visibility.ClaudeShown && monitor.Claude.IsActiveState())
+            || (visibility.CodexShown && monitor.Codex.IsActiveState());
         var active = GlowEventActive()
-            || (!Model.LowPowerModeStore.Shared.Enabled && anyActivity);
+            || (!Model.LowPowerModeStore.Shared.EffectiveEnabled && anyActivity);
         if (active == _sweepActive && tint == _sweepTint) return;
         _sweepActive = active;
         _sweepTint = tint;
@@ -985,8 +1048,8 @@ public partial class IslandWindow : Window
         {
             ClaudePill.BeginAnimation(OpacityProperty, null);
             CodexPill.BeginAnimation(OpacityProperty, null);
-            ClaudePill.Opacity = visibility.ClaudeVisible ? 1 : 0;
-            CodexPill.Opacity = visibility.CodexVisible ? 1 : 0;
+            ClaudePill.Opacity = visibility.ClaudeShown ? 1 : 0;
+            CodexPill.Opacity = visibility.CodexShown ? 1 : 0;
         }
         else if (_model.State == IslandState.Compact)
         {

@@ -50,17 +50,17 @@ public sealed class CostPage : Border
         void ApplyVisibility()
         {
             var visibility = Model.ProviderVisibilityStore.Shared;
-            _claude.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
-            _codex.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
-            hairline.Visibility = visibility.ClaudeVisible && visibility.CodexVisible
+            _claude.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
+            _codex.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
+            hairline.Visibility = visibility.ClaudeShown && visibility.CodexShown
                 ? Visibility.Visible
                 : Visibility.Collapsed;
             // A lone provider takes the full width, like the macOS single
             // centered column.
             Grid.SetColumn(_claude, 0);
-            Grid.SetColumnSpan(_claude, visibility.CodexVisible ? 1 : 3);
-            Grid.SetColumn(_codex, visibility.ClaudeVisible ? 2 : 0);
-            Grid.SetColumnSpan(_codex, visibility.ClaudeVisible ? 1 : 3);
+            Grid.SetColumnSpan(_claude, visibility.CodexShown ? 1 : 3);
+            Grid.SetColumn(_codex, visibility.ClaudeShown ? 2 : 0);
+            Grid.SetColumnSpan(_codex, visibility.ClaudeShown ? 1 : 3);
         }
 
         // PagedContent recreates this page on visibility/screen changes;

@@ -120,9 +120,16 @@ public sealed class ProviderLogo : Grid
                 break;
             case ActivityState.Stalled:
             case ActivityState.RateLimited:
-            case ActivityState.AuthRequired:
                 StartBreath(from: 1.0, to: 1.16, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
                 StartGlow(radiusFrom: 12, radiusTo: 33, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
+                break;
+            case ActivityState.AuthRequired:
+                // Static red, no pulse: a login can stay pending for hours,
+                // and an endless blink reads as a crash (macOS
+                // pulsesAttention excludes authRequired). Radius 4 is a
+                // macOS sigma — ~3x as WPF kernel extent.
+                _glow.BlurRadius = 12;
+                _glow.Opacity = 0.25;
                 break;
             case ActivityState.Idle:
             case ActivityState.NeedsYou:

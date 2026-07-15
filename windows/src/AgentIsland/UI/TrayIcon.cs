@@ -80,13 +80,13 @@ public sealed class TrayIcon : IDisposable
         double usage5h = 0;
         var worst = ActivityState.Idle;
         string? claudeText = null, codexText = null;
-        if (visibility.ClaudeVisible)
+        if (visibility.ClaudeShown)
         {
             usage5h = Math.Max(usage5h, usage.Claude.FiveHour.UsedPercent);
             if (monitor.Claude > worst) worst = monitor.Claude;
             claudeText = "Claude " + Percent(usage.Claude.FiveHour.UsedPercent);
         }
-        if (visibility.CodexVisible)
+        if (visibility.CodexShown)
         {
             usage5h = Math.Max(usage5h, usage.Codex.FiveHour.UsedPercent);
             if (monitor.Codex > worst) worst = monitor.Codex;

@@ -174,7 +174,7 @@ public partial class App : System.Windows.Application
                 {
                     (Localization.L10n.Tr("Alarm provider"), "Claude"),
                     (Localization.L10n.Tr("Alarm thread"), "Agent Island Windows"),
-                    (Localization.L10n.Tr("Alarm project"), "AgentIsland"),
+                    (Localization.L10n.Tr("Alarm project"), "Agent Island"),
                 },
                 primaryLabel: Localization.L10n.Tr("Retry"),
                 secondaryLabel: Localization.L10n.Tr("I know"));

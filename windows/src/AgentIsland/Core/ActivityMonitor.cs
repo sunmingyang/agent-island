@@ -175,10 +175,10 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
         // runs Claude keeps Codex hidden - its missing login must not
         // pulse the island red forever.
         var visibility = Model.ProviderVisibilityStore.Shared;
-        var claude = visibility.ClaudeVisible
+        var claude = visibility.ClaudeShown
             ? OverlayUsageAttention(claudeResult.State, UsageStore.Shared.Claude)
             : claudeResult.State;
-        var codex = visibility.CodexVisible
+        var codex = visibility.CodexShown
             ? OverlayUsageAttention(codexResult.State, UsageStore.Shared.Codex)
             : codexResult.State;
         UpdateLastWorking(sessions, now);

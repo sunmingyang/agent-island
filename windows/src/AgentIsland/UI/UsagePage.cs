@@ -134,12 +134,12 @@ public sealed class UsagePage : Border
 
         // Hidden providers vacate their column; the hairline and both-hidden
         // placeholder track what's left, mirroring the macOS branches.
-        _claudeBlock.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
-        _codexBlock.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
-        _hairline.Visibility = visibility.ClaudeVisible && visibility.CodexVisible
+        _claudeBlock.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
+        _codexBlock.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
+        _hairline.Visibility = visibility.ClaudeShown && visibility.CodexShown
             ? Visibility.Visible
             : Visibility.Collapsed;
-        _bothHidden.Visibility = !visibility.ClaudeVisible && !visibility.CodexVisible
+        _bothHidden.Visibility = !visibility.ClaudeShown && !visibility.CodexShown
             ? Visibility.Visible
             : Visibility.Collapsed;
 
