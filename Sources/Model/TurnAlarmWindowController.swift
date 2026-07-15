@@ -122,6 +122,13 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
+        // With the window transparent, the system traffic lights would float
+        // over the card's rounded corner with desktop showing through —
+        // hide them. The card has its own dismissal ("I know" + Escape via
+        // onCancel), so the red dot is redundant anyway.
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.ignoresMouseEvents = false
         panel.acceptsMouseMovedEvents = true
         panel.level = .screenSaver
