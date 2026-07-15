@@ -21,7 +21,7 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - The turn alarm no longer pops over the very session you're looking at: when the app hosting that session's CLI (matched by process working directory, then up the parent chain to Terminal/iTerm/VS Code/Claude/ChatGPT…) is frontmost, the alarm holds — and fires the moment you switch away with the turn still open (community report). Sessions whose host can't be resolved (tmux, daemons) keep the old always-pop behavior.
 
 ### Changed
-- macOS: visual effects are now a two-mode choice in Settings — **Calm** (new default: the island stays a quiet black pill and glows only on hover, refresh, or alerts) and **Vivid** (the previous always-on halo + orbiting sweep). System Low Power Mode still forces Calm either way.
+- macOS: visual effects are now a two-mode choice in Settings — **Vivid** (the default: continuous halo + orbit sweep in your chosen glow color) and **Calm** (fully clean: no ambient light at all; only approaching-limit amber/red and the attention pulse remain). System Low Power Mode still forces Calm either way, and the Glow color row lives under Vivid only.
 - macOS: the island silhouette now matches the physical notch height exactly. It was sized to the menu bar, which macOS can draw taller than the housing — on those machines the island hung below the real notch as a grey chin.
 - macOS: the silhouette's top corners flare outward into the screen edge the way the hardware housing does, instead of meeting the menu bar as bare 90° corners.
 - macOS: the turn alarm and the report cards now share one card style — same 26pt continuous corners, same near-black base — instead of two different corner radii and two different blacks.
@@ -31,7 +31,8 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - Settings: "Visual effects" now sits with the island-appearance controls (Top bar group, next to Cost display) as title + picker only — the explanatory sentence is gone.
 - New "Interface scale" dial (100–150%) magnifies the island on screens without a notch — for 4K externals running large scaled or native modes where a point shrinks well below MacBook size. Notched MacBooks stay 1:1 so the silhouette keeps matching the housing.
 - Trailing full stops removed from every caption and subtitle, both languages (59 strings each).
-- macOS: with a single subscription, the freed half of the panel now shows the provider's mark and name instead of the per-model breakdown table — the table's "5h" legend read as a quota window Codex no longer has (community report). Per-model data returns with the report-card redesign.
+- macOS: with a single subscription, the freed half of the panel now shows the provider's bare mark and name instead of the per-model breakdown table — the table's "5h" legend read as a quota window Codex no longer has (community report). Per-model data returns with the report-card redesign.
+- macOS: with a single subscription, the collapsed island splits its two flanks — logo on the provider's side, usage number on the other — instead of crowding one end and leaving the other half empty.
 - macOS: the Settings status guide demos speak one glyph language — the symmetric mark spinning (working), steady with a small bell badge (your turn), pulsing red (needs attention) — instead of two logo rows plus a bell-in-a-box.
 - Internal preference keys migrated from the inherited "MacIsland." prefix to "AgentIsland." in one shot, every setting preserved; the CODEXISLAND_DEMO / CODEXISLAND_DEBUG env fallbacks are removed (AGENTISLAND_* only).
 
