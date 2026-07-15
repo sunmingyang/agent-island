@@ -157,6 +157,18 @@ struct IslandRootView: View {
                 }
             }
         }
+        // Second layer: the onChange watchdog can't see cases where the view
+        // is REBUILT while the model is already expanded (fresh @State, no
+        // state change ever fires — screen reconfig, window remount), or
+        // where an exit choreography hid the content but the collapse timer
+        // lost its guard race. A slow heartbeat closes every remaining path:
+        // expanded + invisible content is never a legal steady state.
+        .onReceive(Timer.publish(every: 0.6, on: .main, in: .common).autoconnect()) { _ in
+            if model.state == .expanded && !contentVisible {
+                withAnimation(.strongEaseOut) { contentVisible = true }
+                withAnimation(.easeIn(duration: 0.18)) { pillsVisible = false }
+            }
+        }
         .onReceive(AlertEngine.shared.$pulseEvent) { event in
             guard let event, event.id != pulseToken else { return }
             pulseToken = event.id
