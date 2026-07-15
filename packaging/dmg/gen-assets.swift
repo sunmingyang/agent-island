@@ -1,8 +1,8 @@
 import AppKit
 
 let teal = NSColor(red: 0x20/255.0, green: 0xC0/255.0, blue: 0xB0/255.0, alpha: 1)
-let orange = NSColor(red: 0xDF/255.0, green: 0x8A/255.0, blue: 0x50/255.0, alpha: 1)
-let gold = NSColor(red: 0xE3/255.0, green: 0xB3/255.0, blue: 0x4F/255.0, alpha: 1)
+let claudeOrange = NSColor(red: 0xCC/255.0, green: 0x78/255.0, blue: 0x5C/255.0, alpha: 1)
+let codexBlue = NSColor(red: 0x5A/255.0, green: 0xA8/255.0, blue: 0xF0/255.0, alpha: 1)
 
 func savePNG(_ image: NSImage, to path: String, pixelsWide: Int, pixelsHigh: Int) {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelsWide, pixelsHigh: pixelsHigh,
@@ -16,42 +16,93 @@ func savePNG(_ image: NSImage, to path: String, pixelsWide: Int, pixelsHigh: Int
     try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
 }
 
-// ---------- 2) DMG background (660×420 @1x/@2x) ----------
+// ---------- DMG background (660×420 @1x/@2x) ----------
+//
+// The composition IS the product story: the island silhouette hangs from the
+// top edge exactly like the app hangs from the notch, with its two provider
+// dots and a whisper of the brand-teal glow. Below, two quiet wells anchor
+// the drag: app on the left, Applications on the right.
 func drawBackground(scale: CGFloat) -> NSImage {
     let w: CGFloat = 660, h: CGFloat = 420
     let img = NSImage(size: CGSize(width: w, height: h))
     img.lockFocus()
+
+    // Base coat — near-black, one soft vertical step (no showy gradient).
     NSGradient(colors: [
-        NSColor(red: 0x14/255.0, green: 0x17/255.0, blue: 0x1E/255.0, alpha: 1),
+        NSColor(red: 0x10/255.0, green: 0x13/255.0, blue: 0x18/255.0, alpha: 1),
         NSColor(red: 0x0A/255.0, green: 0x0C/255.0, blue: 0x10/255.0, alpha: 1),
     ])!.draw(in: CGRect(x: 0, y: 0, width: w, height: h), angle: -90)
-    // Faint teal aura behind the wordmark.
-    NSGradient(colors: [teal.withAlphaComponent(0.10), teal.withAlphaComponent(0.0)])!
-        .draw(fromCenter: CGPoint(x: w / 2, y: h - 40), radius: 0,
-              toCenter: CGPoint(x: w / 2, y: h - 40), radius: 260, options: [])
-    // Real logo asset + wordmark, top center — the mark is the brand,
-    // never a redrawn approximation.
+
+    // Island silhouette on the top edge (flat bottom corners, like the
+    // hardware notch), brand-teal rim light beneath it.
+    let islandW: CGFloat = 196, islandH: CGFloat = 24, r: CGFloat = 12
+    let ix = w / 2 - islandW / 2, iy = h - islandH
+    let island = NSBezierPath()
+    island.move(to: CGPoint(x: ix, y: h))
+    island.line(to: CGPoint(x: ix, y: iy + r))
+    island.appendArc(withCenter: CGPoint(x: ix + r, y: iy + r), radius: r,
+                     startAngle: 180, endAngle: 270, clockwise: false)
+    island.line(to: CGPoint(x: ix + islandW - r, y: iy))
+    island.appendArc(withCenter: CGPoint(x: ix + islandW - r, y: iy + r), radius: r,
+                     startAngle: 270, endAngle: 360, clockwise: false)
+    island.line(to: CGPoint(x: ix + islandW, y: h))
+    island.close()
+    // Soft teal glow under the silhouette: stacked strokes, fading out.
+    for (inset, alpha) in [(CGFloat(0), 0.28), (1.5, 0.14), (3.0, 0.07), (5.0, 0.035)] {
+        let glow = island.copy() as! NSBezierPath
+        glow.lineWidth = 1 + inset
+        teal.withAlphaComponent(alpha).setStroke()
+        glow.stroke()
+    }
+    NSColor.black.setFill()
+    island.fill()
+    // The two provider marks, reduced to their essence: one dot each.
+    claudeOrange.withAlphaComponent(0.9).setFill()
+    NSBezierPath(ovalIn: CGRect(x: w / 2 - 66, y: iy + islandH / 2 - 2.5, width: 5, height: 5)).fill()
+    codexBlue.withAlphaComponent(0.9).setFill()
+    NSBezierPath(ovalIn: CGRect(x: w / 2 + 61, y: iy + islandH / 2 - 2.5, width: 5, height: 5)).fill()
+
+    // Wordmark row — real logo asset + name, centered as ONE group.
+    let title = NSAttributedString(string: "Agent Island", attributes: [
+        .font: NSFont.systemFont(ofSize: 21, weight: .semibold),
+        .foregroundColor: NSColor(white: 1, alpha: 0.92),
+    ])
+    let logoSide: CGFloat = 34, gap: CGFloat = 11
+    let titleSize = title.size()
+    let groupW = logoSide + gap + titleSize.width
+    let groupX = w / 2 - groupW / 2
+    let rowCenterY = h - 78
     if let logo = NSImage(contentsOfFile: "Assets/agent-island-logo.png") {
-        logo.draw(in: CGRect(x: w / 2 - 106, y: h - 76, width: 36, height: 36),
+        logo.draw(in: CGRect(x: groupX, y: rowCenterY - logoSide / 2, width: logoSide, height: logoSide),
                   from: .zero, operation: .sourceOver, fraction: 1.0)
     }
-    let title = NSAttributedString(string: "Agent Island", attributes: [
-        .font: NSFont.systemFont(ofSize: 22, weight: .semibold),
-        .foregroundColor: NSColor(white: 1, alpha: 0.90),
-    ])
-    title.draw(at: CGPoint(x: w / 2 - 60, y: h - 70))
-    // Arrow between the two icon slots (centers x=165 / x=500, y_top=200 → y_bottom=220).
+    title.draw(at: CGPoint(x: groupX + logoSide + gap, y: rowCenterY - titleSize.height / 2))
+
+    // Drop wells under both icon slots (settings.py: centers x=165 / x=500,
+    // y=210 from top → bottom-origin y=210). A faint plate, not a button.
+    for cx in [CGFloat(165), 500] {
+        let well = NSBezierPath(roundedRect: CGRect(x: cx - 76, y: 210 - 76, width: 152, height: 152),
+                                xRadius: 32, yRadius: 32)
+        NSColor(white: 1, alpha: 0.025).setFill()
+        well.fill()
+        well.lineWidth = 1
+        NSColor(white: 1, alpha: 0.07).setStroke()
+        well.stroke()
+    }
+
+    // Arrow between the wells — thin, rounded, quiet.
     let arrow = NSBezierPath()
-    arrow.lineWidth = 4
+    arrow.lineWidth = 3
     arrow.lineCapStyle = .round
     arrow.lineJoinStyle = .round
-    arrow.move(to: CGPoint(x: 262, y: 220))
-    arrow.line(to: CGPoint(x: 398, y: 220))
-    arrow.move(to: CGPoint(x: 372, y: 246))
-    arrow.line(to: CGPoint(x: 398, y: 220))
-    arrow.line(to: CGPoint(x: 372, y: 194))
-    NSColor(white: 1, alpha: 0.30).setStroke()
+    arrow.move(to: CGPoint(x: 262, y: 210))
+    arrow.line(to: CGPoint(x: 398, y: 210))
+    arrow.move(to: CGPoint(x: 376, y: 232))
+    arrow.line(to: CGPoint(x: 398, y: 210))
+    arrow.line(to: CGPoint(x: 376, y: 188))
+    NSColor(white: 1, alpha: 0.34).setStroke()
     arrow.stroke()
+
     img.unlockFocus()
     return img
 }
