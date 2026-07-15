@@ -25,9 +25,9 @@ body:
         - Turn alarms
         - Live status
         - Usage and limits
-        - Auto-continue
+        - Report cards and ranks
         - Non-notched Mac layout
-        - Windows roadmap
+        - Windows app
         - Install and updates
         - Other
     validations:
