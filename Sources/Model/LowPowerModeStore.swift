@@ -2,19 +2,20 @@ import Foundation
 import Combine
 
 /// User preference for the ambient halo + loading sweep, surfaced in
-/// Settings as the two visual-effect modes:
+/// Settings as the two visual modes:
 ///
-///   Calm  (`enabled == true`, the DEFAULT): both surfaces gate on a "glow
-///   event" — they appear only while a fetch is in flight, the cursor
-///   hovers the island, or an alert is active. At rest the island is a
-///   quiet black pill.
+///   Calm  (`enabled == true`): NO ambient light at all — no halo, no
+///   sweep, no hover glow. A clean black pill. Only functional signals
+///   remain: approaching-limit amber/red and the attention pulse.
 ///
-///   Vivid (`enabled == false`): the halo glow and the cobalt orbit run
-///   continuously — full ambience, more per-frame gradient + blur work.
+///   Vivid (`enabled == false`, the DEFAULT): the halo glow and the orbit
+///   sweep run continuously in the chosen glow color; the "Glow color"
+///   setting lives under this mode.
 ///
-/// Calm-by-default is deliberate (2026-07-15): the always-on sweep was the
-/// top "light pollution" finding of the first external design review, and
-/// restraint is the stronger default. Vivid stays one click away.
+/// Vivid-by-default in the brand teal is the owner's call (2026-07-16),
+/// revising the Calm default of 2026-07-15: with the glow now on-brand and
+/// color-choosable, the light IS the identity; Calm stays one click away
+/// as the zero-effects escape.
 ///
 /// `effectiveEnabled` ORs the user choice with macOS's system-wide Low
 /// Power Mode: system battery saving forces Calm regardless of the picker —
@@ -41,11 +42,12 @@ final class LowPowerModeStore: ObservableObject {
     private var observer: NSObjectProtocol?
 
     private init() {
-        // Calm unless the user explicitly chose Vivid. A missing key means
-        // "never touched", which must land on Calm — so read presence, not
-        // `bool(forKey:)` (whose false-for-missing would mean Vivid).
+        // Vivid unless the user explicitly chose Calm. `bool(forKey:)`
+        // returns false for a missing key, which is exactly Vivid — but
+        // keep the presence check explicit so the default stays legible
+        // (it has flipped once already; see the type comment).
         if UserDefaults.standard.object(forKey: Self.key) == nil {
-            self.enabled = true
+            self.enabled = false
         } else {
             self.enabled = UserDefaults.standard.bool(forKey: Self.key)
         }

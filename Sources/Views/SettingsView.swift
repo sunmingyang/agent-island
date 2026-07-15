@@ -509,7 +509,11 @@ struct SettingsView: View {
     private var effectsPicker: some View {
         Picker("", selection: Binding(
             get: { lowPower.enabled },
-            set: { lowPower.enabled = $0 }
+            set: { newValue in
+                // Animated so the Glow color row slides in/out with the
+                // mode instead of popping.
+                withAnimation(.strongEaseOut) { lowPower.enabled = newValue }
+            }
         )) {
             Text(L10n.tr("Calm")).tag(true)
             Text(L10n.tr("Vivid")).tag(false)
@@ -779,11 +783,15 @@ struct SettingsView: View {
             ) {
                 effectsPicker
             }
-            SettingsRow(
-                title: "Glow color",
-                subtitle: nil
-            ) {
-                glowColorSwatches
+            // Glow options belong to Vivid: Calm is the zero-effects mode,
+            // so a color row under it would configure nothing.
+            if !lowPower.enabled {
+                SettingsRow(
+                    title: "Glow color",
+                    subtitle: nil
+                ) {
+                    glowColorSwatches
+                }
             }
             SettingsRow(
                 title: "Interface scale",

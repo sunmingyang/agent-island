@@ -17,9 +17,10 @@ struct GlowLayer: View {
 
     var body: some View {
         ZStack {
+            // Calm means CLEAN: the sweep is Vivid-only (owner's call,
+            // 2026-07-16 — "清爽模式就是没有光效的").
             LoadingSweep(
-                active: !occlusion.isOccluded
-                    && (lowPower.effectiveEnabled ? glowEventActive : true),
+                active: !occlusion.isOccluded && !lowPower.effectiveEnabled,
                 tint: glowColor
             )
 
@@ -37,22 +38,25 @@ struct GlowLayer: View {
                 .shadow(
                     color: glowColor.opacity(attentionActive
                         ? (attentionPulsing ? (stallPulse ? 0.85 : 0.35) : 0.55)
-                        : (lowPower.effectiveEnabled ? (glowEventActive ? 0.35 : 0) : 0.35)),
+                        : (ambientGlowOn ? 0.35 : 0)),
                     radius: attentionActive ? (attentionPulsing ? (stallPulse ? 22 : 14) : 14) : 14,
                     y: 0
                 )
                 .animation(attentionPulsing
                     ? .easeInOut(duration: 0.42).repeatForever(autoreverses: true)
                     : .easeInOut(duration: 0.25),
-                    value: attentionPulsing ? stallPulse : glowEventActive)
+                    value: attentionPulsing ? stallPulse : ambientGlowOn)
                 .onAppear { stallPulse = true }
                 .animation(.easeInOut(duration: 0.45), value: alerts.severity)
                 .shadow(color: isExpanded ? .black.opacity(0.5) : .clear, radius: 20, y: 10)
         }
     }
 
-    private var glowEventActive: Bool {
-        hovering || usageStore.loading || costStore.loading || alerts.severity != .none
+    /// The steady halo. Vivid: always on. Calm: off — a clean pill — except
+    /// while an approaching-limit alert wants its amber/red visible (that's
+    /// a functional signal, not ambience, so it survives zero-effects mode).
+    private var ambientGlowOn: Bool {
+        !lowPower.effectiveEnabled || alerts.severity != .none
     }
 
     private var glowColor: Color {
@@ -193,6 +197,25 @@ struct PeekPillOverlay: View {
     let slotWidth: CGFloat
     let topPadding: CGFloat
     let pillsVisible: Bool
+    /// Which flank the pill occupies. Defaults to the provider's native
+    /// side; the solo layout hands the number the OTHER flank so the notch
+    /// reads logo-on-one-side, number-on-the-other (owner's call,
+    /// 2026-07-16) instead of both crowding one end.
+    var onTrailingFlank: Bool
+
+    init(
+        provider: AlertEngine.Provider,
+        slotWidth: CGFloat,
+        topPadding: CGFloat,
+        pillsVisible: Bool,
+        onTrailingFlank: Bool? = nil
+    ) {
+        self.provider = provider
+        self.slotWidth = slotWidth
+        self.topPadding = topPadding
+        self.pillsVisible = pillsVisible
+        self.onTrailingFlank = onTrailingFlank ?? (provider == .codex)
+    }
 
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
     @ObservedObject private var usageStore = UsageStore.shared
@@ -204,17 +227,17 @@ struct PeekPillOverlay: View {
             usage: window,
             loading: usageStore.loading,
             tint: tint,
-            alignment: provider == .claude ? .leading : .trailing,
+            alignment: onTrailingFlank ? .trailing : .leading,
             severity: severity
         )
-        .frame(width: pillContentWidth, alignment: provider == .claude ? .leading : .trailing)
+        .frame(width: pillContentWidth, alignment: onTrailingFlank ? .trailing : .leading)
         // 14pt from the silhouette BODY edge; the frame is topCurl wider
         // per side (flare region), which holds no body to align against.
-        .padding(provider == .claude ? .leading : .trailing, 14 + IslandShape.topCurl)
+        .padding(onTrailingFlank ? .trailing : .leading, 14 + IslandShape.topCurl)
         .padding(.top, topPadding)
         .opacity((pillsVisible && isVisible) ? 1 : 0)
         .animation(.openMorph, value: isVisible)
-        .offset(x: pillsVisible ? 0 : (provider == .claude ? -6 : 6))
+        .offset(x: pillsVisible ? 0 : (onTrailingFlank ? 6 : -6))
         .allowsHitTesting(false)
         .accessibilityLabel(peekLabel(for: window, provider: providerLabel))
         .accessibilityHidden(!(pillsVisible && isVisible))

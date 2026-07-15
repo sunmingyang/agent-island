@@ -112,12 +112,18 @@ extension IslandRootView {
         }
     }
 
-    var logoEdgePadding: CGFloat {
+    func logoEdgePadding(for provider: AlertEngine.Provider) -> CGFloat {
         // 9pt from the silhouette BODY edge; the frame is topCurl wider per
         // side (the flare region), which holds no body to align against.
         switch model.state {
         case .compact, .expanded: return 9 + IslandShape.topCurl
-        case .peek: return model.pillSlotWidth + 9 + IslandShape.topCurl
+        case .peek:
+            // Solo: this provider's number crossed to the opposite flank,
+            // so its logo takes the freed outboard slot and hugs the corner
+            // with the same 14pt breath the pill uses — otherwise the logo
+            // floats mid-island with a dead slot beside it.
+            if soloProvider == provider { return 14 + IslandShape.topCurl }
+            return model.pillSlotWidth + 9 + IslandShape.topCurl
         }
     }
 

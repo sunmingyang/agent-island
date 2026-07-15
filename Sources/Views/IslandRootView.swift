@@ -4,6 +4,7 @@ import AppKit
 struct IslandRootView: View {
     @ObservedObject var model: IslandModel
     @ObservedObject var alwaysShow = AlwaysShowUsageStore.shared
+    @ObservedObject var providerVisibility = ProviderVisibilityStore.shared
     @State var hovering = false
     @State var contentVisible = false
     @State var pillsVisible = false
@@ -75,7 +76,7 @@ struct IslandRootView: View {
                         image: claudeLogo,
                         color: IslandColor.claude,
                         provider: .claude,
-                        edgePadding: logoEdgePadding,
+                        edgePadding: logoEdgePadding(for: .claude),
                         topPadding: max(0, (model.notch.height - 20) / 2)
                     )
                 }
@@ -84,7 +85,7 @@ struct IslandRootView: View {
                         image: openaiLogo,
                         color: IslandColor.codex,
                         provider: .codex,
-                        edgePadding: logoEdgePadding,
+                        edgePadding: logoEdgePadding(for: .codex),
                         topPadding: max(0, (model.notch.height - 20) / 2)
                     )
                 }
@@ -93,22 +94,30 @@ struct IslandRootView: View {
                     // silhouette grew on entering peek). 14pt inset from the
                     // silhouette's new leading edge keeps it visually
                     // breathing inside the rounded corner.
-                    if model.state != .compact {
+                    //
+                    // Solo subscription: the number takes the flank OPPOSITE
+                    // the provider's logo, so the notch reads logo on one
+                    // side, number on the other (owner's call, 2026-07-16)
+                    // instead of both crowding one end with the other half
+                    // empty.
+                    if model.state != .compact, let provider = leadingPillProvider {
                         PeekPillOverlay(
-                            provider: .claude,
+                            provider: provider,
                             slotWidth: model.pillSlotWidth,
                             topPadding: max(0, (model.notch.height - 14) / 2),
-                            pillsVisible: pillsVisible
+                            pillsVisible: pillsVisible,
+                            onTrailingFlank: false
                         )
                     }
                 }
                 .overlay(alignment: .topTrailing) {
-                    if model.state != .compact {
+                    if model.state != .compact, let provider = trailingPillProvider {
                         PeekPillOverlay(
-                            provider: .codex,
+                            provider: provider,
                             slotWidth: model.pillSlotWidth,
                             topPadding: max(0, (model.notch.height - 14) / 2),
-                            pillsVisible: pillsVisible
+                            pillsVisible: pillsVisible,
+                            onTrailingFlank: true
                         )
                     }
                 }
@@ -125,6 +134,7 @@ struct IslandRootView: View {
                 .contentShape(IslandShape())
                 .onTapGesture(perform: handleTap)
                 .onHover(perform: handleHover)
+                .animation(.openMorph, value: soloProvider)
                 // Interface-scale magnifier (non-notch screens only): the
                 // content above laid out at base size; this blows it up to
                 // model.size, which window hit-testing already uses.
@@ -180,4 +190,30 @@ struct IslandRootView: View {
         }
     }
 
+    /// The one visible provider, or nil when both (or neither) show.
+    var soloProvider: AlertEngine.Provider? {
+        switch (providerVisibility.claudeShown, providerVisibility.codexShown) {
+        case (true, false): return .claude
+        case (false, true): return .codex
+        default: return nil
+        }
+    }
+
+    /// Which provider's pill occupies each flank. Duo: native sides.
+    /// Solo: the number crosses to the flank opposite its logo.
+    private var leadingPillProvider: AlertEngine.Provider? {
+        switch soloProvider {
+        case .claude: return nil      // logo holds the leading flank
+        case .codex:  return .codex   // number crosses over from the right
+        case nil:     return .claude
+        }
+    }
+
+    private var trailingPillProvider: AlertEngine.Provider? {
+        switch soloProvider {
+        case .claude: return .claude  // number crosses over from the left
+        case .codex:  return nil      // logo holds the trailing flank
+        case nil:     return .codex
+        }
+    }
 }

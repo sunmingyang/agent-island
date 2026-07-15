@@ -15,31 +15,26 @@ struct SoloProviderBadge: View {
         .flatMap { NSImage(contentsOf: $0) }
 
     var body: some View {
-        VStack(spacing: 11) {
-            Spacer(minLength: 0)
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.09))
-                Circle()
-                    .strokeBorder(color.opacity(0.22), lineWidth: 0.5)
-                if let image {
-                    Image(nsImage: image)
-                        .resizable()
-                        .renderingMode(.template)
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(color.opacity(0.95))
-                        .frame(width: 25, height: 25)
-                }
+        // Bare mark, no chip behind it (owner's call, 2026-07-16: the ring
+        // and fill read as clutter). Biased above center so the block sits
+        // on the same visual line as the tiles across the hairline.
+        VStack(spacing: 12) {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(color.opacity(0.95))
+                    .frame(width: 30, height: 30)
+                    .shadow(color: color.opacity(0.30), radius: 10)
             }
-            .frame(width: 56, height: 56)
-            .shadow(color: color.opacity(0.22), radius: 12)
             Text(name)
                 .font(Typography.providerTitle)
                 .tracking(0.4)
                 .foregroundStyle(.white.opacity(0.88))
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(.bottom, 30)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(name)
     }
