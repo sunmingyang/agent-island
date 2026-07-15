@@ -12,7 +12,6 @@
 
 [![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
 [![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
-[![星标](https://img.shields.io/github/stars/tristan666666/agent-island?style=flat-square&color=f59e0b&label=stars)](https://github.com/tristan666666/agent-island/stargazers)
 [![支持平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS%2013%2B%20%7C%20Windows%2010%2F11-24292f?style=flat-square)](#macos-和-windows)
 [![构建状态](https://img.shields.io/github/actions/workflow/status/tristan666666/agent-island/macos-ci.yml?branch=main&style=flat-square&label=build)](https://github.com/tristan666666/agent-island/actions)
 [![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
