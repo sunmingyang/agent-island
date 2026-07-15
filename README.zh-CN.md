@@ -94,8 +94,8 @@ Windows 构建与测试文档正在 [issue #10](https://github.com/tristan666666
   - [用量与报告](#用量与报告)
   - [macOS 和 Windows](#macos-和-windows)
 - [工作原理](#工作原理)
-- [为什么选 Agent Island](#为什么选-agent-island)
 - [社区](#社区)
+- [为什么选 Agent Island](#为什么选-agent-island)
 - [隐私与安全](#隐私与安全)
 - [常见问题](#常见问题)
 - [参与贡献](#参与贡献)
@@ -177,6 +177,14 @@ flowchart LR
 
 实现说明（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
 
+## 社区
+
+中文用户可以加入微信交流群：
+
+<img src="Assets/wechat-qr.jpg" alt="微信交流群二维码；添加作者时请备注 Agent Island" width="260">
+
+也可以在 [Product Hunt](https://www.producthunt.com/products/agent-island-2) 查看 Agent Island。
+
 ## 为什么选 Agent Island
 
 运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为每个服务提供持续可见的状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来。
@@ -189,27 +197,20 @@ flowchart LR
 
 与同类产品的对比：
 
-| | Agent Island | [Vibe Island](https://vibeisland.app) | [codex-island](https://github.com/ericjypark/codex-island) |
-|---|---|---|---|
-| 价格与源码 | 免费 · MIT 开源 | 一次性买断 · 闭源 | 免费 · MIT 开源 |
-| 平台 | macOS 13+ · Windows 10/11 | macOS 14+ | macOS |
-| 支持的 Agent | Claude Code · Codex | Claude Code、Codex、Gemini CLI、Cursor 等十余家 | Codex（+ Claude 用量） |
-| 实时会话状态 | ✓ | ✓ | —（被动用量表） |
-| 轮到你闹钟（弹窗+声音+队列） | ✓ | 完成提示，点击跳回 | — |
-| 额度耗尽闹钟 | ✓ | — | — |
-| 刘海内权限审批 | — | ✓ | — |
-| 用量、成本与重置 | ✓（含重置银行） | 用量窗口 | ✓（含 reset credits） |
-| 周报/月报卡与段位 | ✓ | — | — |
+| | Agent Island | [Vibe Island](https://vibeisland.app) | [CodexBar](https://github.com/steipete/CodexBar) | [ccusage](https://github.com/ccusage/ccusage) | [Claude Code Usage Monitor](https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor) | [CCSeva](https://github.com/Iamshankhadeep/ccseva) | [codex-island](https://github.com/ericjypark/codex-island) |
+|---|---|---|---|---|---|---|---|
+| 价格与源码 | 免费 · MIT | 一次性买断 · 闭源 | 免费 · MIT | 免费 · MIT | 免费 · MIT | 免费 · MIT | 免费 · MIT |
+| 形态 | 菜单栏应用 | 刘海应用 | 菜单栏应用 | 命令行工具 | 终端仪表盘 | 菜单栏应用 | 菜单栏应用 |
+| 平台 | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+（CLI 版另支持 Linux） | 任何能跑 Node 的环境 | 任何能跑 Python 的环境 | macOS | macOS |
+| 支持的 Agent | Claude Code · Codex | Claude Code、Codex、Gemini CLI、Cursor 等十余家 | 59 家 provider（限额） | Claude Code（+ Codex） | Claude Code | Claude Code | Codex（+ Claude 用量） |
+| 实时会话状态 | ✓ | ✓ | —（服务商故障徽章） | — | — | — | —（被动用量表） |
+| 轮到你闹钟（弹窗+声音+队列） | ✓ | 完成提示，点击跳回 | — | — | — | — | — |
+| 额度耗尽闹钟 | ✓ | — | — | — | 终端预警 | 70%/90% 阈值通知 | — |
+| 刘海内权限审批 | — | ✓ | — | — | — | — | — |
+| 用量、成本与重置 | ✓（含重置银行） | 用量窗口 | ✓（59 家限额+重置倒计时+开销） | ✓（本地成本报表） | ✓（实时+预测） | ✓（5 小时/周仪表+倒计时） | ✓（含 reset credits） |
+| 周报/月报卡与段位 | ✓ | — | — | — | — | — | — |
 
 <sub>基于各产品 2026 年 7 月的公开资料整理，欢迎提 issue 指正。</sub>
-
-## 社区
-
-中文用户可以加入微信交流群：
-
-<img src="Assets/wechat-qr.jpg" alt="微信交流群二维码；添加作者时请备注 Agent Island" width="260">
-
-也可以在 [Product Hunt](https://www.producthunt.com/products/agent-island-2) 查看 Agent Island。
 
 ## 隐私与安全
 

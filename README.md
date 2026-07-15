@@ -94,8 +94,8 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
   - [Usage & reports](#usage--reports)
   - [macOS and Windows](#macos-and-windows)
 - [How it works](#how-it-works)
-- [Why Agent Island](#why-agent-island)
 - [Community](#community)
+- [Why Agent Island](#why-agent-island)
 - [Privacy and safety](#privacy-and-safety)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -177,6 +177,14 @@ flowchart LR
 
 Read the implementation overview: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
 
+## Community
+
+Chinese-speaking users can join the WeChat community:
+
+<img src="Assets/wechat-qr.jpg" alt="WeChat group QR code; add the author and mention Agent Island" width="260">
+
+See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
+
 ## Why Agent Island
 
 Long Claude Code and Codex runs should not require keeping every terminal in view. Agent Island gives each provider a persistent status surface, tells you when a run needs attention, and brings you back when the next action is yours.
@@ -189,27 +197,20 @@ It is built for developers who:
 
 How it compares with its neighbors:
 
-| | Agent Island | [Vibe Island](https://vibeisland.app) | [codex-island](https://github.com/ericjypark/codex-island) |
-|---|---|---|---|
-| Price & source | Free · MIT open source | One-time purchase · closed source | Free · MIT open source |
-| Platforms | macOS 13+ · Windows 10/11 | macOS 14+ | macOS |
-| Agents | Claude Code · Codex | Claude Code, Codex, Gemini CLI, Cursor, and more | Codex (+ Claude usage) |
-| Live session status | ✓ | ✓ | — (passive usage meter) |
-| Your-turn alarm window + sound + queue | ✓ | Done notice, click to jump | — |
-| Out-of-quota alarm | ✓ | — | — |
-| In-notch permission approvals | — | ✓ | — |
-| Usage, cost & resets | ✓ (incl. reset bank) | Usage windows | ✓ (incl. reset credits) |
-| Weekly/monthly report cards & ranks | ✓ | — | — |
+| | Agent Island | [Vibe Island](https://vibeisland.app) | [CodexBar](https://github.com/steipete/CodexBar) | [ccusage](https://github.com/ccusage/ccusage) | [Claude Code Usage Monitor](https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor) | [CCSeva](https://github.com/Iamshankhadeep/ccseva) | [codex-island](https://github.com/ericjypark/codex-island) |
+|---|---|---|---|---|---|---|---|
+| Price & source | Free · MIT | One-time purchase · closed | Free · MIT | Free · MIT | Free · MIT | Free · MIT | Free · MIT |
+| Form | Menu-bar app | Notch app | Menu-bar app | CLI | Terminal dashboard | Menu-bar app | Menu-bar app |
+| Platforms | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+ (CLI also on Linux) | Anywhere Node runs | Anywhere Python runs | macOS | macOS |
+| Agents | Claude Code · Codex | Claude Code, Codex, Gemini CLI, Cursor, and more | 59 providers (limits) | Claude Code (+ Codex) | Claude Code | Claude Code | Codex (+ Claude usage) |
+| Live session status | ✓ | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
+| Your-turn alarm window + sound + queue | ✓ | Done notice, click to jump | — | — | — | — | — |
+| Out-of-quota alarm | ✓ | — | — | — | Terminal warnings | 70/90% threshold notifications | — |
+| In-notch permission approvals | — | ✓ | — | — | — | — | — |
+| Usage, cost & resets | ✓ (incl. reset bank) | Usage windows | ✓ (59 providers, reset countdowns, spend) | ✓ (local cost reports) | ✓ (real-time + predictions) | ✓ (5h/weekly gauges + countdowns) | ✓ (incl. reset credits) |
+| Weekly/monthly report cards & ranks | ✓ | — | — | — | — | — | — |
 
 <sub>Based on each product's public materials as of July 2026 — corrections welcome via issue.</sub>
-
-## Community
-
-Chinese-speaking users can join the WeChat community:
-
-<img src="Assets/wechat-qr.jpg" alt="WeChat group QR code; add the author and mention Agent Island" width="260">
-
-See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
 
 ## Privacy and safety
 
