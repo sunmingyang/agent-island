@@ -56,12 +56,26 @@ final class IslandModel: ObservableObject {
 
     private var subs: Set<AnyCancellable> = []
 
+    /// Mirrors InterfaceScaleStore.factor. Kept as a local copy because the
+    /// store's @Published emits during willSet — reading the store inside
+    /// the sink would still see the old value (same race the spacing store
+    /// subscription documents).
+    private var interfaceScale: CGFloat = 1
+
     init(notch: NotchInfo) {
         self.rawNotch = notch
         self.notch = Self.applyOverride(to: notch, width: IslandSpacingStore.shared.width)
+        self.interfaceScale = InterfaceScaleStore.shared.factor
         recomputeSize()
         subscribeToSpacingStore()
         subscribeToScreenPref()
+        subscribeToInterfaceScale()
+    }
+
+    /// The magnifier the view applies via scaleEffect; `size` is already
+    /// multiplied by it. 1 on notched screens — see InterfaceScaleStore.
+    var uiScale: CGFloat {
+        notch.hasNotch ? 1 : interfaceScale
     }
 
     func setState(_ new: State) {
@@ -151,6 +165,19 @@ final class IslandModel: ObservableObject {
             .store(in: &subs)
     }
 
+    private func subscribeToInterfaceScale() {
+        InterfaceScaleStore.shared.$factor
+            .dropFirst()
+            .sink { [weak self] factor in
+                guard let self, self.interfaceScale != factor else { return }
+                self.interfaceScale = factor
+                withAnimation(.openMorph) {
+                    self.recomputeSize()
+                }
+            }
+            .store(in: &subs)
+    }
+
     private func subscribeToScreenPref() {
         ScreenPref.shared.$screen
             .dropFirst()
@@ -173,23 +200,27 @@ final class IslandModel: ObservableObject {
         // (IslandShape.topCurl per side); grow the frame so the body keeps
         // its width in every state.
         let curlPad = IslandShape.topCurl * 2
+        let base: CGSize
         switch state {
         case .compact:
-            size = CGSize(
+            base = CGSize(
                 width: notch.width + tabWidth * 2 + curlPad,
                 height: notch.height
             )
         case .peek:
-            size = CGSize(
+            base = CGSize(
                 width: notch.width + tabWidth * 2 + pillSlotWidth * 2 + curlPad,
                 height: notch.height
             )
         case .expanded:
-            size = CGSize(
+            base = CGSize(
                 width: expandedWidth + curlPad,
                 height: expandedContentHeight + notch.height
             )
         }
+        // The view lays out at base size and magnifies via scaleEffect;
+        // `size` is the on-screen (scaled) box the window hit-testing uses.
+        size = CGSize(width: base.width * uiScale, height: base.height * uiScale)
     }
 
     private var expandedContentHeight: CGFloat {

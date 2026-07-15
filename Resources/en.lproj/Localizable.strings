@@ -58,6 +58,8 @@
 "Live" = "Live";
 "Look for a new version immediately." = "Look for a new version immediately";
 "Visual effects" = "Visual effects";
+"Interface scale" = "Interface scale";
+"Non-notch screens only" = "Non-notch screens only";
 "Calm" = "Calm";
 "Vivid" = "Vivid";
 "all tokens · incl. cache reads" = "all tokens · incl. cache reads";

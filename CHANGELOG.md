@@ -22,8 +22,8 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - macOS: a provider that needs a login shows a steady red logo (the usage page still offers one-click re-authentication). The endless red blink is reserved for stalls and rate limits.
 - Report cards label their counting policy — "all tokens · incl. cache reads" — so totals don't read as inflated next to provider dashboards, which count input + output only (roughly 10× smaller).
 - Product name is written "Agent Island" everywhere user-facing.
-- App icon, first pass: the six sharp needles are now round-capped rays on an even 12-spoke wheel, and the background lifts off pure black onto a dark luminous gradient — both prerequisites for an Icon Composer / liquid-glass treatment (sharp acute shapes and flat #000 render badly there). Full identity redesign still pending.
 - Settings: "Visual effects" now sits with the island-appearance controls (Top bar group, next to Cost display) as title + picker only — the explanatory sentence is gone.
+- New "Interface scale" dial (100–150%) magnifies the island on screens without a notch — for 4K externals running large scaled or native modes where a point shrinks well below MacBook size. Notched MacBooks stay 1:1 so the silhouette keeps matching the housing.
 - Trailing full stops removed from every caption and subtitle, both languages (59 strings each).
 
 ### Fixed

@@ -14,6 +14,7 @@ struct SettingsView: View {
     @ObservedObject private var refreshStore = RefreshIntervalStore.shared
     @ObservedObject private var tokenMode = TokenCountModeStore.shared
     @ObservedObject private var lowPower = LowPowerModeStore.shared
+    @ObservedObject private var interfaceScale = InterfaceScaleStore.shared
     @ObservedObject private var alwaysShow = AlwaysShowUsageStore.shared
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
@@ -465,6 +466,21 @@ struct SettingsView: View {
         )
     }
 
+    private var interfaceScalePicker: some View {
+        Picker("", selection: Binding(
+            get: { interfaceScale.factor },
+            set: { interfaceScale.factor = $0 }
+        )) {
+            ForEach(InterfaceScaleStore.steps, id: \.self) { step in
+                Text("\(Int((step * 100).rounded()))%").tag(step)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .fixedSize()
+        .accessibilityLabel(L10n.tr("Interface scale"))
+    }
+
     /// Calm / Vivid — the ambient-effects choice (LowPowerModeStore's
     /// `enabled` is true for Calm).
     private var effectsPicker: some View {
@@ -710,6 +726,12 @@ struct SettingsView: View {
                 subtitle: nil
             ) {
                 effectsPicker
+            }
+            SettingsRow(
+                title: "Interface scale",
+                subtitle: "Non-notch screens only"
+            ) {
+                interfaceScalePicker
             }
             SettingsRow(
                 title: "Always show usage in top bar",

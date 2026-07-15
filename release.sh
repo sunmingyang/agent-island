@@ -57,7 +57,7 @@ $DMGBUILD \
   -s packaging/dmg/settings.py \
   -D app="$APP" \
   -D background="$DIST/dmg-background.tiff" \
-  -D icon="Assets/AgentIsland.icns" \
+  -D icon="Resources/AgentIsland.icns" \
   "Agent Island $VERSION" \
   "$DMG"
 

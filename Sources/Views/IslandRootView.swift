@@ -44,7 +44,8 @@ struct IslandRootView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(width: model.size.width, height: model.size.height)
+            .frame(width: model.size.width / model.uiScale,
+                   height: model.size.height / model.uiScale)
             .background {
                     // Frosted halo. ultraThinMaterial is a backdrop blur of
                     // whatever desktop content is behind the window. Lives
@@ -124,6 +125,11 @@ struct IslandRootView: View {
                 .contentShape(IslandShape())
                 .onTapGesture(perform: handleTap)
                 .onHover(perform: handleHover)
+                // Interface-scale magnifier (non-notch screens only): the
+                // content above laid out at base size; this blows it up to
+                // model.size, which window hit-testing already uses.
+                .scaleEffect(model.uiScale, anchor: .top)
+                .frame(width: model.size.width, height: model.size.height, alignment: .top)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

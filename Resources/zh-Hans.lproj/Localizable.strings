@@ -58,6 +58,8 @@
 "Live" = "实时";
 "Look for a new version immediately." = "立即检查是否有新版本";
 "Visual effects" = "视觉效果";
+"Interface scale" = "界面缩放";
+"Non-notch screens only" = "仅无刘海屏幕生效";
 "Calm" = "清爽";
 "Vivid" = "流光";
 "all tokens · incl. cache reads" = "全量口径 · 含缓存读取";

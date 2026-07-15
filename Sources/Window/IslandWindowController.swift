@@ -19,7 +19,10 @@ final class IslandWindowController {
     private var isMouseInsideIsland = false
     private var cmdQMonitor: Any?
 
-    static let windowSize = CGSize(width: 900, height: 360)
+    // Sized for the largest content: expanded overview at 150% interface
+    // scale. The window is transparent and click-through outside the shape,
+    // so the extra headroom costs nothing.
+    static let windowSize = CGSize(width: 1440, height: 640)
 
     init() {
         let notch = NotchInfo.detect(from: Self.targetScreen())

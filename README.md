@@ -4,76 +4,63 @@
 
 # Agent Island
 
-**A status companion for Claude Code and Codex — it lives in your notch.**
+**A status companion for Claude Code and Codex.**
+
+See what every run is doing. Step away, and Agent Island calls you back when it is your turn. Local-first, no Agent Island account, no product telemetry.
 
 **[agent-island.dev](https://agent-island.dev)** · [简体中文](README.zh-CN.md)
 
 [![Latest release](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
-[![macOS 13+](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon%20%26%20Intel-black?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
-[![Windows 10+](https://img.shields.io/badge/Windows-10%2B%20·%20native%20WPF-0078d4?style=flat-square)](https://github.com/tristan666666/agent-island/releases/latest)
+[![Platforms](https://img.shields.io/badge/platforms-macOS%2013%2B%20%7C%20Windows%2010%2F11-24292f?style=flat-square)](#macos-and-windows)
 [![License](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
-[![Listed in Chinese Independent Developer Projects](https://img.shields.io/badge/listed%20in-Chinese%20Independent%20Developer%20Projects-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
-[![Listed in awesome-mac](https://img.shields.io/badge/listed%20in-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README.md#menu-bar-tools)
-[![Listed in awesome-swift-macos-apps](https://img.shields.io/badge/listed%20in-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
-[![Listed in awesome-codex-cli](https://img.shields.io/badge/listed%20in-awesome--codex--cli-10b981?style=flat-square)](https://github.com/milisp/awesome-codex-cli)
-[![Listed in awesome-coding-agents](https://img.shields.io/badge/listed%20in-awesome--coding--agents-7c3aed?style=flat-square)](https://github.com/kailiu42/awesome-coding-agents)
-[![Listed in awesome-claude-code-and-skills](https://img.shields.io/badge/listed%20in-awesome--claude--code--and--skills-8b5cf6?style=flat-square)](https://github.com/GetBindu/awesome-claude-code-and-skills)
-[![Listed in awesome-vibe-coding-resources](https://img.shields.io/badge/listed%20in-awesome--vibe--coding--resources-ec4899?style=flat-square)](https://github.com/acvnace/awesome-vibe-coding-resources#desktop-apps)
-
-<a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
-  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
-</a>
-
-<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 launch film: weekly and monthly report cards, island ranks" width="900">
-
-<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;HD version</a></sub>
+<!-- README_CORE_DEMO_PLACEHOLDER
+Replace this comment with the approved 8-12 second, seamless running -> your turn -> open session demo.
+Do not restore docs/media/launch.gif here: it is a release film, not the core product demo.
+-->
 
 <p>
-  <a href="#install"><strong>Install</strong></a> ·
+  <a href="#quick-start"><strong>Quick Start</strong></a> ·
+  <a href="https://github.com/tristan666666/agent-island/releases/latest">Download</a> ·
   <a href="https://agent-island.dev">Website</a> ·
-  <a href="https://github.com/tristan666666/agent-island/releases/latest">Latest release</a> ·
-  <a href="docs/roadmap.md">Roadmap</a> ·
+  <a href="docs/how-agent-island-detects-session-state.md">How it works</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-<p><strong>If Agent Island saves you one stalled overnight Claude/Codex run, star it so more people running these agents — on Mac or Windows — can find it.</strong></p>
-
 </div>
 
-## Install
+## Quick Start
+
+Choose your platform and install the current `v1.6.1` release directly:
+
+| Platform | Recommended download | Requirement |
+|---|---|---|
+| macOS | [AgentIsland-1.6.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1.dmg) | macOS 13+, Apple silicon or Intel |
+| Windows | [AgentIsland-1.6.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1-win-x64.zip) | Windows 10/11 x64 |
+
+On macOS, drag Agent Island into Applications. The app is ad-hoc signed rather than notarized, so the first launch requires right-clicking the app in Finder and choosing **Open**.
+
+On Windows, unzip the archive and run `AgentIsland.exe`.
+
+<details>
+<summary>Package managers and source builds</summary>
+
+Homebrew, WinGet, and Scoop may lag behind the latest GitHub release. Check the version they offer before installing.
 
 ```sh
 brew install tristan666666/tap/agentisland
 ```
 
-**Windows**:
-
-Download [`AgentIsland-win-x64.zip`](https://github.com/tristan666666/agent-island/releases/latest) from the latest release, unzip, and run `AgentIsland.exe`.
-
-Or via Scoop:
+```powershell
+winget install TristanTang.AgentIsland
+```
 
 ```powershell
 scoop bucket add agent-island https://github.com/tristan666666/scoop-bucket
 scoop install agent-island/agentisland
 ```
 
-Or via winget:
-
-```powershell
-winget install TristanTang.AgentIsland
-```
-
-or grab the DMG:
-
-Download the DMG, drag AgentIsland into Applications, open it:
-
-[**Download the latest AgentIsland.dmg**](https://github.com/tristan666666/agent-island/releases/latest)
-
-If macOS blocks the first launch because the app is not notarized, right-click AgentIsland in Finder and choose **Open** once.
-
-Or build from source:
+Build the macOS app from source:
 
 ```sh
 git clone https://github.com/tristan666666/agent-island.git
@@ -82,96 +69,171 @@ cd agent-island
 open build/AgentIsland.app
 ```
 
-## Features
+Windows build and test instructions are tracked in [issue #10](https://github.com/tristan666666/agent-island/issues/10).
 
-### 🖥️ One app, native on macOS and Windows
+</details>
 
-Same product, same detection engine, no Electron. English and 简体中文, switchable in Settings.
+## Table of Contents
 
-- **macOS 13+** (SwiftUI, universal binary): wide top bar for notched MacBooks, compact top bar for everything else.
-- **Windows 10/11** (WPF): top bar or a draggable floating widget, with a tray icon showing a usage ring at all times.
+- [Why Agent Island](#why-agent-island)
+- [Status monitoring](#status-monitoring)
+- [It's-your-turn clock](#its-your-turn-clock)
+- [Usage & reports](#usage--reports)
+- [macOS and Windows](#macos-and-windows)
+- [How it works](#how-it-works)
+- [Privacy and safety](#privacy-and-safety)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [Roadmap and releases](#roadmap-and-releases)
+- [Community and featured listings](#community-and-featured-listings)
 
-### ⚡ Live status, one glance up
+## Why Agent Island
 
-<img src="Assets/agent-island-bar-working.png" alt="Notch bar with the Claude logo spinning while a session runs" width="760">
+Long Claude Code and Codex runs should not require keeping every terminal in view. Agent Island gives each provider a persistent status surface, tells you when a run needs attention, and brings you back when the next action is yours.
 
-In your menu bar (macOS) or top bar (Windows), the Claude and Codex logos mirror what your sessions are actually doing. Detection is event-driven (FSEvents on the local transcript files), so the spin starts and stops within about a second of the run itself — no polling lag.
+It is built for developers who:
+
+- run Claude Code and Codex sessions in parallel;
+- leave long tasks working in the background;
+- want status, alerts, and usage views without sending session data to another service.
+
+## Status monitoring
+
+Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activity in a compact top bar. You can scan the state without bringing each session to the foreground.
+
+<img src="Assets/agent-island-bar-working.png" alt="Agent Island showing an active Claude session in the macOS top bar" width="760">
 
 | Cue | Meaning |
 |---|---|
-| Logo **rotates** | a session is working |
-| Logo **still** | nothing running — or the turn is over and it's yours |
-| Logo **pulses red** | needs attention: rate limit, login, network, or provider error |
+| Logo rotates | A session is working |
+| Logo is still | No session is currently working |
+| Logo pulses red | A session needs attention because of a provider, login, network, or rate-limit error |
 
-<img src="Assets/agent-island-bar-alert.png" alt="Notch bar with the Claude logo pulsing red" width="760">
+<img src="Assets/agent-island-bar-alert.png" alt="Agent Island showing an attention state in the macOS top bar" width="760">
 
-### 📊 Usage island
+## It's-your-turn clock
 
-Live usage, cost, and reset countdowns appear on swipeable pages in the notch, fed by each provider's own usage API. Claude shows 5-hour and weekly usage.
-Codex shows weekly usage. When Claude's endpoint demands a fresh login, the Re-authenticate button finishes it in your browser (one click on the real claude.com authorize page, caught by a local callback) — no terminal, no code pasting.
-
-<img src="Assets/agent-island-usage.png" alt="Usage page with Claude and Codex windows, cost, and reset countdowns" width="760">
-
-**Reset bank**: an ×N chip shows your banked Codex resets — click it for each card's expiry.
-
-### 🏆 Weekly & monthly report cards — new in 1.6.1
-
-One click renders your week (or your half-year) into a shareable card: total tokens with an "≈ API value" line, the Claude/Codex split, a TOP-5 model breakdown (tokens · dollars · share), a 24-week activity heatmap with your streak — and your **island rank**, seven lifetime tiers from 🌊 Drifter (100M) to 👑 Legendary Navigator (100B). Rendered entirely on your machine; you copy the image and post it yourself.
+When a background turn finishes, Agent Island can show an alarm window, send a system notification, and play a sound. Multiple completed turns queue instead of replacing one another, and responding clears the corresponding reminder.
 
 <table>
   <tr>
-    <td align="center"><img src="Assets/report-weekly-en.png" alt="Weekly report card: tokens, API value, provider split, TOP-5 model donut, island rank" width="380"></td>
-    <td align="center"><img src="Assets/report-monthly-en.png" alt="Monthly report card: 24-week activity heatmap with streak and island rank" width="380"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-claude.png" alt="Your-turn alert for a completed Claude session" width="420"></td>
+    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Your-turn alert for a completed Codex session" width="420"></td>
   </tr>
 </table>
 
-### 🔔 "It's your turn" alarms
+## Usage & reports
 
-A turn finishes in a background session → an alarm window, a system notification, and a sound, within seconds.
+Swipe through local usage and cost views for Claude and Codex. Provider usage data comes from provider-owned usage endpoints through the local credential store; cost and model summaries are calculated locally from session records.
 
-- **Reply and it goes away**; multiple finishes queue instead of swallowing each other.
-- **Quota counts too** — a maxed Claude window gets one separate alarm with its real reset time.
+<img src="Assets/agent-island-usage.png" alt="Agent Island usage view for Claude and Codex on macOS" width="760">
 
-<table>
-  <tr>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-claude.png" alt="Turn alarm for a finished Claude thread" width="420"></td>
-    <td align="center"><img src="Assets/agent-island-turn-alarm-codex.png" alt="Turn alarm for a finished Codex thread" width="420"></td>
-  </tr>
-</table>
+Agent Island also renders weekly and longer-range report cards on your machine. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
 
-### 🎨 Also in the box: five dials
+<!-- OPTIMIZED_REPORT_SCREENSHOTS_PLACEHOLDER
+Add README-sized WebP report examples here after export and visual review.
+Do not restore the multi-megabyte PNG pair to the README.
+-->
 
-⌘-click the island to cycle chart styles; flip used ↔ remaining anytime.
+## macOS and Windows
 
-<img src="Assets/chart-styles-en.png" alt="Five chart styles" width="760">
+Agent Island is a native desktop app on both supported platforms, with English and Simplified Chinese interfaces.
+
+- **macOS 13+**: SwiftUI universal app for Apple silicon and Intel, with wide and compact top-bar layouts.
+- **Windows 10/11 x64**: native WPF app with a top bar, draggable floating widget, and tray presence.
+
+<!-- WINDOWS_SCREENSHOTS_PLACEHOLDER
+Add verified Windows screenshots here only after capture and release-behavior review:
+1. running / waiting top bar or floating widget;
+2. your-turn alert;
+3. usage or report view.
+-->
+
+<!-- PLATFORM_CAPABILITY_MATRIX_PLACEHOLDER
+Add the macOS / Windows capability matrix only after the current release has been verified on both platforms.
+Do not infer parity from release notes or CI alone.
+-->
 
 ## How it works
 
-- **Session state** is read from the transcript files Claude Code, Claude Desktop, and Codex already write on your disk: FSEvents watches for writes, and end-of-turn markers (Claude's `stop_reason: end_turn`, Codex's `task_complete`) plus file activity decide spin / alarm / red.
-- **Usage and reset times** come from each provider's real usage API, using the credentials already on your machine.
-- Everything runs locally as you. Nothing is uploaded anywhere.
+```mermaid
+flowchart LR
+    A[Claude and Codex local files] --> B[Local parser and state machine]
+    B --> C[Top bar and alerts]
+    B --> D[Local cost and report views]
+    E[Provider-owned usage endpoints] --> D
+```
 
-Deeper write-up: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
+- **Session state** comes from transcript and activity files that Claude Code, Claude Desktop, and Codex already write to disk. Local file events and turn markers drive the working and needs-you states.
+- **Usage and reset data** comes from provider-owned usage endpoints through the local credential store.
+- **Cost, model, and report summaries** are calculated locally from local session records.
 
-## FAQ & safety
+Read the implementation overview: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
 
-**Why isn't the app notarized?**
-No paid Apple Developer account. The app is ad-hoc signed, so macOS asks for one right-click → Open on first launch. Auto-updates are independently verified: Sparkle checks every update against an EdDSA signature before installing.
+## Privacy and safety
 
-**Does any of my data leave my Mac?**
-No. Agent Island reads local transcript files and calls the providers' usage APIs with your existing local tokens. There is no telemetry in the app.
+- No Agent Island account is required.
+- Session data is not uploaded to Agent Island.
+- The app has no product telemetry.
+- Usage and authentication calls go directly to provider-owned endpoints through the local credential store.
+- If you use Claude re-authentication, Agent Island may refresh and update credentials shared with Claude Code or Claude Desktop in that local store.
+- macOS updates are verified by Sparkle with an EdDSA signature before installation.
 
-**How is this different from codex-island?**
-[codex-island](https://github.com/ericjypark/codex-island) is a passive usage meter — it shows how much you've used. Agent Island keeps that (usage, cost, resets) and adds the active half: live session state on the logos and turn alarms.
+Agent Island reads the local files and credentials required to provide these views. Review the source and release artifacts before installing, as you would for any local developer tool.
 
-## WeChat Community (中文交流群)
+## FAQ
 
-Chinese-speaking users — scan to join our WeChat group:
+<details>
+<summary><strong>Why is the macOS app not notarized?</strong></summary>
 
-<img src="Assets/wechat-qr.jpg" alt="WeChat group QR — add the author, note Agent Island" width="300">
+The project does not currently use a paid Apple Developer account. The macOS build is ad-hoc signed, so the first launch requires right-clicking Agent Island in Finder and choosing **Open**. Sparkle independently verifies update signatures before installation.
 
-## Credits & license
+</details>
 
-Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park** — the usage-island and cost-tracking foundation are his work. Agent Island adds turn alarms, live session-state animations, cross-platform support, and its own product direction.
+<details>
+<summary><strong>Does session data leave my computer?</strong></summary>
 
-MIT licensed — © 2026 Eric Park. This fork retains that notice. See [LICENSE](LICENSE).
+Session state, cost calculations, and reports are derived locally. Agent Island does not upload session data or collect product telemetry. Usage views call provider-owned endpoints through the local credential store. Claude re-authentication may refresh and update credentials shared with Claude Code or Claude Desktop in that store.
+
+</details>
+
+<details>
+<summary><strong>How is this different from codex-island?</strong></summary>
+
+[codex-island](https://github.com/ericjypark/codex-island) established the usage-island and cost-tracking foundation. Agent Island builds on it with live session state, your-turn alerts, Windows support, and a broader desktop workflow.
+
+</details>
+
+## Contributing
+
+Contributions are welcome across macOS, Windows, documentation, tests, and localization. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Current good first issues:
+
+- [#10: Document the Windows contributor build and test workflow](https://github.com/tristan666666/agent-island/issues/10)
+- [#11: Add a localization key parity check](https://github.com/tristan666666/agent-island/issues/11)
+- [#15: Add a public-copy guard for retired feature claims](https://github.com/tristan666666/agent-island/issues/15)
+
+Run `./scripts/verify.sh` before opening a macOS pull request. Windows changes are checked by the repository's Windows CI workflow.
+
+## Roadmap and releases
+
+- [Latest release](https://github.com/tristan666666/agent-island/releases/latest)
+- [Roadmap](docs/roadmap.md)
+- [Open issues](https://github.com/tristan666666/agent-island/issues)
+
+## Community and featured listings
+
+Chinese-speaking users can join the WeChat community:
+
+<img src="Assets/wechat-qr.jpg" alt="WeChat group QR code; add the author and mention Agent Island" width="260">
+
+Featured in [Chinese Independent Developer Projects](https://github.com/1c7/chinese-independent-developer), [awesome-swift-macos-apps](https://github.com/jaywcjlove/awesome-swift-macos-apps#ai), and [awesome-vibecoding](https://github.com/roboco-io/awesome-vibecoding#projects-platforms--tools).
+
+See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
+
+## Credits and license
+
+Agent Island is a fork of **[codex-island](https://github.com/ericjypark/codex-island)** by **Eric Park**. The original usage-island and cost-tracking foundation are his work. Agent Island adds live session-state views, your-turn alerts, cross-platform support, and its own product direction.
+
+MIT licensed. Copyright 2026 Eric Park. This fork retains the original notice. See [LICENSE](LICENSE).
