@@ -14,6 +14,19 @@
 [![支持平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS%2013%2B%20%7C%20Windows%2010%2F11-24292f?style=flat-square)](#macos-和-windows)
 [![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
+[![收录于 awesome-mac](https://img.shields.io/badge/listed%20in-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README.md#menu-bar-tools)
+[![收录于 awesome-swift-macos-apps](https://img.shields.io/badge/listed%20in-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
+[![收录于 awesome-codex-cli](https://img.shields.io/badge/listed%20in-awesome--codex--cli-10b981?style=flat-square)](https://github.com/milisp/awesome-codex-cli)
+[![收录于 awesome-coding-agents](https://img.shields.io/badge/listed%20in-awesome--coding--agents-7c3aed?style=flat-square)](https://github.com/kailiu42/awesome-coding-agents)
+[![收录于 awesome-claude-code-and-skills](https://img.shields.io/badge/listed%20in-awesome--claude--code--and--skills-8b5cf6?style=flat-square)](https://github.com/GetBindu/awesome-claude-code-and-skills)
+[![收录于 awesome-vibe-coding-resources](https://img.shields.io/badge/listed%20in-awesome--vibe--coding--resources-ec4899?style=flat-square)](https://github.com/acvnace/awesome-vibe-coding-resources#desktop-apps)
+[![收录于 awesome-vibecoding](https://img.shields.io/badge/listed%20in-awesome--vibecoding-0ea5e9?style=flat-square)](https://github.com/roboco-io/awesome-vibecoding#projects-platforms--tools)
+[![收录于中国独立开发者项目列表](https://img.shields.io/badge/listed%20in-%E4%B8%AD%E5%9B%BD%E7%8B%AC%E7%AB%8B%E5%BC%80%E5%8F%91%E8%80%85%E9%A1%B9%E7%9B%AE%E5%88%97%E8%A1%A8-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
+
+<a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
+  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
+</a>
+
 <!-- README_CORE_DEMO_PLACEHOLDER
 在这里替换为正式验收过的 8-12 秒无缝循环 Demo：running -> your turn -> open session。
 不要重新放回 docs/media/launch.gif：它是版本发布片，不是核心产品 Demo。
@@ -75,29 +88,23 @@ Windows 构建与测试文档正在 [issue #10](https://github.com/tristan666666
 
 ## 目录
 
-- [为什么需要 Agent Island](#为什么需要-agent-island)
-- [状态监视](#状态监视)
-- [轮到你闹钟](#轮到你闹钟)
-- [用量与报告](#用量与报告)
-- [macOS 和 Windows](#macos-和-windows)
+- [功能](#功能)
+  - [状态监视](#状态监视)
+  - [轮到你闹钟](#轮到你闹钟)
+  - [用量与报告](#用量与报告)
+  - [macOS 和 Windows](#macos-和-windows)
 - [工作原理](#工作原理)
+- [为什么选 Agent Island](#为什么选-agent-island)
+- [社区](#社区)
 - [隐私与安全](#隐私与安全)
 - [常见问题](#常见问题)
 - [参与贡献](#参与贡献)
 - [路线图与版本](#路线图与版本)
-- [社区与收录](#社区与收录)
+- [致谢与许可证](#致谢与许可证)
 
-## 为什么需要 Agent Island
+## 功能
 
-运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为每个服务提供持续可见的状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来。
-
-它适合这些开发者：
-
-- 同时运行多个 Claude Code 和 Codex 会话；
-- 让长任务在后台运行；
-- 希望查看状态、提醒和用量，又不想把会话数据交给另一个服务。
-
-## 状态监视
+### 状态监视
 
 Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显示在紧凑的顶部条中。无需把每个会话切到前台，也能快速判断当前状态。
 
@@ -111,7 +118,7 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 
 <img src="Assets/agent-island-bar-alert.png" alt="macOS 顶部条中的异常注意状态" width="760">
 
-## 轮到你闹钟
+### 轮到你闹钟
 
 后台一轮任务结束后，Agent Island 可以显示闹钟窗口、发送系统通知并播放提示音。多个已完成任务会排队，而不是相互覆盖；回复对应会话后，相应提醒会消失。
 
@@ -122,7 +129,7 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
   </tr>
 </table>
 
-## 用量与报告
+### 用量与报告
 
 左右滑动即可查看 Claude 和 Codex 的本地用量与成本页面。服务方用量数据来自各家自有的用量端点，并通过本地凭据存储访问；成本和模型汇总则根据本机会话记录计算。
 
@@ -135,7 +142,7 @@ Agent Island 也可以在本机生成周报和更长周期的报告卡。复制�
 不要把数 MB 的 PNG 组合重新放回 README。
 -->
 
-## macOS 和 Windows
+### macOS 和 Windows
 
 Agent Island 在两个平台上都是原生桌面应用，并提供英文和简体中文界面。
 
@@ -169,6 +176,40 @@ flowchart LR
 - **成本、模型和报告汇总**根据本机会话记录在本地计算。
 
 实现说明（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
+
+## 为什么选 Agent Island
+
+运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为每个服务提供持续可见的状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来。
+
+它适合这些开发者：
+
+- 同时运行多个 Claude Code 和 Codex 会话；
+- 让长任务在后台运行；
+- 希望查看状态、提醒和用量，又不想把会话数据交给另一个服务。
+
+与同类产品的对比：
+
+| | Agent Island | [Vibe Island](https://vibeisland.app) | [codex-island](https://github.com/ericjypark/codex-island) |
+|---|---|---|---|
+| 价格与源码 | 免费 · MIT 开源 | 一次性买断 · 闭源 | 免费 · MIT 开源 |
+| 平台 | macOS 13+ · Windows 10/11 | macOS 14+ | macOS |
+| 支持的 Agent | Claude Code · Codex | Claude Code、Codex、Gemini CLI、Cursor 等十余家 | Codex（+ Claude 用量） |
+| 实时会话状态 | ✓ | ✓ | —（被动用量表） |
+| 轮到你闹钟（弹窗+声音+队列） | ✓ | 完成提示，点击跳回 | — |
+| 额度耗尽闹钟 | ✓ | — | — |
+| 刘海内权限审批 | — | ✓ | — |
+| 用量、成本与重置 | ✓（含重置银行） | 用量窗口 | ✓（含 reset credits） |
+| 周报/月报卡与段位 | ✓ | — | — |
+
+<sub>基于各产品 2026 年 7 月的公开资料整理，欢迎提 issue 指正。</sub>
+
+## 社区
+
+中文用户可以加入微信交流群：
+
+<img src="Assets/wechat-qr.jpg" alt="微信交流群二维码；添加作者时请备注 Agent Island" width="260">
+
+也可以在 [Product Hunt](https://www.producthunt.com/products/agent-island-2) 查看 Agent Island。
 
 ## 隐私与安全
 
@@ -221,16 +262,6 @@ Agent Island 会读取实现这些页面所需的本地文件和凭据。与其�
 - [最新版本](https://github.com/tristan666666/agent-island/releases/latest)
 - [路线图](docs/roadmap.md)
 - [开放 Issues](https://github.com/tristan666666/agent-island/issues)
-
-## 社区与收录
-
-中文用户可以加入微信交流群：
-
-<img src="Assets/wechat-qr.jpg" alt="微信交流群二维码；添加作者时请备注 Agent Island" width="260">
-
-已被 [中国独立开发者项目列表](https://github.com/1c7/chinese-independent-developer)、[awesome-swift-macos-apps](https://github.com/jaywcjlove/awesome-swift-macos-apps#ai) 和 [awesome-vibecoding](https://github.com/roboco-io/awesome-vibecoding#projects-platforms--tools) 收录。
-
-在 [Product Hunt](https://www.producthunt.com/products/agent-island-2) 查看 Agent Island。
 
 ## 致谢与许可证
 

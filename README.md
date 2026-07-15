@@ -14,6 +14,19 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 [![Platforms](https://img.shields.io/badge/platforms-macOS%2013%2B%20%7C%20Windows%2010%2F11-24292f?style=flat-square)](#macos-and-windows)
 [![License](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
+[![Listed in awesome-mac](https://img.shields.io/badge/listed%20in-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README.md#menu-bar-tools)
+[![Listed in awesome-swift-macos-apps](https://img.shields.io/badge/listed%20in-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
+[![Listed in awesome-codex-cli](https://img.shields.io/badge/listed%20in-awesome--codex--cli-10b981?style=flat-square)](https://github.com/milisp/awesome-codex-cli)
+[![Listed in awesome-coding-agents](https://img.shields.io/badge/listed%20in-awesome--coding--agents-7c3aed?style=flat-square)](https://github.com/kailiu42/awesome-coding-agents)
+[![Listed in awesome-claude-code-and-skills](https://img.shields.io/badge/listed%20in-awesome--claude--code--and--skills-8b5cf6?style=flat-square)](https://github.com/GetBindu/awesome-claude-code-and-skills)
+[![Listed in awesome-vibe-coding-resources](https://img.shields.io/badge/listed%20in-awesome--vibe--coding--resources-ec4899?style=flat-square)](https://github.com/acvnace/awesome-vibe-coding-resources#desktop-apps)
+[![Listed in awesome-vibecoding](https://img.shields.io/badge/listed%20in-awesome--vibecoding-0ea5e9?style=flat-square)](https://github.com/roboco-io/awesome-vibecoding#projects-platforms--tools)
+[![Listed in Chinese Independent Developer Projects](https://img.shields.io/badge/listed%20in-Chinese%20Independent%20Developer%20Projects-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
+
+<a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
+  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
+</a>
+
 <!-- README_CORE_DEMO_PLACEHOLDER
 Replace this comment with the approved 8-12 second, seamless running -> your turn -> open session demo.
 Do not restore docs/media/launch.gif here: it is a release film, not the core product demo.
@@ -75,29 +88,23 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
 
 ## Table of Contents
 
-- [Why Agent Island](#why-agent-island)
-- [Status monitoring](#status-monitoring)
-- [It's-your-turn clock](#its-your-turn-clock)
-- [Usage & reports](#usage--reports)
-- [macOS and Windows](#macos-and-windows)
+- [Features](#features)
+  - [Status monitoring](#status-monitoring)
+  - [It's-your-turn clock](#its-your-turn-clock)
+  - [Usage & reports](#usage--reports)
+  - [macOS and Windows](#macos-and-windows)
 - [How it works](#how-it-works)
+- [Why Agent Island](#why-agent-island)
+- [Community](#community)
 - [Privacy and safety](#privacy-and-safety)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Roadmap and releases](#roadmap-and-releases)
-- [Community and featured listings](#community-and-featured-listings)
+- [Credits and license](#credits-and-license)
 
-## Why Agent Island
+## Features
 
-Long Claude Code and Codex runs should not require keeping every terminal in view. Agent Island gives each provider a persistent status surface, tells you when a run needs attention, and brings you back when the next action is yours.
-
-It is built for developers who:
-
-- run Claude Code and Codex sessions in parallel;
-- leave long tasks working in the background;
-- want status, alerts, and usage views without sending session data to another service.
-
-## Status monitoring
+### Status monitoring
 
 Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activity in a compact top bar. You can scan the state without bringing each session to the foreground.
 
@@ -111,7 +118,7 @@ Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activi
 
 <img src="Assets/agent-island-bar-alert.png" alt="Agent Island showing an attention state in the macOS top bar" width="760">
 
-## It's-your-turn clock
+### It's-your-turn clock
 
 When a background turn finishes, Agent Island can show an alarm window, send a system notification, and play a sound. Multiple completed turns queue instead of replacing one another, and responding clears the corresponding reminder.
 
@@ -122,7 +129,7 @@ When a background turn finishes, Agent Island can show an alarm window, send a s
   </tr>
 </table>
 
-## Usage & reports
+### Usage & reports
 
 Swipe through local usage and cost views for Claude and Codex. Provider usage data comes from provider-owned usage endpoints through the local credential store; cost and model summaries are calculated locally from session records.
 
@@ -135,7 +142,7 @@ Add README-sized WebP report examples here after export and visual review.
 Do not restore the multi-megabyte PNG pair to the README.
 -->
 
-## macOS and Windows
+### macOS and Windows
 
 Agent Island is a native desktop app on both supported platforms, with English and Simplified Chinese interfaces.
 
@@ -169,6 +176,40 @@ flowchart LR
 - **Cost, model, and report summaries** are calculated locally from local session records.
 
 Read the implementation overview: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
+
+## Why Agent Island
+
+Long Claude Code and Codex runs should not require keeping every terminal in view. Agent Island gives each provider a persistent status surface, tells you when a run needs attention, and brings you back when the next action is yours.
+
+It is built for developers who:
+
+- run Claude Code and Codex sessions in parallel;
+- leave long tasks working in the background;
+- want status, alerts, and usage views without sending session data to another service.
+
+How it compares with its neighbors:
+
+| | Agent Island | [Vibe Island](https://vibeisland.app) | [codex-island](https://github.com/ericjypark/codex-island) |
+|---|---|---|---|
+| Price & source | Free · MIT open source | One-time purchase · closed source | Free · MIT open source |
+| Platforms | macOS 13+ · Windows 10/11 | macOS 14+ | macOS |
+| Agents | Claude Code · Codex | Claude Code, Codex, Gemini CLI, Cursor, and more | Codex (+ Claude usage) |
+| Live session status | ✓ | ✓ | — (passive usage meter) |
+| Your-turn alarm window + sound + queue | ✓ | Done notice, click to jump | — |
+| Out-of-quota alarm | ✓ | — | — |
+| In-notch permission approvals | — | ✓ | — |
+| Usage, cost & resets | ✓ (incl. reset bank) | Usage windows | ✓ (incl. reset credits) |
+| Weekly/monthly report cards & ranks | ✓ | — | — |
+
+<sub>Based on each product's public materials as of July 2026 — corrections welcome via issue.</sub>
+
+## Community
+
+Chinese-speaking users can join the WeChat community:
+
+<img src="Assets/wechat-qr.jpg" alt="WeChat group QR code; add the author and mention Agent Island" width="260">
+
+See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
 
 ## Privacy and safety
 
@@ -221,16 +262,6 @@ Run `./scripts/verify.sh` before opening a macOS pull request. Windows changes a
 - [Latest release](https://github.com/tristan666666/agent-island/releases/latest)
 - [Roadmap](docs/roadmap.md)
 - [Open issues](https://github.com/tristan666666/agent-island/issues)
-
-## Community and featured listings
-
-Chinese-speaking users can join the WeChat community:
-
-<img src="Assets/wechat-qr.jpg" alt="WeChat group QR code; add the author and mention Agent Island" width="260">
-
-Featured in [Chinese Independent Developer Projects](https://github.com/1c7/chinese-independent-developer), [awesome-swift-macos-apps](https://github.com/jaywcjlove/awesome-swift-macos-apps#ai), and [awesome-vibecoding](https://github.com/roboco-io/awesome-vibecoding#projects-platforms--tools).
-
-See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
 
 ## Credits and license
 
