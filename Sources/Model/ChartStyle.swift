@@ -20,8 +20,8 @@ final class StylePref: StylePreferenceStore<ChartStyle> {
 
     private init() {
         super.init(
-            styleKey: "MacIsland.chartStyle",
-            cycledKey: "MacIsland.hasCycledStyle",
+            styleKey: "AgentIsland.chartStyle",
+            cycledKey: "AgentIsland.hasCycledStyle",
             defaultStyle: .ring
         )
     }

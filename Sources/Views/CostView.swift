@@ -7,13 +7,12 @@ import SwiftUI
 /// Branches on `(claudeOn, codexOn)` from `ProviderVisibilityStore`:
 ///   - both on:  two `CostBlock`s with a hairline divider (default).
 ///   - one on:   the live block on its native side (centered tiles, since
-///               its half doubled), hairline, then a per-model dollar
-///               breakdown filling the freed half.
+///               its half doubled), hairline, then the provider badge
+///               filling the freed half.
 ///   - both off: a centered `BothHiddenPlaceholder`.
 struct CostView: View {
     @ObservedObject private var store = CostStore.shared
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
-    @ObservedObject private var stylePref = CostStylePref.shared
 
     var body: some View {
         let claudeOn = visibility.claudeShown
@@ -34,13 +33,11 @@ struct CostView: View {
                           loading: store.claudeLoading, provider: .claude,
                           centerWhenSingle: true)
                 hairline
-                breakdown(for: .claude)
-                    .frame(maxWidth: .infinity, alignment: .top)
+                SoloProviderBadge(provider: .claude)
                     .padding(.horizontal, 12)
                     .transition(breakdownTransition)
             case (false, true):
-                breakdown(for: .codex)
-                    .frame(maxWidth: .infinity, alignment: .top)
+                SoloProviderBadge(provider: .codex)
                     .padding(.horizontal, 12)
                     .transition(breakdownTransition)
                 hairline
@@ -58,27 +55,10 @@ struct CostView: View {
         .padding(.bottom, 4)
     }
 
-    /// Cost-page breakdown swaps metric to follow the visible tile: when
-    /// the user has cycled to TOKENS (`stylePref.style == .tokens`), show
-    /// per-model token volume; otherwise show per-model dollars. Both
-    /// branches return the SAME view type and same row layout, so the
-    /// metric swap re-uses the existing identity-based crossfade
-    /// SwiftUI gives us inside `withAnimation` blocks (no explicit
-    /// `.transition` needed here — only the (both-on)→(single) swap
-    /// uses `breakdownTransition` to morph between completely different
-    /// view trees).
-    private func breakdown(for provider: AlertEngine.Provider) -> some View {
-        let metric: PerModelBreakdown.Metric =
-            stylePref.style == .tokens ? .tokens : .dollars
-        return PerModelBreakdown(provider: provider, metric: metric)
-            .id(metric)
-            .transition(.chartSwap.animation(.chartSwap))
-    }
-
     /// Mirror of `UsageView.breakdownTransition` — kept inline (not extracted
     /// to a shared helper) because it's two views and the transition's
-    /// emotional purpose is "this half has been repurposed for the
-    /// breakdown", which is a per-page editorial choice.
+    /// emotional purpose is "this half has been repurposed for the badge",
+    /// which is a per-page editorial choice.
     private var breakdownTransition: AnyTransition {
         .opacity.combined(with: .scale(scale: 0.97))
     }

@@ -351,3 +351,18 @@
 
 /* quota alarm toggle */
 "Out-of-quota alarm" = "额度用完弹窗";
+
+/* visual mode + glow color (settings) */
+"Visual mode" = "视觉模式";
+"Glow color" = "光效颜色";
+"Teal" = "青";
+"Cobalt" = "钴蓝";
+"Violet" = "紫";
+"Silver" = "银白";
+
+/* update nudge */
+"Update available" = "有新版本";
+"Agent Island %@ is out — you're on %@" = "Agent Island %@ 已发布,当前是 %@";
+"Update" = "去更新";
+"You're up to date" = "已是最新版本";
+"Couldn't check for updates" = "检查更新失败,稍后再试";

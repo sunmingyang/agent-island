@@ -10,7 +10,7 @@ import Foundation
 final class InterfaceScaleStore: ObservableObject {
     static let shared = InterfaceScaleStore()
 
-    private static let key = "MacIsland.interfaceScale"
+    private static let key = "AgentIsland.interfaceScale"
 
     /// Offered steps; 1.0 is the default.
     static let steps: [CGFloat] = [1.0, 1.15, 1.3, 1.5]

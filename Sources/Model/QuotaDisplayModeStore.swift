@@ -8,7 +8,7 @@ import Foundation
 final class QuotaDisplayModeStore: ObservableObject {
     static let shared = QuotaDisplayModeStore()
 
-    private static let key = "MacIsland.quotaShowsRemaining"
+    private static let key = "AgentIsland.quotaShowsRemaining"
 
     @Published var showsRemaining: Bool {
         didSet { UserDefaults.standard.set(showsRemaining, forKey: Self.key) }

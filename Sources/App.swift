@@ -4,6 +4,13 @@ import AppKit
 @main
 struct AgentIslandApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    init() {
+        // Before anything touches UserDefaults: stores read their keys in
+        // `init`, and the first store is created during the scene build.
+        LegacyPrefsMigrator.run()
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MenuBarStatusView()
@@ -76,6 +83,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Touch the shared updater so Sparkle starts its background scheduler.
         _ = UpdaterController.shared
+
+        // Release nudge (GitHub Releases lookup) — never in demo/debug or
+        // any headless snapshot/recording rig, where a modal alert would
+        // wedge the run or photobomb a clip.
+        let env = ProcessInfo.processInfo.environment
+        let isRig = env.keys.contains { $0.hasPrefix("AGENTISLAND_") }
+        if AppEnvironment.current == .normal && !isRig {
+            UpdateNudge.shared.start()
+        }
 
         // Headless card snapshot for tooling: waits for the cost scan to
         // land, renders the weekly report PNG, and exits. Mirrors the alarm
@@ -184,6 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             QuotaDisplayModeStore.shared.showsRemaining.toggle()
                         case "report:weekly": WeeklyReportWindowController.shared.show()
                         case "report:monthly": MonthlyReportWindowController.shared.show()
+                        case "settings:show": SettingsWindowController.shared.show()
                         default:
                             NotificationCenter.default.post(
                                 name: .islandDemoCommand, object: nil, userInfo: ["cmd": step]

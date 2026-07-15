@@ -4,9 +4,13 @@ import AppKit
 /// A small, self-animating provider logo for the Settings status guide — it
 /// shows the real behavior of each live state instead of a stand-in icon.
 /// Demo only: a fixed state, not wired to the live monitor.
+///
+/// Demos default to the Codex mark: it is rotationally symmetric, so the
+/// working spin reads as motion instead of wobble (owner's call, 2026-07-16
+/// — the asymmetric Claude mark looks off mid-rotation).
 struct StatePreviewLogo: View {
     let state: ActivityMonitor.State
-    var provider: AlertEngine.Provider = .claude
+    var provider: AlertEngine.Provider = .codex
 
     @State private var pulse = false
     @State private var spin: Double = 0
@@ -27,19 +31,29 @@ struct StatePreviewLogo: View {
     var body: some View {
         Group {
             if state == .needsYou {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.white.opacity(0.08))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(.white.opacity(0.14), lineWidth: 0.5)
-                        }
-                    Image(systemName: "bell.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(tint)
+                // Same glyph language as the other rows — the logo, steady,
+                // with a small bell badge — instead of a bell-in-a-box that
+                // read as a different icon family (design review, 2026-07-16).
+                ZStack(alignment: .bottomTrailing) {
+                    if let image {
+                        Image(nsImage: image)
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(tint)
+                            .frame(width: 20, height: 20)
+                    }
+                    ZStack {
+                        Circle().fill(Color(red: 0.075, green: 0.086, blue: 0.11))
+                        Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.5)
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 5.5, weight: .bold))
+                            .foregroundStyle(IslandColor.brandTeal)
+                    }
+                    .frame(width: 11, height: 11)
+                    .offset(x: 3, y: 2)
                 }
-                .frame(width: 22, height: 18)
-                .shadow(color: tint.opacity(0.36), radius: 4)
+                .frame(width: 24, height: 22)
             } else if let image {
                 Image(nsImage: image)
                     .renderingMode(.template)

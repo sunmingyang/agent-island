@@ -10,7 +10,7 @@ import Foundation
 final class ClaudeJumpPreferenceStore: ObservableObject {
     static let shared = ClaudeJumpPreferenceStore()
 
-    private static let key = "MacIsland.claudeJumpPrefersCLI"
+    private static let key = "AgentIsland.claudeJumpPrefersCLI"
 
     @Published var prefersCLI: Bool {
         didSet { UserDefaults.standard.set(prefersCLI, forKey: Self.key) }

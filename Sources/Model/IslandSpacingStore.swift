@@ -42,7 +42,7 @@ final class IslandSpacingStore: ObservableObject {
     /// users who prefer the wider silhouette.
     nonisolated static let notchStyleWidth: CGFloat = 200
 
-    private static let key = "MacIsland.spacingMode"
+    private static let key = "AgentIsland.spacingMode"
 
     @Published var mode: Mode {
         didSet { UserDefaults.standard.set(mode.rawValue, forKey: Self.key) }

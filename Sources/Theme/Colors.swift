@@ -19,6 +19,13 @@ enum IslandColor {
     /// provider data.
     static let brandTeal = Color(red: 32/255, green: 192/255, blue: 176/255)
 
+    /// #8A63FF — glow-color option "Violet". Ambient glow only, never data.
+    static let glowViolet = Color(red: 138/255, green: 99/255, blue: 255/255)
+
+    /// #C7D3DF — glow-color option "Silver". A cool near-white; reads as a
+    /// moonlit rim on the black silhouette. Ambient glow only, never data.
+    static let glowSilver = Color(red: 199/255, green: 211/255, blue: 223/255)
+
     /// #F5A524 — approaching-limit warning tint. Reads as "amber" against
     /// the black silhouette without competing with the cobalt halo. Used
     /// for the static glow + peek pill accent at warning severity.

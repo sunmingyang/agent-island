@@ -33,7 +33,7 @@ final class IslandTargetDisplayStore: ObservableObject {
         }
     }
 
-    private static let key = "MacIsland.targetDisplay"
+    private static let key = "AgentIsland.targetDisplay"
 
     @Published var choice: Choice {
         didSet { UserDefaults.standard.set(choice.rawValue, forKey: Self.key) }

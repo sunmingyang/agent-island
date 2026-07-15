@@ -14,10 +14,10 @@ import Foundation
 final class ProviderVisibilityStore: ObservableObject {
     static let shared = ProviderVisibilityStore()
 
-    private static let claudeKey = "MacIsland.claudeVisible"
-    private static let codexKey = "MacIsland.codexVisible"
-    private static let claudeTouchedKey = "MacIsland.claudeVisibleTouched"
-    private static let codexTouchedKey = "MacIsland.codexVisibleTouched"
+    private static let claudeKey = "AgentIsland.claudeVisible"
+    private static let codexKey = "AgentIsland.codexVisible"
+    private static let claudeTouchedKey = "AgentIsland.claudeVisibleTouched"
+    private static let codexTouchedKey = "AgentIsland.codexVisibleTouched"
 
     @Published var claudeVisible: Bool {
         didSet {

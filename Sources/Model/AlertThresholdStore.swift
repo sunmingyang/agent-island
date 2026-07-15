@@ -13,9 +13,9 @@ import Foundation
 final class AlertThresholdStore: ObservableObject {
     static let shared = AlertThresholdStore()
 
-    private static let enabledKey = "MacIsland.alertsEnabled"
-    private static let warningKey = "MacIsland.alertWarning"
-    private static let criticalKey = "MacIsland.alertCritical"
+    private static let enabledKey = "AgentIsland.alertsEnabled"
+    private static let warningKey = "AgentIsland.alertWarning"
+    private static let criticalKey = "AgentIsland.alertCritical"
 
     /// Allowed integer ranges. Steppers in the Settings UI clamp to these.
     /// Keeping warning < critical is enforced live in the UI; if a user

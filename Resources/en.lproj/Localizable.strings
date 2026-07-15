@@ -343,3 +343,18 @@
 
 /* quota alarm toggle */
 "Out-of-quota alarm" = "Out-of-quota alarm";
+
+/* visual mode + glow color (settings) */
+"Visual mode" = "Visual mode";
+"Glow color" = "Glow color";
+"Teal" = "Teal";
+"Cobalt" = "Cobalt";
+"Violet" = "Violet";
+"Silver" = "Silver";
+
+/* update nudge */
+"Update available" = "Update available";
+"Agent Island %@ is out — you're on %@" = "Agent Island %@ is out — you're on %@";
+"Update" = "Update";
+"You're up to date" = "You're up to date";
+"Couldn't check for updates" = "Couldn't check for updates";

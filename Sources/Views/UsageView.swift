@@ -7,8 +7,8 @@ import AppKit
 ///
 /// Branches on `(claudeOn, codexOn)` from `ProviderVisibilityStore`:
 ///   - both on:  two `ChartsBlock`s with a hairline divider (default).
-///   - one on:   the live block on its native side, hairline, then a
-///               per-model token breakdown filling the freed half.
+///   - one on:   the live block on its native side, hairline, then the
+///               provider badge filling the freed half.
 ///   - both off: a centered `BothHiddenPlaceholder`.
 struct UsageView: View {
     @ObservedObject private var store = UsageStore.shared
@@ -35,13 +35,11 @@ struct UsageView: View {
                             showsClaudeReauth: true,
                             style: style, seed: 1)
                 hairline
-                PerModelBreakdown(provider: .claude, metric: .tokens)
-                    .frame(maxWidth: .infinity, alignment: .top)
+                SoloProviderBadge(provider: .claude)
                     .padding(.horizontal, 12)
                     .transition(breakdownTransition)
             case (false, true):
-                PerModelBreakdown(provider: .codex, metric: .tokens)
-                    .frame(maxWidth: .infinity, alignment: .top)
+                SoloProviderBadge(provider: .codex)
                     .padding(.horizontal, 12)
                     .transition(breakdownTransition)
                 hairline
@@ -58,7 +56,7 @@ struct UsageView: View {
         .padding(.bottom, 6)
     }
 
-    /// Slight scale + opacity gives the breakdown half a sense of "expanding
+    /// Slight scale + opacity gives the badge half a sense of "expanding
     /// into the freed space" rather than a hard crossfade. Same curve the
     /// chart-style swap uses; reads as a single morph paired with the
     /// `withAnimation(.openMorph)` on the Settings toggle.

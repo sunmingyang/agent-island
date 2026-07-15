@@ -75,7 +75,7 @@ final class UsageStore: ObservableObject {
         // inject hand-tuned values that read as "real, healthy heavy-user
         // data". Reset times are recomputed each refresh so the countdowns
         // tick down naturally on camera. Off by default — only fires when
-        // CODEXISLAND_DEMO=1 is set in the launching env.
+        // AGENTISLAND_DEMO=1 is set in the launching env.
         if AppEnvironment.isDemo {
             let now = Date()
             let claudeFiveHour = Self.demoDouble("AGENTISLAND_DEMO_CLAUDE_5H", fallback: 0.73)

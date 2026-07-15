@@ -4,7 +4,7 @@ import Foundation
 final class CostPanelVisibilityStore: ObservableObject {
     static let shared = CostPanelVisibilityStore()
 
-    private static let key = "MacIsland.showCostPanelPage"
+    private static let key = "AgentIsland.showCostPanelPage"
 
     @Published var showInTopPanel: Bool {
         didSet { UserDefaults.standard.set(showInTopPanel, forKey: Self.key) }

@@ -23,7 +23,7 @@ final class CostStore: ObservableObject {
 
     var loading: Bool { claudeLoading || codexLoading }
 
-    private static let cacheKey = "MacIsland.costCache.v7"
+    private static let cacheKey = "AgentIsland.costCache.v7"
     private static let cacheEncoder = JSONEncoder()
     private static let cacheDecoder = JSONDecoder()
     private var pollTimer: Timer?

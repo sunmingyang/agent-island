@@ -15,7 +15,7 @@ import Foundation
 final class MissionControlHideStore: ObservableObject {
     static let shared = MissionControlHideStore()
 
-    private static let key = "MacIsland.hideInMissionControl"
+    private static let key = "AgentIsland.hideInMissionControl"
 
     @Published var enabled: Bool {
         didSet { UserDefaults.standard.set(enabled, forKey: Self.key) }

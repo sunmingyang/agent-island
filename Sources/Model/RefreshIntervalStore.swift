@@ -7,7 +7,7 @@ import Foundation
 final class RefreshIntervalStore: ObservableObject {
     static let shared = RefreshIntervalStore()
 
-    private static let key = "MacIsland.refreshInterval"
+    private static let key = "AgentIsland.refreshInterval"
     static let allowed: [Int] = [300, 900, 1800]
 
     @Published var seconds: Int {

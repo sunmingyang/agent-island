@@ -38,7 +38,7 @@ enum AppLanguage: String, CaseIterable, Hashable {
 }
 
 enum AppLanguageResolver {
-    static let key = "MacIsland.appLanguage"
+    static let key = "AgentIsland.appLanguage"
 
     static var current: AppLanguage {
         let raw = UserDefaults.standard.string(forKey: key) ?? ""

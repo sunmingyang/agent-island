@@ -8,7 +8,7 @@ import Foundation
 final class CodexJumpPreferenceStore: ObservableObject {
     static let shared = CodexJumpPreferenceStore()
 
-    private static let key = "MacIsland.codexJumpPrefersCLI"
+    private static let key = "AgentIsland.codexJumpPrefersCLI"
 
     @Published var prefersCLI: Bool {
         didSet { UserDefaults.standard.set(prefersCLI, forKey: Self.key) }

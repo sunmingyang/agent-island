@@ -26,8 +26,8 @@ final class ScreenPref: ObservableObject {
         }
     }
 
-    private static let key = "MacIsland.screen"
-    private static let swipedKey = "MacIsland.hasSwipedScreen"
+    private static let key = "AgentIsland.screen"
+    private static let swipedKey = "AgentIsland.hasSwipedScreen"
 
     @Published var screen: Screen {
         didSet {
@@ -42,7 +42,7 @@ final class ScreenPref: ObservableObject {
         didSet { UserDefaults.standard.set(hasSwipedScreen, forKey: Self.swipedKey) }
     }
 
-    private static let costDefaultMigration = "MacIsland.defaultScreenCost.v1"
+    private static let costDefaultMigration = "AgentIsland.defaultScreenCost.v1"
 
     private init() {
         let raw = UserDefaults.standard.string(forKey: Self.key) ?? ""

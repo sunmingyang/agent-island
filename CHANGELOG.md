@@ -10,12 +10,15 @@ First pass on the external design review (2026-07-15): craft and restraint.
 
 ### Added
 - The DMG now opens as a styled installer window — dark backdrop with the mark and wordmark, the app on the left, a drag arrow, Applications on the right, volume icon in the title bar (was: a bare default Finder window).
+- Glow color choice in Settings → Top bar: Teal (the new default), Cobalt, Violet, Silver. Styles the ambient glow and loading sweep only — warning amber and critical red still override. The neighboring row is now titled "Visual mode" (same Calm/Vivid choice).
+- Update prompt: the app checks the newest GitHub release at launch and every six hours and raises a two-button alert — "Update" opens the release page, "I know" snoozes that version for seven days. Settings → "Check now" answers from the same lookup. (The Sparkle feed URL has always been empty, so its update checks silently found nothing — which is why old installs never heard about new versions.)
 
 ### Fixed (pre-existing)
 - The expanded panel can no longer open as an empty black slab: a state-driven watchdog forces the content visible whenever the panel has been expanded for 300ms — the fade-in choreography could lose a timing race against fast hover flicks and strand the panel black.
 - Classic mouse wheels now flip pages in the expanded panel (one notch = one page, debounced). Wheel mice have no horizontal swipe, and dragging out of the panel collapsed it — Shift+wheel and trackpad swipes are unchanged.
 - Single-subscription machines get the solo split layout automatically: a provider with no CLI footprint (no `~/.claude` / `~/.config/claude`, or no `~/.codex`) yields its half of the island — live charts on the subscribed side, per-model breakdown filling the other — without hunting for the Settings toggle. Flipping a provider toggle still wins, and a machine with neither footprint keeps showing both.
 - Launch at Login no longer dead-ends at "Operation not permitted": the toggle clears any stale Background Task Management record before registering (ad-hoc builds change signature every update, which strands the old record), detects Gatekeeper app translocation and says to move the app into Applications, and on macOS pushback opens System Settings → Login Items with a plain instruction instead of relaying the errno string.
+- The turn alarm no longer pops over the very session you're looking at: when the app hosting that session's CLI (matched by process working directory, then up the parent chain to Terminal/iTerm/VS Code/Claude/ChatGPT…) is frontmost, the alarm holds — and fires the moment you switch away with the turn still open (community report). Sessions whose host can't be resolved (tmux, daemons) keep the old always-pop behavior.
 
 ### Changed
 - macOS: visual effects are now a two-mode choice in Settings — **Calm** (new default: the island stays a quiet black pill and glows only on hover, refresh, or alerts) and **Vivid** (the previous always-on halo + orbiting sweep). System Low Power Mode still forces Calm either way.
@@ -28,6 +31,9 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - Settings: "Visual effects" now sits with the island-appearance controls (Top bar group, next to Cost display) as title + picker only — the explanatory sentence is gone.
 - New "Interface scale" dial (100–150%) magnifies the island on screens without a notch — for 4K externals running large scaled or native modes where a point shrinks well below MacBook size. Notched MacBooks stay 1:1 so the silhouette keeps matching the housing.
 - Trailing full stops removed from every caption and subtitle, both languages (59 strings each).
+- macOS: with a single subscription, the freed half of the panel now shows the provider's mark and name instead of the per-model breakdown table — the table's "5h" legend read as a quota window Codex no longer has (community report). Per-model data returns with the report-card redesign.
+- macOS: the Settings status guide demos speak one glyph language — the symmetric mark spinning (working), steady with a small bell badge (your turn), pulsing red (needs attention) — instead of two logo rows plus a bell-in-a-box.
+- Internal preference keys migrated from the inherited "MacIsland." prefix to "AgentIsland." in one shot, every setting preserved; the CODEXISLAND_DEMO / CODEXISLAND_DEBUG env fallbacks are removed (AGENTISLAND_* only).
 
 ### Fixed
 - macOS: the expanded panel's hairline border no longer traces the top edge, which read as a light-leak seam against the bezel.

@@ -27,8 +27,8 @@ final class CostStylePref: StylePreferenceStore<CostStyle> {
 
     private init() {
         super.init(
-            styleKey: "MacIsland.costStyle",
-            cycledKey: "MacIsland.costStyleCycled",
+            styleKey: "AgentIsland.costStyle",
+            cycledKey: "AgentIsland.costStyleCycled",
             defaultStyle: .dollar
         )
     }

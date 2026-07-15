@@ -11,7 +11,7 @@ import Foundation
 final class AlwaysShowUsageStore: ObservableObject {
     static let shared = AlwaysShowUsageStore()
 
-    private static let key = "MacIsland.alwaysShowUsage"
+    private static let key = "AgentIsland.alwaysShowUsage"
 
     @Published var enabled: Bool {
         didSet { UserDefaults.standard.set(enabled, forKey: Self.key) }

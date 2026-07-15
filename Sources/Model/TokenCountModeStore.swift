@@ -23,7 +23,7 @@ enum TokenCountMode: String, CaseIterable {
 final class TokenCountModeStore: ObservableObject {
     static let shared = TokenCountModeStore()
 
-    private static let key = "MacIsland.tokenCountMode"
+    private static let key = "AgentIsland.tokenCountMode"
 
     @Published var mode: TokenCountMode {
         didSet { UserDefaults.standard.set(mode.rawValue, forKey: Self.key) }

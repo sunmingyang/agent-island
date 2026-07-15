@@ -14,6 +14,7 @@ struct SettingsView: View {
     @ObservedObject private var refreshStore = RefreshIntervalStore.shared
     @ObservedObject private var tokenMode = TokenCountModeStore.shared
     @ObservedObject private var lowPower = LowPowerModeStore.shared
+    @ObservedObject private var glowColor = GlowColorStore.shared
     @ObservedObject private var interfaceScale = InterfaceScaleStore.shared
     @ObservedObject private var alwaysShow = AlwaysShowUsageStore.shared
     @ObservedObject private var costPanelVisibility = CostPanelVisibilityStore.shared
@@ -71,6 +72,9 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .top)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Recording rig: below-the-fold rows need live-window screenshots
+            // too (ImageRenderer is banned for chrome checks).
+            .modifier(RigScrollAnchor())
 
             hairline
 
@@ -83,6 +87,21 @@ struct SettingsView: View {
     }
 
     // MARK: - Tabs
+
+    /// Recording rig: AGENTISLAND_SETTINGS_SCROLL=bottom opens the settings
+    /// scroll at the end, so below-the-fold rows can be screenshotted from a
+    /// live window. No-op on macOS 13 (the anchor API is 14+) and without
+    /// the env var.
+    private struct RigScrollAnchor: ViewModifier {
+        func body(content: Content) -> some View {
+            if #available(macOS 14.0, *),
+               ProcessInfo.processInfo.environment["AGENTISLAND_SETTINGS_SCROLL"] == "bottom" {
+                content.defaultScrollAnchor(.bottom)
+            } else {
+                content
+            }
+        }
+    }
 
     enum SettingsTab: String, CaseIterable {
         case general, display, providers, triggers, statusGuide
@@ -252,7 +271,7 @@ struct SettingsView: View {
             if alertPrefs.enabled && isDevMode {
                 SettingsRow(
                     title: "Preview",
-                    subtitle: "Inject test percentages. Visible only when launched with CODEXISLAND_DEBUG=1."
+                    subtitle: "Inject test percentages. Visible only when launched with AGENTISLAND_DEBUG=1."
                 ) {
                     previewButtons
                 }
@@ -435,7 +454,11 @@ struct SettingsView: View {
                 title: "Check now",
                 subtitle: nil
             ) {
-                PillButton(label: "Check") { updater.checkForUpdates() }
+                // Backed by the GitHub Releases lookup, not Sparkle — the
+                // Sparkle feed is unset, so its check would answer nothing.
+                PillButton(label: "Check") {
+                    Task { await UpdateNudge.shared.checkNow() }
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -494,7 +517,36 @@ struct SettingsView: View {
         .labelsHidden()
         .pickerStyle(.menu)
         .fixedSize()
-        .accessibilityLabel(L10n.tr("Visual effects"))
+        .accessibilityLabel(L10n.tr("Visual mode"))
+    }
+
+    /// Four curated dots, teal first (the default). Swatches only — a color
+    /// needs no sentence, and the island previews the choice live.
+    private var glowColorSwatches: some View {
+        HStack(spacing: 7) {
+            ForEach(GlowColorStore.Choice.allCases, id: \.self) { choice in
+                let selected = glowColor.choice == choice
+                Button {
+                    withAnimation(.easeOut(duration: 0.18)) { glowColor.choice = choice }
+                } label: {
+                    Circle()
+                        .fill(choice.color)
+                        .frame(width: 13, height: 13)
+                        .overlay {
+                            Circle().strokeBorder(
+                                .white.opacity(selected ? 0.92 : 0.16),
+                                lineWidth: selected ? 1.5 : 0.5
+                            )
+                        }
+                        .shadow(color: choice.color.opacity(selected ? 0.55 : 0), radius: 4)
+                        .padding(2)
+                        .contentShape(Circle().inset(by: -3))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.tr(choice.label))
+                .accessibilityAddTraits(selected ? [.isSelected] : [])
+            }
+        }
     }
 
     /// The switch is live — settings and island text re-render right away.
@@ -722,10 +774,16 @@ struct SettingsView: View {
             // Lives here with the island-appearance controls (design review:
             // next to Cost display), title + picker only — no sentence.
             SettingsRow(
-                title: "Visual effects",
+                title: "Visual mode",
                 subtitle: nil
             ) {
                 effectsPicker
+            }
+            SettingsRow(
+                title: "Glow color",
+                subtitle: nil
+            ) {
+                glowColorSwatches
             }
             SettingsRow(
                 title: "Interface scale",

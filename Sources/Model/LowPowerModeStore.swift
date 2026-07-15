@@ -23,7 +23,7 @@ import Combine
 final class LowPowerModeStore: ObservableObject {
     static let shared = LowPowerModeStore()
 
-    private static let key = "MacIsland.lowPowerMode"
+    private static let key = "AgentIsland.lowPowerMode"
 
     /// true = Calm (event-gated effects), false = Vivid (continuous).
     @Published var enabled: Bool {

@@ -12,6 +12,7 @@ struct GlowLayer: View {
     @ObservedObject private var monitor = ActivityMonitor.shared
     @ObservedObject private var occlusion = WindowOcclusionStore.shared
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
+    @ObservedObject private var glowChoice = GlowColorStore.shared
     @State private var stallPulse = false
 
     var body: some View {
@@ -57,7 +58,7 @@ struct GlowLayer: View {
     private var glowColor: Color {
         if attentionActive { return IslandColor.alertRed }
         switch alerts.severity {
-        case .none: return IslandColor.cobalt
+        case .none: return glowChoice.color
         case .warning: return IslandColor.alertAmber
         case .critical: return IslandColor.alertRed
         }
