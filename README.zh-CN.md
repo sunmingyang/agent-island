@@ -93,12 +93,13 @@ Windows 构建与测试文档正在 [issue #10](https://github.com/tristan666666
 
 - [功能](#功能)
   - [状态监视](#状态监视)
-  - [轮到你闹钟](#轮到你闹钟)
-  - [用量与报告](#用量与报告)
+  - [用量](#用量)
   - [周报与月报卡片](#周报与月报卡片)
+  - [轮到你闹钟](#轮到你闹钟)
+  - [个性化](#个性化)
   - [macOS 和 Windows](#macos-和-windows)
-- [工作原理](#工作原理)
 - [社区](#社区)
+- [工作原理](#工作原理)
 - [为什么选 Agent Island](#为什么选-agent-island)
 - [隐私与安全](#隐私与安全)
 - [常见问题](#常见问题)
@@ -110,9 +111,11 @@ Windows 构建与测试文档正在 [issue #10](https://github.com/tristan666666
 
 ### 状态监视
 
-Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显示在紧凑的顶部条中。无需把每个会话切到前台，也能快速判断当前状态。
+Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显示在紧凑的顶部条中。无需把每个会话切到前台，也能快速判断当前状态——下面两种状态，悬停一下就能对比：
 
 <img src="Assets/agent-island-bar-working.png" alt="macOS 顶部条中正在运行的 Claude 会话状态" width="760">
+
+<img src="Assets/agent-island-bar-alert.png" alt="同一顶部条的红色警示状态" width="760">
 
 | 表现 | 含义 |
 |---|---|
@@ -120,13 +123,30 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 | Logo 静止 | 当前没有会话在工作 |
 | Logo 红色脉冲 | 会话遇到服务、登录、网络或限流错误，需要处理 |
 
-<img src="Assets/agent-island-bar-alert.png" alt="macOS 顶部条中的异常注意状态" width="760">
+### 用量
 
-岛的环境光由你决定：**流光**（默认）让光晕与环绕流光以你选的颜色常亮——青、钴蓝、紫、银白；**清爽**则完全熄灯，只保留接近上限时的琥珀/红色警示。单订阅的机器有专属分边布局：岛的一端是所属 logo，另一端是实时数字。
+左右滑动即可查看 Claude 和 Codex 的本地用量与成本页面。服务方用量数据来自各家自有的用量端点，并通过本地凭据存储访问；成本和模型汇总则根据本机会话记录计算。
+
+<img src="Assets/agent-island-usage-zh.png" alt="macOS 上的 Claude 和 Codex 用量页面" width="760">
+
+只有一个订阅的机器会自动进入单订阅布局——面板一半是所属 logo 与名称，另一半是实时窗口：
+
+<img src="Assets/agent-island-usage-solo-zh.png" alt="单订阅布局：一侧是 provider 徽标，另一侧是实时用量" width="760">
+
+### 周报与月报卡片
+
+在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、Claude 对 Codex 的阵营对决（火花停在真实占比分割点，占比高的一方戴上王冠）、7 天柱状图 + TOP 3 模型环形图（周报）或 TOP 5 环形图（月报），底部以岛民段位收尾。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-en.webp" alt="英文周报卡（演示数据）——本周 Claude 夺冠" width="420"><br><sub>English · 本周 Claude 胜</sub></td>
+    <td align="center"><img src="Assets/report-monthly-zh.webp" alt="中文月报卡（演示数据）——本月 Codex 夺冠" width="420"><br><sub>简体中文 · 本月 Codex 胜</sub></td>
+  </tr>
+</table>
 
 ### 轮到你闹钟
 
-后台一轮任务结束后，Agent Island 可以显示闹钟窗口、发送系统通知并播放提示音。多个已完成任务会排队，而不是相互覆盖；回复对应会话后，相应提醒会消失。
+后台一轮任务结束后，Agent Island 可以显示闹钟窗口、发送系统通知并播放提示音。多个已完成任务会排队，而不是相互覆盖；回复对应会话后，相应提醒会消失。如果你正盯着这个会话所在的终端或编辑器，闹钟会先押着——等你切走且回合仍未回复的那一刻再弹。
 
 <table>
   <tr>
@@ -135,23 +155,11 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
   </tr>
 </table>
 
-### 用量与报告
+### 个性化
 
-左右滑动即可查看 Claude 和 Codex 的本地用量与成本页面。服务方用量数据来自各家自有的用量端点，并通过本地凭据存储访问；成本和模型汇总则根据本机会话记录计算。
+岛由你调。用量瓦片有五种图表样式，额度可切换已用/剩余视角，成本样式可循环切换。环境光可选**流光**——光晕与环绕流光，颜色任选青、钴蓝、紫、银白——或全暗的**清爽**，把颜色留给真正的警示。无刘海屏幕还有 100–150% 界面缩放。
 
-<img src="Assets/agent-island-usage-zh.png" alt="macOS 上的 Claude 和 Codex 用量页面" width="760">
-
-### 周报与月报卡片
-
-在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、Claude 对 Codex 的阵营对决（火花停在真实占比分割点，占比高的一方戴上王冠）、7 天柱状图 + TOP 3 模型环形图（周报）或 TOP 5 环形图（月报），底部以岛民段位收尾。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/report-weekly-zh.webp" alt="周报卡片（演示数据）：Token 总量、API 费用换算、阵营对决、模型环形图、岛民段位" width="420"></td>
-    <td align="center"><img src="Assets/report-monthly-zh.webp" alt="月报卡片（演示数据）：Token 总量、阵营对决、TOP 5 模型环形图、岛民段位" width="420"></td>
-  </tr>
-</table>
-
+<img src="Assets/agent-island-settings-visual-zh.png" alt="设置：视觉模式与光效颜色选择" width="420">
 
 ### macOS 和 Windows
 
@@ -172,22 +180,6 @@ Agent Island 在两个平台上都是原生桌面应用，并提供英文和简�
 不要只根据 Release note 或 CI 推断双平台完全一致。
 -->
 
-## 工作原理
-
-```mermaid
-flowchart LR
-    A[Claude 与 Codex 本地文件] --> B[本地解析器与状态机]
-    B --> C[顶部条与提醒]
-    B --> D[本地成本与报告页面]
-    E[服务方自有用量端点] --> D
-```
-
-- **会话状态**来自 Claude Code、Claude Desktop 和 Codex 已经写入磁盘的记录与活动文件。本地文件事件和轮次标记驱动工作中与轮到你的状态。
-- **用量与重置数据**来自各服务方自有的用量端点，并通过本地凭据存储访问。
-- **成本、模型和报告汇总**根据本机会话记录在本地计算。
-
-实现说明（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
-
 ## 社区
 
 优先扫群二维码直接进群；群码每 7 天轮换，过期时加作者微信（备注 Agent Island）拉你进群：
@@ -207,6 +199,22 @@ flowchart LR
 
 也可以在 [Product Hunt](https://www.producthunt.com/products/agent-island-2) 查看 Agent Island。
 
+## 工作原理
+
+```mermaid
+flowchart LR
+    A[Claude 与 Codex 本地文件] --> B[本地解析器与状态机]
+    B --> C[顶部条与提醒]
+    B --> D[本地成本与报告页面]
+    E[服务方自有用量端点] --> D
+```
+
+- **会话状态**来自 Claude Code、Claude Desktop 和 Codex 已经写入磁盘的记录与活动文件。本地文件事件和轮次标记驱动工作中与轮到你的状态。
+- **用量与重置数据**来自各服务方自有的用量端点，并通过本地凭据存储访问。
+- **成本、模型和报告汇总**根据本机会话记录在本地计算。
+
+实现说明（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
+
 ## 为什么选 Agent Island
 
 运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为每个服务提供持续可见的状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来。
@@ -215,7 +223,8 @@ flowchart LR
 
 - 同时运行多个 Claude Code 和 Codex 会话；
 - 让长任务在后台运行；
-- 希望查看状态、提醒和用量，又不想把会话数据交给另一个服务。
+- 希望查看状态、提醒、用量和可分享的战绩卡，又不想把会话数据交给另一个服务；
+- 在乎桌面的样子——岛的光效、布局和卡片是按产品调的，不是调试悬浮窗。
 
 与同类产品的对比：
 

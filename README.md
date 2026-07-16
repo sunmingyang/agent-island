@@ -93,12 +93,13 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
 
 - [Features](#features)
   - [Status monitoring](#status-monitoring)
-  - [It's-your-turn clock](#its-your-turn-clock)
-  - [Usage & reports](#usage--reports)
+  - [Usage](#usage)
   - [Weekly & monthly report cards](#weekly--monthly-report-cards)
+  - [It's-your-turn clock](#its-your-turn-clock)
+  - [Personalization](#personalization)
   - [macOS and Windows](#macos-and-windows)
-- [How it works](#how-it-works)
 - [Community](#community)
+- [How it works](#how-it-works)
 - [Why Agent Island](#why-agent-island)
 - [Privacy and safety](#privacy-and-safety)
 - [FAQ](#faq)
@@ -110,9 +111,11 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
 
 ### Status monitoring
 
-Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activity in a compact top bar. You can scan the state without bringing each session to the foreground.
+Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activity in a compact top bar. You can scan the state without bringing each session to the foreground — the two states below sit one hover apart:
 
 <img src="Assets/agent-island-bar-working.png" alt="Agent Island showing an active Claude session in the macOS top bar" width="760">
+
+<img src="Assets/agent-island-bar-alert.png" alt="The same bar in the red attention state" width="760">
 
 | Cue | Meaning |
 |---|---|
@@ -120,13 +123,30 @@ Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activi
 | Logo is still | No session is currently working |
 | Logo pulses red | A session needs attention because of a provider, login, network, or rate-limit error |
 
-<img src="Assets/agent-island-bar-alert.png" alt="Agent Island showing an attention state in the macOS top bar" width="760">
+### Usage
 
-The island's ambient light is yours to tune: **Vivid** (the default) keeps a soft halo and orbit sweep running in your chosen glow color — teal, cobalt, violet, or silver — while **Calm** goes fully dark and saves the amber/red tint for approaching-limit alerts. Machines with a single subscription get a dedicated split layout: the provider's mark on one flank of the island, the live number on the other.
+Swipe through local usage and cost views for Claude and Codex. Provider usage data comes from provider-owned usage endpoints through the local credential store; cost and model summaries are calculated locally from session records.
+
+<img src="Assets/agent-island-usage.png" alt="Agent Island usage view for Claude and Codex on macOS" width="760">
+
+Machines with a single subscription get the solo layout automatically — the provider's mark and name hold one half of the panel, the live windows the other:
+
+<img src="Assets/agent-island-usage-solo.png" alt="Solo layout with a single subscription: provider badge on one side, live usage on the other" width="760">
+
+### Weekly & monthly report cards
+
+Shareable cards rendered locally: total tokens with an ≈ API value line, a Claude-vs-Codex faction duel whose clash sits exactly at your usage split (the leading side wins the crown), 7-day bars with a TOP-3 model donut (weekly) or a TOP-5 donut (monthly), and your island rank as the closing line. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
+
+<table>
+  <tr>
+    <td align="center"><img src="Assets/report-weekly-en.webp" alt="Weekly report card in English with demo data — Claude takes the crown" width="420"><br><sub>English · Claude wins the week</sub></td>
+    <td align="center"><img src="Assets/report-monthly-zh.webp" alt="Monthly report card in Simplified Chinese with demo data — Codex takes the crown" width="420"><br><sub>简体中文 · Codex wins the month</sub></td>
+  </tr>
+</table>
 
 ### It's-your-turn clock
 
-When a background turn finishes, Agent Island can show an alarm window, send a system notification, and play a sound. Multiple completed turns queue instead of replacing one another, and responding clears the corresponding reminder.
+When a background turn finishes, Agent Island can show an alarm window, send a system notification, and play a sound. Multiple completed turns queue instead of replacing one another, and responding clears the corresponding reminder. If you are already looking at the session's terminal or editor, the alarm holds — it fires the moment you switch away with the turn still open.
 
 <table>
   <tr>
@@ -135,22 +155,11 @@ When a background turn finishes, Agent Island can show an alarm window, send a s
   </tr>
 </table>
 
-### Usage & reports
+### Personalization
 
-Swipe through local usage and cost views for Claude and Codex. Provider usage data comes from provider-owned usage endpoints through the local credential store; cost and model summaries are calculated locally from session records.
+The island is yours to tune. Usage tiles come in five chart styles with a used-or-remaining quota toggle and cycling cost styles. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves color for real warnings. Screens without a notch get a 100–150% interface scale.
 
-<img src="Assets/agent-island-usage.png" alt="Agent Island usage view for Claude and Codex on macOS" width="760">
-
-### Weekly & monthly report cards
-
-Shareable cards rendered locally: total tokens with an ≈ API value line, a Claude-vs-Codex faction duel whose clash sits exactly at your usage split (the leading side wins the crown), 7-day bars with a TOP-3 model donut (weekly) or a TOP-5 donut (monthly), and your island rank as the closing line. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
-
-<table>
-  <tr>
-    <td align="center"><img src="Assets/report-weekly-en.webp" alt="Weekly report card with demo data: tokens, API value, faction duel, model donut, island rank" width="420"></td>
-    <td align="center"><img src="Assets/report-monthly-en.webp" alt="Monthly report card with demo data: tokens, faction duel, TOP-5 model donut, island rank" width="420"></td>
-  </tr>
-</table>
+<img src="Assets/agent-island-settings-visual.png" alt="Settings: visual mode and glow color choices" width="420">
 
 ### macOS and Windows
 
@@ -171,22 +180,6 @@ Add the macOS / Windows capability matrix only after the current release has bee
 Do not infer parity from release notes or CI alone.
 -->
 
-## How it works
-
-```mermaid
-flowchart LR
-    A[Claude and Codex local files] --> B[Local parser and state machine]
-    B --> C[Top bar and alerts]
-    B --> D[Local cost and report views]
-    E[Provider-owned usage endpoints] --> D
-```
-
-- **Session state** comes from transcript and activity files that Claude Code, Claude Desktop, and Codex already write to disk. Local file events and turn markers drive the working and needs-you states.
-- **Usage and reset data** comes from provider-owned usage endpoints through the local credential store.
-- **Cost, model, and report summaries** are calculated locally from local session records.
-
-Read the implementation overview: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
-
 ## Community
 
 Chinese-speaking users — scan the group QR to join directly. Group codes rotate every 7 days; if it has expired, add the author and mention "Agent Island" to be invited:
@@ -206,6 +199,22 @@ Chinese-speaking users — scan the group QR to join directly. Group codes rotat
 
 See Agent Island on [Product Hunt](https://www.producthunt.com/products/agent-island-2).
 
+## How it works
+
+```mermaid
+flowchart LR
+    A[Claude and Codex local files] --> B[Local parser and state machine]
+    B --> C[Top bar and alerts]
+    B --> D[Local cost and report views]
+    E[Provider-owned usage endpoints] --> D
+```
+
+- **Session state** comes from transcript and activity files that Claude Code, Claude Desktop, and Codex already write to disk. Local file events and turn markers drive the working and needs-you states.
+- **Usage and reset data** comes from provider-owned usage endpoints through the local credential store.
+- **Cost, model, and report summaries** are calculated locally from local session records.
+
+Read the implementation overview: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
+
 ## Why Agent Island
 
 Long Claude Code and Codex runs should not require keeping every terminal in view. Agent Island gives each provider a persistent status surface, tells you when a run needs attention, and brings you back when the next action is yours.
@@ -214,7 +223,8 @@ It is built for developers who:
 
 - run Claude Code and Codex sessions in parallel;
 - leave long tasks working in the background;
-- want status, alerts, and usage views without sending session data to another service.
+- want status, alerts, usage views, and shareable report cards without sending session data to another service;
+- care what their desk looks like — the island's light, layout, and cards are tuned like a product, not a debug overlay.
 
 How it compares with its neighbors:
 

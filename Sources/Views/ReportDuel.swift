@@ -158,6 +158,10 @@ struct ReportRankBlock: View {
                         .font(.system(size: zh ? 23 : 19, weight: .black, design: .rounded))
                     + Text(L10n.tr(" rank")))
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    // Long tier names ("Archipelago King", "Legendary
+                    // Navigator") must shrink, never truncate to "K…".
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
                     .foregroundStyle(Self.gold)
             }
         }
