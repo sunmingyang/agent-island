@@ -43,6 +43,9 @@ mkdir -p "$MACOS_DIR" "$RES_DIR" "$FRAMEWORKS_DIR"
 
 cp ./Resources/claude_logo.pdf "$RES_DIR/claude_logo.pdf"
 cp ./Resources/openai_logo.pdf "$RES_DIR/openai_logo.pdf"
+cp ./Resources/duel-claude-wins.png "$RES_DIR/duel-claude-wins.png"
+cp ./Resources/duel-codex-wins.png "$RES_DIR/duel-codex-wins.png"
+cp ./Resources/duel-draw.png "$RES_DIR/duel-draw.png"
 cp ./Resources/agentisland_logo.png "$RES_DIR/agentisland_logo.png"
 cp ./Resources/AgentIsland.icns "$RES_DIR/AgentIsland.icns"
 find ./Resources -maxdepth 1 -type d -name '*.lproj' -exec cp -R {} "$RES_DIR/" \;

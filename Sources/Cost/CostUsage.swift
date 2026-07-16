@@ -86,6 +86,9 @@ struct ProviderCost {
     /// Per-model breakdown over the rolling last 7 days, sorted by tokens
     /// descending. Approximates the weekly window used by the live tiles.
     var weekByModel: [ModelUsageRow] = []
+    /// Per-model breakdown over the calendar month to date — the monthly
+    /// report card's TOP-5 table rides this.
+    var monthByModel: [ModelUsageRow] = []
     /// Calendar-local daily history, oldest first, with today included as
     /// the final bucket. Powers the overview contribution grid ranges.
     var dailyTokens: [DailyTokenBucket] = []

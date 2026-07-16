@@ -360,6 +360,11 @@
 "Violet" = "紫";
 "Silver" = "银白";
 
+/* report card v3 rank block */
+"lifetime %@ tokens" = "累计 %@ Token";
+"Congrats, you've reached " = "恭喜你已获得 ";
+" rank" = " 段位";
+
 /* update nudge */
 "Update available" = "有新版本";
 "Agent Island %@ is out — you're on %@" = "Agent Island %@ 已发布,当前是 %@";

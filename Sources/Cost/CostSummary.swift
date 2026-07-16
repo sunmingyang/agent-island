@@ -56,6 +56,10 @@ enum CostSummary {
         var weekTokensByModel: [String: Int] = [:]
         var weekWireByModel: [String: Int] = [:]
         var weekDollarsByModel: [String: Double] = [:]
+        // Calendar month-to-date, for the monthly card's TOP-5 table.
+        var monthTokensByModel: [String: Int] = [:]
+        var monthWireByModel: [String: Int] = [:]
+        var monthDollarsByModel: [String: Double] = [:]
 
         // Drop events older than every window's start. Using `min(...)`
         // matters here because the rolling 7-day window straddles month
@@ -99,6 +103,10 @@ enum CostSummary {
                 let day = (cal.dateComponents([.day], from: event.timestamp).day ?? 1) - 1
                 if day < dailyBuckets.count { dailyBuckets[day] += cost }
                 if isUnpriced { monthUnknown.insert(event.model) }
+                let canon = Pricing.canonicalModelName(event.model)
+                if billable > 0 { monthTokensByModel[canon, default: 0] += billable }
+                if tokens > 0 { monthWireByModel[canon, default: 0] += tokens }
+                if cost > 0 { monthDollarsByModel[canon, default: 0] += cost }
             }
 
             // Today is a strict subset of month
@@ -153,6 +161,11 @@ enum CostSummary {
             wireByModel: weekWireByModel,
             dollarsByModel: weekDollarsByModel
         )
+        let monthRows = modelRows(
+            tokensByModel: monthTokensByModel,
+            wireByModel: monthWireByModel,
+            dollarsByModel: monthDollarsByModel
+        )
 
         return ProviderCost(
             today: CostWindow(
@@ -175,6 +188,7 @@ enum CostSummary {
             ),
             recentByModel: recentRows,
             weekByModel: weekRows,
+            monthByModel: monthRows,
             dailyTokens: dailyTokenBuckets(
                 start: historyStart,
                 tokens: historyTokenBuckets,

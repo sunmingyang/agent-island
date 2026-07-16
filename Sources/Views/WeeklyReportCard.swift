@@ -7,9 +7,11 @@ import CoreImage
 /// save it as a PNG and post it themselves; nothing is ever uploaded, which
 /// is what lets this exist at all under the no-telemetry promise.
 ///
-/// Texture rules (the owner's bar: 质感第一): layered dark gradients, one
-/// hairline top-light border, faint provider-colored glows, no flat chips,
-/// no borders-around-everything.
+/// v3 (locked 2026-07-17): flat near-black coat — NO gradients (external
+/// design review: 底色渐变删掉, and gradients band badly under social-app
+/// compression) — app logo joins the wordmark up top, the API-value line
+/// rides beside the hero number, the faction duel replaces the bare split
+/// bar, models cut to TOP 3, and the rank block closes the card.
 struct WeeklyReportData {
     struct ModelShare: Identifiable {
         let id = UUID()
@@ -19,7 +21,6 @@ struct WeeklyReportData {
         let percent: Double   // 0...1 of the combined week's dollars
         let isClaude: Bool
         let color: Color
-        var isOthers: Bool = false
     }
 
     let rangeText: String
@@ -29,9 +30,9 @@ struct WeeklyReportData {
     let dailyTokens: [Int]    // oldest → today, exactly 7
     let dayLetters: [String]
     let topModels: [ModelShare]
-    /// "🏆 百亿俱乐部 · 累计 227 亿 Token" — the in-card milestone caption;
-    /// nil until the first tier (100M lifetime) is crossed.
-    let milestoneText: String?
+    let lifetimeText: String
+    let tierEmoji: String?
+    let tierName: String?
 
     /// Assembles the last 7 calendar days from CostStore. All local.
     @MainActor
@@ -57,64 +58,13 @@ struct WeeklyReportData {
         let dollars = (cost.claude.weekByModel + cost.codex.weekByModel)
             .reduce(0.0) { $0 + $1.dollars }
 
-        // Rank models by DOLLARS, not billable tokens: the card's story is
-        // "what my week was worth", and token-ranking buried expensive
-        // models — Fable 5 ($10/$50 rates) ranked below cheaper models that
-        // pushed more tokens and got cut from the list entirely.
-        let dollarUniverse = max(0.01, (cost.claude.weekByModel + cost.codex.weekByModel)
-            .reduce(0.0) { $0 + $1.dollars })
-        // Wire tokens (cache included) — same accounting as the hero total,
-        // so the four rows visibly sum toward the headline number.
-        let claudeRows = cost.claude.weekByModel.map {
-            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
-                       percent: $0.dollars / dollarUniverse, isClaude: true,
-                       color: IslandColor.claude)
-        }
-        let codexRows = cost.codex.weekByModel.map {
-            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
-                       percent: $0.dollars / dollarUniverse, isClaude: false,
-                       color: IslandColor.codex)
-        }
-        let all = (claudeRows + codexRows).sorted { $0.percent > $1.percent }
-        // Top 5 by spend (fewer if the week only touched fewer); everything
-        // past the fold folds into one dim "Others" row, so a 12-model week
-        // renders exactly like a 5-model week. ≥0.5% keeps noise rows off.
-        // Colors are a RANKED categorical palette — provider-shaded hues
-        // made neighboring segments indistinguishable (owner, 2026-07-14);
-        // the provider still reads from the model name itself.
-        let palette: [Color] = [
-            Color(red: 90/255, green: 168/255, blue: 240/255),   // blue
-            Color(red: 204/255, green: 120/255, blue: 92/255),   // coral
-            Color(red: 232/255, green: 194/255, blue: 104/255),  // amber
-            Color(red: 91/255, green: 200/255, blue: 175/255),   // teal
-            Color(red: 167/255, green: 139/255, blue: 250/255),  // violet
-        ]
-        var models = Array(all.filter { $0.percent >= 0.005 }.prefix(5))
-            .enumerated().map { i, m in
-                ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
-                           percent: m.percent, isClaude: m.isClaude,
-                           color: palette[min(i, palette.count - 1)])
-            }
-        let shownNames = Set(models.map(\.name))
-        let rest = all.filter { !shownNames.contains($0.name) }
-        if !rest.isEmpty {
-            let restPercent = rest.reduce(0.0) { $0 + $1.percent }
-            if restPercent >= 0.005 {
-                models.append(ModelShare(
-                    name: L10n.tr("Others"),
-                    tokens: rest.reduce(0) { $0 + $1.tokens },
-                    dollars: rest.reduce(0.0) { $0 + $1.dollars },
-                    percent: restPercent,
-                    isClaude: false,
-                    color: Color(white: 0.42),
-                    isOthers: true
-                ))
-            }
-        }
-
-        // The card follows the app language — a card destined for WeChat
-        // groups must read Chinese when the UI is Chinese.
         let zh = L10n.locale.identifier.hasPrefix("zh")
+        let models = Self.rankedModels(
+            claudeRows: cost.claude.weekByModel,
+            codexRows: cost.codex.weekByModel,
+            limit: 3
+        )
+
         let df = DateFormatter()
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "M月d日" : "MMM d"
@@ -131,14 +81,10 @@ struct WeeklyReportData {
             letters = days.map { letterFmt.string(from: $0) }
         }
 
-        // Lifetime rank caption — recognition rides the card itself.
+        // Lifetime rank — recognition rides the card itself.
         let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
             .reduce(0) { $0 + $1.tokens }
-        let milestoneText = MilestoneLadder.tokenTier(lifetime: lifetime).map { tier in
-            tier.emoji + " " + L10n.tr("%@ rank · lifetime %@ tokens",
-                                       L10n.tr(tier.nameKey),
-                                       WeeklyReportCard.compactString(lifetime, zh: zh))
-        }
+        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
 
         return WeeklyReportData(
             rangeText: range,
@@ -148,8 +94,50 @@ struct WeeklyReportData {
             dailyTokens: daily,
             dayLetters: letters,
             topModels: models,
-            milestoneText: milestoneText
+            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
+            tierEmoji: tier?.emoji,
+            tierName: tier?.nameKey
         )
+    }
+
+    /// Rank models by DOLLARS, not billable tokens: the card's story is
+    /// "what my week was worth", and token-ranking buried expensive models.
+    /// TOP-N only — no "Others" row; the donut's uncovered arc reads as the
+    /// long tail on its own (v3, 2026-07-17). Colors are a RANKED
+    /// categorical palette — provider-shaded hues made neighboring segments
+    /// indistinguishable (owner, 2026-07-14).
+    static func rankedModels(
+        claudeRows: [ModelUsageRow],
+        codexRows: [ModelUsageRow],
+        limit: Int
+    ) -> [ModelShare] {
+        let dollarUniverse = max(0.01, (claudeRows + codexRows).reduce(0.0) { $0 + $1.dollars })
+        let claude = claudeRows.map {
+            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
+                       percent: $0.dollars / dollarUniverse, isClaude: true,
+                       color: IslandColor.claude)
+        }
+        let codex = codexRows.map {
+            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
+                       percent: $0.dollars / dollarUniverse, isClaude: false,
+                       color: IslandColor.codex)
+        }
+        let palette: [Color] = [
+            Color(red: 90/255, green: 168/255, blue: 240/255),   // blue
+            Color(red: 204/255, green: 120/255, blue: 92/255),   // coral
+            Color(red: 232/255, green: 194/255, blue: 104/255),  // amber
+            Color(red: 91/255, green: 200/255, blue: 175/255),   // teal
+            Color(red: 167/255, green: 139/255, blue: 250/255),  // violet
+        ]
+        return Array((claude + codex)
+            .sorted { $0.percent > $1.percent }
+            .filter { $0.percent >= 0.005 }
+            .prefix(limit))
+            .enumerated().map { i, m in
+                ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
+                           percent: m.percent, isClaude: m.isClaude,
+                           color: palette[min(i, palette.count - 1)])
+            }
     }
 }
 
@@ -162,272 +150,105 @@ struct WeeklyReportCard: View {
 
     static let size = CGSize(width: 420, height: 560)
 
+    /// v3 base coat — one flat near-black. Deliberately NOT a gradient.
+    static let baseCoat = Color(red: 0.051, green: 0.059, blue: 0.075)
+
     var body: some View {
         ZStack {
             background
 
             VStack(alignment: .leading, spacing: 0) {
-                header
+                ReportCardHeader(kind: "WEEKLY", periodText: data.rangeText)
                 Spacer(minLength: 14)
                 hero
-                Spacer(minLength: 16)
-                providerSplit
-                Spacer(minLength: 18)
+                Spacer(minLength: 12)
+                ReportDuel(claudeShare: data.claudeShare)
+                Spacer(minLength: 14)
                 weekBars
-                Spacer(minLength: 18)
-                modelRows
-                Spacer(minLength: 16)
-                footer // brand strip — doubles as the future sponsor slot
+                Spacer(minLength: 14)
+                ReportModelTable(models: data.topModels)
+                Spacer(minLength: 14)
+                ReportRankBlock(lifetimeText: data.lifetimeText,
+                                tierEmoji: data.tierEmoji, tierName: data.tierName)
             }
-            .padding(30)
+            .padding(28)
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .clipShape(RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous))
     }
 
-    // MARK: - Texture
-
     private var background: some View {
         ZStack {
             RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.075, green: 0.08, blue: 0.09),
-                                 Color(red: 0.028, green: 0.03, blue: 0.038)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
-            // Faint provider auras — enough to feel alive, never loud.
-            RadialGradient(colors: [IslandColor.claude.opacity(0.13), .clear],
-                           center: .init(x: 0.12, y: 0.02), startRadius: 0, endRadius: 340)
-            RadialGradient(colors: [IslandColor.codex.opacity(0.11), .clear],
-                           center: .init(x: 0.95, y: 0.85), startRadius: 0, endRadius: 380)
+                .fill(Self.baseCoat)
             RoundedRectangle(cornerRadius: rounded ? CardWindow.cornerRadius : 0, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.02)],
-                                   startPoint: .top, endPoint: .bottom),
-                    lineWidth: 1
-                )
-        }
-    }
-
-    // MARK: - Sections
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("AGENT ISLAND")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(3.2)
-                .foregroundStyle(.white.opacity(0.85))
-            Text("WEEKLY")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(3.2)
-                .foregroundStyle(
-                    LinearGradient(colors: [IslandColor.brandTeal, Color(red: 0.49, green: 0.94, blue: 0.89)],
-                                   startPoint: .leading, endPoint: .trailing)
-                )
-            Spacer()
-            Text(data.rangeText)
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.42))
+                .strokeBorder(.white.opacity(0.06), lineWidth: 1)
         }
     }
 
     private var hero: some View {
         let zh = L10n.locale.identifier.hasPrefix("zh")
         let parts = Self.compactParts(data.totalTokens, zh: zh)
-        // Title ABOVE the number, money line below — a bare "100亿" with no
-        // label read as a number from nowhere.
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 6) {
             Text(L10n.tr("tokens this week"))
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .tracking(0.4)
-                .foregroundStyle(.white.opacity(0.55))
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(parts.0)
-                    .font(.system(size: 74, weight: .heavy, design: .rounded))
-                    .kerning(-1.5)
-                if !parts.1.isEmpty {
-                    // 中文单位(亿/万)按惯例小一号挂在数字后;英文单位(B/M)
-                    // 与数字同体量。
-                    Text(parts.1)
-                        .font(.system(size: zh ? 38 : 74, weight: .heavy, design: .rounded))
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .tracking(0.3)
+                .foregroundStyle(.white.opacity(0.5))
+            // Money line RIDES the number's baseline (owner, 2026-07-17) —
+            // the freed height goes to the duel above the beam.
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(parts.0)
+                        .font(.system(size: 50, weight: .heavy))
+                    if !parts.1.isEmpty {
+                        Text(parts.1)
+                            .font(.system(size: zh ? 24 : 50, weight: .heavy))
+                    }
+                }
+                .foregroundStyle(Color(red: 0.95, green: 0.96, blue: 0.97))
+                // The number NEVER wraps or truncates — it wins the row,
+                // and the money line shrinks instead (420pt card, zh money
+                // string is long; unguarded this wrapped mid-number).
+                .fixedSize()
+                .layoutPriority(2)
+                if data.totalDollars >= 1 {
+                    Text(L10n.tr("≈ $%@ API value", Self.money(data.totalDollars)))
+                        .font(.system(size: 12.5, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .foregroundStyle(IslandColor.brandTeal)
                 }
             }
-            .foregroundStyle(
-                LinearGradient(colors: [.white, .white.opacity(0.72)],
-                               startPoint: .top, endPoint: .bottom)
-            )
-            if data.totalDollars >= 1 {
-                Text(L10n.tr("≈ $%@ API value", Self.money(data.totalDollars)))
-                    .font(.system(size: 13.5, weight: .heavy, design: .rounded))
-                    .foregroundStyle(IslandColor.liveTeal)
-            }
-        }
-    }
-
-    private var providerSplit: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            GeometryReader { geo in
-                HStack(spacing: 2) {
-                    Capsule().fill(IslandColor.claude)
-                        .frame(width: max(4, geo.size.width * data.claudeShare))
-                    Capsule().fill(IslandColor.codex)
-                }
-            }
-            .frame(height: 7)
-            HStack(spacing: 18) {
-                providerTag(name: "Claude",
-                            pct: data.claudeShare, color: IslandColor.claude)
-                providerTag(name: "Codex",
-                            pct: 1 - data.claudeShare, color: IslandColor.codex)
-                Spacer()
-            }
-        }
-    }
-
-    private func providerTag(name: String, pct: Double, color: Color) -> some View {
-        HStack(spacing: 6) {
-            // One logo per card (the brand's, in the footer) — providers get
-            // color dots, not marks (owner: 只能出现一个 logo).
-            Circle()
-                .fill(color)
-                .frame(width: 7, height: 7)
-            Text(name)
-                .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.78))
-            Text("\(Int((pct * 100).rounded()))%")
-                .font(.system(size: 11.5, weight: .heavy, design: .rounded))
-                .foregroundStyle(color)
         }
     }
 
     private var weekBars: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            let peak = max(data.dailyTokens.max() ?? 1, 1)
-            HStack(alignment: .bottom, spacing: 10) {
-                ForEach(Array(data.dailyTokens.enumerated()), id: \.offset) { i, tokens in
-                    let isPeak = tokens == peak && tokens > 0
-                    VStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(
-                                isPeak
-                                ? AnyShapeStyle(LinearGradient(
-                                    colors: [Color(red: 0.49, green: 0.94, blue: 0.89), IslandColor.brandTeal],
-                                    startPoint: .top, endPoint: .bottom))
-                                : AnyShapeStyle(Color.white.opacity(tokens > 0 ? 0.22 : 0.07))
-                            )
-                            .frame(height: max(5, 64 * CGFloat(tokens) / CGFloat(peak)))
-                        Text(data.dayLetters.indices.contains(i) ? data.dayLetters[i] : "")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(isPeak ? 0.75 : 0.32))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: 84, alignment: .bottom)
-        }
-    }
-
-    /// Donut + legend — every model carries all three numbers (tokens,
-    /// dollars, share); the bare percent bars said too little.
-    private var modelRows: some View {
         let zh = L10n.locale.identifier.hasPrefix("zh")
-        return HStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.06), lineWidth: 13)
-                ForEach(donutSegments, id: \.0.id) { row, from, to in
-                    Circle()
-                        .trim(from: CGFloat(from), to: CGFloat(to))
-                        .stroke(row.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+        let peak = max(data.dailyTokens.max() ?? 1, 1)
+        return HStack(alignment: .bottom, spacing: 10) {
+            ForEach(Array(data.dailyTokens.enumerated()), id: \.offset) { i, tokens in
+                let isPeak = tokens == peak && tokens > 0
+                VStack(spacing: 5) {
+                    Text(isPeak ? Self.compactString(tokens, zh: zh) : " ")
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(IslandColor.brandTeal)
+                        .opacity(isPeak ? 1 : 0)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(isPeak
+                              ? AnyShapeStyle(IslandColor.brandTeal)
+                              : AnyShapeStyle(Color.white.opacity(tokens > 0 ? 0.16 : 0.07)))
+                        .frame(height: max(5, 58 * CGFloat(tokens) / CGFloat(peak)))
+                    Text(data.dayLetters.indices.contains(i) ? data.dayLetters[i] : "")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(isPeak ? IslandColor.brandTeal : .white.opacity(0.32))
                 }
-            }
-            // Segment 0 starts at 12 o'clock; the label rides outside the
-            // rotation so it stays upright.
-            .rotationEffect(.degrees(-90))
-            .overlay {
-                Text("TOP \(data.topModels.filter { !$0.isOthers }.count)")
-                    .font(.system(size: 10.5, weight: .heavy, design: .rounded))
-                    .tracking(0.8)
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-            .frame(width: 90, height: 90)
-
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(data.topModels) { row in
-                    HStack(spacing: 7) {
-                        Circle()
-                            .fill(row.color)
-                            .frame(width: 7, height: 7)
-                        Text(row.name)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(row.isOthers ? 0.5 : 0.85))
-                            .lineLimit(1)
-                        Spacer(minLength: 6)
-                        Text(Self.compactString(row.tokens, zh: zh))
-                            .font(.system(size: 10, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.5))
-                        Text("$\(Self.money(row.dollars))")
-                            .font(.system(size: 10, weight: .heavy, design: .rounded))
-                            .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62).opacity(0.9))
-                        Text("\(Int((row.percent * 100).rounded()))%")
-                            .font(.system(size: 10, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.88))
-                            .frame(width: 28, alignment: .trailing)
-                    }
-                }
+                .frame(maxWidth: .infinity)
             }
         }
+        .frame(height: 88, alignment: .bottom)
     }
-
-    /// Cumulative (row, from, to) sweep per model, with a hairline gap
-    /// between segments so same-hue neighbors stay separable.
-    private var donutSegments: [(WeeklyReportData.ModelShare, Double, Double)] {
-        var cum = 0.0
-        return data.topModels.map { row in
-            let start = cum
-            cum += row.percent
-            let gap = row.percent > 0.03 ? 0.006 : 0.0
-            return (row, start + gap, max(start + gap, cum - gap))
-        }
-    }
-
-    private var footer: some View {
-        VStack(spacing: 12) {
-            // The milestone caption — the "你已经很牛逼了" line, in the card.
-            if let milestone = data.milestoneText {
-                Text(milestone)
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.42))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            Rectangle()
-                .fill(LinearGradient(colors: [.white.opacity(0.0), .white.opacity(0.14), .white.opacity(0.0)],
-                                     startPoint: .leading, endPoint: .trailing))
-                .frame(height: 1)
-            // Brand + landing strip. The row doubles as the reserved sponsor
-            // slot; the QR is the cross-platform landing hook — anyone who
-            // sees the shared image (WeChat, Douyin, Android, anywhere)
-            // scans straight into agent-island.dev.
-            // Share-clean strip: no QR, no URL (they read as ads on social
-            // feeds) — one logo, one name, centered.
-            HStack(alignment: .center, spacing: 10) {
-                Spacer()
-                if let icon = NSImage(named: NSImage.applicationIconName) {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                }
-                Text("Agent Island")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.88))
-                Spacer()
-            }
-        }
-    }
-
 
     // MARK: - Formatting
 
@@ -468,5 +289,105 @@ struct WeeklyReportCard: View {
         f.numberStyle = .decimal
         f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? String(format: "%.0f", v)
+    }
+}
+
+// MARK: - v3 shared sections (weekly + monthly)
+
+/// App mark + wordmark left, period right — the logo moved up here from the
+/// old footer strip (owner, 2026-07-17), so the card closes on the rank.
+struct ReportCardHeader: View {
+    let kind: String        // "WEEKLY" / "MONTHLY"
+    let periodText: String
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 9) {
+            if let icon = NSImage(named: NSImage.applicationIconName) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+            }
+            (Text("AGENT ISLAND ")
+                .foregroundColor(.white.opacity(0.88))
+             + Text(kind)
+                .foregroundColor(IslandColor.brandTeal))
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .tracking(3.0)
+            Spacer()
+            Text(periodText)
+                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.42))
+        }
+    }
+}
+
+/// Donut + rows, TOP-N. Every model carries all three numbers (tokens,
+/// dollars, share); the donut's uncovered arc is the long tail.
+struct ReportModelTable: View {
+    let models: [WeeklyReportData.ModelShare]
+
+    var body: some View {
+        let zh = L10n.locale.identifier.hasPrefix("zh")
+        HStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .stroke(.white.opacity(0.07), lineWidth: 13)
+                ForEach(segments, id: \.0.id) { row, from, to in
+                    Circle()
+                        .trim(from: CGFloat(from), to: CGFloat(to))
+                        .stroke(row.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                }
+            }
+            .rotationEffect(.degrees(-90))
+            .overlay {
+                Text("TOP \(models.count)")
+                    .font(.system(size: 10.5, weight: .heavy, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .frame(width: 88, height: 88)
+
+            VStack(alignment: .leading, spacing: 9) {
+                ForEach(models) { row in
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(row.color)
+                            .frame(width: 7, height: 7)
+                        Text(row.name)
+                            .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text(WeeklyReportCard.compactString(row.tokens, zh: zh))
+                            .font(.system(size: 10.5, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.5))
+                        Text("$\(WeeklyReportCard.money(row.dollars))")
+                            .font(.system(size: 10.5, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62).opacity(0.9))
+                        Text("\(Int((row.percent * 100).rounded()))%")
+                            .font(.system(size: 10.5, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.88))
+                            .frame(width: 30, alignment: .trailing)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Cumulative (row, from, to) sweep per model, with a hairline gap
+    /// between segments so same-hue neighbors stay separable.
+    private var segments: [(WeeklyReportData.ModelShare, Double, Double)] {
+        var cum = 0.0
+        return models.map { row in
+            let start = cum
+            cum += row.percent
+            let gap = row.percent > 0.03 ? 0.006 : 0.0
+            return (row, start + gap, max(start + gap, cum - gap))
+        }
     }
 }
