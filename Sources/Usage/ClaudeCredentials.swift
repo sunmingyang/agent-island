@@ -150,6 +150,46 @@ enum ClaudeCredentials {
         let subscriptionType: String?
     }
 
+    /// Runs `/usr/bin/security` with a hard deadline and returns stdout on
+    /// exit 0, nil otherwise.
+    ///
+    /// `security` can block FOREVER behind a keychain-authorization dialog
+    /// that never surfaces. Observed 2026-07-17: nine 6-hour-old children,
+    /// one per refresh tick — each parked its Swift-concurrency thread in
+    /// `waitUntilExit`, and the 90s "wedged fetch" restart spawned the next
+    /// one, until the whole cooperative pool was starved and every async
+    /// path in the app (Codex fetch included) froze while the UI kept
+    /// animating. The watchdog terminates the child at the deadline so the
+    /// caller degrades to its next token source instead of eating a thread.
+    ///
+    /// stdout is drained BEFORE waitUntilExit — the reverse order deadlocks
+    /// when the child fills the pipe buffer.
+    private static func runSecurity(_ arguments: [String], timeout: TimeInterval = 10) -> Data? {
+        let task = Process()
+        task.launchPath = "/usr/bin/security"
+        task.arguments = arguments
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = Pipe()
+        do {
+            try task.run()
+        } catch {
+            return nil
+        }
+        let watchdog = DispatchWorkItem {
+            if task.isRunning {
+                NSLog("AgentIsland: security %@ exceeded %.0fs — terminating", arguments.first ?? "?", timeout)
+                task.terminate()
+            }
+        }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout, execute: watchdog)
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        watchdog.cancel()
+        guard task.terminationStatus == 0 else { return nil }
+        return data
+    }
+
     /// Reads the keychain item Claude Code writes on first login. Returns
     /// nil silently on any error — the caller falls through to the next
     /// token source. Captures the account name and the full claudeAiOauth
@@ -158,33 +198,21 @@ enum ClaudeCredentials {
     private static func readClaudeCreds() -> ClaudeCreds? {
         guard let account = readClaudeKeychainAccount() else { return nil }
 
-        let task = Process()
-        task.launchPath = "/usr/bin/security"
-        task.arguments = [
+        guard let data = runSecurity([
             "find-generic-password",
             "-s", "Claude Code-credentials",
             "-a", account,
             "-w",
-        ]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let raw = String(data: data, encoding: .utf8)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
-                  let jsonData = raw.data(using: .utf8),
-                  let outer = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                  let oauth = outer["claudeAiOauth"] as? [String: Any],
-                  let access = oauth["accessToken"] as? String,
-                  let refresh = oauth["refreshToken"] as? String else { return nil }
-            let plan = oauth["subscriptionType"] as? String
-            return ClaudeCreds(account: account, accessToken: access, refreshToken: refresh, oauth: oauth, subscriptionType: plan)
-        } catch {
-            return nil
-        }
+        ]) else { return nil }
+        guard let raw = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              let jsonData = raw.data(using: .utf8),
+              let outer = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let oauth = outer["claudeAiOauth"] as? [String: Any],
+              let access = oauth["accessToken"] as? String,
+              let refresh = oauth["refreshToken"] as? String else { return nil }
+        let plan = oauth["subscriptionType"] as? String
+        return ClaudeCreds(account: account, accessToken: access, refreshToken: refresh, oauth: oauth, subscriptionType: plan)
     }
 
     /// `security add-generic-password -U` requires the original account name
@@ -201,26 +229,17 @@ enum ClaudeCredentials {
     }
 
     private static func readClaudeKeychainMetadataValue(_ key: String) -> String? {
-        let task = Process()
-        task.launchPath = "/usr/bin/security"
-        task.arguments = ["find-generic-password", "-s", "Claude Code-credentials"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = Pipe()
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            for line in output.split(separator: "\n") {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                guard trimmed.hasPrefix("\"\(key)\"") else { continue }
-                guard let inner = lastQuotedValue(afterEqualsIn: trimmed) else { return nil }
-                return inner.isEmpty ? nil : String(inner)
-            }
-            return nil
-        } catch {
+        guard let data = runSecurity(["find-generic-password", "-s", "Claude Code-credentials"]) else {
             return nil
         }
+        let output = String(data: data, encoding: .utf8) ?? ""
+        for line in output.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("\"\(key)\"") else { continue }
+            guard let inner = lastQuotedValue(afterEqualsIn: trimmed) else { return nil }
+            return inner.isEmpty ? nil : String(inner)
+        }
+        return nil
     }
 
     private static func lastQuotedValue(afterEqualsIn line: String) -> String? {
@@ -249,29 +268,17 @@ enum ClaudeCredentials {
             return false
         }
 
-        let task = Process()
-        task.launchPath = "/usr/bin/security"
-        task.arguments = [
+        guard runSecurity([
             "add-generic-password",
             "-U",
             "-s", "Claude Code-credentials",
             "-a", account,
             "-w", json,
-        ]
-        task.standardOutput = Pipe()
-        task.standardError = Pipe()
-        do {
-            try task.run()
-            task.waitUntilExit()
-            if task.terminationStatus != 0 {
-                NSLog("AgentIsland: failed to write rotated Claude tokens to keychain (security exit %d)", task.terminationStatus)
-                return false
-            }
-            return true
-        } catch {
-            NSLog("AgentIsland: failed to spawn security for keychain write: %@", error.localizedDescription)
+        ]) != nil else {
+            NSLog("AgentIsland: failed to write rotated Claude tokens to keychain")
             return false
         }
+        return true
     }
 
     // MARK: - Refresh
