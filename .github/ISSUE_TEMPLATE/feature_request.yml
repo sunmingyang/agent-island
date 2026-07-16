@@ -2,14 +2,16 @@ name: Feature request
 description: Suggest a useful Agent Island improvement.
 title: "[Feature]: "
 labels: ["enhancement"]
+
 body:
   - type: textarea
     id: problem
     attributes:
       label: What problem should this solve?
-      placeholder: I miss completed Codex turns when...
+      placeholder: I miss completed Claude or Codex notifications when...
     validations:
       required: true
+
   - type: textarea
     id: proposal
     attributes:
@@ -17,6 +19,7 @@ body:
       placeholder: Agent Island should...
     validations:
       required: true
+
   - type: dropdown
     id: area
     attributes:
@@ -32,8 +35,10 @@ body:
         - Other
     validations:
       required: true
+
   - type: textarea
     id: context
     attributes:
       label: Extra context
-      description: Links, screenshots, or examples from your workflow.
+      description: |
+        Include any links, screenshots, or examples from your macOS or Windows workflow that help explain the request.
