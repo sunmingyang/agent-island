@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -355,6 +355,62 @@ public sealed class SettingsWindow : Window
         Margin = new Thickness(10, 14, 10, 6),
     };
 
+    /// Four 13px color dots (macOS glowColorSwatches): white ring + soft
+    /// self-colored halo mark the pick; the ring alone isn't enough at 13px.
+    private static UIElement GlowSwatches()
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var dots = new List<(GlowColorStore.Choice Choice, System.Windows.Shapes.Ellipse Dot)>();
+        void Restyle()
+        {
+            foreach (var (choice, dot) in dots)
+            {
+                var selected = GlowColorStore.Shared.Value == choice;
+                dot.Stroke = IslandColors.Brush(IslandColors.White(selected ? 0.92 : 0.16));
+                dot.StrokeThickness = selected ? 1.5 : 0.5;
+                dot.Effect = selected
+                    ? new System.Windows.Media.Effects.DropShadowEffect
+                    {
+                        ShadowDepth = 0,
+                        BlurRadius = 8,
+                        Color = GlowColorStore.ColorOf(choice),
+                        Opacity = 0.55,
+                    }
+                    : null;
+            }
+        }
+        foreach (var choice in GlowColorStore.All)
+        {
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width = 13,
+                Height = 13,
+                Fill = IslandColors.Brush(GlowColorStore.ColorOf(choice)),
+            };
+            // padding(2) + inset(-3) hit area: a 19px transparent puck.
+            var puck = new Border
+            {
+                Background = Brushes.Transparent,
+                Padding = new Thickness(3),
+                Margin = new Thickness(0, 0, 7, 0),
+                Child = dot,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = L10n.Tr(GlowColorStore.LabelKey(choice)),
+            };
+            var captured = choice;
+            puck.MouseLeftButtonDown += (_, e) =>
+            {
+                GlowColorStore.Shared.Value = captured;
+                Restyle();
+                e.Handled = true;
+            };
+            dots.Add((choice, dot));
+            row.Children.Add(puck);
+        }
+        Restyle();
+        return row;
+    }
+
     // MARK: - General
 
     private UIElement BuildGeneral()
@@ -406,11 +462,6 @@ public sealed class SettingsWindow : Window
         };
         stack.Children.Add(new SettingsRowControl(
             "Language", CurrentLanguageSubtitle(), language));
-
-        var lowPower = new CobaltToggle(LowPowerModeStore.Shared.Enabled);
-        lowPower.Toggled += enabled => LowPowerModeStore.Shared.Enabled = enabled;
-        stack.Children.Add(new SettingsRowControl(
-            "Low Power Mode", "Glow only on refresh, hover, or limit alerts.", lowPower));
 
         stack.Children.Add(SectionLabel("Alerts"));
         var alertsHost = new StackPanel();
@@ -635,6 +686,52 @@ public sealed class SettingsWindow : Window
             null,
             alwaysShow));
 
+        // Visual mode lives with the island-appearance controls, title +
+        // picker only — no sentence (macOS design review).
+        var effects = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+        effects.Items.Add(L10n.Tr("Calm"));
+        effects.Items.Add(L10n.Tr("Vivid"));
+        effects.SelectedIndex = LowPowerModeStore.Shared.Enabled ? 0 : 1;
+        stack.Children.Add(new SettingsRowControl(
+            "Visual mode",
+            null,
+            effects));
+
+        // Glow color rides under Vivid only — Calm has no ambient light for
+        // it to style. Row visibility keys on the USER choice, not the
+        // battery-saver override, so the saver never hides a setting.
+        var glowRow = new SettingsRowControl("Glow color", null, GlowSwatches());
+        glowRow.Visibility = LowPowerModeStore.Shared.Enabled
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        stack.Children.Add(glowRow);
+        effects.SelectionChanged += (_, _) =>
+        {
+            LowPowerModeStore.Shared.Enabled = effects.SelectedIndex == 0;
+            glowRow.Visibility = effects.SelectedIndex == 0
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+        };
+
+        // Interface scale (macOS row order: Visual mode → Glow color →
+        // Interface scale). Every Windows screen is notchless, so it just
+        // applies — no "notchless only" caveat needed.
+        var scaleBox = new ComboBox { Width = 90, VerticalAlignment = VerticalAlignment.Center };
+        var scaleSteps = new[] { 1.0, 1.15, 1.3, 1.5 };
+        foreach (var step in scaleSteps) scaleBox.Items.Add($"{Math.Round(step * 100)}%");
+        var currentScale = IslandScaleStore.Shared.Scale;
+        var scaleIndex = Array.FindIndex(scaleSteps, s => Math.Abs(s - currentScale) < 0.01);
+        scaleBox.SelectedIndex = scaleIndex < 0 ? 0 : scaleIndex;
+        scaleBox.SelectionChanged += (_, _) =>
+        {
+            if (scaleBox.SelectedIndex >= 0)
+                IslandScaleStore.Shared.Scale = scaleSteps[scaleBox.SelectedIndex];
+        };
+        stack.Children.Add(new SettingsRowControl(
+            "Interface scale",
+            null,
+            scaleBox));
+
         // 屏幕. (The macOS bar-style choice — Compact vs Notched Mac — is
         // meaningless on Windows, where no display has a notch; the bar is
         // always the wide layout.)
@@ -682,12 +779,9 @@ public sealed class SettingsWindow : Window
             "A bar at the top of the screen, or a floating widget you drag anywhere.",
             placementBox));
 
-        var soloCenter = new CobaltToggle(SoloCenterStore.Shared.Enabled);
-        soloCenter.Toggled += value => SoloCenterStore.Shared.Enabled = value;
-        stack.Children.Add(new SettingsRowControl(
-            "Center the island when only one provider is on",
-            "Collapse the hidden side and pull the visible logo to the middle, instead of keeping the symmetric layout.",
-            soloCenter));
+        // The old "center when solo" toggle is gone: a lone subscription now
+        // always splits the flanks (logo one side, number the other), the
+        // macOS solo layout — no setting to hunt for.
 
         return stack;
     }
@@ -706,27 +800,11 @@ public sealed class SettingsWindow : Window
         var stack = TabStack();
         stack.Children.Add(SectionLabel("Providers"));
 
+        // The "Open threads via" pickers are retired (macOS 1.6.1): threads
+        // always land back where the session lives — desktop sessions in the
+        // desktop app, CLI sessions in a terminal.
         stack.Children.Add(ProviderRow(TriggerTool.Claude));
-        var claudeJump = Model.ClaudeJumpPreferenceStore.Shared;
-        var claudeJumpSeg = new Segmented(
-            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
-            claudeJump.PrefersCli ? 1 : 0);
-        claudeJumpSeg.SelectionChanged += index => claudeJump.PrefersCli = index == 1;
-        stack.Children.Add(new SettingsRowControl(
-            "Open threads via",
-            null,
-            claudeJumpSeg));
-
         stack.Children.Add(ProviderRow(TriggerTool.Codex));
-        var codexJump = Model.CodexJumpPreferenceStore.Shared;
-        var codexJumpSeg = new Segmented(
-            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
-            codexJump.PrefersCli ? 1 : 0);
-        codexJumpSeg.SelectionChanged += index => codexJump.PrefersCli = index == 1;
-        stack.Children.Add(new SettingsRowControl(
-            "Open threads via",
-            null,
-            codexJumpSeg));
 
         stack.Children.Add(SectionLabel("TOKEN"));
         var mode = new Segmented(
@@ -778,7 +856,11 @@ public sealed class SettingsWindow : Window
     {
         var store = UsageStore.Shared;
         var usage = tool == TriggerTool.Claude ? store.Claude : store.Codex;
-        var visible = ProviderVisibilityStore.Shared.IsVisible(tool);
+        // The toggle reflects the STORED choice, not the detection-aware
+        // Shown value — flipping it is what records intent.
+        var visible = tool == TriggerTool.Claude
+            ? ProviderVisibilityStore.Shared.ClaudeVisible
+            : ProviderVisibilityStore.Shared.CodexVisible;
 
         var trailing = new StackPanel { Orientation = Orientation.Horizontal };
         // Always offered: the click spawns the login terminal directly, and
@@ -806,13 +888,18 @@ public sealed class SettingsWindow : Window
     }
 
     /// "synced 2m ago · 69% / 33%" — the most authoritative diagnostic
-    /// surface; errors surface in place of the numbers.
+    /// surface; errors surface in place of the numbers. A single-window
+    /// provider (Codex's one weekly quota) shows one percentage, not a
+    /// phantom pair (macOS secondaryMissing).
     private static string ProviderSubtitle(AppUsage usage)
     {
         var synced = UsageStore.Shared.LastUpdated is { } updated
             ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsChinese))
             : L10n.Tr("idle");
-        return $"{synced} · {WindowCaption(usage.FiveHour)} / {WindowCaption(usage.Weekly)}";
+        var caption = usage.SecondaryMissing
+            ? WindowCaption(usage.FiveHour)
+            : $"{WindowCaption(usage.FiveHour)} / {WindowCaption(usage.Weekly)}";
+        return $"{synced} · {caption}";
     }
 
     private static string WindowCaption(WindowUsage window)
@@ -1126,12 +1213,16 @@ public sealed class SettingsWindow : Window
             TextWrapping = TextWrapping.Wrap,
         });
 
+        // One glyph language (macOS StatePreviewLogo): the symmetric mark
+        // spinning / steady with a bell badge / pulsing red — no more
+        // bell-in-a-box. Stalled drives the pulse demo; the real authRequired
+        // is a steady red since P22.
         stack.Children.Add(SectionLabel("Logo states"));
         stack.Children.Add(LegendRow(ActivityState.Working, "Running",
             "The logo rotates while a session is running."));
         stack.Children.Add(BellLegendRow("Your turn",
             "A thread finished — Agent Island opens an alarm window so you can reply."));
-        stack.Children.Add(LegendRow(ActivityState.AuthRequired, "Needs attention",
+        stack.Children.Add(LegendRow(ActivityState.Stalled, "Needs attention",
             "Limits, login, network, or provider errors make the logo pulse red."));
 
         stack.Children.Add(SectionLabel("Reminders"));
@@ -1289,27 +1380,50 @@ public sealed class SettingsWindow : Window
             "Volume", null, volume));
     }
 
-    /// The "your reply is up" legend uses the bell mark, matching the macOS
-    /// StatePreviewLogo for needsYou.
+    /// The "your reply is up" legend: the symmetric mark, steady, with a
+    /// small bell badge riding its bottom-trailing corner — the macOS
+    /// StatePreviewLogo needsYou glyph (the mark stays put because the turn
+    /// is DONE; the badge says why the island wants you).
     private UIElement BellLegendRow(string name, string caption)
     {
-        var bellHost = new Border
+        var mark = new System.Windows.Shapes.Path
         {
-            Width = 34,
-            Height = 34,
-            CornerRadius = new CornerRadius(9),
-            Background = IslandColors.Brush(IslandColors.White(0.05)),
-            VerticalAlignment = VerticalAlignment.Center,
+            Data = Geometry.Parse("F1 " + BrandGeometry.OpenAiPath),
+            Fill = IslandColors.Brush(IslandColors.Codex),
+            Width = 20,
+            Height = 20,
+            Stretch = Stretch.Uniform,
+        };
+        var badge = new Border
+        {
+            Width = 11,
+            Height = 11,
+            CornerRadius = new CornerRadius(5.5),
+            Background = IslandColors.Brush(Color.FromRgb(0x13, 0x16, 0x1C)),
+            BorderBrush = IslandColors.Brush(IslandColors.White(0.18)),
+            BorderThickness = new Thickness(0.5),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, -3, -2),
             Child = new TextBlock
             {
                 Text = "",   // Segoe Fluent Ringer bell
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = 15,
-                Foreground = IslandColors.Brush(IslandColors.Claude),
+                FontSize = 5.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = IslandColors.Brush(Color.FromRgb(0x20, 0xC0, 0xB0)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             },
         };
+        var bellHost = new Grid
+        {
+            Width = 24,
+            Height = 22,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        bellHost.Children.Add(mark);
+        bellHost.Children.Add(badge);
         var host = new Grid();
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1454,7 +1568,9 @@ public sealed class SettingsWindow : Window
 
     private UIElement LegendRow(ActivityState state, string name, string caption)
     {
-        var logo = new ProviderLogo { Tool = TriggerTool.Claude, Width = 38, Height = 32 };
+        // The symmetric mark: rotationally uniform, so the spinning demo
+        // doesn't wobble the way the starburst would (macOS StatePreviewLogo).
+        var logo = new ProviderLogo { Tool = TriggerTool.Codex, Width = 38, Height = 32 };
         logo.SetState(state);
         var host = new Grid();
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });

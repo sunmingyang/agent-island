@@ -17,7 +17,13 @@ public sealed class ProviderLogo : Grid
     private readonly System.Windows.Shapes.Path _path;
     private readonly RotateTransform _rotate = new();
     private readonly ScaleTransform _scale = new();
-    private readonly DropShadowEffect _glow;
+    // The glow is NOT a DropShadowEffect: a bitmap effect on a spinning,
+    // breathing mark re-runs its gaussian every frame on the CPU — two
+    // working logos held ~40% of a core. A radial-gradient blob behind the
+    // mark reads the same (the eye sees a soft halo either way), and its
+    // breath animates UIElement.Opacity — a composition-time parameter
+    // that never re-rasterizes anything.
+    private readonly System.Windows.Shapes.Ellipse _glowBlob;
     // Mutable (unfrozen) fill so the state-change tint can crossfade — a
     // frozen IslandColors.Brush can't be animated.
     private readonly SolidColorBrush _fill = new(IslandColors.Claude);
@@ -26,15 +32,20 @@ public sealed class ProviderLogo : Grid
     private bool _tintSeeded;
 
     public const double MarkSize = 20;
+    // Small enough to live inside the 36px bar strip: an overhanging blob
+    // gets clipped by the strip into a hard-edged square of tint.
+    private const double BlobSize = 34;
 
     public ProviderLogo()
     {
-        _glow = new DropShadowEffect
+        _glowBlob = new System.Windows.Shapes.Ellipse
         {
-            ShadowDepth = 0,
-            BlurRadius = 0,
+            Width = BlobSize,
+            Height = BlobSize,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
             Opacity = 0,
-            Color = IslandColors.Claude,
+            IsHitTestVisible = false,
         };
         _path = new System.Windows.Shapes.Path
         {
@@ -45,14 +56,29 @@ public sealed class ProviderLogo : Grid
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             RenderTransformOrigin = new Point(0.5, 0.5),
-            Effect = _glow,
         };
         var transforms = new TransformGroup();
         transforms.Children.Add(_scale);
         transforms.Children.Add(_rotate);
         _path.RenderTransform = transforms;
+        Children.Add(_glowBlob);
         Children.Add(_path);
         ApplyTool();
+    }
+
+    private void RetintBlob(Color color)
+    {
+        // Fast falloff: by half the radius the halo is already faint, so
+        // the blob reads as light around the mark, not a disc of paint.
+        _glowBlob.Fill = new RadialGradientBrush
+        {
+            GradientStops = new GradientStopCollection
+            {
+                new GradientStop(IslandColors.Alpha(color, 0.75), 0.0),
+                new GradientStop(IslandColors.Alpha(color, 0.22), 0.5),
+                new GradientStop(IslandColors.Alpha(color, 0.0), 0.95),
+            },
+        };
     }
 
     public TriggerTool Tool
@@ -86,19 +112,18 @@ public sealed class ProviderLogo : Grid
         var color = _state.IsAttentionState() ? AlarmRed : IslandColors.For(_tool);
         // First paint is instant; later state changes crossfade over 0.3s,
         // the macOS LogoOverlay easeInOut(0.3) tint transition (e.g.
-        // working blue → attention red).
+        // working blue → attention red). The blob just swaps its gradient —
+        // during the crossfade the eye tracks the mark, not the halo.
+        RetintBlob(color);
         if (!_tintSeeded)
         {
             _tintSeeded = true;
             _fill.Color = color;
-            _glow.Color = color;
             return;
         }
         var fade = new Duration(TimeSpan.FromSeconds(0.3));
         var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
         _fill.BeginAnimation(SolidColorBrush.ColorProperty,
-            new ColorAnimation(color, fade) { EasingFunction = ease });
-        _glow.BeginAnimation(DropShadowEffect.ColorProperty,
             new ColorAnimation(color, fade) { EasingFunction = ease });
     }
 
@@ -120,9 +145,14 @@ public sealed class ProviderLogo : Grid
                 break;
             case ActivityState.Stalled:
             case ActivityState.RateLimited:
-            case ActivityState.AuthRequired:
                 StartBreath(from: 1.0, to: 1.16, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
                 StartGlow(radiusFrom: 12, radiusTo: 33, halfCycle: IslandAnimations.AttentionPulseDuration.TimeSpan);
+                break;
+            case ActivityState.AuthRequired:
+                // Static red, no pulse: a login can stay pending for hours,
+                // and an endless blink reads as a crash (macOS
+                // pulsesAttention excludes authRequired).
+                _glowBlob.Opacity = 0.25;
                 break;
             case ActivityState.Idle:
             case ActivityState.NeedsYou:
@@ -130,6 +160,12 @@ public sealed class ProviderLogo : Grid
                 break;
         }
     }
+
+    /// Every frame of any animation recomposites the whole layered window
+    /// in software — the per-frame bill is the window, not the animated
+    /// element. 24fps is where a 3.8s spin still reads as continuous motion
+    /// while the composition bill drops to 40% of the 60fps default.
+    private const int GlowFps = 24;
 
     private void StartSpin()
     {
@@ -139,6 +175,7 @@ public sealed class ProviderLogo : Grid
         {
             RepeatBehavior = RepeatBehavior.Forever,
         };
+        Timeline.SetDesiredFrameRate(spin, GlowFps);
         _rotate.BeginAnimation(RotateTransform.AngleProperty, spin);
     }
 
@@ -150,28 +187,26 @@ public sealed class ProviderLogo : Grid
             RepeatBehavior = RepeatBehavior.Forever,
             EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
         };
+        Timeline.SetDesiredFrameRate(breath, GlowFps);
         _scale.BeginAnimation(ScaleTransform.ScaleXProperty, breath);
         _scale.BeginAnimation(ScaleTransform.ScaleYProperty, breath);
     }
 
     private void StartGlow(double radiusFrom, double radiusTo, TimeSpan halfCycle)
     {
-        // Radius and strength breathe together — shadow(tint.opacity(pulse
-        // ? 0.9 : 0.25), radius: ...) on macOS.
-        var radius = new DoubleAnimation(radiusFrom, radiusTo, new Duration(halfCycle))
+        // macOS breathes radius and strength together; here only the blob's
+        // element opacity breathes — the halo brightens and dims, which is
+        // what the eye actually reads, and the animation never leaves the
+        // composition stage. (radiusFrom/To kept for call-site parity.)
+        _ = radiusFrom; _ = radiusTo;
+        var strength = new DoubleAnimation(0.2, 0.8, new Duration(halfCycle))
         {
             AutoReverse = true,
             RepeatBehavior = RepeatBehavior.Forever,
             EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
         };
-        var strength = new DoubleAnimation(0.25, 0.9, new Duration(halfCycle))
-        {
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever,
-            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-        };
-        _glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, radius);
-        _glow.BeginAnimation(DropShadowEffect.OpacityProperty, strength);
+        Timeline.SetDesiredFrameRate(strength, GlowFps);
+        _glowBlob.BeginAnimation(OpacityProperty, strength);
     }
 
     private void StopAnimations(bool unwindSpin = false)
@@ -184,8 +219,10 @@ public sealed class ProviderLogo : Grid
         _rotate.BeginAnimation(RotateTransform.AngleProperty, null);
         _scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         _scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        _glow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
-        _glow.BeginAnimation(DropShadowEffect.OpacityProperty, null);
+        _glowBlob.BeginAnimation(OpacityProperty, null);
+        // Back to the no-glow baseline — without this an auth→idle flip
+        // kept a faint leftover halo.
+        _glowBlob.Opacity = 0;
         _rotate.Angle = 0;
         if (unwindSpin && Math.Abs(angle) > 0.5 && _state != ActivityState.Working)
         {
@@ -198,7 +235,5 @@ public sealed class ProviderLogo : Grid
         }
         _scale.ScaleX = 1;
         _scale.ScaleY = 1;
-        _glow.BlurRadius = 0;
-        _glow.Opacity = 0;
     }
 }

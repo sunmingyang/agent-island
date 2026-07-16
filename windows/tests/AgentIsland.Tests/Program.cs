@@ -106,6 +106,7 @@ public static class Program
             TriggerResetTests.RunAll();
             UsageExhaustionAlarmTests.RunAll();
             SoloCenterLayoutTests.RunAll();
+            CodexReplayGuardTests.RunAll();
             UpdateCheckerTests.RunAll();
             UsageCachePolicyTests.RunAll();
             ReminderDeliveryKeyTests.RunAll();

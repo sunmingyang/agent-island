@@ -7,7 +7,7 @@ namespace AgentIsland.UI;
 /// carries the 5h percentages instead of staying blank until hover.
 public sealed class AlwaysShowUsageStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.alwaysShowUsage";
+    private const string Key = "AgentIsland.alwaysShowUsage";
 
     public static AlwaysShowUsageStore Shared { get; } = new();
 

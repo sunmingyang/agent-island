@@ -16,7 +16,7 @@ public enum ChartStyle
 /// product's own screenshots and website ship with.
 public sealed class StylePreferenceStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.chartStyle";
+    private const string Key = "AgentIsland.chartStyle";
 
     public static StylePreferenceStore Shared { get; } = new();
 

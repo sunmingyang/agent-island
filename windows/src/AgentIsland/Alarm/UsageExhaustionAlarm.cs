@@ -78,8 +78,8 @@ public sealed class UsageExhaustionAlarm
             UsageStore.Shared.Claude,
             UsageStore.Shared.Codex,
             AgentReminderStore.Shared.Enabled,
-            Model.ProviderVisibilityStore.Shared.ClaudeVisible,
-            Model.ProviderVisibilityStore.Shared.CodexVisible,
+            Model.ProviderVisibilityStore.Shared.ClaudeShown,
+            Model.ProviderVisibilityStore.Shared.CodexShown,
             Model.QuotaAlarmStore.Shared.Enabled);
     }
 

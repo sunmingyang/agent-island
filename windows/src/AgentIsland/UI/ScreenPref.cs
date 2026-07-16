@@ -15,8 +15,8 @@ public enum IslandScreen
 /// page the user last used.
 public sealed class ScreenPref : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.screen";
-    private const string SwipedKey = "MacIsland.hasSwipedScreen";
+    private const string Key = "AgentIsland.screen";
+    private const string SwipedKey = "AgentIsland.hasSwipedScreen";
 
     public static ScreenPref Shared { get; } = new();
 
@@ -37,7 +37,7 @@ public sealed class ScreenPref : INotifyPropertyChanged
         // Users opt in via Settings → Display; anyone who already toggled it keeps
         // their stored choice. The Screen guard below sends a new install to Usage
         // rather than an invisible Cost page.
-        _showCostPage = Preferences.Get<bool?>("MacIsland.showCostPanelPage") ?? false;
+        _showCostPage = Preferences.Get<bool?>("AgentIsland.showCostPanelPage") ?? false;
         if (!VisibleScreens.Contains(_screen)) _screen = IslandScreen.Usage;
     }
 
@@ -73,7 +73,7 @@ public sealed class ScreenPref : INotifyPropertyChanged
         {
             if (_showCostPage == value) return;
             _showCostPage = value;
-            Preferences.Set("MacIsland.showCostPanelPage", value);
+            Preferences.Set("AgentIsland.showCostPanelPage", value);
             if (!VisibleScreens.Contains(_screen)) Screen = IslandScreen.Usage;
             Raise(nameof(ShowCostPage));
             Raise(nameof(VisibleScreens));

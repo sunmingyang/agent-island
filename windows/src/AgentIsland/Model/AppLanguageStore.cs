@@ -8,7 +8,7 @@ namespace AgentIsland.Model;
 /// running — only the label language lags until then).
 public static class AppLanguageStore
 {
-    private const string Key = "MacIsland.appLanguage";
+    private const string Key = "AgentIsland.appLanguage";
 
     public static L10n.Language Load()
     {

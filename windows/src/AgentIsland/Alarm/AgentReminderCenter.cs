@@ -26,9 +26,17 @@ public sealed class AgentReminderCenter
 
     private readonly DateTimeOffset _startedAt = DateTimeOffset.Now;
 
+    /// Alarms held back because the session's host app was frontmost — the
+    /// user is LOOKING at the finished turn; a popup over it is noise. They
+    /// fire the moment focus leaves with the turn still open (macOS
+    /// frontmost-hold, ccb6e44).
+    private readonly Dictionary<string, (TriggerTool Provider, ActivityMonitor.ActiveThread Thread)> _heldAlarms
+        = new(StringComparer.Ordinal);
+
     private AgentReminderCenter()
     {
         _acknowledgedNeedsYouKeys = LoadAcknowledgedKeys();
+        InstallForegroundWatch();
     }
 
     public void Handle(TriggerTool provider, IReadOnlyList<ActivityMonitor.ActiveThread> needsYouThreads)
@@ -49,6 +57,7 @@ public sealed class AgentReminderCenter
             foreach (var staleKey in previous.Where(key => !currentKeys.Contains(key)))
             {
                 CancelPending(staleKey);
+                _heldAlarms.Remove(staleKey);
                 TurnAlarmWindowController.Shared.AutoDismiss(provider, staleKey);
             }
         }
@@ -101,6 +110,7 @@ public sealed class AgentReminderCenter
     {
         var deliveryKey = DeliveryKeyFor(provider, thread);
         CancelPending(deliveryKey);
+        _heldAlarms.Remove(deliveryKey);
         _acknowledgedNeedsYouKeys[deliveryKey] = DateTimeOffset.Now;
         _deliveredNeedsYouKeys[deliveryKey] = DateTimeOffset.Now;
         PersistAcknowledgedKeys();
@@ -172,9 +182,72 @@ public sealed class AgentReminderCenter
         {
             return;
         }
+        // Frontmost hold: the alarm would land on top of the very session
+        // the user is watching. Park it; the focus-change watch below fires
+        // it the moment they switch away with the turn still open. Sessions
+        // whose host can't be resolved (daemons, containers) fail open.
+        if (AgentHostAppResolver.IsHostAppFrontmost(thread.Cwd))
+        {
+            _heldAlarms[deliveryKey] = (provider, thread);
+            return;
+        }
         _deliveredNeedsYouKeys[deliveryKey] = DateTimeOffset.Now;
         Deliver(provider, thread, deliveryKey);
     }
+
+    /// EVENT_SYSTEM_FOREGROUND (the didActivateApplication analog): each
+    /// focus change re-examines the held alarms. No polling — zero cost
+    /// until the user actually switches windows.
+    private void InstallForegroundWatch()
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null) return;
+        dispatcher.BeginInvoke(() =>
+        {
+            // The delegate must outlive the hook — a collected callback is
+            // a native callback into freed memory.
+            _foregroundCallback = (_, _, _, _, _, _, _) => ReleaseHeldAlarms();
+            _foregroundHook = SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
+                IntPtr.Zero, _foregroundCallback, 0, 0, WINEVENT_OUTOFCONTEXT);
+        });
+    }
+
+    private void ReleaseHeldAlarms()
+    {
+        if (_heldAlarms.Count == 0) return;
+        foreach (var (key, held) in _heldAlarms.ToList())
+        {
+            // Conditions may have moved on while parked.
+            if (!AgentReminderStore.Shared.Enabled
+                || !_activeNeedsYouKeys.TryGetValue(held.Provider.RawValue(), out var active)
+                || !active.Contains(key)
+                || _acknowledgedNeedsYouKeys.ContainsKey(key)
+                || _deliveredNeedsYouKeys.ContainsKey(key))
+            {
+                _heldAlarms.Remove(key);
+                continue;
+            }
+            if (AgentHostAppResolver.IsHostAppFrontmost(held.Thread.Cwd)) continue; // still watching it
+            _heldAlarms.Remove(key);
+            _deliveredNeedsYouKeys[key] = DateTimeOffset.Now;
+            Deliver(held.Provider, held.Thread, key);
+        }
+    }
+
+    private IntPtr _foregroundHook;
+    private WinEventDelegate? _foregroundCallback;
+
+    private delegate void WinEventDelegate(
+        IntPtr hook, uint eventType, IntPtr hwnd, int objectId, int childId, uint threadId, uint timestamp);
+
+    private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr SetWinEventHook(
+        uint eventMin, uint eventMax, IntPtr module, WinEventDelegate callback,
+        uint processId, uint threadId, uint flags);
 
     private void CancelPending(string deliveryKey)
     {

@@ -65,6 +65,30 @@ public static class Preferences
         }
     }
 
+    /// One-time sweep of the MacIsland.* era: settings written before 1.7
+    /// carried the prefix inherited from the macOS source. Copy-if-absent
+    /// then delete — an AgentIsland.* value that already exists wins, so
+    /// running an old build after the sweep can't resurrect stale state
+    /// over a newer choice. Runs before any store singleton reads a key.
+    public static void MigrateLegacyPrefix()
+    {
+        lock (Gate)
+        {
+            _values = LoadFromDisk();
+            var legacy = _values.Keys
+                .Where(k => k.StartsWith("MacIsland.", StringComparison.Ordinal))
+                .ToList();
+            if (legacy.Count == 0) return;
+            foreach (var oldKey in legacy)
+            {
+                var newKey = "AgentIsland." + oldKey["MacIsland.".Length..];
+                if (!_values.ContainsKey(newKey)) _values[newKey] = _values[oldKey];
+                _values.Remove(oldKey);
+            }
+            Save();
+        }
+    }
+
     private static void LoadIfNeeded()
     {
         _values ??= LoadFromDisk();

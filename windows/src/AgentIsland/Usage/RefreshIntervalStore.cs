@@ -8,7 +8,7 @@ namespace AgentIsland.Usage;
 /// so the presets are fixed at 5m / 15m / 30m exactly as shipped on macOS.
 public sealed class RefreshIntervalStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.refreshInterval";
+    private const string Key = "AgentIsland.refreshInterval";
 
     /// Declared before Shared: static initializers run in declaration order,
     /// and Shared's constructor reads this array.

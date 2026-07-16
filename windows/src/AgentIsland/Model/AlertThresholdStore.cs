@@ -18,9 +18,9 @@ public sealed class AlertThresholdStore : INotifyPropertyChanged
 
     private AlertThresholdStore()
     {
-        _enabled = Preferences.Get<bool?>("MacIsland.alertsEnabled") ?? false;
-        _warningPercent = Math.Clamp(Preferences.Get<int?>("MacIsland.alertWarning") ?? 80, 50, 98);
-        _criticalPercent = Math.Clamp(Preferences.Get<int?>("MacIsland.alertCritical") ?? 95, 51, 99);
+        _enabled = Preferences.Get<bool?>("AgentIsland.alertsEnabled") ?? false;
+        _warningPercent = Math.Clamp(Preferences.Get<int?>("AgentIsland.alertWarning") ?? 80, 50, 98);
+        _criticalPercent = Math.Clamp(Preferences.Get<int?>("AgentIsland.alertCritical") ?? 95, 51, 99);
         // The two setters enforce warning < critical, but a hand-edited or
         // corrupt settings file can load warning >= critical directly; repair
         // the invariant at load so the alert ladder stays coherent.
@@ -33,7 +33,7 @@ public sealed class AlertThresholdStore : INotifyPropertyChanged
     public bool Enabled
     {
         get => _enabled;
-        set { _enabled = value; Preferences.Set("MacIsland.alertsEnabled", value); Raise(nameof(Enabled)); }
+        set { _enabled = value; Preferences.Set("AgentIsland.alertsEnabled", value); Raise(nameof(Enabled)); }
     }
 
     public int WarningPercent
@@ -42,7 +42,7 @@ public sealed class AlertThresholdStore : INotifyPropertyChanged
         set
         {
             _warningPercent = Math.Clamp(value, 50, Math.Min(98, _criticalPercent - 1));
-            Preferences.Set("MacIsland.alertWarning", _warningPercent);
+            Preferences.Set("AgentIsland.alertWarning", _warningPercent);
             Raise(nameof(WarningPercent));
         }
     }
@@ -53,7 +53,7 @@ public sealed class AlertThresholdStore : INotifyPropertyChanged
         set
         {
             _criticalPercent = Math.Clamp(value, Math.Max(51, _warningPercent + 1), 99);
-            Preferences.Set("MacIsland.alertCritical", _criticalPercent);
+            Preferences.Set("AgentIsland.alertCritical", _criticalPercent);
             Raise(nameof(CriticalPercent));
         }
     }

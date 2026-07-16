@@ -18,6 +18,13 @@ public static class ActivityStateExtensions
     public static bool IsAttentionState(this ActivityState state) => state is
         ActivityState.Stalled or ActivityState.RateLimited or ActivityState.AuthRequired;
 
+    /// Attention states that pulse. AuthRequired is deliberately excluded:
+    /// a login can stay pending for hours, and an endless red blink reads as
+    /// a crash — it gets the static red treatment instead (macOS
+    /// pulsesAttention semantics).
+    public static bool PulsesAttention(this ActivityState state) => state is
+        ActivityState.Stalled or ActivityState.RateLimited;
+
     /// Live activity — a session is running, or something needs you. The
     /// rotating comet sweep spins on these and rests otherwise: Idle and
     /// NeedsYou (finished, waiting for your reply) are steady states where a

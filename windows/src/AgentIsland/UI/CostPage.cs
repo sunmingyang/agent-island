@@ -47,20 +47,28 @@ public sealed class CostPage : Border
         Grid.SetColumn(_codex, 2);
         grid.Children.Add(_codex);
 
+        // Solo split: the absent provider's half carries its nameplate.
+        var claudeBadge = new SoloProviderBadge(Core.TriggerTool.Claude) { Visibility = Visibility.Collapsed };
+        var codexBadge = new SoloProviderBadge(Core.TriggerTool.Codex) { Visibility = Visibility.Collapsed };
+        Grid.SetColumn(claudeBadge, 0);
+        grid.Children.Add(claudeBadge);
+        Grid.SetColumn(codexBadge, 2);
+        grid.Children.Add(codexBadge);
+
         void ApplyVisibility()
         {
             var visibility = Model.ProviderVisibilityStore.Shared;
-            _claude.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
-            _codex.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
-            hairline.Visibility = visibility.ClaudeVisible && visibility.CodexVisible
+            _claude.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
+            _codex.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
+            claudeBadge.Visibility = !visibility.ClaudeShown && visibility.CodexShown
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            // A lone provider takes the full width, like the macOS single
-            // centered column.
-            Grid.SetColumn(_claude, 0);
-            Grid.SetColumnSpan(_claude, visibility.CodexVisible ? 1 : 3);
-            Grid.SetColumn(_codex, visibility.ClaudeVisible ? 2 : 0);
-            Grid.SetColumnSpan(_codex, visibility.ClaudeVisible ? 1 : 3);
+            codexBadge.Visibility = !visibility.CodexShown && visibility.ClaudeShown
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            hairline.Visibility = visibility.ClaudeShown || visibility.CodexShown
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         // PagedContent recreates this page on visibility/screen changes;

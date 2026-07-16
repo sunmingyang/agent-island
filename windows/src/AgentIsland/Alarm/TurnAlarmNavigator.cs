@@ -41,22 +41,11 @@ public static class TurnAlarmNavigator
             // session's own cwd; that user lives in a terminal already.
             if (thread.LaunchTarget == SessionLaunchTarget.ClaudeDesktop)
             {
-                // Opt-in: some people prefer the terminal's exact-conversation
-                // resume over landing in the Desktop app.
-                if (Model.ClaudeJumpPreferenceStore.Shared.PrefersCli)
-                {
-                    return System.Threading.Tasks.Task.Run(() =>
-                    {
-                        if (Trigger.CLILocator.Locate("claude") is { } claudeCli)
-                        {
-                            return RunResumeInTerminal(claudeCli, $"--resume {sessionId}", cwd, "Claude resume");
-                        }
-                        return FocusAppWindow("claude");
-                    });
-                }
-                // Clipboard assist (STA/UI thread required): until Anthropic
-                // unlocks the conversation deep link, finding the thread is
-                // one paste in Claude's search.
+                // The "open via CLI instead" preference is retired (macOS
+                // 1.6.1): desktop sessions always land back in the desktop
+                // app. Clipboard assist (STA/UI thread required): until
+                // Anthropic unlocks the conversation deep link, finding the
+                // thread is one paste in Claude's search.
                 if (!string.IsNullOrEmpty(thread.Label))
                 {
                     try { System.Windows.Clipboard.SetText(thread.Label); } catch { }
@@ -87,17 +76,13 @@ public static class TurnAlarmNavigator
         }
 
         // Codex sessions: the desktop deep link lands on the exact thread in
-        // the app the user is looking at, so it goes FIRST (mirrors macOS).
-        // A user chatting in the Codex desktop app must not get a terminal
-        // popped at them just because the CLI happens to be installed. The
-        // CLI resume is the fallback when no codex:// handler exists.
-        var codexPrefersCli = Model.CodexJumpPreferenceStore.Shared.PrefersCli;
+        // the app the user is looking at, so it goes FIRST (mirrors macOS;
+        // the CLI-first preference is retired). A user chatting in the Codex
+        // desktop app must not get a terminal popped at them just because
+        // the CLI happens to be installed. The CLI resume is the fallback
+        // when no codex:// handler exists.
         return System.Threading.Tasks.Task.Run(() =>
         {
-            if (codexPrefersCli && Trigger.CLILocator.Locate("codex") is { } cliFirst)
-            {
-                return RunResumeInTerminal(cliFirst, $"resume {sessionId}", cwd, "Codex resume");
-            }
             if (TryOpenUri($"codex://threads/{sessionId}"))
             {
                 FocusAppWindow("Codex");   // best effort; the URI already landed

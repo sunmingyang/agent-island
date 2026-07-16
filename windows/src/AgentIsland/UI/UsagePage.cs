@@ -21,6 +21,8 @@ public sealed class UsagePage : Border
     private readonly UIElement _codexBlock;
     private readonly Border _hairline;
     private readonly TextBlock _bothHidden;
+    private readonly SoloProviderBadge _claudeBadge = new(Core.TriggerTool.Claude) { Visibility = Visibility.Collapsed };
+    private readonly SoloProviderBadge _codexBadge = new(Core.TriggerTool.Codex) { Visibility = Visibility.Collapsed };
 
     public UsagePage()
     {
@@ -56,6 +58,13 @@ public sealed class UsagePage : Border
         _codexBlock = MakeBlock(_codexFiveHour, _codexWeekly, extra: null);
         Grid.SetColumn(_codexBlock, 2);
         grid.Children.Add(_codexBlock);
+
+        // Solo split: the absent provider's half carries its nameplate
+        // instead of sitting empty (macOS SoloProviderBadge).
+        Grid.SetColumn(_claudeBadge, 0);
+        grid.Children.Add(_claudeBadge);
+        Grid.SetColumn(_codexBadge, 2);
+        grid.Children.Add(_codexBadge);
 
         _bothHidden = new TextBlock
         {
@@ -132,14 +141,20 @@ public sealed class UsagePage : Border
         var style = StylePreferenceStore.Shared.Style;
         var visibility = Model.ProviderVisibilityStore.Shared;
 
-        // Hidden providers vacate their column; the hairline and both-hidden
-        // placeholder track what's left, mirroring the macOS branches.
-        _claudeBlock.Visibility = visibility.ClaudeVisible ? Visibility.Visible : Visibility.Collapsed;
-        _codexBlock.Visibility = visibility.CodexVisible ? Visibility.Visible : Visibility.Collapsed;
-        _hairline.Visibility = visibility.ClaudeVisible && visibility.CodexVisible
+        // A hidden provider's column shows its nameplate instead of charts
+        // (solo split); the hairline stays whenever both halves have content.
+        _claudeBlock.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
+        _codexBlock.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
+        _claudeBadge.Visibility = !visibility.ClaudeShown && visibility.CodexShown
             ? Visibility.Visible
             : Visibility.Collapsed;
-        _bothHidden.Visibility = !visibility.ClaudeVisible && !visibility.CodexVisible
+        _codexBadge.Visibility = !visibility.CodexShown && visibility.ClaudeShown
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        _hairline.Visibility = visibility.ClaudeShown || visibility.CodexShown
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        _bothHidden.Visibility = !visibility.ClaudeShown && !visibility.CodexShown
             ? Visibility.Visible
             : Visibility.Collapsed;
 
