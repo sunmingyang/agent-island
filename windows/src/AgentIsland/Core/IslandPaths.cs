@@ -37,6 +37,11 @@ public static class IslandPaths
     }
 
     public static string CodexSessionsRoot => Path.Combine(CodexHome, "sessions");
+
+    /// `codex archive` moves a rollout here instead of deleting it — the
+    /// tokens were still spent, so accounting walks both roots.
+    public static string CodexArchivedSessionsRoot => Path.Combine(CodexHome, "archived_sessions");
+
     public static string CodexSessionIndexFile => Path.Combine(CodexHome, "session_index.jsonl");
     public static string CodexAuthFile => Path.Combine(CodexHome, "auth.json");
 

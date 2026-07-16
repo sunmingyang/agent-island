@@ -15,7 +15,7 @@ public enum TokenCountMode
 /// computed every scan, so flipping is instant.
 public sealed class TokenCountModeStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.tokenCountMode";
+    private const string Key = "AgentIsland.tokenCountMode";
 
     public static TokenCountModeStore Shared { get; } = new();
 

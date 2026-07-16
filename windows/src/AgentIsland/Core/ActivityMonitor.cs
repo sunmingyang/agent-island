@@ -109,11 +109,20 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
         _eventStream = stream;
     }
 
+    /// Minimum spacing between event-driven full scans. A marathon session
+    /// (this repo's own development sessions hit 70MB+) writes its
+    /// transcript several times a second, and at the old 0.5s spacing the
+    /// monitor burned ~45% of a core purely on directory enumeration + a
+    /// thousand stats per sweep. 2s keeps the your-turn alarm inside the
+    /// "it just finished" moment (macOS lands at ~1.2s) at a quarter of
+    /// the scan bill; the 6s timer still backstops missed events.
+    private static readonly TimeSpan EventKickSpacing = TimeSpan.FromSeconds(2);
+
     private void EventKick()
     {
         var now = DateTimeOffset.UtcNow;
         var elapsed = now - _lastEventKick;
-        if (elapsed >= TimeSpan.FromSeconds(0.5))
+        if (elapsed >= EventKickSpacing)
         {
             _lastEventKick = now;
             Tick();
@@ -121,7 +130,8 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
         }
         if (_kickPending) return;
         _kickPending = true;
-        var delay = TimeSpan.FromSeconds(Math.Max(0.5 - elapsed.TotalSeconds, 0.05));
+        var delay = TimeSpan.FromSeconds(
+            Math.Max(EventKickSpacing.TotalSeconds - elapsed.TotalSeconds, 0.05));
         var trailing = new DispatcherTimer(DispatcherPriority.Background, _dispatcher!)
         {
             Interval = delay,

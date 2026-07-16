@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using AgentIsland.Core;
 
 namespace AgentIsland.UI;
 
@@ -54,10 +55,8 @@ public sealed class IslandModel : INotifyPropertyChanged
         // The center gap depends on placement (see NotchWidth); re-emit Size
         // so the silhouette re-measures the moment the mode flips.
         Model.IslandPositionStore.Shared.PropertyChanged += (_, _) => Raise(nameof(Size));
-        // Solo centering folds the hidden provider's side into the bar, so
-        // both the visibility switches and the setting itself resize it live.
+        // A provider flip can change the solo split, so the bar reflows live.
         Model.ProviderVisibilityStore.Shared.PropertyChanged += (_, _) => Raise(nameof(Size));
-        Model.SoloCenterStore.Shared.PropertyChanged += (_, _) => Raise(nameof(Size));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -81,7 +80,7 @@ public sealed class IslandModel : INotifyPropertyChanged
         {
             if (_spacingMode == value) return;
             _spacingMode = value;
-            Core.Preferences.Set("MacIsland.spacingMode", value.ToString());
+            Core.Preferences.Set("AgentIsland.spacingMode", value.ToString());
             Raise(nameof(SpacingMode));
             Raise(nameof(Size));
         }
@@ -101,54 +100,43 @@ public sealed class IslandModel : INotifyPropertyChanged
         }
     }
 
-    /// Breathing room around a lone centered logo — replaces the notch gap
-    /// in solo mode (5 DIP each side of the widened tab column).
-    public const double SoloGap = 10;
-
-    /// True when exactly one provider is visible and the user opted into
-    /// collapsing the hidden side (Settings → Display). The lone logo pulls
-    /// to the middle instead of holding the symmetric two-provider layout.
-    /// Windows-only: macOS must stay symmetric around the physical notch.
-    public bool SoloCentering
+    /// The lone visible provider, or null with both (or neither) shown.
+    /// A solo bar keeps the full symmetric width and SPLITS its flanks —
+    /// logo on the provider's side, usage number on the other (macOS
+    /// 9ee4219) — instead of folding the empty half away.
+    public TriggerTool? SoloProvider
     {
         get
         {
-            if (!Model.SoloCenterStore.Shared.Enabled) return false;
             var visibility = Model.ProviderVisibilityStore.Shared;
-            return visibility.ClaudeShown != visibility.CodexShown;
+            return (visibility.ClaudeShown, visibility.CodexShown) switch
+            {
+                (true, false) => TriggerTool.Claude,
+                (false, true) => TriggerTool.Codex,
+                _ => null,
+            };
         }
     }
 
     /// The black center region between the logo tabs. The 200 gap is a notch
     /// lookalike and only makes sense when the bar hugs the top edge like a
     /// Mac menu bar; a floating island has no camera housing to mimic, so it
-    /// tightens to a compact spacer — and with a lone centered provider there
-    /// is no "between" at all, just the solo halo.
-    public double NotchWidth
-    {
-        get
-        {
-            if (SoloCentering) return SoloGap;
-            return Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating
-                ? 64
-                : (_spacingMode == IslandSpacingMode.NotchStyle ? 200 : 100);
-        }
-    }
-
-    /// How many provider sides the bar carries — solo centering folds the
-    /// hidden one away entirely.
-    private double Sides => SoloCentering ? 1 : 2;
+    /// tightens to a compact spacer.
+    public double NotchWidth =>
+        Model.IslandPositionStore.Shared.Placement == Model.IslandPlacement.Floating
+            ? 64
+            : (_spacingMode == IslandSpacingMode.NotchStyle ? 200 : 100);
 
     public Size Size => _state switch
     {
         // "Always show usage" keeps the compact bar at peek width so the
         // percentages have their outboard slots even without a hover.
         IslandState.Compact when AlwaysShowUsageStore.Shared.Enabled =>
-            new Size(NotchWidth + (TabWidth + PillSlotWidth) * Sides, SilhouetteHeight),
-        IslandState.Compact => new Size(NotchWidth + TabWidth * Sides, SilhouetteHeight),
-        IslandState.Peek => new Size(NotchWidth + (TabWidth + PillSlotWidth) * Sides, SilhouetteHeight),
+            new Size(NotchWidth + (TabWidth + PillSlotWidth) * 2, SilhouetteHeight),
+        IslandState.Compact => new Size(NotchWidth + TabWidth * 2, SilhouetteHeight),
+        IslandState.Peek => new Size(NotchWidth + (TabWidth + PillSlotWidth) * 2, SilhouetteHeight),
         IslandState.Expanded => new Size(ExpandedWidth, SilhouetteHeight + _expandedContentHeight),
-        _ => new Size(NotchWidth + TabWidth * Sides, SilhouetteHeight),
+        _ => new Size(NotchWidth + TabWidth * 2, SilhouetteHeight),
     };
 
     /// Re-emit Size when "always show usage" flips so the compact bar

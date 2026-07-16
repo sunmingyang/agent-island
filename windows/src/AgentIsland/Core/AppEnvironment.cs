@@ -8,8 +8,8 @@ public enum AppMode
 }
 
 /// Mode flags resolved once at launch. Demo injects synthetic data for
-/// screenshots and must never fire real resume commands; the legacy
-/// CODEXISLAND_* variables are still accepted as a fallback, matching macOS.
+/// screenshots and must never fire real resume commands. Only AGENTISLAND_*
+/// variables count — the CODEXISLAND_* era ended with 1.7.
 public static class AppEnvironment
 {
     public static AppMode Current { get; } = Resolve();
@@ -19,8 +19,8 @@ public static class AppEnvironment
 
     private static AppMode Resolve()
     {
-        if (Flag("AGENTISLAND_DEMO") || Flag("CODEXISLAND_DEMO")) return AppMode.Demo;
-        if (Flag("AGENTISLAND_DEBUG") || Flag("CODEXISLAND_DEBUG")) return AppMode.Debug;
+        if (Flag("AGENTISLAND_DEMO")) return AppMode.Demo;
+        if (Flag("AGENTISLAND_DEBUG")) return AppMode.Debug;
         return AppMode.Normal;
     }
 

@@ -4,15 +4,15 @@ using AgentIsland.Core;
 
 namespace AgentIsland.Model;
 
-/// Visual effects: Calm (true) rests the steady-state glow — halo and orbit
-/// light only on hover, refresh, or alerts — while Vivid (false) keeps them
-/// always on. The class keeps its historical name because the persisted key
-/// does: existing users' explicit choice must survive the rename to
-/// "Visual effects" (their old Low Power ON reads as Calm, OFF as Vivid).
-/// Alert tints override Calm — a safety signal beats an idle aesthetic.
+/// Visual mode: Vivid (false, the default) keeps the ambient glow and orbit
+/// sweep always on in the chosen glow color; Calm (true) is fully clean —
+/// no ambient light at all, only approaching-limit amber/red and the
+/// attention pulse remain. The class keeps its historical name because the
+/// persisted key does: an explicit choice must survive every rename (old
+/// Low Power ON reads as Calm, OFF as Vivid).
 public sealed class LowPowerModeStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.lowPowerMode";
+    private const string Key = "AgentIsland.lowPowerMode";
 
     public static LowPowerModeStore Shared { get; } = new();
 
@@ -23,10 +23,11 @@ public sealed class LowPowerModeStore : INotifyPropertyChanged
 
     private LowPowerModeStore()
     {
-        // Calm unless the user explicitly chose Vivid: a missing key means
-        // "never touched" and must land on Calm, so read presence (null)
-        // rather than a bool default.
-        _enabled = Preferences.Get<bool?>(Key) ?? true;
+        // Vivid unless the user explicitly chose Calm: a missing key means
+        // "never touched" and lands on the default, so read presence (null)
+        // rather than a bool default. (The default flipped to Vivid with the
+        // 1.7 design review — the glow IS the product's face.)
+        _enabled = Preferences.Get<bool?>(Key) ?? false;
         _systemLowPower = ReadSystemLowPower();
         Microsoft.Win32.SystemEvents.PowerModeChanged += (_, _) =>
         {

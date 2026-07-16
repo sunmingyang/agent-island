@@ -125,6 +125,7 @@ public sealed class CostStore : INotifyPropertyChanged
             hourly, dailySeries,
             new[] { new ModelSpend("claude-fable-5", todayTokens / 3, todayBillable / 3, todayDollars / 3) },
             new[] { new ModelSpend("claude-fable-5", todayTokens, todayBillable, todayDollars) },
+            new[] { new ModelSpend("claude-fable-5", monthTokens, monthBillable, monthDollars) },
             history,
             Array.Empty<string>());
     }

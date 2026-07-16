@@ -15,7 +15,7 @@ public enum CostStyle
 /// CostStylePref.
 public sealed class CostStylePreferenceStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.costStyle";
+    private const string Key = "AgentIsland.costStyle";
 
     public static CostStylePreferenceStore Shared { get; } = new();
 

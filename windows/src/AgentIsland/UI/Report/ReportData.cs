@@ -5,10 +5,14 @@ using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI.Report;
 
+/// One pie slice / legend row of the model breakdown.
+public sealed record ModelShare(
+    string Name, long Tokens, double Dollars, double Percent, Color Color, bool IsOthers = false);
+
 /// The shareable weekly report — assembled from LOCAL data only (CostStore's
 /// log scan). Users copy or save it as a PNG and post it themselves; nothing
 /// is ever uploaded, which is what lets this exist at all under the
-/// no-telemetry promise. Direct port of the macOS WeeklyReportData.
+/// no-telemetry promise.
 public sealed record WeeklyReportData(
     string RangeText,
     long TotalTokens,
@@ -16,24 +20,9 @@ public sealed record WeeklyReportData(
     double ClaudeShare,
     IReadOnlyList<long> DailyTokens,   // oldest → today, exactly 7
     IReadOnlyList<string> DayLetters,
-    IReadOnlyList<WeeklyReportData.ModelShare> TopModels,
-    string? MilestoneText)
+    IReadOnlyList<ModelShare> TopModels,
+    RankInfo? Rank)
 {
-    public sealed record ModelShare(
-        string Name, long Tokens, double Dollars, double Percent, Color Color, bool IsOthers = false);
-
-    // Ranked categorical palette — provider-shaded hues made neighboring
-    // donut segments indistinguishable; the provider still reads from the
-    // model name itself.
-    private static readonly Color[] Palette =
-    {
-        Color.FromRgb(90, 168, 240),   // blue
-        Color.FromRgb(204, 120, 92),   // coral
-        Color.FromRgb(232, 194, 104),  // amber
-        Color.FromRgb(91, 200, 175),   // teal
-        Color.FromRgb(167, 139, 250),  // violet
-    };
-
     public static WeeklyReportData Current()
     {
         var cost = CostStore.Shared;
@@ -48,40 +37,7 @@ public sealed record WeeklyReportData(
 
         var claudeWeek = claudeDaily.Sum();
         var total = claudeWeek + codexDaily.Sum();
-
-        // Rank models by DOLLARS, not billable tokens: the card's story is
-        // "what my week was worth", and token-ranking buried expensive
-        // models. Wire tokens (cache included) — same accounting as the hero
-        // total, so the rows visibly sum toward the headline number.
-        var allSpend = cost.Claude.WeeklyModels.Concat(cost.Codex.WeeklyModels).ToList();
-        var dollars = allSpend.Sum(m => m.Dollars);
-        var dollarUniverse = Math.Max(0.01, dollars);
-        var ranked = allSpend
-            .Select(m => (m.Model, m.Tokens, m.Dollars, Percent: m.Dollars / dollarUniverse))
-            .OrderByDescending(m => m.Percent)
-            .ToList();
-
-        // Top 5 by spend; everything past the fold folds into one dim
-        // "Others" row. ≥0.5% keeps noise rows off.
-        var models = ranked
-            .Where(m => m.Percent >= 0.005)
-            .Take(5)
-            .Select((m, i) => new ModelShare(m.Model, m.Tokens, m.Dollars, m.Percent,
-                Palette[Math.Min(i, Palette.Length - 1)]))
-            .ToList();
-        var shown = models.Select(m => m.Name).ToHashSet(StringComparer.Ordinal);
-        var rest = ranked.Where(m => !shown.Contains(m.Model)).ToList();
-        if (rest.Count > 0)
-        {
-            var restPercent = rest.Sum(m => m.Percent);
-            if (restPercent >= 0.005)
-            {
-                models.Add(new ModelShare(
-                    Localization.L10n.Tr("Others"),
-                    rest.Sum(m => m.Tokens), rest.Sum(m => m.Dollars), restPercent,
-                    Color.FromRgb(0x6B, 0x6B, 0x6B), IsOthers: true));
-            }
-        }
+        var dollars = cost.Claude.WeeklyModels.Concat(cost.Codex.WeeklyModels).Sum(m => m.Dollars);
 
         // The card follows the app language — a card destined for WeChat
         // groups must read Chinese when the UI is Chinese.
@@ -104,25 +60,22 @@ public sealed record WeeklyReportData(
             total > 0 ? (double)claudeWeek / total : 0,
             daily,
             letters,
-            models,
-            ReportFormat.MilestoneText(cost));
+            // v3 weekly pie: TOP 3 + Others.
+            ReportFormat.BuildTopModels(
+                cost.Claude.WeeklyModels.Concat(cost.Codex.WeeklyModels), top: 3),
+            ReportFormat.Rank(cost));
     }
 }
 
-/// The monthly share card — the weekly card's big sibling: this month's
-/// totals up top, and a 24-week activity heatmap (the streak brag) as the
-/// centerpiece. Same no-upload rules. Port of the macOS MonthlyReportData.
+/// The monthly share card — v3 drops the heatmap; the month's model mix
+/// (TOP 5 pie) is the centerpiece under the faceoff bar.
 public sealed record MonthlyReportData(
     string MonthText,
     long TotalTokens,
     double TotalDollars,
     double ClaudeShare,
-    IReadOnlyList<IReadOnlyList<int>> Heat,   // [week][row Mon→Sun]; -1 outside, 0..4 intensity
-    int WeeksCount,
-    int StreakDays,
-    int ActiveDays,
-    string PeakText,
-    string? MilestoneText)
+    IReadOnlyList<ModelShare> TopModels,
+    RankInfo? Rank)
 {
     public static MonthlyReportData Current()
     {
@@ -130,100 +83,111 @@ public sealed record MonthlyReportData(
         var today = DateTime.Today;
         var zh = ReportFormat.IsChinese;
 
-        // Merge both providers' daily buckets into one map.
-        var daily = new Dictionary<DateTime, long>();
-        foreach (var bucket in cost.Claude.DailyHistory.Concat(cost.Codex.DailyHistory))
-        {
-            var day = bucket.DayStart.Date;
-            daily[day] = daily.GetValueOrDefault(day) + bucket.Tokens;
-        }
-        var firstDataDay = daily.Count > 0 ? daily.Keys.Min() : today;
-
         var totalTokens = cost.Claude.MonthTokens + cost.Codex.MonthTokens;
         var totalDollars = cost.Claude.MonthDollars + cost.Codex.MonthDollars;
         var claudeShare = totalTokens > 0 ? (double)cost.Claude.MonthTokens / totalTokens : 0;
-
-        // 24 heat weeks ending with the current (Monday-started) week.
-        const int weeks = 24;
-        var sinceMonday = ((int)today.DayOfWeek + 6) % 7;
-        var gridStart = today.AddDays(-sinceMonday).AddDays(-7 * (weeks - 1));
-
-        // Quartile levels over the window's nonzero days (GitHub-style) — a
-        // linear scale would flatline everything next to a 3.5B peak day.
-        var windowValues = new List<long>();
-        for (var day = gridStart; day <= today; day = day.AddDays(1))
-        {
-            var v = daily.GetValueOrDefault(day);
-            if (v > 0) windowValues.Add(v);
-        }
-        var sorted = windowValues.OrderBy(v => v).ToArray();
-        long Quartile(double q) =>
-            sorted.Length == 0 ? 1 : sorted[Math.Min(sorted.Length - 1, (int)(q * sorted.Length))];
-        var q1 = Quartile(0.25);
-        var q2 = Quartile(0.5);
-        var q3 = Quartile(0.75);
-        int Level(long v) => v <= 0 ? 0 : v < q1 ? 1 : v < q2 ? 2 : v < q3 ? 3 : 4;
-
-        var heat = new List<IReadOnlyList<int>>(weeks);
-        for (var col = 0; col < weeks; col++)
-        {
-            var column = new int[7];
-            for (var row = 0; row < 7; row++)
-            {
-                var d = gridStart.AddDays(col * 7 + row);
-                column[row] = d > today || d < firstDataDay ? -1 : Level(daily.GetValueOrDefault(d));
-            }
-            heat.Add(column);
-        }
-
-        // Current streak: consecutive active days ending today (or yesterday
-        // when today hasn't logged anything yet — don't zero the brag at 9am).
-        var streak = 0;
-        var cursor = daily.GetValueOrDefault(today) > 0 ? today : today.AddDays(-1);
-        while (daily.GetValueOrDefault(cursor) > 0)
-        {
-            streak++;
-            cursor = cursor.AddDays(-1);
-        }
-
-        var peak = windowValues.Count > 0 ? windowValues.Max() : 0;
 
         return new MonthlyReportData(
             zh ? $"{today:yyyy年M月}" : today.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
             totalTokens,
             totalDollars,
             claudeShare,
-            heat,
-            weeks,
-            streak,
-            windowValues.Count,
-            ReportFormat.CompactString(peak, zh),
-            ReportFormat.MilestoneText(cost));
+            ReportFormat.BuildTopModels(
+                cost.Claude.MonthModels.Concat(cost.Codex.MonthModels), top: 5),
+            ReportFormat.Rank(cost));
     }
 }
+
+/// The rank footer's raw parts: lifetime total plus the earned tier.
+public sealed record RankInfo(long LifetimeTokens, string TierEmoji, string TierName);
 
 /// Shared number/caption formatting for both cards.
 public static class ReportFormat
 {
     public static bool IsChinese => Localization.L10n.IsChinese;
 
-    /// "🏆 岛主段位 · 累计 227亿 Token" — recognition rides the card itself;
-    /// null until the first tier (100M lifetime) is crossed. Lifetime is the
-    /// full local history CostStore holds, matching the macOS accounting.
-    public static string? MilestoneText(CostStore cost)
+    // Ranked categorical palette — provider-shaded hues made neighboring
+    // pie slices indistinguishable; the provider still reads from the
+    // model name itself.
+    private static readonly Color[] Palette =
+    {
+        Color.FromRgb(90, 168, 240),   // blue
+        Color.FromRgb(204, 120, 92),   // coral
+        Color.FromRgb(232, 194, 104),  // amber
+        Color.FromRgb(91, 200, 175),   // teal
+        Color.FromRgb(167, 139, 250),  // violet
+    };
+
+    /// Rank models by DOLLARS: the card's story is "what my period was
+    /// worth", and token-ranking buried expensive models. Wire tokens
+    /// (cache included) — same accounting as the hero total, so the rows
+    /// visibly sum toward the headline number. Top N + a dim "Others".
+    public static IReadOnlyList<ModelShare> BuildTopModels(IEnumerable<ModelSpend> spend, int top)
+    {
+        var all = spend.ToList();
+        var dollarUniverse = Math.Max(0.01, all.Sum(m => m.Dollars));
+        var ranked = all
+            .Select(m => (m.Model, m.Tokens, m.Dollars, Percent: m.Dollars / dollarUniverse))
+            .OrderByDescending(m => m.Percent)
+            .ToList();
+
+        var models = ranked
+            .Where(m => m.Percent >= 0.005)
+            .Take(top)
+            .Select((m, i) => new ModelShare(m.Model, m.Tokens, m.Dollars, m.Percent,
+                Palette[Math.Min(i, Palette.Length - 1)]))
+            .ToList();
+        var shown = models.Select(m => m.Name).ToHashSet(StringComparer.Ordinal);
+        var rest = ranked.Where(m => !shown.Contains(m.Model)).ToList();
+        if (rest.Count > 0)
+        {
+            var restPercent = rest.Sum(m => m.Percent);
+            if (restPercent >= 0.005)
+            {
+                models.Add(new ModelShare(
+                    Localization.L10n.Tr("Others"),
+                    rest.Sum(m => m.Tokens), rest.Sum(m => m.Dollars), restPercent,
+                    Color.FromRgb(0x6B, 0x6B, 0x6B), IsOthers: true));
+            }
+        }
+        return models;
+    }
+
+    /// Lifetime total + earned tier for the rank footer; null until the
+    /// first tier (100M lifetime) is crossed. Lifetime is the full local
+    /// history CostStore holds, matching the macOS accounting.
+    public static RankInfo? Rank(CostStore cost)
     {
         var lifetime = cost.Claude.DailyHistory.Concat(cost.Codex.DailyHistory).Sum(b => b.Tokens);
         if (Model.MilestoneLadder.TokenTier(lifetime) is not { } tier) return null;
-        return tier.Emoji + " " + Localization.L10n.TrFormat(
-            "{0} rank · lifetime {1} tokens",
-            Localization.L10n.Tr(tier.NameKey),
-            CompactString(lifetime, IsChinese));
+        return new RankInfo(lifetime, tier.Emoji, Localization.L10n.Tr(tier.NameKey));
     }
 
     public static string CompactString(long n, bool zh)
     {
         var (value, unit) = CompactParts(n, zh);
         return value + unit;
+    }
+
+    /// Share-card display names: "claude-fable-5" reads like log spam next
+    /// to a gold rank line — the cards print "Fable 5", "Opus 4.8",
+    /// "GPT-5.6-sol" (macOS v3 lock). Unknown shapes pass through.
+    public static string DisplayModelName(string raw)
+    {
+        if (raw.StartsWith("gpt-", StringComparison.OrdinalIgnoreCase))
+        {
+            return "GPT-" + raw[4..];
+        }
+        if (raw.StartsWith("claude-", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = raw[7..].Split('-');
+            if (parts.Length >= 2 && parts.Skip(1).All(p => p.All(char.IsDigit)))
+            {
+                var family = char.ToUpperInvariant(parts[0][0]) + parts[0][1..];
+                return family + " " + string.Join('.', parts.Skip(1));
+            }
+        }
+        return raw;
     }
 
     /// (value, unit). Chinese counts in 亿/万 — the way the number is

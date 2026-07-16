@@ -26,12 +26,13 @@
                 BorderThickness="4"
                 IsHitTestVisible="False">
             <Border.Effect>
-                <!-- macOS feathers the comet by blurring the stroke MASK with
-                     blur(radius: 3) — a gaussian sigma. WPF BlurEffect.Radius is
-                     the kernel extent (~3x sigma, the same rule P15 applied to
-                     the Halo), so Radius 3 rendered a hard comet rim; 9 restores
-                     the soft feather. Quality bias avoids banding in the tail. -->
-                <BlurEffect Radius="9" RenderingBias="Quality"/>
+                <!-- macOS feathers the comet by blurring the stroke mask.
+                     The gaussian re-runs on every 15fps sweep step, so the
+                     kernel stays small and the bias fast: radius 5 at
+                     Performance costs ~3% of a core and still melts the
+                     stroke's hard rim (9/Quality read better but billed
+                     8%). -->
+                <BlurEffect Radius="5" RenderingBias="Performance"/>
             </Border.Effect>
         </Border>
         <Border x:Name="Silhouette"

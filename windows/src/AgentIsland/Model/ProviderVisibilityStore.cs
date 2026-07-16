@@ -14,8 +14,8 @@ namespace AgentIsland.Model;
 /// detection stops second-guessing that provider.
 public sealed class ProviderVisibilityStore : INotifyPropertyChanged
 {
-    private const string ClaudeTouchedKey = "MacIsland.claudeVisibleTouched";
-    private const string CodexTouchedKey = "MacIsland.codexVisibleTouched";
+    private const string ClaudeTouchedKey = "AgentIsland.claudeVisibleTouched";
+    private const string CodexTouchedKey = "AgentIsland.codexVisibleTouched";
 
     public static ProviderVisibilityStore Shared { get; } = new();
 
@@ -26,8 +26,8 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
 
     private ProviderVisibilityStore()
     {
-        _claudeVisible = Preferences.Get<bool?>("MacIsland.claudeVisible") ?? true;
-        _codexVisible = Preferences.Get<bool?>("MacIsland.codexVisible") ?? true;
+        _claudeVisible = Preferences.Get<bool?>("AgentIsland.claudeVisible") ?? true;
+        _codexVisible = Preferences.Get<bool?>("AgentIsland.codexVisible") ?? true;
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         ClaudeDetected = HasDir(home, ".claude") || HasDir(home, ".config", "claude");
         CodexDetected = HasDir(home, ".codex");
@@ -43,7 +43,7 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
         set
         {
             _claudeVisible = value;
-            Preferences.Set("MacIsland.claudeVisible", value);
+            Preferences.Set("AgentIsland.claudeVisible", value);
             Preferences.Set(ClaudeTouchedKey, true);
             Raise(nameof(ClaudeVisible));
             Raise(nameof(ClaudeShown));
@@ -56,7 +56,7 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
         set
         {
             _codexVisible = value;
-            Preferences.Set("MacIsland.codexVisible", value);
+            Preferences.Set("AgentIsland.codexVisible", value);
             Preferences.Set(CodexTouchedKey, true);
             Raise(nameof(CodexVisible));
             Raise(nameof(CodexShown));

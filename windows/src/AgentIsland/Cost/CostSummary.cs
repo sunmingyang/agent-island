@@ -16,13 +16,14 @@ public sealed record ProviderCostSummary(
     IReadOnlyList<double> MonthCumulativeDollars,     // one per day of month
     IReadOnlyList<ModelSpend> RecentModels,           // rolling 5h, billable desc
     IReadOnlyList<ModelSpend> WeeklyModels,           // rolling 7d, billable desc
+    IReadOnlyList<ModelSpend> MonthModels,            // calendar month, billable desc
     IReadOnlyList<DailyTokenBucket> DailyHistory,     // Jan 1 -> today
     IReadOnlyList<string> UnknownModels)
 {
     public static ProviderCostSummary Empty { get; } = new(
         0, 0, 0, 0, 0, 0,
         new double[24], Array.Empty<double>(),
-        Array.Empty<ModelSpend>(), Array.Empty<ModelSpend>(),
+        Array.Empty<ModelSpend>(), Array.Empty<ModelSpend>(), Array.Empty<ModelSpend>(),
         Array.Empty<DailyTokenBucket>(), Array.Empty<string>());
 }
 
@@ -49,6 +50,7 @@ public static class CostSummarizer
         var daily = new double[DateTime.DaysInMonth(now.Year, now.Month)];
         var recent = new Dictionary<string, (long Tokens, long Billable, double Dollars)>(StringComparer.OrdinalIgnoreCase);
         var weekly = new Dictionary<string, (long Tokens, long Billable, double Dollars)>(StringComparer.OrdinalIgnoreCase);
+        var month = new Dictionary<string, (long Tokens, long Billable, double Dollars)>(StringComparer.OrdinalIgnoreCase);
         var history = new Dictionary<DateTime, (long Tokens, long Billable, double Dollars)>();
         var unknown = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -73,6 +75,7 @@ public static class CostSummarizer
                 monthTokens += tokenEvent.WireTokens;
                 monthBillable += tokenEvent.BillableTokens;
                 daily[Math.Clamp(local.Day - 1, 0, daily.Length - 1)] += dollars;
+                Accumulate(month, model, tokenEvent, dollars);
             }
             if (local >= fiveHoursAgo) Accumulate(recent, model, tokenEvent, dollars);
             if (local >= sevenDaysAgo) Accumulate(weekly, model, tokenEvent, dollars);
@@ -111,7 +114,7 @@ public static class CostSummarizer
             todayDollars, todayTokens, todayBillable,
             monthDollars, monthTokens, monthBillable,
             todaySeries, monthSeries,
-            ToSpendList(recent), ToSpendList(weekly),
+            ToSpendList(recent), ToSpendList(weekly), ToSpendList(month),
             dailyHistory, unknown.ToList());
     }
 

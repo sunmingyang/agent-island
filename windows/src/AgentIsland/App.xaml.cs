@@ -51,6 +51,9 @@ public partial class App : System.Windows.Application
             return;
         }
         InstallCrashLogger();
+        // Before any store singleton reads a key: settings written by pre-1.7
+        // builds carry the MacIsland.* prefix and must land on AgentIsland.*.
+        Core.Preferences.MigrateLegacyPrefix();
         Model.AppLanguageStore.ApplyAtStartup();
 
         if (AppEnvironment.IsDemo)
@@ -99,22 +102,44 @@ public partial class App : System.Windows.Application
         }
 
         // Headless card renders for tooling/screenshots, mirroring macOS.
+        // Data-driven, not a fixed delay: a cache-version bump forces a full
+        // rescan that can take well past any polite sleep (a 5s beat wrote
+        // all-zero cards the day the Codex cache went v2). Render on the
+        // first completed scan; a 90s failsafe keeps a wedged scan from
+        // leaving the process running forever.
         if (!string.IsNullOrEmpty(reportSnapshot) || !string.IsNullOrEmpty(monthlySnapshot))
         {
-            var snapshotDelay = new System.Windows.Threading.DispatcherTimer
+            var rendered = false;
+            void RenderAndQuit()
             {
-                Interval = TimeSpan.FromSeconds(5), // the cost scan needs a beat
-            };
-            snapshotDelay.Tick += (_, _) =>
-            {
-                snapshotDelay.Stop();
+                if (rendered) return;
+                rendered = true;
                 if (!string.IsNullOrEmpty(reportSnapshot))
                     UI.Report.ReportWindow.WritePng(UI.Report.ReportWindow.Kind.Weekly, reportSnapshot!);
                 if (!string.IsNullOrEmpty(monthlySnapshot))
                     UI.Report.ReportWindow.WritePng(UI.Report.ReportWindow.Kind.Monthly, monthlySnapshot!);
                 Shutdown();
-            };
-            snapshotDelay.Start();
+            }
+            if (Cost.CostStore.Shared.LastUpdated is not null)
+            {
+                RenderAndQuit();
+            }
+            else
+            {
+                Cost.CostStore.Shared.PropertyChanged += (_, args) =>
+                {
+                    if (args.PropertyName == nameof(Cost.CostStore.LastUpdated))
+                    {
+                        Dispatcher.BeginInvoke(RenderAndQuit);
+                    }
+                };
+                var failsafe = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(90),
+                };
+                failsafe.Tick += (_, _) => { failsafe.Stop(); RenderAndQuit(); };
+                failsafe.Start();
+            }
         }
 
         // Scripted-verification hooks, mirroring the demo-only buttons on

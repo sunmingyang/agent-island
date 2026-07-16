@@ -30,6 +30,11 @@ public sealed class UpdateChecker
         "https://github.com/tristan666666/agent-island/releases/latest";
     private const string AutoCheckKey = "AgentIsland.autoCheckUpdates";
     private const string DismissedKey = "AgentIsland.dismissedUpdateVersion";
+    private const string DismissedAtKey = "AgentIsland.dismissedUpdateAt";
+
+    /// "Got it" quiets that version for a week, not forever — a release the
+    /// user shrugged off in a busy moment resurfaces once.
+    private static readonly TimeSpan DismissalWindow = TimeSpan.FromDays(7);
 
     private DispatcherTimer? _timer;
     private bool _checking;
@@ -58,11 +63,13 @@ public sealed class UpdateChecker
 
     public void Start()
     {
+        // Demo and debug instances exist for screenshots and scripted runs —
+        // an update nudge mid-recording is never welcome.
         if (AppEnvironment.Current != AppMode.Normal) return;
-        // First check ~30s after launch (startup shouldn't race the network),
-        // then daily. The toggle is honored at fire time, so flipping it off
-        // takes effect without a restart.
-        var initial = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        // First check ~20s after launch (startup shouldn't race the network),
+        // then every 6 hours (macOS cadence). The toggle is honored at fire
+        // time, so flipping it off takes effect without a restart.
+        var initial = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
         initial.Tick += (_, _) =>
         {
             initial.Stop();
@@ -72,7 +79,7 @@ public sealed class UpdateChecker
 
         _timer = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromHours(24),
+            Interval = TimeSpan.FromHours(6),
         };
         _timer.Tick += (_, _) =>
         {
@@ -83,6 +90,20 @@ public sealed class UpdateChecker
 
     private static bool AutoCheckEnabled =>
         Preferences.Get<bool?>(AutoCheckKey) ?? true;
+
+    private static void Dismiss(string tag)
+    {
+        Preferences.Set(DismissedKey, tag);
+        Preferences.Set(DismissedAtKey, DateTimeOffset.Now.ToString("o"));
+    }
+
+    private static bool IsDismissed(string tag)
+    {
+        if (Preferences.Get<string?>(DismissedKey) != tag) return false;
+        var at = Preferences.Get<string?>(DismissedAtKey);
+        if (at is null || !DateTimeOffset.TryParse(at, out var when)) return false;
+        return DateTimeOffset.Now - when < DismissalWindow;
+    }
 
     /// "Check now" and the background timer share this. User-initiated checks
     /// always report an outcome (latest / newer / failed); background checks
@@ -125,16 +146,17 @@ public sealed class UpdateChecker
                 return;
             }
 
-            // Background checks respect "already told you about this one".
-            var dismissed = Preferences.Get<string?>(DismissedKey);
-            if (!userInitiated && dismissed == found.Tag)
+            // Background checks respect "you said Later" — for 7 days per
+            // version. Only the button writes the dismissal (macOS nudge
+            // semantics); merely showing the dialog doesn't, so a prompt
+            // lost to a reboot comes straight back.
+            if (!userInitiated && IsDismissed(found.Tag))
             {
                 LastOutcome = $"dismissed({found.Tag})";
                 return;
             }
 
             LastOutcome = $"prompt({found.Tag}, asset={found.AssetName ?? "none"})";
-            Preferences.Set(DismissedKey, found.Tag);
 
             // Scripted verification: skip the prompt and run the install.
             if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_UPDATE_AUTO") == "1")
@@ -150,7 +172,8 @@ public sealed class UpdateChecker
                     Localization.L10n.Tr("The update downloads in the background, then Agent Island relaunches on the new version."),
                     primaryLabel: Localization.L10n.Tr("Update & Relaunch"),
                     primaryAction: () => _ = UpdateInstaller.RunAsync(found),
-                    secondaryLabel: Localization.L10n.Tr("Later"));
+                    secondaryLabel: Localization.L10n.Tr("Later"),
+                    secondaryAction: () => Dismiss(found.Tag));
             }
             else
             {
@@ -162,7 +185,8 @@ public sealed class UpdateChecker
                     Localization.L10n.Tr("A new version is ready on GitHub Releases. The download is a zip — unpack and replace the app."),
                     primaryLabel: Localization.L10n.Tr("Download"),
                     primaryAction: OpenReleasesPage,
-                    secondaryLabel: Localization.L10n.Tr("Later"));
+                    secondaryLabel: Localization.L10n.Tr("Later"),
+                    secondaryAction: () => Dismiss(found.Tag));
             }
         }
         finally

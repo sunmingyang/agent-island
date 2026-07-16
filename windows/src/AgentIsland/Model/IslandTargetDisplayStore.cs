@@ -7,7 +7,7 @@ namespace AgentIsland.Model;
 /// display by device name, falling back to Auto when it's unplugged.
 public sealed class IslandTargetDisplayStore : INotifyPropertyChanged
 {
-    private const string Key = "MacIsland.targetDisplay";
+    private const string Key = "AgentIsland.targetDisplay";
 
     public static IslandTargetDisplayStore Shared { get; } = new();
 

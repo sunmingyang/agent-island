@@ -2,7 +2,24 @@
 
 A working inventory of where `windows/` stands against the macOS app.
 Kept as a living doc so contributors can pick gaps off the list.
-Last full alignment pass: macOS `main` @ `8e22db6` (2026-07-16).
+Last full alignment pass: macOS `main` @ `e0c16e1` (2026-07-16, post-v1.6.1
+sweep).
+
+## Aligned to e0c16e1 (2026-07-16 pass, P23)
+
+| macOS change | Windows landing |
+|---|---|
+| Vivid default + Calm fully clean (`9ee4219`) | `LowPowerModeStore`: missing key now lands on Vivid; explicit choices survive. Calm kills ALL ambient light (halo, sweep, the old hover/refresh glow events are deleted as a concept); alert tints and attention pulses stay. The system battery saver still forces Calm via `EffectiveEnabled`. The orbit sweep now runs CONTINUOUSLY under Vivid (macOS semantics), tinted by the glow color. |
+| Glow color choice (`ccb6e44`) | `Model/GlowColorStore.cs` — teal (default) / cobalt #0047AB / violet #8A63FF / silver #C7D3DF, key `AgentIsland.glowColor`. Halo + sweep only; amber/red override. Settings row "Glow color" renders 13px swatches (white ring + self-colored halo on the pick) and lives under Vivid only, keyed on the user choice so the battery saver never hides it. Row "Visual effects" renamed "Visual mode". |
+| Solo split, collapsed bar (`9ee4219`) | The bar keeps full symmetric width; the lone logo moves into the OUTER slot on its side (14pt off the edge) and its usage pill crosses to the opposite flank (`ApplySoloSplit`). The Windows-only "center when solo" toggle is retired (`SoloCenterStore` deleted; `AgentIsland.centerWhenSolo` orphaned on disk, harmless). |
+| Solo badge, expanded panel (`ccb6e44`) | `UI/SoloProviderBadge.cs`: 30px bare mark + provider name fills the freed half on both usage and cost pages. Windows never had the per-model table, so "BY MODEL removed" was already true; the badge is the forward half of that change. |
+| Status guide demos (`ccb6e44`) | All three rows use the symmetric mark: spinning (via ProviderLogo working), steady + 11px bell badge (bottom-trailing, dark puck, teal bell), pulsing red (via Stalled — authRequired itself is steady-red since P22). Bell-in-a-box deleted. |
+| Frontmost alarm hold (`ccb6e44`) | `Alarm/AgentHostAppResolver.cs`: Toolhelp32 snapshot → CLI candidates (claude/codex/node/bun) → PEB read for each candidate's cwd → parent chain (≤24 hops, create-time guard against PID reuse) → foreground window's PID on the chain ⇒ hold. Held alarms re-check on every `EVENT_SYSTEM_FOREGROUND` (the `didActivateApplication` analog) and fire the moment the host loses focus with the turn still open. Unresolvable hosts fail open. |
+| Update nudge (`ccb6e44`) | UpdateChecker cadence 20s + 6h (was 30s + 24h); "Later" now snoozes per-version for 7 days (was: shown-once-forever, written before the user even chose). Windows keeps its stronger in-app download-and-relaunch as the primary button. Demo/debug instances never check. |
+| Codex accounting (`cf3fb8a`) | Replay guard on `total_token_usage` (input,output) pairs — unchanged pair = replayed delta, skipped; shrinking totals (compact reset) still count. `archived_sessions` joins the scan roots. Parse cache bumped to v2. |
+| security watchdog (`e0c16e1`) | Not applicable: Windows reads credentials from files directly — there is no external subprocess on any data path (verified: zero `WaitForExit`/stdout-capture call sites). The macOS lesson's Windows shadow (multi-MB log lines ballooning scans) is covered by pre-parse line-length skips in both log readers. |
+| Pref prefix migration (`ccb6e44`) | `Preferences.MigrateLegacyPrefix()` at startup: wildcard `MacIsland.*` → `AgentIsland.*`, copy-if-absent then delete, before any store singleton reads. All 26 code constants renamed. `CODEXISLAND_*` env fallbacks removed — `AGENTISLAND_*` only. |
+| Report cards v3 (locked spec; NOT yet on macOS main) | Windows ships the layout first: flat #0D0F13, no gradients/auras; app mark on the wordmark line; hero value line baseline-aligned with the big number; faceoff beam (official marks at the ends, share-split beams, white spark, 144px art slot above); weekly 7-day bars with teal peak + value caption and a TOP-3 pie; monthly TOP-5 pie (heatmap retired); bare rank footer (lifetime line + gold congratulations, 42px tier name zh / 30px en). Character art lands when macOS supplies the assets. |
 
 ## Positioning: how the two platforms differ
 
@@ -64,6 +81,14 @@ store changes (`UI/IslandWindow.xaml.cs`, `PositionOnScreen` /
   single-window Settings subtitle, and the jump-picker removal ("Open
   threads via" rows still exist on Windows). The `network drop` L10n key
   is already in place for when the retry lands.
+- **Report-card character art.** The v3 layout reserves 144px above the
+  faceoff beam; the art assets come from the macOS side and drop in when
+  supplied.
+- **One card style for alarm + report windows.** macOS unified them on
+  26pt corners and one near-black; the Windows turn-alarm window still
+  uses its own chrome.
+- **Interface scale (`1f97e4d`).** macOS grew a 100–150% dial for
+  notchless screens; Windows relies on system DPI scaling.
 - **Header wordmark tracking.** macOS letter-spaces AGENT ISLAND
   WEEKLY/MONTHLY at `tracking(3.2)`; WPF TextBlock has no letter-spacing
   property, so the wordmark runs at natural spacing.

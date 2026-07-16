@@ -32,6 +32,10 @@ public static class ClaudeLogReader
         {
             foreach (var line in File.ReadLines(path))
             {
+                // A pathological multi-MB line (an embedded payload) can't be
+                // a usage event; skip before parsing so it never balloons
+                // peak memory (the macOS 64 MiB backstop's job, done harder).
+                if (line.Length > 1_000_000) continue;
                 using var doc = Jsonl.TryParseLine(line);
                 if (doc is null) continue;
                 var root = doc.RootElement;
