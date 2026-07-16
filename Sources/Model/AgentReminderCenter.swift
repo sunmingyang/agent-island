@@ -44,12 +44,15 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         // Held alarms fire the moment the hosting app stops being frontmost —
         // switching away from the session is exactly the moment "it's your
         // turn" becomes news the user can miss.
+        // Singleton call, not a `self` capture: CI's older compiler rejects
+        // a captured weak `self` referenced inside the @MainActor Task
+        // ("reference to captured var 'self' in concurrently-executing code").
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.releaseHeldAlarms() }
+        ) { _ in
+            Task { @MainActor in AgentReminderCenter.shared.releaseHeldAlarms() }
         }
     }
 
