@@ -4,7 +4,7 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
-## [Unreleased]
+## [1.7.1] - 2026-07-16
 
 First pass on the external design review (2026-07-15): craft and restraint.
 
