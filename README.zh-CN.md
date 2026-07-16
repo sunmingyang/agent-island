@@ -122,6 +122,8 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 
 <img src="Assets/agent-island-bar-alert.png" alt="macOS 顶部条中的异常注意状态" width="760">
 
+岛的环境光由你决定：**流光**（默认）让光晕与环绕流光以你选的颜色常亮——青、钴蓝、紫、银白；**清爽**则完全熄灯，只保留接近上限时的琥珀/红色警示。单订阅的机器有专属分边布局：岛的一端是所属 logo，另一端是实时数字。
+
 ### 轮到你闹钟
 
 后台一轮任务结束后，Agent Island 可以显示闹钟窗口、发送系统通知并播放提示音。多个已完成任务会排队，而不是相互覆盖；回复对应会话后，相应提醒会消失。
@@ -141,12 +143,12 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 
 ### 周报与月报卡片
 
-在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、Claude/Codex 占比、7 天柱状图（周报）或 24 周活跃热力图与连续天数（月报）、TOP 模型环形分布、岛民段位。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
+在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、Claude 对 Codex 的阵营对决（火花停在真实占比分割点，占比高的一方戴上王冠）、7 天柱状图 + TOP 3 模型环形图（周报）或 TOP 5 环形图（月报），底部以岛民段位收尾。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
 
 <table>
   <tr>
-    <td align="center"><img src="Assets/report-weekly-zh.webp" alt="周报卡片（演示数据）：Token 总量、API 费用换算、模型环形图、岛民段位" width="420"></td>
-    <td align="center"><img src="Assets/report-monthly-zh.webp" alt="月报卡片（演示数据）：24 周热力图、连续天数、岛民段位" width="420"></td>
+    <td align="center"><img src="Assets/report-weekly-zh.webp" alt="周报卡片（演示数据）：Token 总量、API 费用换算、阵营对决、模型环形图、岛民段位" width="420"></td>
+    <td align="center"><img src="Assets/report-monthly-zh.webp" alt="月报卡片（演示数据）：Token 总量、阵营对决、TOP 5 模型环形图、岛民段位" width="420"></td>
   </tr>
 </table>
 

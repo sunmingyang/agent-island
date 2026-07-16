@@ -122,6 +122,8 @@ Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activi
 
 <img src="Assets/agent-island-bar-alert.png" alt="Agent Island showing an attention state in the macOS top bar" width="760">
 
+The island's ambient light is yours to tune: **Vivid** (the default) keeps a soft halo and orbit sweep running in your chosen glow color — teal, cobalt, violet, or silver — while **Calm** goes fully dark and saves the amber/red tint for approaching-limit alerts. Machines with a single subscription get a dedicated split layout: the provider's mark on one flank of the island, the live number on the other.
+
 ### It's-your-turn clock
 
 When a background turn finishes, Agent Island can show an alarm window, send a system notification, and play a sound. Multiple completed turns queue instead of replacing one another, and responding clears the corresponding reminder.
@@ -141,12 +143,12 @@ Swipe through local usage and cost views for Claude and Codex. Provider usage da
 
 ### Weekly & monthly report cards
 
-Shareable cards rendered locally: total tokens with an ≈ API value line, the Claude/Codex split, 7-day bars (weekly) or a 24-week activity heatmap with your streak (monthly), a TOP model breakdown, and your island rank. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
+Shareable cards rendered locally: total tokens with an ≈ API value line, a Claude-vs-Codex faction duel whose clash sits exactly at your usage split (the leading side wins the crown), 7-day bars with a TOP-3 model donut (weekly) or a TOP-5 donut (monthly), and your island rank as the closing line. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
 
 <table>
   <tr>
-    <td align="center"><img src="Assets/report-weekly-en.webp" alt="Weekly report card with demo data: tokens, API value, provider split, model donut, island rank" width="420"></td>
-    <td align="center"><img src="Assets/report-monthly-en.webp" alt="Monthly report card with demo data: 24-week heatmap, streak, island rank" width="420"></td>
+    <td align="center"><img src="Assets/report-weekly-en.webp" alt="Weekly report card with demo data: tokens, API value, faction duel, model donut, island rank" width="420"></td>
+    <td align="center"><img src="Assets/report-monthly-en.webp" alt="Monthly report card with demo data: tokens, faction duel, TOP-5 model donut, island rank" width="420"></td>
   </tr>
 </table>
 
