@@ -10,6 +10,7 @@ Agent Island is focused on one job first: keep Claude Code and Codex status visi
 - Live provider logo states: working, idle, your turn, and needs attention.
 - Claude and Codex usage, reset windows, and cost pages — plus Codex reset-card tracking.
 - Weekly & monthly report cards with island ranks: your tokens, API value, and model mix as a shareable image, rendered locally.
+- Visual modes with glow color choices, plus a solo layout for single-subscription machines.
 - English and Simplified Chinese.
 - Notch-style and compact top-bar layouts, so both notched and non-notched Macs can use it.
 
