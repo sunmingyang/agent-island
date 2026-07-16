@@ -14,6 +14,7 @@ public sealed class ChartStylePickerControl : Grid
 {
     private static readonly Color SelectionBlue = Color.FromRgb(0x2E, 0x7C, 0xF6);
     private readonly List<Border> _tiles = new();
+    private readonly List<TextBlock> _labels = new();
 
     public event Action<ChartStyle>? StyleSelected;
 
@@ -45,7 +46,7 @@ public sealed class ChartStylePickerControl : Grid
         var preview = new Grid { Height = 40, Width = 72, Margin = new Thickness(0, 0, 0, 10) };
         preview.Children.Add(MakePreview(style));
         stack.Children.Add(preview);
-        stack.Children.Add(new TextBlock
+        var label = new TextBlock
         {
             Text = StyleLabel(style),
             FontFamily = IslandFonts.Ui,
@@ -53,7 +54,9 @@ public sealed class ChartStylePickerControl : Grid
             FontWeight = FontWeights.Medium,
             Foreground = IslandColors.Brush(IslandColors.White(0.8)),
             HorizontalAlignment = HorizontalAlignment.Center,
-        });
+        };
+        _labels.Add(label);
+        stack.Children.Add(label);
 
         var tile = new Border
         {
@@ -85,6 +88,10 @@ public sealed class ChartStylePickerControl : Grid
             _tiles[i].Background = isOn
                 ? IslandColors.Brush(SelectionBlue, 0.10)
                 : IslandColors.Brush(IslandColors.White(0.04));
+            // Selected caption goes selection-blue (macOS).
+            _labels[i].Foreground = isOn
+                ? IslandColors.Brush(SelectionBlue)
+                : IslandColors.Brush(IslandColors.White(0.8));
         }
     }
 
@@ -246,6 +253,8 @@ public sealed class CostStylePickerControl : Grid
         Select(selected);
     }
 
+    private readonly List<TextBlock> _labels = new();
+
     private Border MakeTile(CostStyle style)
     {
         var stack = new StackPanel
@@ -253,29 +262,24 @@ public sealed class CostStylePickerControl : Grid
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        stack.Children.Add(new TextBlock
-        {
-            Text = PreviewText(style),
-            FontFamily = IslandFonts.Mono,
-            FontSize = 15,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 8),
-        });
-        stack.Children.Add(new TextBlock
+        var preview = new Grid { Height = 40, Margin = new Thickness(0, 0, 0, 10) };
+        preview.Children.Add(MakePreview(style));
+        stack.Children.Add(preview);
+        var label = new TextBlock
         {
             Text = ChipLabel(style),
             FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            FontWeight = FontWeights.Medium,
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
             Foreground = IslandColors.Brush(IslandColors.White(0.65)),
             HorizontalAlignment = HorizontalAlignment.Center,
-        });
+        };
+        _labels.Add(label);
+        stack.Children.Add(label);
         var tile = new Border
         {
             Child = stack,
-            Height = 76,
+            Height = 100,
             CornerRadius = new CornerRadius(10),
             Background = IslandColors.Brush(IslandColors.White(0.04)),
             BorderThickness = new Thickness(1.5),
@@ -302,24 +306,119 @@ public sealed class CostStylePickerControl : Grid
             _tiles[i].Background = isOn
                 ? IslandColors.Brush(SelectionBlue, 0.10)
                 : IslandColors.Brush(IslandColors.White(0.04));
+            // The selected tile's caption goes selection-blue (macOS).
+            _labels[i].Foreground = isOn
+                ? IslandColors.Brush(SelectionBlue)
+                : IslandColors.Brush(IslandColors.White(0.65));
         }
     }
 
-    private static string PreviewText(CostStyle style) => style switch
+    /// Drawn previews, not typed-out strings — "◞◠◞◠" rendered as tofu-ish
+    /// glyph soup on Windows fonts, and the value tile reads as a chart on
+    /// macOS, not a dollar string.
+    private static UIElement MakePreview(CostStyle style)
     {
-        CostStyle.Dollar => "$147",
-        CostStyle.Multi => "$147+",
-        CostStyle.Tokens => "211M",
-        CostStyle.Trend => "◞◠◞◠",
-        _ => "$",
-    };
+        var tint = IslandColors.Claude;
+        switch (style)
+        {
+            case CostStyle.Dollar:
+            {
+                var text = new TextBlock
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontFamily = IslandFonts.Mono,
+                };
+                text.Inlines.Add(new System.Windows.Documents.Run("$ ")
+                {
+                    FontSize = 12,
+                    Foreground = IslandColors.Brush(IslandColors.White(0.5)),
+                });
+                text.Inlines.Add(new System.Windows.Documents.Run("87")
+                {
+                    FontSize = 20,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = IslandColors.Brush(tint),
+                });
+                return text;
+            }
+            case CostStyle.Multi:
+            {
+                // The macOS tile sketches the value view: a dim dot next to
+                // a tall tinted capsule.
+                var row = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Margin = new Thickness(0, 0, 0, 6),
+                };
+                row.Children.Add(new Ellipse
+                {
+                    Width = 7,
+                    Height = 7,
+                    Fill = IslandColors.Brush(IslandColors.White(0.35)),
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Margin = new Thickness(0, 0, 5, 0),
+                });
+                row.Children.Add(new Border
+                {
+                    Width = 10,
+                    Height = 26,
+                    CornerRadius = new CornerRadius(5),
+                    Background = IslandColors.Brush(tint),
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                });
+                return row;
+            }
+            case CostStyle.Tokens:
+            {
+                var text = new TextBlock
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontFamily = IslandFonts.Mono,
+                };
+                text.Inlines.Add(new System.Windows.Documents.Run("2.4")
+                {
+                    FontSize = 20,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Brushes.White,
+                });
+                text.Inlines.Add(new System.Windows.Documents.Run(" M")
+                {
+                    FontSize = 11,
+                    Foreground = IslandColors.Brush(IslandColors.White(0.5)),
+                });
+                return text;
+            }
+            case CostStyle.Trend:
+            default:
+            {
+                // A rising stroke, the way the macOS tile draws it.
+                var line = new Polyline
+                {
+                    Stroke = IslandColors.Brush(tint),
+                    StrokeThickness = 2.5,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                line.Points.Add(new Point(0, 16));
+                line.Points.Add(new Point(34, 2));
+                return line;
+            }
+        }
+    }
 
-    private static string ChipLabel(CostStyle style) => style switch
+    private static string ChipLabel(CostStyle style) => Localization.L10n.Tr(style switch
     {
         CostStyle.Dollar => "USD",
-        CostStyle.Multi => "VALUE",
-        CostStyle.Tokens => "TOKENS",
-        CostStyle.Trend => "TREND",
+        CostStyle.Multi => "Value",
+        CostStyle.Tokens => "TOKEN",
+        CostStyle.Trend => "Trend",
         _ => "USD",
-    };
+    });
 }

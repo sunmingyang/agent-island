@@ -64,6 +64,16 @@ public partial class IslandWindow : Window
         Model.GlowColorStore.Shared.PropertyChanged += onGlowColor;
         _teardown.Add(() => Model.GlowColorStore.Shared.PropertyChanged -= onGlowColor);
 
+        ApplyInterfaceScale();
+        System.ComponentModel.PropertyChangedEventHandler onScale =
+            (_, _) => Dispatcher.BeginInvoke(() =>
+            {
+                ApplyInterfaceScale();
+                PositionOnScreen();
+            });
+        Model.IslandScaleStore.Shared.PropertyChanged += onScale;
+        _teardown.Add(() => Model.IslandScaleStore.Shared.PropertyChanged -= onScale);
+
         System.ComponentModel.PropertyChangedEventHandler onSysParams = (_, args) =>
         {
             if (args.PropertyName is nameof(SystemParameters.WorkArea)
@@ -954,6 +964,20 @@ public partial class IslandWindow : Window
     /// the ambient aura in the chosen glow color and Calm keeps nothing at
     /// all — no hover or refresh light, ambient is a mode, not an event
     /// (macOS 1.7 semantics). Hidden providers don't get a vote.
+    /// Interface scale (macOS 1f97e4d): a LayoutTransform on the canvas
+    /// magnifies every layout constant at once, and the window grows with
+    /// it so nothing clips. The positioning math already keys on the
+    /// window's Width, so centering holds at any scale.
+    private void ApplyInterfaceScale()
+    {
+        var scale = Model.IslandScaleStore.Shared.Scale;
+        RootHost.LayoutTransform = Math.Abs(scale - 1.0) < 0.001
+            ? null
+            : new ScaleTransform(scale, scale);
+        Width = 900 * scale;
+        Height = 360 * scale;
+    }
+
     private static bool AttentionShown()
     {
         var monitor = ActivityMonitor.Shared;

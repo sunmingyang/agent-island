@@ -137,8 +137,8 @@ public sealed class UsageStore : INotifyPropertyChanged
                 // Thread the token into the HTTP calls so a superseding refresh
                 // (network-up mid-flight on a dead path) actually aborts the dead
                 // request instead of letting it run to its own timeout.
-                var codexTask = UsageFetcher.FetchCodex(cts.Token);
-                var claudeTask = UsageFetcher.FetchClaude(cts.Token);
+                var codexTask = FetchWithRetry(UsageFetcher.FetchCodex, cts.Token);
+                var claudeTask = FetchWithRetry(UsageFetcher.FetchClaude, cts.Token);
                 var codexResult = await codexTask;
                 var claudeResult = await claudeTask;
 
@@ -197,6 +197,22 @@ public sealed class UsageStore : INotifyPropertyChanged
         usage.FiveHour.Error is not null && usage.Weekly.Error is not null
         && usage.FiveHour.UsedPercent == 0 && usage.Weekly.UsedPercent == 0;
 
+    /// Transient-network retry (macOS ae5bafc): an SSL hiccup or timeout
+    /// gets two more tries with a short backoff before anything is shown.
+    /// A superseding refresh cancels the wait, and a genuine outage still
+    /// resolves within seconds — the merge path then keeps the last data.
+    private static async Task<AppUsage> FetchWithRetry(
+        Func<CancellationToken, Task<AppUsage>> fetch, CancellationToken token)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            var result = await fetch(token);
+            if (!IsErrorOnly(result) || attempt >= 2 || token.IsCancellationRequested) return result;
+            try { await Task.Delay(TimeSpan.FromSeconds(attempt == 0 ? 1 : 3), token); }
+            catch (TaskCanceledException) { return result; }
+        }
+    }
+
     /// Don't clobber existing good values when a fetch returns an all-error
     /// result: preserve the last useful percentages but carry the new error
     /// forward so the UI admits the values are stale. If the existing value
@@ -220,7 +236,10 @@ public sealed class UsageStore : INotifyPropertyChanged
 
     private static string? WarningFor(bool codexFailed, bool claudeFailed) => (claudeFailed, codexFailed) switch
     {
-        (true, true) => L10n.Tr("Usage refresh failed"),
+        // Both down after retries = the NETWORK dropped, not the providers;
+        // the caption says so and reassures that the numbers are kept
+        // (macOS ae5bafc wording).
+        (true, true) => L10n.Tr("network drop"),
         (true, false) => L10n.Tr("Claude stale"),
         (false, true) => L10n.Tr("Codex stale"),
         _ => null,

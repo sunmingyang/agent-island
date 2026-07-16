@@ -713,6 +713,25 @@ public sealed class SettingsWindow : Window
                 : Visibility.Visible;
         };
 
+        // Interface scale (macOS row order: Visual mode → Glow color →
+        // Interface scale). Every Windows screen is notchless, so it just
+        // applies — no "notchless only" caveat needed.
+        var scaleBox = new ComboBox { Width = 90, VerticalAlignment = VerticalAlignment.Center };
+        var scaleSteps = new[] { 1.0, 1.15, 1.3, 1.5 };
+        foreach (var step in scaleSteps) scaleBox.Items.Add($"{Math.Round(step * 100)}%");
+        var currentScale = IslandScaleStore.Shared.Scale;
+        var scaleIndex = Array.FindIndex(scaleSteps, s => Math.Abs(s - currentScale) < 0.01);
+        scaleBox.SelectedIndex = scaleIndex < 0 ? 0 : scaleIndex;
+        scaleBox.SelectionChanged += (_, _) =>
+        {
+            if (scaleBox.SelectedIndex >= 0)
+                IslandScaleStore.Shared.Scale = scaleSteps[scaleBox.SelectedIndex];
+        };
+        stack.Children.Add(new SettingsRowControl(
+            "Interface scale",
+            null,
+            scaleBox));
+
         // 屏幕. (The macOS bar-style choice — Compact vs Notched Mac — is
         // meaningless on Windows, where no display has a notch; the bar is
         // always the wide layout.)
@@ -781,27 +800,11 @@ public sealed class SettingsWindow : Window
         var stack = TabStack();
         stack.Children.Add(SectionLabel("Providers"));
 
+        // The "Open threads via" pickers are retired (macOS 1.6.1): threads
+        // always land back where the session lives — desktop sessions in the
+        // desktop app, CLI sessions in a terminal.
         stack.Children.Add(ProviderRow(TriggerTool.Claude));
-        var claudeJump = Model.ClaudeJumpPreferenceStore.Shared;
-        var claudeJumpSeg = new Segmented(
-            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
-            claudeJump.PrefersCli ? 1 : 0);
-        claudeJumpSeg.SelectionChanged += index => claudeJump.PrefersCli = index == 1;
-        stack.Children.Add(new SettingsRowControl(
-            "Open threads via",
-            null,
-            claudeJumpSeg));
-
         stack.Children.Add(ProviderRow(TriggerTool.Codex));
-        var codexJump = Model.CodexJumpPreferenceStore.Shared;
-        var codexJumpSeg = new Segmented(
-            new[] { L10n.Tr("Desktop app"), L10n.Tr("CLI resume") },
-            codexJump.PrefersCli ? 1 : 0);
-        codexJumpSeg.SelectionChanged += index => codexJump.PrefersCli = index == 1;
-        stack.Children.Add(new SettingsRowControl(
-            "Open threads via",
-            null,
-            codexJumpSeg));
 
         stack.Children.Add(SectionLabel("TOKEN"));
         var mode = new Segmented(
@@ -885,13 +888,18 @@ public sealed class SettingsWindow : Window
     }
 
     /// "synced 2m ago · 69% / 33%" — the most authoritative diagnostic
-    /// surface; errors surface in place of the numbers.
+    /// surface; errors surface in place of the numbers. A single-window
+    /// provider (Codex's one weekly quota) shows one percentage, not a
+    /// phantom pair (macOS secondaryMissing).
     private static string ProviderSubtitle(AppUsage usage)
     {
         var synced = UsageStore.Shared.LastUpdated is { } updated
             ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsChinese))
             : L10n.Tr("idle");
-        return $"{synced} · {WindowCaption(usage.FiveHour)} / {WindowCaption(usage.Weekly)}";
+        var caption = usage.SecondaryMissing
+            ? WindowCaption(usage.FiveHour)
+            : $"{WindowCaption(usage.FiveHour)} / {WindowCaption(usage.Weekly)}";
+        return $"{synced} · {caption}";
     }
 
     private static string WindowCaption(WindowUsage window)
