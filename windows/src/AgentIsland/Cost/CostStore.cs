@@ -16,6 +16,7 @@ public sealed class CostStore : INotifyPropertyChanged
     private ProviderCostSummary _codex = ProviderCostSummary.Empty;
     private DateTimeOffset? _lastUpdated;
     private bool _scanning;
+    private DateTimeOffset _scanStartedAt;
     private DispatcherTimer? _pollTimer;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -52,8 +53,13 @@ public sealed class CostStore : INotifyPropertyChanged
             InjectDemoData();
             return;
         }
-        if (_scanning) return;
+        // The in-flight latch gets a 10-minute wedge escape (macOS 28c9b4c):
+        // one scan that never completes must not freeze cost data for the
+        // process lifetime — panel numbers were observed stuck six hours
+        // behind a hung latch.
+        if (_scanning && DateTimeOffset.Now - _scanStartedAt < TimeSpan.FromMinutes(10)) return;
         _scanning = true;
+        _scanStartedAt = DateTimeOffset.Now;
         var dispatcher = Dispatcher.CurrentDispatcher;
         var now = DateTimeOffset.Now;
         var lookback = CostSummarizer.YearHistoryDays(now);

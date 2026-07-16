@@ -120,37 +120,21 @@ public static class ReportFormat
 
     /// Rank models by DOLLARS: the card's story is "what my period was
     /// worth", and token-ranking buried expensive models. Wire tokens
-    /// (cache included) — same accounting as the hero total, so the rows
-    /// visibly sum toward the headline number. Top N + a dim "Others".
+    /// (cache included) — same accounting as the hero total. TOP-N only,
+    /// no "Others" row: the donut's uncovered arc reads as the long tail
+    /// on its own (macOS v3).
     public static IReadOnlyList<ModelShare> BuildTopModels(IEnumerable<ModelSpend> spend, int top)
     {
         var all = spend.ToList();
         var dollarUniverse = Math.Max(0.01, all.Sum(m => m.Dollars));
-        var ranked = all
+        return all
             .Select(m => (m.Model, m.Tokens, m.Dollars, Percent: m.Dollars / dollarUniverse))
             .OrderByDescending(m => m.Percent)
-            .ToList();
-
-        var models = ranked
             .Where(m => m.Percent >= 0.005)
             .Take(top)
             .Select((m, i) => new ModelShare(m.Model, m.Tokens, m.Dollars, m.Percent,
                 Palette[Math.Min(i, Palette.Length - 1)]))
             .ToList();
-        var shown = models.Select(m => m.Name).ToHashSet(StringComparer.Ordinal);
-        var rest = ranked.Where(m => !shown.Contains(m.Model)).ToList();
-        if (rest.Count > 0)
-        {
-            var restPercent = rest.Sum(m => m.Percent);
-            if (restPercent >= 0.005)
-            {
-                models.Add(new ModelShare(
-                    Localization.L10n.Tr("Others"),
-                    rest.Sum(m => m.Tokens), rest.Sum(m => m.Dollars), restPercent,
-                    Color.FromRgb(0x6B, 0x6B, 0x6B), IsOthers: true));
-            }
-        }
-        return models;
     }
 
     /// Lifetime total + earned tier for the rank footer; null until the
