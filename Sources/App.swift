@@ -201,6 +201,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         case "report:weekly": WeeklyReportWindowController.shared.show()
                         case "report:monthly": MonthlyReportWindowController.shared.show()
                         case "settings:show": SettingsWindowController.shared.show()
+                        case "visual:toggle": LowPowerModeStore.shared.enabled.toggle()
+                        case "glow:teal": GlowColorStore.shared.choice = .teal
+                        case "glow:cobalt": GlowColorStore.shared.choice = .cobalt
+                        case "glow:violet": GlowColorStore.shared.choice = .violet
+                        case "glow:silver": GlowColorStore.shared.choice = .silver
                         default:
                             NotificationCenter.default.post(
                                 name: .islandDemoCommand, object: nil, userInfo: ["cmd": step]
