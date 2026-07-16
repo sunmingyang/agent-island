@@ -28,6 +28,9 @@ final class CostStore: ObservableObject {
     private static let cacheDecoder = JSONDecoder()
     private var pollTimer: Timer?
     private var intervalCancellable: AnyCancellable?
+    /// Wedge detection for the per-provider scan gates (see `refresh`).
+    private var claudeScanStartedAt: Date?
+    private var codexScanStartedAt: Date?
 
     private var pollInterval: TimeInterval {
         TimeInterval(RefreshIntervalStore.shared.seconds)
@@ -50,17 +53,27 @@ final class CostStore: ObservableObject {
             return
         }
         // Per-provider gate so a slow Claude scan doesn't block a fast
-        // Codex one (and vice versa) on the next tick.
-        if !claudeLoading {
+        // Codex one (and vice versa) on the next tick. A gate older than
+        // 10 minutes is presumed WEDGED (a scan that will never commit) and
+        // falls through to a fresh scan — one stuck task must not freeze
+        // cost data for the rest of the process lifetime (2026-07-17
+        // incident: parse cache and panel numbers frozen for six hours
+        // behind exactly this latch).
+        let wedgeAge: TimeInterval = 600
+        let claudeWedged = claudeScanStartedAt.map { Date().timeIntervalSince($0) > wedgeAge } ?? false
+        let codexWedged = codexScanStartedAt.map { Date().timeIntervalSince($0) > wedgeAge } ?? false
+        if !claudeLoading || claudeWedged {
             claudeLoading = true
+            claudeScanStartedAt = Date()
             Task.detached(priority: .userInitiated) { [weak self] in
                 let events = ClaudeLogReader.scan(lookbackDays: CostSummary.yearHistoryDays())
                 let cost = CostSummary.summarize(events: events)
                 await self?.commitClaude(cost)
             }
         }
-        if !codexLoading {
+        if !codexLoading || codexWedged {
             codexLoading = true
+            codexScanStartedAt = Date()
             Task.detached(priority: .userInitiated) { [weak self] in
                 let events = CodexLogReader.scan(lookbackDays: CostSummary.yearHistoryDays())
                 let cost = CostSummary.summarize(events: events)
@@ -72,6 +85,7 @@ final class CostStore: ObservableObject {
     private func commitClaude(_ cost: ProviderCost) {
         self.claude = cost
         self.claudeLoading = false
+        self.claudeScanStartedAt = nil
         self.lastUpdated = Date()
         persist()
     }
@@ -79,6 +93,7 @@ final class CostStore: ObservableObject {
     private func commitCodex(_ cost: ProviderCost) {
         self.codex = cost
         self.codexLoading = false
+        self.codexScanStartedAt = nil
         self.lastUpdated = Date()
         persist()
     }
