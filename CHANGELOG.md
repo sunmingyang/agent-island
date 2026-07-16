@@ -35,12 +35,13 @@ First pass on the external design review (2026-07-15): craft and restraint.
 - With a single subscription, the freed half of the panel now shows the provider's bare mark and name instead of the per-model breakdown table — the table's "5h" legend read as a quota window Codex no longer has (community report). Per-model data returns with the report-card redesign.
 - With a single subscription, the collapsed island splits its two flanks — logo on the provider's side, usage number on the other — instead of crowding one end and leaving the other half empty. (Windows also retires its "center the island when solo" toggle; the split is simply how a solo island lays out now.)
 - The Settings status guide demos speak one glyph language — the symmetric mark spinning (working), steady with a small bell badge (your turn), pulsing red (needs attention) — instead of two logo rows plus a bell-in-a-box.
-- Report cards v3 layout (shipping first on Windows; macOS follows together with the character art): flat near-black base with no gradients, the app mark on the wordmark line, the "≈ API value" line sharing the hero number's baseline, a Claude-vs-Codex faceoff beam with official marks at the ends and a white spark at the split (144px reserved above it for the character art), weekly 7-day bars with the peak day highlighted in brand teal and captioned with its number, TOP-3 (weekly) / TOP-5 (monthly) model pies — the monthly heatmap retires — and a bare rank footer: lifetime total plus the gold congratulations line.
+- Report cards v3, both platforms: flat near-black base with no gradients, the app mark on the wordmark line, the "≈ API value" line sharing the hero number's baseline, a Claude-vs-Codex faction duel — official marks at the beam ends, a white spark riding the true usage split, and the chibi duel art above it (the leading side wins the crown; 48–52% is a back-to-back draw) — weekly 7-day bars with the peak day highlighted in brand teal and captioned with its number, TOP-3 (weekly) / TOP-5 (monthly) model pies — the monthly heatmap retires — and a bare rank footer: lifetime total plus the gold congratulations line.
 - Internal preference keys migrated from the inherited "MacIsland." prefix to "AgentIsland." in one shot, every setting preserved; the CODEXISLAND_DEMO / CODEXISLAND_DEBUG env fallbacks are removed (AGENTISLAND_* only).
 
 ### Fixed
 - macOS: the expanded panel's hairline border no longer traces the top edge, which read as a light-leak seam against the bezel.
 - A pathological multi-MB line in a Claude session log can no longer buffer unbounded during cost scans (macOS: 64 MiB backstop; Windows: oversized lines skipped before parsing — totals unchanged on both).
+- macOS: a single wedged cost scan can no longer freeze cost data for the rest of the process lifetime — the per-provider scan gate gains a 10-minute wedge escape (the "panel stuck on stale numbers, sync spinner forever" report).
 
 ## [1.6.1] - 2026-07-14
 
