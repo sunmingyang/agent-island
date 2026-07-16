@@ -47,12 +47,12 @@
 
 ## 快速开始
 
-选择你的平台，直接安装当前 `v1.6.1` 版本：
+选择你的平台，直接安装当前 `v1.7.1` 版本：
 
 | 平台 | 推荐下载 | 系统要求 |
 |---|---|---|
-| macOS | [AgentIsland-1.6.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1.dmg) | macOS 13+，Apple silicon 或 Intel |
-| Windows | [AgentIsland-1.6.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1-win-x64.zip) | Windows 10/11 x64 |
+| macOS | [AgentIsland-1.7.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1.dmg) | macOS 13+，Apple silicon 或 Intel |
+| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 |
 
 macOS：把 Agent Island 拖入 Applications。应用目前是 ad-hoc 签名而非 notarize，首次启动需要在 Finder 中右键应用并选择 **打开**。
 
@@ -152,10 +152,6 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
   </tr>
 </table>
 
-<!-- OPTIMIZED_REPORT_SCREENSHOTS_PLACEHOLDER
-导出并验收 README 专用 WebP 后，再在这里加入报告卡示例。
-不要把数 MB 的 PNG 组合重新放回 README。
--->
 
 ### macOS 和 Windows
 

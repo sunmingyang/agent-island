@@ -47,12 +47,12 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 
 ## Quick Start
 
-Choose your platform and install the current `v1.6.1` release directly:
+Choose your platform and install the current `v1.7.1` release directly:
 
 | Platform | Recommended download | Requirement |
 |---|---|---|
-| macOS | [AgentIsland-1.6.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1.dmg) | macOS 13+, Apple silicon or Intel |
-| Windows | [AgentIsland-1.6.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.6.1/AgentIsland-1.6.1-win-x64.zip) | Windows 10/11 x64 |
+| macOS | [AgentIsland-1.7.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1.dmg) | macOS 13+, Apple silicon or Intel |
+| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 |
 
 On macOS, drag Agent Island into Applications. The app is ad-hoc signed rather than notarized, so the first launch requires right-clicking the app in Finder and choosing **Open**.
 
