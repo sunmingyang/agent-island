@@ -46,6 +46,8 @@ cp ./Resources/openai_logo.pdf "$RES_DIR/openai_logo.pdf"
 cp ./Resources/duel-claude-wins.png "$RES_DIR/duel-claude-wins.png"
 cp ./Resources/duel-codex-wins.png "$RES_DIR/duel-codex-wins.png"
 cp ./Resources/duel-draw.png "$RES_DIR/duel-draw.png"
+# Paged-card real screenshots (release notes + guide) — glob so new posters need no build.sh edit
+cp ./Resources/whatsnew-*.png ./Resources/guide-*.png "$RES_DIR/" 2>/dev/null || true
 cp ./Resources/agentisland_logo.png "$RES_DIR/agentisland_logo.png"
 cp ./Resources/AgentIsland.icns "$RES_DIR/AgentIsland.icns"
 find ./Resources -maxdepth 1 -type d -name '*.lproj' -exec cp -R {} "$RES_DIR/" \;

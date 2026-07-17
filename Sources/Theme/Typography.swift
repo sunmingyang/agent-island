@@ -33,34 +33,31 @@ import SwiftUI
 ///   0.18  hints
 ///   0.06  hairlines
 enum Typography {
-    // MARK: - Numerics (SF Mono)
+    // MARK: - Numerics (SF Rounded, tabular digits)
+    // 2026-07-18 owner decision: SF Mono is retired from the ENTIRE scale —
+    // every numeral included — the terminal face read as vibe coding, not
+    // product. One voice now: SF Rounded (the face the report cards already
+    // made the brand), with monospacedDigit() keeping live numbers steady.
 
-    static let bigNumber     = Font.system(size: 38, weight: .semibold, design: .monospaced)
-    static let chartValue    = Font.system(size: 18, weight: .semibold, design: .monospaced)
-    static let previewNumber = Font.system(size: 15, weight: .semibold, design: .monospaced)
-    static let bodyNumber    = Font.system(size: 11, weight: .semibold, design: .monospaced)
+    static let bigNumber     = Font.system(size: 38, weight: .bold, design: .rounded).monospacedDigit()
+    static let chartValue    = Font.system(size: 18, weight: .bold, design: .rounded).monospacedDigit()
+    static let previewNumber = Font.system(size: 15, weight: .bold, design: .rounded).monospacedDigit()
+    static let bodyNumber    = Font.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit()
 
-    // MARK: - Display text (SF Pro)
+    // MARK: - Display text (SF Rounded)
 
-    static let brand         = Font.system(size: 14, weight: .semibold)
-    static let unit          = Font.system(size: 15, weight: .medium)
-    static let providerTitle = Font.system(size: 13, weight: .semibold)
-    static let rowTitle      = Font.system(size: 13, weight: .medium)
-    static let tabLabel      = Font.system(size: 12, weight: .medium)
-    static let label         = Font.system(size: 11, weight: .medium)
-    static let button        = Font.system(size: 11, weight: .semibold)
-    // The micro tier carried the "cheap grey text" complaint (owner, 1.7.2):
-    // regular-weight 10pt mono at low opacity read as an afterthought. One
-    // notch of weight (and a half-point on the tracked section labels)
-    // firms the whole tier up without touching the brand faces.
-    static let micro         = Font.system(size: 10, weight: .semibold)
-    static let sectionLabel  = Font.system(size: 10.5, weight: .semibold)
+    static let brand         = Font.system(size: 14, weight: .semibold, design: .rounded)
+    static let unit          = Font.system(size: 15, weight: .medium, design: .rounded)
+    static let providerTitle = Font.system(size: 13, weight: .semibold, design: .rounded)
+    static let rowTitle      = Font.system(size: 13, weight: .medium, design: .rounded)
+    static let tabLabel      = Font.system(size: 12, weight: .medium, design: .rounded)
+    static let label         = Font.system(size: 11, weight: .medium, design: .rounded)
+    static let button        = Font.system(size: 11, weight: .semibold, design: .rounded)
+    static let micro         = Font.system(size: 10, weight: .semibold, design: .rounded)
+    static let sectionLabel  = Font.system(size: 10.5, weight: .semibold, design: .rounded)
 
     // MARK: - Specialty
 
-    // De-monoed (owner call, 1.7.2): mono reset captions ("2h 后重置")
-    // read as terminal debris, not product copy. Numerals inside stay
-    // aligned enough at this size; the numeric tiers keep SF Mono.
-    static let caption = Font.system(size: 10, weight: .medium)
-    static let chip    = Font.system(size: 9, weight: .bold).monospaced()
+    static let caption = Font.system(size: 10, weight: .medium, design: .rounded)
+    static let chip    = Font.system(size: 9, weight: .bold, design: .rounded).monospacedDigit()
 }

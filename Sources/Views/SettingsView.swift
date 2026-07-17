@@ -27,7 +27,6 @@ struct SettingsView: View {
     @ObservedObject private var usage = UsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
-    @ObservedObject private var whatsNewPref = WhatsNewPref.shared
 
     @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.general.rawValue
 
@@ -497,14 +496,6 @@ struct SettingsView: View {
             ) {
                 PillButton(label: "Open") {
                     GuideWindowController.shared.show()
-                }
-            }
-            SettingsRow(
-                title: "Show highlights after updates",
-                subtitle: "A one-time card after each update, so new features never land silently."
-            ) {
-                SettingsToggle(isOn: whatsNewPref.autoShow) {
-                    whatsNewPref.autoShow.toggle()
                 }
             }
             SettingsRow(

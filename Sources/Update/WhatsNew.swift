@@ -15,8 +15,9 @@ enum WhatsNewGate {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     }
 
+    /// Always fires once per version — deliberately NOT user-configurable
+    /// (owner call, 1.7.2: every user walks through the release card once).
     static func maybeShow() {
-        guard WhatsNewPref.shared.autoShow else { return }
         guard !AppEnvironment.isDemo,
               ProcessInfo.processInfo.environment["AGENTISLAND_UI_SCRIPT"] == nil,
               ProcessInfo.processInfo.environment["AGENTISLAND_REPORT_SNAPSHOT"] == nil
@@ -30,30 +31,13 @@ enum WhatsNewGate {
     }
 }
 
-/// User control over the after-update popup (owner call: the logic must be
-/// customizable). Reopening from Settings/footer/version pill always works.
-@MainActor
-final class WhatsNewPref: ObservableObject {
-    static let shared = WhatsNewPref()
-
-    private static let key = "AgentIsland.whatsNewAutoShow"
-
-    @Published var autoShow: Bool {
-        didSet { UserDefaults.standard.set(autoShow, forKey: Self.key) }
-    }
-
-    private init() {
-        if UserDefaults.standard.object(forKey: Self.key) == nil {
-            self.autoShow = true
-        } else {
-            self.autoShow = UserDefaults.standard.bool(forKey: Self.key)
-        }
-    }
-}
-
 // MARK: - Page model
 
 struct PagedCardPage: Identifiable {
+    /// First-page treatments (owner spec): the release card opens on the
+    /// VERSION NUMBER with the feature icons; the guide opens on the brand.
+    enum Hero { case version, brand }
+
     let id = UUID()
     let symbol: String
     /// Optional bundled illustration (PNG). Drop `whatsnew-172-*.png` /
@@ -62,6 +46,7 @@ struct PagedCardPage: Identifiable {
     let imageName: String?
     let title: String
     let body: String
+    var hero: Hero?
 }
 
 /// 1.7.2 release pages — overview first, then one page per theme. Copy is
@@ -72,7 +57,8 @@ enum WhatsNewContent {
             symbol: "sparkles",
             imageName: "whatsnew-172-overview",
             title: "This update, in one line",
-            body: "Truer numbers, a calmer interface, and updates that explain themselves"
+            body: "Truer numbers, a calmer interface, and updates that explain themselves",
+            hero: .version
         ),
         PagedCardPage(
             symbol: "scalemass",
@@ -98,6 +84,13 @@ enum WhatsNewContent {
 /// The global product tour (教程) — the whole product, not one release.
 enum GuideContent {
     static let pages: [PagedCardPage] = [
+        PagedCardPage(
+            symbol: "circle.hexagongrid.circle",
+            imageName: nil,
+            title: "Agent Island",
+            body: "A status companion for Claude Code and Codex",
+            hero: .brand
+        ),
         PagedCardPage(
             symbol: "circle.hexagongrid.circle",
             imageName: "guide-status",
@@ -269,8 +262,14 @@ private struct PagedCardView: View {
 
             let current = pages[page]
 
-            PageIllustration(page: current)
-                .padding(.bottom, 18)
+            Group {
+                switch current.hero {
+                case .version: VersionHero(page: current, siblings: pages)
+                case .brand:   BrandHero(siblings: pages)
+                case nil:      PageIllustration(page: current)
+                }
+            }
+            .padding(.bottom, 18)
 
             Text(L10n.tr(current.title))
                 .font(.system(size: 20, weight: .black, design: .rounded))
@@ -346,10 +345,84 @@ private struct PagedCardView: View {
     }
 }
 
-/// Bundled poster if present; otherwise a brand-toned placeholder that
-/// still looks intentional (rounded, teal wash, oversized glyph).
+/// The release card's opening spread: the version number IS the visual,
+/// the feature icons preview the pages, the real screenshot grounds it.
+private struct VersionHero: View {
+    let page: PagedCardPage
+    let siblings: [PagedCardPage]
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text("v" + WhatsNewGate.currentVersion)
+                .font(.system(size: 42, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+            IconRow(symbols: siblings.filter { $0.hero == nil }.map(\.symbol))
+            PageIllustration(page: page, height: 138)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// The guide's opening spread: the brand, plain and confident.
+private struct BrandHero: View {
+    let siblings: [PagedCardPage]
+
+    private var logo: NSImage? {
+        Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
+            .flatMap { NSImage(contentsOf: $0) }
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            if let logo {
+                Image(nsImage: logo)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 64, height: 64)
+                    .shadow(color: .black.opacity(0.4), radius: 8)
+            }
+            Text("Agent Island")
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            IconRow(symbols: siblings.filter { $0.hero == nil }.map(\.symbol))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 240)
+    }
+}
+
+private struct IconRow: View {
+    let symbols: [String]
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(symbols, id: \.self) { symbol in
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(IslandColor.liveTeal)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(IslandColor.liveTeal.opacity(0.10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .strokeBorder(IslandColor.liveTeal.opacity(0.22), lineWidth: 1)
+                            )
+                    )
+            }
+        }
+    }
+}
+
+/// Bundled REAL screenshot if present (owner call: 真实截图,不要示意图);
+/// otherwise a brand-toned placeholder that still looks intentional. Very
+/// wide captures (the menu-bar strip) letterbox on the coat instead of
+/// being zoom-cropped into abstraction.
 private struct PageIllustration: View {
     let page: PagedCardPage
+    var height: CGFloat = 240
 
     private var poster: NSImage? {
         guard let imageName = page.imageName else { return nil }
@@ -360,9 +433,15 @@ private struct PageIllustration: View {
     var body: some View {
         Group {
             if let poster {
-                Image(nsImage: poster)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                let ratio = poster.size.height > 0 ? poster.size.width / poster.size.height : 1
+                ZStack {
+                    Color.white.opacity(0.03)
+                    Image(nsImage: poster)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: ratio > 2.2 ? .fit : .fill)
+                        .padding(ratio > 2.2 ? 14 : 0)
+                }
             } else {
                 ZStack {
                     LinearGradient(
@@ -379,7 +458,7 @@ private struct PageIllustration: View {
                 }
             }
         }
-        .frame(height: 240)
+        .frame(height: height)
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
