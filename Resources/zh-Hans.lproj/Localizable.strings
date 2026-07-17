@@ -404,3 +404,29 @@
 "Login incomplete" = "登录未完成";
 "Authentication succeeded — close this page and return to Agent Island" = "认证成功,可以关闭此页并返回 Agent Island";
 "Please return to Agent Island and try again" = "请回到 Agent Island 重试";
+
+/* 1.7.2 paged cards */
+"What's new in this update" = "本次更新带来了什么";
+"How Agent Island works" = "Agent Island 使用教程";
+"Product guide" = "产品教程";
+"A five-page tour of everything the island does." = "五页看懂小岛的全部能力";
+"Back" = "上一页";
+"Next" = "下一页";
+"This update, in one line" = "这次更新,一句话";
+"Truer numbers, a calmer interface, and updates that explain themselves" = "数字更准了 · 界面更清爽了 · 更新不再无声";
+"Numbers you can defend" = "经得起对账的数字";
+"The accounting engine drops phantom tokens — this machine now lands within ~2% of the official Codex client, and the calendar shows the official figure beside ours" = "记账引擎挤掉幻影 token,本机数字与 Codex 官方客户端误差约 2%;日历里还能同屏看到官方数字";
+"A calmer interface" = "更清爽的界面";
+"Solid pie charts, stepped bars by default, a centered solo layout, and each visual mode explained right where you pick it" = "实心饼图、默认阶梯样式、单订阅居中布局,视觉模式在选择处就有说明";
+"Updates that explain themselves" = "更新自己会说话";
+"Every release opens one card like this — once. Turn it off in Settings, reopen it any time from the version pill" = "每个版本只弹一次这样的说明卡;设置里可关,点版本号随时重看";
+"The island watches your agents" = "小岛替你盯着 agent";
+"Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you" = "刘海里两个标志:旋转=在干活,铃铛=轮到你,常红=需要你处理";
+"Quota at a glance" = "额度一眼可见";
+"Expand the island for the 5-hour and weekly windows — percentages come straight from each provider's official endpoint" = "展开小岛看 5 小时与周额度窗口,百分比直连官方接口";
+"Usage, cost, and a year of history" = "用量、成本与全年历史";
+"Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine" = "本机会话日志变成 token 统计、API 价值与全年热力图,数据不出你的电脑";
+"Weekly and monthly cards" = "周报与月报战绩卡";
+"One click renders a shareable battle card — copy it or AirDrop it straight to your phone" = "一键生成可分享的战绩卡,复制或隔空投送到手机";
+"Make it yours" = "把它调成你的样子";
+"Visual modes, glow colors, chart styles, and language — all in Settings" = "视觉模式、光效颜色、图表样式与语言,都在设置里";

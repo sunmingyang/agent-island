@@ -58,6 +58,9 @@ enum Typography {
 
     // MARK: - Specialty
 
-    static let caption = Font.system(size: 10, weight: .medium, design: .monospaced)
+    // De-monoed (owner call, 1.7.2): mono reset captions ("2h 后重置")
+    // read as terminal debris, not product copy. Numerals inside stay
+    // aligned enough at this size; the numeric tiers keep SF Mono.
+    static let caption = Font.system(size: 10, weight: .medium)
     static let chip    = Font.system(size: 9, weight: .bold).monospaced()
 }

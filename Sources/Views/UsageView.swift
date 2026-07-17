@@ -94,17 +94,15 @@ struct ChartsBlock: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack(spacing: 18) {
-                // A single-window provider centers its lone tile in the
-                // half (owner call: the freed slot read as a void).
-                if usage.secondaryMissing { Spacer(minLength: 0) }
                 // Label the primary tile by the window length the provider
                 // actually reports — Codex's primary became a weekly window
                 // in July 2026, so it reads "week", not a hardcoded "5h".
+                // A single-window provider's tile is `wide` and centers its
+                // own content (see ChartTile's frame alignment).
                 ChartTile(style: style, color: color,
                           labelKey: usage.fiveHour.isLongPeriod ? "week" : "5h",
                           window: usage.fiveHour, seed: seed,
                           wide: usage.secondaryMissing)
-                if usage.secondaryMissing { Spacer(minLength: 0) }
                 // A provider that reports only one window gets one tile — no
                 // permanent "no data" ghost for a window gone upstream.
                 if !usage.secondaryMissing {
@@ -189,7 +187,12 @@ struct ChartTile: View {
         // The blur masks the geometric mismatch between Ring and Bar so the
         // crossfade reads as one morph instead of two stacked objects.
         .transition(.chartSwap.animation(.chartSwap))
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // A wide (single-window) tile centers its content in the freed
+        // half — the tile expands to full width, so outer Spacers can't do
+        // it; the alignment here is the only thing that can (owner report
+        // ×2, 1.7.2: the lone Codex pie hugged the left of the red-boxed
+        // half).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: wide ? .top : .topLeading)
         .frame(height: Self.tileHeight)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.tr("%@, %d%%", label, Int(value)))

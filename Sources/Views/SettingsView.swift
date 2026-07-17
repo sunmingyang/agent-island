@@ -63,11 +63,12 @@ struct SettingsView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 Group {
                     switch activeTab {
-                    case .general:     generalTab
-                    case .display:     displayTab
-                    case .providers:   providersTab
-                    case .triggers:    TriggerSettingsView()
-                    case .statusGuide: StatusGuideView()
+                    case .general:      generalTab
+                    case .display:      displayTab
+                    case .providers:    providersTab
+                    case .triggers:     TriggerSettingsView()
+                    case .statusGuide:  StatusGuideView()
+                    case .releaseNotes: releaseNotesTab
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
@@ -105,15 +106,18 @@ struct SettingsView: View {
     }
 
     enum SettingsTab: String, CaseIterable {
-        case general, display, providers, triggers, statusGuide
+        // releaseNotes rides the same tab rail as the rest (owner call,
+        // 1.7.2: 版本说明与通用/显示/服务/状态说明同一栏).
+        case general, display, providers, triggers, statusGuide, releaseNotes
 
         var label: String {
             switch self {
-            case .general:     "General"
-            case .display:     "Display"
-            case .providers:   "Providers"
-            case .triggers:    "Triggers"
-            case .statusGuide: "Status"
+            case .general:      "General"
+            case .display:      "Display"
+            case .providers:    "Providers"
+            case .triggers:     "Triggers"
+            case .statusGuide:  "Status"
+            case .releaseNotes: "Release notes"
             }
         }
     }
@@ -166,6 +170,11 @@ struct SettingsView: View {
             generalSection
             alertsSection
             updatesSection
+        }
+    }
+
+    private var releaseNotesTab: some View {
+        VStack(alignment: .leading, spacing: 0) {
             releaseNotesSection
         }
     }
@@ -468,9 +477,9 @@ struct SettingsView: View {
         .padding(.bottom, 6)
     }
 
-    /// Release-notes block (owner call, 1.7.2): a dedicated place to reopen
-    /// this version's highlights, control the after-update popup, and reach
-    /// the full changelog on the website.
+    /// Release-notes tab (owner call, 1.7.2): reopen this version's
+    /// highlights, the global guide, the after-update popup switch, and the
+    /// full changelog on the website — all in one rail-level place.
     private var releaseNotesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionLabel("Release notes")
@@ -480,6 +489,14 @@ struct SettingsView: View {
             ) {
                 PillButton(label: "View") {
                     WhatsNewWindowController.shared.show()
+                }
+            }
+            SettingsRow(
+                title: "Product guide",
+                subtitle: "A five-page tour of everything the island does."
+            ) {
+                PillButton(label: "Open") {
+                    GuideWindowController.shared.show()
                 }
             }
             SettingsRow(
@@ -763,7 +780,7 @@ struct SettingsView: View {
 
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Usage display", hint: "⌘-click to cycle")
+            sectionLabel("Usage display")
             ChartStylePicker(selected: $stylePref.style)
                 .padding(.top, 4)
                 .padding(.horizontal, 10)

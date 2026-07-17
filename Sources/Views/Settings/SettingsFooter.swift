@@ -16,10 +16,12 @@ struct SettingsFooter: View {
         HStack(alignment: .center, spacing: 14) {
             link("GitHub", url: Self.githubURL)
 
+            // The footer guide is the GLOBAL product tour, not one release's
+            // notes (owner call, 1.7.2).
             DottedLink(title: "Guide", arrow: false) {
-                WhatsNewWindowController.shared.show()
+                GuideWindowController.shared.show()
             }
-            .help(L10n.tr("What's new in this version"))
+            .help(L10n.tr("How Agent Island works"))
 
             Spacer()
 

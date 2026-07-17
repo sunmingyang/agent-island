@@ -38,18 +38,10 @@ struct PanelFooter: View {
                     // (usage) page — keep that page clean, show it elsewhere.
                     if screenPref.screen != .usage { chip }
 
-                    if !activeStyleCycled {
-                        HStack(spacing: 5) {
-                            Image(systemName: "command")
-                                .font(Typography.micro)
-                            Text(L10n.tr("click to cycle"))
-                                .font(Typography.label)
-                        }
-                        .foregroundStyle(.white.opacity(0.42))
-                        .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .leading)))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel(cycleHintAccessibilityLabel)
-                    }
+                    // The "⌘ click to cycle" hint is retired everywhere
+                    // (owner call ×2, 1.7.2): the cost gesture no longer
+                    // exists and styles are picked in Settings — a footer
+                    // promise was noise at best, a lie at worst.
 
                     Spacer()
 

@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// Post-update "what's new" guide (owner call, 1.7.2 planning): after an
-/// update lands, tell the user what changed — Typeless-style — instead of
-/// leaving them to discover features by accident. Shows once per version,
-/// never inside the demo/recording rigs.
+/// Post-update release-notes system (owner spec, 1.7.2, Typeless-style):
+/// a PAGED card — overview first, then one page per feature, each with an
+/// image slot — that auto-opens once per version and can always be reopened
+/// from Settings → Release notes or the version pill. The same pager also
+/// hosts the GLOBAL product guide (教程), which tours the whole product,
+/// not one release.
 @MainActor
 enum WhatsNewGate {
     private static let seenKey = "AgentIsland.whatsNewSeenVersion"
@@ -49,51 +51,131 @@ final class WhatsNewPref: ObservableObject {
     }
 }
 
-/// The version's highlights — hand-written per release, not raw changelog.
-struct WhatsNewItem: Identifiable {
+// MARK: - Page model
+
+struct PagedCardPage: Identifiable {
     let id = UUID()
     let symbol: String
+    /// Optional bundled illustration (PNG). Drop `whatsnew-172-*.png` /
+    /// `guide-*.png` into Resources and the branded placeholder yields to
+    /// the real art — no code change needed when the posters land.
+    let imageName: String?
     let title: String
     let body: String
+}
 
-    static let current: [WhatsNewItem] = [
-        WhatsNewItem(
+/// 1.7.2 release pages — overview first, then one page per theme. Copy is
+/// deliberately terse (owner call: 精简,别什么都往上写).
+enum WhatsNewContent {
+    static let pages: [PagedCardPage] = [
+        PagedCardPage(
+            symbol: "sparkles",
+            imageName: "whatsnew-172-overview",
+            title: "This update, in one line",
+            body: "Truer numbers, a calmer interface, and updates that explain themselves"
+        ),
+        PagedCardPage(
             symbol: "scalemass",
-            title: "Codex accounting v3",
-            body: "The local ledger now drops fork phantom tokens — single-machine days land within about 2% of the official client"
+            imageName: "whatsnew-172-accuracy",
+            title: "Numbers you can defend",
+            body: "The accounting engine drops phantom tokens — this machine now lands within ~2% of the official Codex client, and the calendar shows the official figure beside ours"
         ),
-        WhatsNewItem(
-            symbol: "checkmark.seal",
-            title: "Official figures, side by side",
-            body: "The usage calendar shows the Codex client's own lifetime and daily numbers — account-wide, every device"
+        PagedCardPage(
+            symbol: "circle.lefthalf.filled",
+            imageName: "whatsnew-172-interface",
+            title: "A calmer interface",
+            body: "Solid pie charts, stepped bars by default, a centered solo layout, and each visual mode explained right where you pick it"
         ),
-        WhatsNewItem(
-            symbol: "slider.horizontal.3",
-            title: "Token metric toggle works everywhere",
-            body: "All tokens vs Input + output now drives the calendar and both report cards"
-        ),
-        WhatsNewItem(
-            symbol: "rectangle.on.rectangle",
-            title: "Steadier weekly card",
-            body: "Every number on the card comes from one scan window, and opening the report refreshes it live"
-        ),
-        WhatsNewItem(
-            symbol: "wand.and.stars",
-            title: "Cleaner defaults",
-            body: "Usage display on by default, stepped chart as the default look, sparkline retired, cost section tidied"
+        PagedCardPage(
+            symbol: "map",
+            imageName: "whatsnew-172-guide",
+            title: "Updates that explain themselves",
+            body: "Every release opens one card like this — once. Turn it off in Settings, reopen it any time from the version pill"
         ),
     ]
 }
 
+/// The global product tour (教程) — the whole product, not one release.
+enum GuideContent {
+    static let pages: [PagedCardPage] = [
+        PagedCardPage(
+            symbol: "circle.hexagongrid.circle",
+            imageName: "guide-status",
+            title: "The island watches your agents",
+            body: "Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you"
+        ),
+        PagedCardPage(
+            symbol: "gauge.with.needle",
+            imageName: "guide-usage",
+            title: "Quota at a glance",
+            body: "Expand the island for the 5-hour and weekly windows — percentages come straight from each provider's official endpoint"
+        ),
+        PagedCardPage(
+            symbol: "calendar",
+            imageName: "guide-cost",
+            title: "Usage, cost, and a year of history",
+            body: "Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine"
+        ),
+        PagedCardPage(
+            symbol: "square.and.arrow.up",
+            imageName: "guide-cards",
+            title: "Weekly and monthly cards",
+            body: "One click renders a shareable battle card — copy it or AirDrop it straight to your phone"
+        ),
+        PagedCardPage(
+            symbol: "paintpalette",
+            imageName: "guide-personalize",
+            title: "Make it yours",
+            body: "Visual modes, glow colors, chart styles, and language — all in Settings"
+        ),
+    ]
+}
+
+// MARK: - Window controllers
+
 @MainActor
-final class WhatsNewWindowController: NSObject, NSWindowDelegate {
-    static let shared = WhatsNewWindowController()
+final class WhatsNewWindowController: PagedCardWindowController {
+    static let shared = WhatsNewWindowController(marksSeenOnClose: true)
+
+    override func makeView() -> AnyView {
+        AnyView(PagedCardView(
+            headline: L10n.tr("What's new in this update"),
+            versionChip: "v\(WhatsNewGate.currentVersion)",
+            pages: WhatsNewContent.pages,
+            onClose: { [weak self] in self?.close() }
+        ))
+    }
+}
+
+@MainActor
+final class GuideWindowController: PagedCardWindowController {
+    static let shared = GuideWindowController(marksSeenOnClose: false)
+
+    override func makeView() -> AnyView {
+        AnyView(PagedCardView(
+            headline: L10n.tr("How Agent Island works"),
+            versionChip: nil,
+            pages: GuideContent.pages,
+            onClose: { [weak self] in self?.close() }
+        ))
+    }
+}
+
+@MainActor
+class PagedCardWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private let marksSeenOnClose: Bool
+
+    init(marksSeenOnClose: Bool) {
+        self.marksSeenOnClose = marksSeenOnClose
+    }
+
+    func makeView() -> AnyView { AnyView(EmptyView()) }
 
     func show() {
         if window == nil {
-            let panel = WhatsNewPanel(
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 430, height: 560)),
+            let panel = PagedCardPanel(
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 470, height: 560)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -105,100 +187,152 @@ final class WhatsNewWindowController: NSObject, NSWindowDelegate {
             panel.hidesOnDeactivate = false
             panel.isReleasedWhenClosed = false
             panel.level = .floating
+            // Open on the Space the user is looking at — never yank them.
+            panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
             panel.delegate = self
             window = panel
         }
-        window?.contentView = NSHostingView(rootView: WhatsNewSheet())
+        window?.contentView = NSHostingView(rootView: makeView())
+        mountCloseButton()
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
 
-    func dismiss() {
-        WhatsNewGate.markSeen()
+    func close() {
         window?.close()
     }
 
     func windowWillClose(_ notification: Notification) {
         // Closing by any path counts as seen — never nag twice per version.
-        WhatsNewGate.markSeen()
+        if marksSeenOnClose { WhatsNewGate.markSeen() }
+    }
+
+    /// The REAL red traffic light on the borderless card (same pattern as
+    /// the report windows) — the popup must have an obvious, native way
+    /// out (owner report: 开关很难找).
+    private func mountCloseButton() {
+        guard let contentView = window?.contentView,
+              let close = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable])
+        else { return }
+        close.target = window
+        close.action = #selector(NSWindow.close)
+        contentView.addSubview(close)
+        let inset: CGFloat = 12
+        let yFromTop: CGFloat = 20 + inset
+        let y = contentView.isFlipped
+            ? yFromTop
+            : contentView.bounds.height - yFromTop - close.frame.height
+        close.setFrameOrigin(NSPoint(x: 20 + inset, y: y))
     }
 }
 
-private final class WhatsNewPanel: NSPanel {
+private final class PagedCardPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override func cancelOperation(_ sender: Any?) { close() }
 }
 
-private struct WhatsNewSheet: View {
+// MARK: - Paged card view
+
+private struct PagedCardView: View {
+    let headline: String
+    let versionChip: String?
+    let pages: [PagedCardPage]
+    let onClose: () -> Void
+
+    @State private var page = 0
+
+    private var isLast: Bool { page == pages.count - 1 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Wordmark line, report-card family style.
+            // Wordmark row — leaves the top-left corner free for the real
+            // close button the controller mounts.
             HStack(spacing: 8) {
+                Spacer(minLength: 30)
                 Text("AGENT ISLAND")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .tracking(3.2)
-                    .foregroundStyle(.white)
-                Text(WhatsNewGate.currentVersion)
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(IslandColor.liveTeal)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(IslandColor.liveTeal.opacity(0.12)))
-                Spacer()
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .tracking(3.0)
+                    .foregroundStyle(.white.opacity(0.9))
+                if let versionChip {
+                    Text(versionChip)
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(IslandColor.liveTeal)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(IslandColor.liveTeal.opacity(0.12)))
+                }
+                Spacer(minLength: 30)
             }
-            .padding(.bottom, 14)
+            .padding(.bottom, 16)
 
-            Text(L10n.tr("What's new in this update"))
-                .font(.system(size: 21, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
+            let current = pages[page]
+
+            PageIllustration(page: current)
                 .padding(.bottom, 18)
 
-            VStack(alignment: .leading, spacing: 15) {
-                ForEach(WhatsNewItem.current) { item in
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: item.symbol)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(IslandColor.liveTeal)
-                            .frame(width: 24, height: 24)
-                            .background(
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .fill(Color.white.opacity(0.05))
-                            )
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(L10n.tr(item.title))
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.92))
-                            Text(L10n.tr(item.body))
-                                .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.55))
-                                .fixedSize(horizontal: false, vertical: true)
-                                .lineSpacing(2)
-                        }
+            Text(L10n.tr(current.title))
+                .font(.system(size: 20, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.bottom, 8)
+
+            Text(L10n.tr(current.body))
+                .font(.system(size: 12.5, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.62))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 16)
+
+            HStack(spacing: 10) {
+                // Page dots — the "there is more" cue the first cut lacked.
+                HStack(spacing: 5) {
+                    ForEach(pages.indices, id: \.self) { i in
+                        Circle()
+                            .fill(i == page ? IslandColor.liveTeal : Color.white.opacity(0.16))
+                            .frame(width: 6, height: 6)
                     }
                 }
+                Spacer()
+                if page > 0 {
+                    Button {
+                        withAnimation(.easeOut(duration: 0.18)) { page -= 1 }
+                    } label: {
+                        Text(L10n.tr("Back"))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.55))
+                            .padding(.horizontal, 14)
+                            .frame(height: 34)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.white.opacity(0.05))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button {
+                    if isLast {
+                        onClose()
+                    } else {
+                        withAnimation(.easeOut(duration: 0.18)) { page += 1 }
+                    }
+                } label: {
+                    Text(isLast ? L10n.tr("Get started") : L10n.tr("Next"))
+                        .font(.system(size: 12.5, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.black.opacity(0.9))
+                        .padding(.horizontal, 18)
+                        .frame(height: 34)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(IslandColor.liveTeal)
+                        )
+                }
+                .buttonStyle(.plain)
             }
-
-            Spacer(minLength: 20)
-
-            Button {
-                WhatsNewWindowController.shared.dismiss()
-            } label: {
-                Text(L10n.tr("Get started"))
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.black.opacity(0.9))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 38)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(IslandColor.liveTeal)
-                    )
-            }
-            .buttonStyle(.plain)
         }
-        .padding(26)
-        .frame(width: 430)
+        .padding(24)
+        .frame(width: 470, height: 560)
         .background(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(WeeklyReportCard.baseCoat)
@@ -208,6 +342,49 @@ private struct WhatsNewSheet: View {
                 )
         )
         .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
-        .padding(20)
+        .padding(16)
+    }
+}
+
+/// Bundled poster if present; otherwise a brand-toned placeholder that
+/// still looks intentional (rounded, teal wash, oversized glyph).
+private struct PageIllustration: View {
+    let page: PagedCardPage
+
+    private var poster: NSImage? {
+        guard let imageName = page.imageName else { return nil }
+        return Bundle.main.url(forResource: imageName, withExtension: "png")
+            .flatMap { NSImage(contentsOf: $0) }
+    }
+
+    var body: some View {
+        Group {
+            if let poster {
+                Image(nsImage: poster)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            IslandColor.liveTeal.opacity(0.16),
+                            IslandColor.cobalt.opacity(0.10),
+                            Color.white.opacity(0.02),
+                        ],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    Image(systemName: page.symbol)
+                        .font(.system(size: 46, weight: .medium))
+                        .foregroundStyle(IslandColor.liveTeal.opacity(0.85))
+                }
+            }
+        }
+        .frame(height: 240)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+        )
     }
 }
