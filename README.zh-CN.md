@@ -29,9 +29,9 @@
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
 </a>
 
-<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 发布影片：周报月报卡与岛民段位" width="900">
+<img src="docs/media/launch.gif" alt="Agent Island 1.7.1 发布影片：实时会话状态、额度窗口与报告卡" width="900">
 
-<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;高清版</a></sub>
+<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.7.1-launch-en.mp4">▶&nbsp;高清版</a></sub>
 
 <!-- 8-12 秒产品 Demo（running -> your turn -> open session）做好后替换上面的发布影片。 -->
 

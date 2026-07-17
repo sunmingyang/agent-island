@@ -29,9 +29,9 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
 </a>
 
-<img src="docs/media/launch.gif" alt="Agent Island 1.6.1 launch film: weekly and monthly report cards, island ranks" width="900">
+<img src="docs/media/launch.gif" alt="Agent Island 1.7.1 launch film: live session status, usage windows, and report cards" width="900">
 
-<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.6.1-launch-en.mp4">▶&nbsp;HD version</a></sub>
+<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.7.1-launch-en.mp4">▶&nbsp;HD version</a></sub>
 
 <!-- Swap the launch film above for the 8-12 second product demo loop (running -> your turn -> open session) once it exists. -->
 
