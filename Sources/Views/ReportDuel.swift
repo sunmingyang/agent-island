@@ -158,10 +158,14 @@ struct ReportRankBlock: View {
                         .font(.system(size: zh ? 23 : 19, weight: .black, design: .rounded))
                     + Text(L10n.tr(" rank")))
                     .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    // Long tier names ("Archipelago King", "Legendary
-                    // Navigator") must shrink, never truncate to "K…".
+                    // Long tier names may shrink a LITTLE for width — but
+                    // the line never surrenders its height: the weekly
+                    // card's tight column was vertically squeezing this
+                    // text to the 0.55 floor while the monthly rendered
+                    // full-size (owner screenshot, 2026-07-18).
                     .lineLimit(1)
-                    .minimumScaleFactor(0.55)
+                    .minimumScaleFactor(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
                     .foregroundStyle(Self.gold)
             }
         }

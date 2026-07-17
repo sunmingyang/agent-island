@@ -121,7 +121,7 @@ struct SettingsView: View {
             case .providers:    "Providers"
             case .triggers:     "Triggers"
             case .statusGuide:  "Status"
-            case .releaseNotes: "Release notes"
+            case .releaseNotes: "Notes"
             case .about:        "About"
             }
         }
@@ -148,10 +148,14 @@ struct SettingsView: View {
         } label: {
             Text(L10n.tr(tab.label))
                 .font(Typography.tabLabel)
+                // Never wraps mid-word — six EN labels overflowed 440pt and
+                // broke into "Genera/l" stacks (owner screenshot).
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundStyle(isOn
                     ? .white.opacity(0.95)
                     : .white.opacity(0.50))
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 9)
                 .padding(.vertical, 6)
                 .background {
                     RoundedRectangle(cornerRadius: 6)
@@ -213,21 +217,17 @@ struct SettingsView: View {
     private var aboutContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Agent Island")
-                        .font(.system(size: 25, weight: .bold, design: .serif))
-                        .foregroundStyle(.white.opacity(0.95))
-                    Text(L10n.tr("A status companion for Claude Code and Codex"))
-                        .font(.system(size: 13, weight: .medium, design: .serif))
-                        .italic()
-                        .foregroundStyle(IslandColor.liveTeal)
-                }
-                .padding(.top, 0)
+                Text("Agent Island")
+                    .font(.system(size: 25, weight: .bold, design: .serif))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .padding(.top, 0)
 
+                // The owner's own words (2026-07-18): the origin is
+                // efficiency, the ask is a share or a star — nothing else.
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.tr("Anyone who works beside an agent has stared at the same screen: it is running, you are waiting — or it stopped, and nobody told you"))
-                    Text(L10n.tr("Agent Island turns that into an island in your notch — who is working, whose turn it is, how much you have used. One glance, then go back to your life"))
-                    Text(L10n.tr("Everything stays on your machine. No account, no telemetry, open source"))
+                    Text(L10n.tr("This product exists for one thing: efficiency. I am tired, I am working — the agent runs, and I wait. That time should not be wasted"))
+                    Text(L10n.tr("It is open source so that every developer — everyone vibe coding — can claim that efficiency too. That is the whole origin"))
+                    Text(L10n.tr("If you like it, share it, or leave a star on GitHub — that is the biggest help you can give me"))
                 }
                 .font(.system(size: 11.5, design: .serif))
                 .foregroundStyle(.white.opacity(0.66))
@@ -241,15 +241,11 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     aboutFact(L10n.tr("Made by"), value: "Tristan Tang") {
-                        NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666")!)
+                        NSWorkspace.shared.open(URL(string: "https://tristan.media")!)
                     }
-                    aboutFact(L10n.tr("License"), value: "MIT · open source") {
-                        NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666/agent-island/blob/main/LICENSE")!)
+                    aboutFact(L10n.tr("Sponsor"), value: L10n.tr("Buy me a coffee")) {
+                        NSWorkspace.shared.open(URL(string: "https://tristan.media")!)
                     }
-                    Text(L10n.tr("Grew out of codex-island by Eric Park — the credit stays"))
-                        .font(Typography.caption)
-                        .foregroundStyle(.white.opacity(0.34))
-                        .padding(.top, 2)
                 }
             }
             .padding(.horizontal, 24)

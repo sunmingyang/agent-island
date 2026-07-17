@@ -316,10 +316,10 @@ struct PagedCardView: View {
                     Text(versionChip)
                         .font(.system(size: 10.5, weight: .bold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(IslandColor.liveTeal)
+                        .foregroundStyle(IslandColor.brandTeal)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(IslandColor.liveTeal.opacity(0.12)))
+                        .background(Capsule().fill(IslandColor.brandTeal.opacity(0.12)))
                 }
                 Spacer(minLength: 30)
             }
@@ -359,7 +359,7 @@ struct PagedCardView: View {
                 HStack(spacing: 5) {
                     ForEach(pages.indices, id: \.self) { i in
                         Circle()
-                            .fill(i == page ? IslandColor.liveTeal : Color.white.opacity(0.16))
+                            .fill(i == page ? IslandColor.brandTeal : Color.white.opacity(0.16))
                             .frame(width: 6, height: 6)
                     }
                 }
@@ -394,7 +394,7 @@ struct PagedCardView: View {
                         .frame(height: 34)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(IslandColor.liveTeal)
+                                .fill(IslandColor.brandTeal)
                         )
                 }
                 .buttonStyle(TactileButtonStyle())
@@ -471,14 +471,14 @@ private struct IconRow: View {
             ForEach(symbols, id: \.self) { symbol in
                 Image(systemName: symbol)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(IslandColor.liveTeal)
+                    .foregroundStyle(IslandColor.brandTeal)
                     .frame(width: 30, height: 30)
                     .background(
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(IslandColor.liveTeal.opacity(0.10))
+                            .fill(IslandColor.brandTeal.opacity(0.10))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .strokeBorder(IslandColor.liveTeal.opacity(0.22), lineWidth: 1)
+                                    .strokeBorder(IslandColor.brandTeal.opacity(0.22), lineWidth: 1)
                             )
                     )
             }
@@ -496,6 +496,13 @@ private struct PageIllustration: View {
 
     private var poster: NSImage? {
         guard let imageName = page.imageName else { return nil }
+        // English UI prefers the -en poster when one exists; zh art is the
+        // fallback so a missing translation never blanks the slot.
+        if !L10n.locale.identifier.hasPrefix("zh"),
+           let en = Bundle.main.url(forResource: imageName + "-en", withExtension: "png")
+               .flatMap({ NSImage(contentsOf: $0) }) {
+            return en
+        }
         return Bundle.main.url(forResource: imageName, withExtension: "png")
             .flatMap { NSImage(contentsOf: $0) }
     }
@@ -524,7 +531,7 @@ private struct PageIllustration: View {
                     ZStack {
                         LinearGradient(
                             colors: [
-                                IslandColor.liveTeal.opacity(0.16),
+                                IslandColor.brandTeal.opacity(0.16),
                                 IslandColor.cobalt.opacity(0.10),
                                 Color.white.opacity(0.02),
                             ],
@@ -532,7 +539,7 @@ private struct PageIllustration: View {
                         )
                         Image(systemName: page.symbol)
                             .font(.system(size: 46, weight: .medium))
-                            .foregroundStyle(IslandColor.liveTeal.opacity(0.85))
+                            .foregroundStyle(IslandColor.brandTeal.opacity(0.85))
                     }
                 }
             }
