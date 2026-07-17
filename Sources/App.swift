@@ -91,6 +91,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let isRig = env.keys.contains { $0.hasPrefix("AGENTISLAND_") }
         if AppEnvironment.current == .normal && !isRig {
             UpdateNudge.shared.start()
+            // Post-update guide: once the island has settled, show this
+            // version's highlights (once per version).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                WhatsNewGate.maybeShow()
+            }
         }
 
         // Headless card snapshot for tooling: waits for the cost scan to

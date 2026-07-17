@@ -141,6 +141,33 @@ extension IslandRootView {
     }
 
     private func exitPeekFromHover() {
+        // An EXPANDED panel rides out hover flicker: .onHover drops false for
+        // a frame when the pointer crosses child views (scrubbable video, the
+        // pager, pickers), and the old immediate-hide + 0.10s collapse made
+        // the open panel vanish under the cursor (owner report, 1.7.2). A
+        // real leave still closes it — after a grace window with the cursor
+        // genuinely gone. Peek keeps its snappy exit.
+        if model.state == .expanded {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                guard !hovering, model.state == .expanded else { return }
+                withAnimation(.easeOut(duration: 0.10)) {
+                    contentVisible = false
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                    guard !hovering, model.state == .expanded else { return }
+                    withAnimation(.closeMorph) {
+                        model.setState(restState)
+                    }
+                    if alwaysShow.enabled {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            pillsVisible = true
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         if !alwaysShow.enabled {
             withAnimation(.easeOut(duration: 0.08)) {
                 pillsVisible = false

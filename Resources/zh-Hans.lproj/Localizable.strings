@@ -374,3 +374,17 @@
 
 "Codex official · that day %@" = "Codex 官方口径 · 当日 %@";
 "Codex official · lifetime %@" = "Codex 官方口径 · 累计 %@";
+
+/* What's New (1.7.2) */
+"What's new in this update" = "本次更新带来了什么";
+"Get started" = "开始使用";
+"Codex accounting v3" = "Codex 记账 v3";
+"The local ledger now drops fork phantom tokens — single-machine days land within about 2% of the official client" = "本机账本挤掉了 fork 幻影 token,纯本机使用日与官方客户端误差约 2% 以内";
+"Official figures, side by side" = "官方口径,并排可见";
+"The usage calendar shows the Codex client's own lifetime and daily numbers — account-wide, every device" = "用量日历新增 Codex 官方的累计与逐日数字——账号级,含所有设备";
+"Token metric toggle works everywhere" = "口径开关全局生效";
+"All tokens vs Input + output now drives the calendar and both report cards" = "全部 Token / 只统计输入输出,现在真正作用于日历与周月报卡";
+"Steadier weekly card" = "周报卡更稳了";
+"Every number on the card comes from one scan window, and opening the report refreshes it live" = "卡上所有数字来自同一扫描窗口,打开报告即实时刷新";
+"Cleaner defaults" = "更清爽的默认";
+"Usage display on by default, stepped chart as the default look, sparkline retired, cost section tidied" = "用量显示默认开启,图表默认阶梯样式,折线图退役,成本区更整洁";
