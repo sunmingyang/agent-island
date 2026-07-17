@@ -16,7 +16,7 @@ struct WeeklyReportData {
     struct ModelShare: Identifiable {
         let id = UUID()
         let name: String
-        let tokens: Int       // wire tokens this week
+        let tokens: Int       // wire or billable per TokenCountMode
         let dollars: Double   // API value this week
         let percent: Double   // 0...1 of the combined week's dollars
         let isClaude: Bool
@@ -39,6 +39,7 @@ struct WeeklyReportData {
     static func current() -> WeeklyReportData {
         let cost = CostStore.shared
         let cal = Calendar.current
+        let mode = TokenCountModeStore.shared.mode
         // Anchor the 7-day window to the freshest SCANNED day, not the wall
         // clock. Right after launch (or during a long first scan) the store
         // can still hold yesterday's snapshot; a wall-clock window then
@@ -57,7 +58,8 @@ struct WeeklyReportData {
         }
 
         func bucketTotal(_ buckets: [DailyTokenBucket], _ day: Date) -> Int {
-            buckets.first(where: { cal.isDate($0.dayStart, inSameDayAs: day) })?.tokens ?? 0
+            guard let b = buckets.first(where: { cal.isDate($0.dayStart, inSameDayAs: day) }) else { return 0 }
+            return mode == .all ? b.tokens : b.billableTokens
         }
         let claudeDaily = days.map { bucketTotal(cost.claude.dailyTokens, $0) }
         let codexDaily = days.map { bucketTotal(cost.codex.dailyTokens, $0) }
@@ -74,7 +76,8 @@ struct WeeklyReportData {
         let models = Self.rankedModels(
             claudeRows: cost.claude.weekByModel,
             codexRows: cost.codex.weekByModel,
-            limit: 3
+            limit: 3,
+            mode: mode
         )
 
         let df = DateFormatter()
@@ -121,16 +124,17 @@ struct WeeklyReportData {
     static func rankedModels(
         claudeRows: [ModelUsageRow],
         codexRows: [ModelUsageRow],
-        limit: Int
+        limit: Int,
+        mode: TokenCountMode = .all
     ) -> [ModelShare] {
         let dollarUniverse = max(0.01, (claudeRows + codexRows).reduce(0.0) { $0 + $1.dollars })
         let claude = claudeRows.map {
-            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
+            ModelShare(name: $0.displayName, tokens: mode == .all ? $0.wireTokens : $0.tokens, dollars: $0.dollars,
                        percent: $0.dollars / dollarUniverse, isClaude: true,
                        color: IslandColor.claude)
         }
         let codex = codexRows.map {
-            ModelShare(name: $0.displayName, tokens: $0.wireTokens, dollars: $0.dollars,
+            ModelShare(name: $0.displayName, tokens: mode == .all ? $0.wireTokens : $0.tokens, dollars: $0.dollars,
                        percent: $0.dollars / dollarUniverse, isClaude: false,
                        color: IslandColor.codex)
         }

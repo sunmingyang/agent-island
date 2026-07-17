@@ -20,18 +20,23 @@ struct MonthlyReportData {
     @MainActor
     static func current() -> MonthlyReportData {
         let cost = CostStore.shared
+        let mode = TokenCountModeStore.shared.mode
         let today = Calendar.current.startOfDay(for: Date())
         let zh = L10n.locale.identifier.hasPrefix("zh")
 
-        let totalTokens = cost.claude.month.tokens + cost.codex.month.tokens
+        let totalTokens = mode == .all
+            ? cost.claude.month.tokens + cost.codex.month.tokens
+            : cost.claude.month.billableTokens + cost.codex.month.billableTokens
         let totalDollars = cost.claude.month.dollars + cost.codex.month.dollars
         let claudeShare = totalTokens > 0
-            ? Double(cost.claude.month.tokens) / Double(totalTokens) : 0
+            ? Double(mode == .all ? cost.claude.month.tokens : cost.claude.month.billableTokens)
+                / Double(totalTokens) : 0
 
         let models = WeeklyReportData.rankedModels(
             claudeRows: cost.claude.monthByModel,
             codexRows: cost.codex.monthByModel,
-            limit: 5
+            limit: 5,
+            mode: mode
         )
 
         let df = DateFormatter()
@@ -239,6 +244,7 @@ private struct MonthlyReportSheet: View {
     // Same live-store treatment as the weekly sheet: kick a rescan on open,
     // re-render when it commits, never freeze a stale launch snapshot.
     @ObservedObject private var cost = CostStore.shared
+    @ObservedObject private var tokenMode = TokenCountModeStore.shared
     @State private var copied = false
     @State private var coach: String?
     @State private var shareAnchor: NSView?
@@ -283,6 +289,10 @@ private struct MonthlyReportSheet: View {
             CostStore.shared.refresh()
         }
         .onReceive(cost.objectWillChange) { _ in
+            MonthlyReportRenderer.invalidateCache()
+            DispatchQueue.main.async { MonthlyReportRenderer.warmCache() }
+        }
+        .onReceive(tokenMode.objectWillChange) { _ in
             MonthlyReportRenderer.invalidateCache()
             DispatchQueue.main.async { MonthlyReportRenderer.warmCache() }
         }

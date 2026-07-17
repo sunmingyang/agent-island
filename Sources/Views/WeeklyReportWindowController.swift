@@ -151,6 +151,7 @@ private struct WeeklyReportSheet: View {
     // instead of freezing whatever snapshot launch restored (the "one model
     // row bigger than the weekly total" screenshots were day-old snapshots).
     @ObservedObject private var cost = CostStore.shared
+    @ObservedObject private var tokenMode = TokenCountModeStore.shared
     @State private var copied = false
     @State private var coach: String?
     @State private var shareAnchor: NSView?
@@ -207,6 +208,10 @@ private struct WeeklyReportSheet: View {
         .onReceive(cost.objectWillChange) { _ in
             WeeklyReportRenderer.invalidateCache()
             // Re-warm off the click path once the new values have landed.
+            DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
+        }
+        .onReceive(tokenMode.objectWillChange) { _ in
+            WeeklyReportRenderer.invalidateCache()
             DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in

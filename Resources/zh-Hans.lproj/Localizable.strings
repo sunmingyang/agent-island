@@ -371,3 +371,6 @@
 "Update" = "去更新";
 "You're up to date" = "已是最新版本";
 "Couldn't check for updates" = "检查更新失败,稍后再试";
+
+"Codex official · that day %@" = "Codex 官方口径 · 当日 %@";
+"Codex official · lifetime %@" = "Codex 官方口径 · 累计 %@";

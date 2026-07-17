@@ -6,7 +6,11 @@ tag was cut.
 
 ## [Unreleased]
 
+### Added
+- macOS: the usage calendar now shows the Codex client's own official figures alongside the local ledger — lifetime and per-day, fetched from the same endpoint the official personal-usage page renders from. An 85-day comparison proved the server-side count cannot be reconstructed from local logs (it aggregates every device and applies its own request accounting), so the official number is now displayed as-is, labeled, instead of being approximated.
+
 ### Fixed
+- macOS: the Settings token-metric choice (All tokens / Input + output) now actually drives the usage calendar and both report cards. It was wired only into the cost page hero — the calendar hardcoded "all", so flipping the setting looked like a no-op (owner report).
 - macOS: the weekly card could show a single model row bigger than the weekly total (community screenshots). Right after launch the card rendered from the restored snapshot, but its 7-day window was anchored to the wall clock while the model table's window was anchored to the snapshot's scan day — a full day of shear between the two series. Every number on the card now anchors to the snapshot's own day, opening the report kicks a rescan, and the card re-renders live the moment fresh data commits (the copy/share cache re-warms too).
 
 ## [1.7.1] - 2026-07-16
