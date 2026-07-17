@@ -172,9 +172,9 @@
 "Monthly" = "月报";
 "Share monthly report" = "分享月报";
 "Share monthly report…" = "分享本月月报…";
-"network drop" = "网络中断,已保留上次数据";
+"network drop" = "网络中断，已保留上次数据";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传";
-"Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧:隔空投送到 iPhone,图片直接进相册,随手就能发 📲";
+"Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧:隔空投送到 iPhone，图片直接进相册，随手就能发 📲";
 "Drifter" = "漂流者";
 "Islander" = "登岛者";
 "Settler" = "定居者";
@@ -192,7 +192,7 @@
 "Share…" = "分享…";
 "Others" = "其他";
 "Details unavailable right now." = "明细暂时不可用";
-"Earned resets appear here with their expiry." = "获得的重置卡会显示在这里,附有效期";
+"Earned resets appear here with their expiry." = "获得的重置卡会显示在这里，附有效期";
 "expired" = "已过期";
 "valid %@ · %@" = "有效 %@ · %@ 到期";
 "Swipe to change pages." = "滑动切换页面";
@@ -346,8 +346,8 @@
 "Input, output, and cache." = "统计输入、输出和缓存";
 "Input and output only." = "只统计输入和输出";
 
-"Notch width for MacBooks with a camera notch; narrower for those without." = "有刘海的 MacBook 用刘海宽度,没有的更窄";
-"Codex spawns child threads that finish constantly. Off by default." = "Codex 会派生子线程,它们结束得非常频繁。默认关";
+"Notch width for MacBooks with a camera notch; narrower for those without." = "有刘海的 MacBook 用刘海宽度，没有的更窄";
+"Codex spawns child threads that finish constantly. Off by default." = "Codex 会派生子线程，它们结束得非常频繁。默认关";
 
 /* quota alarm toggle */
 "Out-of-quota alarm" = "额度用完弹窗";
@@ -367,10 +367,10 @@
 
 /* update nudge */
 "Update available" = "有新版本";
-"Agent Island %@ is out — you're on %@" = "Agent Island %@ 已发布,当前是 %@";
+"Agent Island %@ is out — you're on %@" = "Agent Island %@ 已发布，当前是 %@";
 "Update" = "去更新";
 "You're up to date" = "已是最新版本";
-"Couldn't check for updates" = "检查更新失败,稍后再试";
+"Couldn't check for updates" = "检查更新失败，稍后再试";
 
 "Codex official · that day %@" = "Codex 官方当日 %@";
 "Codex official · lifetime %@" = "Codex 官方累计 %@";
@@ -379,15 +379,15 @@
 "What's new in this update" = "本次更新带来了什么";
 "Get started" = "开始使用";
 "Codex accounting v3" = "Codex 记账 v3";
-"The local ledger now drops fork phantom tokens — single-machine days land within about 2% of the official client" = "本机账本挤掉了 fork 幻影 token,纯本机使用日与官方客户端误差约 2% 以内";
-"Official figures, side by side" = "官方数字,并排可见";
-"The usage calendar shows the Codex client's own lifetime and daily numbers — account-wide, every device" = "用量日历新增 Codex 官方的累计与逐日数字——账号级,含所有设备";
+"The local ledger now drops fork phantom tokens — single-machine days land within about 2% of the official client" = "本机账本挤掉了 fork 幻影 token，纯本机使用日与官方客户端误差约 2% 以内";
+"Official figures, side by side" = "官方数字，并排可见";
+"The usage calendar shows the Codex client's own lifetime and daily numbers — account-wide, every device" = "用量日历新增 Codex 官方的累计与逐日数字——账号级，含所有设备";
 "Token metric toggle works everywhere" = "口径开关全局生效";
-"All tokens vs Input + output now drives the calendar and both report cards" = "全部 Token / 只统计输入输出,现在真正作用于日历与周月报卡";
+"All tokens vs Input + output now drives the calendar and both report cards" = "全部 Token / 只统计输入输出，现在真正作用于日历与周月报卡";
 "Steadier weekly card" = "周报卡更稳了";
-"Every number on the card comes from one scan window, and opening the report refreshes it live" = "卡上所有数字来自同一扫描窗口,打开报告即实时刷新";
+"Every number on the card comes from one scan window, and opening the report refreshes it live" = "卡上所有数字来自同一扫描窗口，打开报告即实时刷新";
 "Cleaner defaults" = "更清爽的默认";
-"Usage display on by default, stepped chart as the default look, sparkline retired, cost section tidied" = "用量显示默认开启,图表默认阶梯样式,折线图退役,成本区更整洁";
+"Usage display on by default, stepped chart as the default look, sparkline retired, cost section tidied" = "用量显示默认开启，图表默认阶梯样式，折线图退役，成本区更整洁";
 
 /* 1.7.2 preview batch 2 */
 "Pie" = "饼图";
@@ -396,13 +396,13 @@
 "What's new in this version" = "本版更新说明";
 "View" = "查看";
 "Show highlights after updates" = "更新后自动展示新功能";
-"A one-time card after each update, so new features never land silently." = "每次更新后弹一次本版亮点,新功能不再无声上线";
+"A one-time card after each update, so new features never land silently." = "每次更新后弹一次本版亮点，新功能不再无声上线";
 "Full changelog on the website" = "官网完整更新日志";
-"Calm: no ambient light, the lowest GPU and CPU cost" = "清爽:无环境光效,GPU/CPU 占用最低";
-"Vivid: halo and orbit sweep, a touch more GPU" = "流光:光晕与流光扫过,GPU 占用略高";
+"Calm: no ambient light, the lowest GPU and CPU cost" = "清爽:无环境光效，GPU/CPU 占用最低";
+"Vivid: halo and orbit sweep, a touch more GPU" = "流光:光晕与流光扫过，GPU 占用略高";
 "Connected to Claude" = "已连接 Claude";
 "Login incomplete" = "登录未完成";
-"Authentication succeeded — close this page and return to Agent Island" = "认证成功,可以关闭此页并返回 Agent Island";
+"Authentication succeeded — close this page and return to Agent Island" = "认证成功，可以关闭此页并返回 Agent Island";
 "Please return to Agent Island and try again" = "请回到 Agent Island 重试";
 
 /* 1.7.2 paged cards */
@@ -412,21 +412,21 @@
 "A five-page tour of everything the island does." = "五页看懂小岛的全部能力";
 "Back" = "上一页";
 "Next" = "下一页";
-"This update, in one line" = "这次更新,一句话";
+"This update, in one line" = "这次更新，一句话";
 "Truer numbers, a calmer interface, and updates that explain themselves" = "数字更准了 · 界面更清爽了 · 更新不再无声";
 "Numbers you can defend" = "经得起对账的数字";
-"The accounting engine drops phantom tokens — this machine now lands within ~2% of the official Codex client, and the calendar shows the official figure beside ours" = "记账引擎挤掉幻影 token,本机数字与 Codex 官方客户端误差约 2%;日历里还能同屏看到官方数字";
+"The accounting engine drops phantom tokens — this machine now lands within ~2% of the official Codex client, and the calendar shows the official figure beside ours" = "记账引擎挤掉幻影 token，本机数字与 Codex 官方客户端误差约 2%；日历里还能同屏看到官方数字";
 "A calmer interface" = "更清爽的界面";
-"Solid pie charts, stepped bars by default, a centered solo layout, and each visual mode explained right where you pick it" = "实心饼图、默认阶梯样式、单订阅居中布局,视觉模式在选择处就有说明";
+"Solid pie charts, stepped bars by default, a centered solo layout, and each visual mode explained right where you pick it" = "实心饼图、默认阶梯样式、单订阅居中布局，视觉模式在选择处就有说明";
 "Updates that explain themselves" = "更新自己会说话";
-"Every release opens one card like this — once. Turn it off in Settings, reopen it any time from the version pill" = "每个版本只弹一次这样的说明卡;设置里可关,点版本号随时重看";
+"Every release opens one card like this — once. Turn it off in Settings, reopen it any time from the version pill" = "每个版本只弹一次这样的说明卡；设置里可关，点版本号随时重看";
 "The island watches your agents" = "小岛替你盯着 agent";
-"Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you" = "刘海里两个标志:旋转=在干活,铃铛=轮到你,常红=需要你处理";
+"Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you" = "刘海里两个标志:旋转=在干活，铃铛=轮到你，常红=需要你处理";
 "Quota at a glance" = "额度一眼可见";
-"Expand the island for the 5-hour and weekly windows — percentages come straight from each provider's official endpoint" = "展开小岛看 5 小时与周额度窗口,百分比直连官方接口";
+"Expand the island for the 5-hour and weekly windows — percentages come straight from each provider's official endpoint" = "展开小岛看 5 小时与周额度窗口，百分比直连官方接口";
 "Usage, cost, and a year of history" = "用量、成本与全年历史";
-"Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine" = "本机会话日志变成 token 统计、API 价值与全年热力图,数据不出你的电脑";
+"Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine" = "本机会话日志变成 token 统计、API 价值与全年热力图，数据不出你的电脑";
 "Weekly and monthly cards" = "周报与月报战绩卡";
-"One click renders a shareable battle card — copy it or AirDrop it straight to your phone" = "一键生成可分享的战绩卡,复制或隔空投送到手机";
+"One click renders a shareable battle card — copy it or AirDrop it straight to your phone" = "一键生成可分享的战绩卡，复制或隔空投送到手机";
 "Make it yours" = "把它调成你的样子";
-"Visual modes, glow colors, chart styles, and language — all in Settings" = "视觉模式、光效颜色、图表样式与语言,都在设置里";
+"Visual modes, glow colors, chart styles, and language — all in Settings" = "视觉模式、光效颜色、图表样式与语言，都在设置里";
