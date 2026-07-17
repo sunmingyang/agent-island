@@ -177,44 +177,70 @@ struct SettingsView: View {
     /// The 关于 page (owner spec, 2026-07-18, studied from Cadence's 理念
     /// tab): serif manifesto prose — who made this and why — plus the
     /// open-source facts. System serif (New York), not a bundled typeface.
+    /// The ghosted brand mark low-right — Cadence's 理念 page signature
+    /// (owner spec, 2026-07-18): a large, blurred, near-invisible echo of
+    /// the logo that gives the page depth without competing with the prose.
+    private var aboutGhostMark: some View {
+        Group {
+            if let logo = Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
+                .flatMap({ NSImage(contentsOf: $0) }) {
+                Image(nsImage: logo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 205)
+                    .blur(radius: 2.5)
+                    .opacity(0.07)
+                    .rotationEffect(.degrees(-9))
+                    .offset(x: 30, y: 6)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
     private var aboutTab: some View {
+        ZStack(alignment: .bottomTrailing) {
+            aboutGhostMark
+            aboutContent
+        }
+        .frame(minHeight: 395, alignment: .top)
+        .clipped()
+    }
+
+    private var aboutContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Agent Island")
-                        .font(.system(size: 30, weight: .bold, design: .serif))
+                        .font(.system(size: 25, weight: .bold, design: .serif))
                         .foregroundStyle(.white.opacity(0.95))
                     Text(L10n.tr("A status companion for Claude Code and Codex"))
                         .font(.system(size: 13, weight: .medium, design: .serif))
                         .italic()
                         .foregroundStyle(IslandColor.liveTeal)
                 }
-                .padding(.top, 8)
+                .padding(.top, 0)
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.tr("Anyone who works beside an agent has stared at the same screen: it is running, you are waiting — or it stopped, and nobody told you"))
                     Text(L10n.tr("Agent Island turns that into an island in your notch — who is working, whose turn it is, how much you have used. One glance, then go back to your life"))
                     Text(L10n.tr("Everything stays on your machine. No account, no telemetry, open source"))
                 }
-                .font(.system(size: 12.5, design: .serif))
+                .font(.system(size: 11.5, design: .serif))
                 .foregroundStyle(.white.opacity(0.66))
-                .lineSpacing(5)
+                .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
 
                 Rectangle()
                     .fill(.white.opacity(0.07))
                     .frame(height: 0.5)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 2)
 
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 6) {
                     aboutFact(L10n.tr("Made by"), value: "Tristan Tang") {
                         NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666")!)
                     }
                     aboutFact(L10n.tr("License"), value: "MIT · open source") {
                         NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666/agent-island/blob/main/LICENSE")!)
-                    }
-                    aboutFact(L10n.tr("Website"), value: "agent-island.dev") {
-                        NSWorkspace.shared.open(URL(string: "https://agent-island.dev")!)
                     }
                     Text(L10n.tr("Grew out of codex-island by Eric Park — the credit stays"))
                         .font(Typography.caption)
@@ -223,7 +249,7 @@ struct SettingsView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 14)
+            .padding(.bottom, 6)
         }
     }
 
