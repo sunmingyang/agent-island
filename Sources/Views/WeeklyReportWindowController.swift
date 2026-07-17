@@ -154,6 +154,7 @@ private struct WeeklyReportSheet: View {
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var tokenMode = TokenCountModeStore.shared
     @State private var copied = false
+    @State private var settle = 0
     @State private var coach: String?
     @State private var shareAnchor: NSView?
     // NSSharingServicePicker dies if released while on screen — park it.
@@ -165,6 +166,10 @@ private struct WeeklyReportSheet: View {
                 // A tight, grounded shadow — the old radius-34/0.6 halo was
                 // the "floating on fog" feel, not any system glass.
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
+                // Cadence E15 + D12-4: the card tilts under the pointer and
+                // dips once when an action commits.
+                .modifier(CardTilt())
+                .modifier(SettlePulse(trigger: settle))
 
             // Cadence-style action rail: one centered row of icon pills —
             // copy / save / share — each answering with an impact haptic
@@ -175,6 +180,7 @@ private struct WeeklyReportSheet: View {
                              prominent: true) {
                     if copyImage() {
                         Haptics.impact()
+                        settle += 1
                         copied = true
                         showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
@@ -183,6 +189,7 @@ private struct WeeklyReportSheet: View {
                 actionButton(L10n.tr("Save"), icon: "arrow.down.to.line", prominent: true) {
                     if savePNG() {
                         Haptics.impact()
+                        settle += 1
                         showCoach(L10n.tr("Saved as PNG"))
                     }
                 }

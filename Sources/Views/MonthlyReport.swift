@@ -247,6 +247,7 @@ private struct MonthlyReportSheet: View {
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var tokenMode = TokenCountModeStore.shared
     @State private var copied = false
+    @State private var settle = 0
     @State private var coach: String?
     @State private var shareAnchor: NSView?
     @State private var pickerHolder = MonthlyPickerHolder()
@@ -255,6 +256,8 @@ private struct MonthlyReportSheet: View {
         VStack(spacing: 14) {
             MonthlyReportCard(data: .current())
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
+                .modifier(CardTilt())
+                .modifier(SettlePulse(trigger: settle))
 
             HStack(spacing: 10) {
                 pill(copied ? L10n.tr("Copied") : L10n.tr("Copy"),
@@ -263,6 +266,7 @@ private struct MonthlyReportSheet: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.writeObjects([image])
                         Haptics.impact()
+                        settle += 1
                         copied = true
                         showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
@@ -276,6 +280,7 @@ private struct MonthlyReportSheet: View {
                         if panel.runModal() == .OK, let url = panel.url,
                            (try? data.write(to: url)) != nil {
                             Haptics.impact()
+                            settle += 1
                             showCoach(L10n.tr("Saved as PNG"))
                         }
                     }

@@ -194,11 +194,25 @@ class PagedCardWindowController: NSObject, NSWindowDelegate {
         mountCloseButton()
         window?.center()
         NSApp.activate(ignoringOtherApps: true)
+        // Cadence A1: appear fast and quiet — a ~100ms fade, no scale-in.
+        window?.alphaValue = 0
         window?.makeKeyAndOrderFront(nil)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.11
+            window?.animator().alphaValue = 1
+        }
     }
 
     func close() {
-        window?.close()
+        // Cadence A3: dissolve in place, then clear the stage.
+        guard let window else { return }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.2
+            window.animator().alphaValue = 0
+        }, completionHandler: {
+            window.close()
+            window.alphaValue = 1
+        })
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -313,25 +327,30 @@ struct PagedCardView: View {
 
             let current = pages[page]
 
-            Group {
-                switch current.hero {
-                case .version: VersionHero(page: current, siblings: pages)
-                case .brand:   BrandHero(siblings: pages)
-                case nil:      PageIllustration(page: current)
+            // Cadence B5: page content cross-fades in place (no slide).
+            VStack(alignment: .leading, spacing: 0) {
+                Group {
+                    switch current.hero {
+                    case .version: VersionHero(page: current, siblings: pages)
+                    case .brand:   BrandHero(siblings: pages)
+                    case nil:      PageIllustration(page: current)
+                    }
                 }
+                .padding(.bottom, 18)
+
+                Text(L10n.tr(current.title))
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.bottom, 8)
+
+                Text(L10n.tr(current.body))
+                    .font(.system(size: 12.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.bottom, 18)
-
-            Text(L10n.tr(current.title))
-                .font(.system(size: 20, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.bottom, 8)
-
-            Text(L10n.tr(current.body))
-                .font(.system(size: 12.5, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.62))
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
+            .id(page)
+            .transition(.opacity)
 
             Spacer(minLength: 16)
 
@@ -347,7 +366,7 @@ struct PagedCardView: View {
                 Spacer()
                 if page > 0 {
                     Button {
-                        withAnimation(.easeOut(duration: 0.18)) { page -= 1 }
+                        withAnimation(.easeInOut(duration: 0.28)) { page -= 1 }
                     } label: {
                         Text(L10n.tr("Back"))
                             .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -365,7 +384,7 @@ struct PagedCardView: View {
                     if isLast {
                         onClose()
                     } else {
-                        withAnimation(.easeOut(duration: 0.18)) { page += 1 }
+                        withAnimation(.easeInOut(duration: 0.28)) { page += 1 }
                     }
                 } label: {
                     Text(isLast ? L10n.tr("Get started") : L10n.tr("Next"))

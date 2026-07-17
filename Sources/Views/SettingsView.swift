@@ -71,6 +71,10 @@ struct SettingsView: View {
                     case .about:        aboutTab
                     }
                 }
+                // Cadence B5: pages cross-fade in place — zero slide, zero
+                // scale (frame study, 2026-07-18).
+                .id(activeTab)
+                .transition(.opacity)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -140,7 +144,7 @@ struct SettingsView: View {
     private func tabButton(_ tab: SettingsTab) -> some View {
         let isOn = (activeTab == tab)
         Button {
-            activeTab = tab
+            withAnimation(.easeInOut(duration: 0.28)) { activeTab = tab }
         } label: {
             Text(L10n.tr(tab.label))
                 .font(Typography.tabLabel)
