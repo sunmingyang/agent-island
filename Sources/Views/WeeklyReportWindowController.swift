@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Renders the weekly report card to a crisp PNG (3x) and hosts the share
 /// window. Sharing is always the USER posting an image — nothing leaves
@@ -165,18 +166,27 @@ private struct WeeklyReportSheet: View {
                 // the "floating on fog" feel, not any system glass.
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
 
-            // Two actions, identical pills, both instant (renders come from
-            // the warm cache). Copy → paste anywhere; Share → the system
-            // share picker (AirDrop / Messages / installed extensions).
+            // Cadence-style action rail: one centered row of icon pills —
+            // copy / save / share — each answering with an impact haptic
+            // when the action lands (owner spec, 2026-07-18).
             HStack(spacing: 10) {
-                actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy image"), prominent: true) {
+                actionButton(copied ? L10n.tr("Copied") : L10n.tr("Copy"),
+                             icon: copied ? "checkmark" : "square.on.square",
+                             prominent: true) {
                     if copyImage() {
+                        Haptics.impact()
                         copied = true
                         showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
-                actionButton(L10n.tr("Share…"), prominent: true) {
+                actionButton(L10n.tr("Save"), icon: "arrow.down.to.line", prominent: true) {
+                    if savePNG() {
+                        Haptics.impact()
+                        showCoach(L10n.tr("Saved as PNG"))
+                    }
+                }
+                actionButton(L10n.tr("Share…"), icon: "square.and.arrow.up", prominent: true) {
                     showCoach(L10n.tr("Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲"))
                     openSharePicker()
                 }
@@ -188,6 +198,7 @@ private struct WeeklyReportSheet: View {
                         .frame(width: 1, height: 1)
                 )
             }
+            .frame(maxWidth: .infinity)
 
             // Fixed one-line slot so the window never reflows.
             Text(coach ?? " ")
@@ -247,18 +258,40 @@ private struct WeeklyReportSheet: View {
         return true
     }
 
-    private func actionButton(_ title: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
+    private func actionButton(_ title: String, icon: String? = nil,
+                              prominent: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(prominent ? .black : .white.opacity(0.85))
-                .padding(.horizontal, 16)
-                .frame(height: 30)
-                .background(
-                    Capsule().fill(prominent ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.white.opacity(0.12)))
-                )
+            HStack(spacing: 5) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 10.5, weight: .bold))
+                }
+                Text(title)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(prominent ? .black : .white.opacity(0.85))
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .background(
+                Capsule().fill(prominent ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.white.opacity(0.12)))
+            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileButtonStyle())
+    }
+
+    /// Cadence's third rail: write the rendered card straight to disk.
+    private func savePNG() -> Bool {
+        guard let data = WeeklyReportRenderer.pngData() else { return false }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = "agent-island-weekly.png"
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        do {
+            try data.write(to: url)
+            return true
+        } catch {
+            return false
+        }
     }
 }
 

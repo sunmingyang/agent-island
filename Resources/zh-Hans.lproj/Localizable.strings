@@ -436,7 +436,7 @@
 "Cost & history" = "成本与历史";
 "Report cards" = "战绩卡";
 "Personalization" = "个性化";
-"Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island" = "展开小岛，看 5 小时与周额度窗口,数字直连官方接口。只订阅了一个工具?它的仪表会独占整座小岛";
+"Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island" = "展开小岛，看 5 小时与周额度窗口，数字直连官方接口。只订阅了一个工具?它的仪表会独占整座小岛";
 
 /* guide v2 titles */
 "Monitor" = "监视器";
@@ -451,3 +451,16 @@
 "Clearer update guidance" = "更清晰的更新引导";
 "Truer numbers, a calmer interface, clearer update guidance" = "更准的数字 · 更清爽的界面 · 更清晰的引导";
 "Every release opens one card like this — once. Reopen it any time from the version pill in Settings" = "每个版本自动展示一次；设置里点版本号可随时重看";
+
+/* About tab */
+"About" = "关于";
+"Anyone who works beside an agent has stared at the same screen: it is running, you are waiting — or it stopped, and nobody told you" = "每个和 agent 并肩干活的人都盯过同一块屏幕：它在跑，你在等；或者它停了，却没人告诉你";
+"Agent Island turns that into an island in your notch — who is working, whose turn it is, how much you have used. One glance, then go back to your life" = "Agent Island 把这件事变成刘海里的一座小岛——谁在干活、轮到谁了、用了多少，一眼看完，回去过你的生活";
+"Everything stays on your machine. No account, no telemetry, open source" = "所有数据都留在你的电脑上。没有账号，没有遥测，代码开源";
+"Made by" = "作者";
+"License" = "许可证";
+"Website" = "官网";
+"Grew out of codex-island by Eric Park — the credit stays" = "项目源自 Eric Park 的 codex-island，致谢永久保留";
+"Copy" = "拷贝";
+"Save" = "保存";
+"Saved as PNG" = "已保存为 PNG";

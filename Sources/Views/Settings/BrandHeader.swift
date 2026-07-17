@@ -48,7 +48,7 @@ struct BrandHeader: View {
                         Capsule().fill(.white.opacity(versionHovered ? 0.09 : 0.04))
                     )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(TactileButtonStyle())
             .onHover { versionHovered = $0 }
             .help(L10n.tr("What's new in this version"))
             .animation(.easeOut(duration: 0.12), value: versionHovered)

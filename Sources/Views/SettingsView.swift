@@ -68,6 +68,7 @@ struct SettingsView: View {
                     case .triggers:     TriggerSettingsView()
                     case .statusGuide:  StatusGuideView()
                     case .releaseNotes: releaseNotesTab
+                    case .about:        aboutTab
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
@@ -107,7 +108,7 @@ struct SettingsView: View {
     enum SettingsTab: String, CaseIterable {
         // releaseNotes rides the same tab rail as the rest (owner call,
         // 1.7.2: 版本说明与通用/显示/服务/状态说明同一栏).
-        case general, display, providers, triggers, statusGuide, releaseNotes
+        case general, display, providers, triggers, statusGuide, releaseNotes, about
 
         var label: String {
             switch self {
@@ -117,6 +118,7 @@ struct SettingsView: View {
             case .triggers:     "Triggers"
             case .statusGuide:  "Status"
             case .releaseNotes: "Release notes"
+            case .about:        "About"
             }
         }
     }
@@ -170,6 +172,77 @@ struct SettingsView: View {
             alertsSection
             updatesSection
         }
+    }
+
+    /// The 关于 page (owner spec, 2026-07-18, studied from Cadence's 理念
+    /// tab): serif manifesto prose — who made this and why — plus the
+    /// open-source facts. System serif (New York), not a bundled typeface.
+    private var aboutTab: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Agent Island")
+                        .font(.system(size: 30, weight: .bold, design: .serif))
+                        .foregroundStyle(.white.opacity(0.95))
+                    Text(L10n.tr("A status companion for Claude Code and Codex"))
+                        .font(.system(size: 13, weight: .medium, design: .serif))
+                        .italic()
+                        .foregroundStyle(IslandColor.liveTeal)
+                }
+                .padding(.top, 8)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.tr("Anyone who works beside an agent has stared at the same screen: it is running, you are waiting — or it stopped, and nobody told you"))
+                    Text(L10n.tr("Agent Island turns that into an island in your notch — who is working, whose turn it is, how much you have used. One glance, then go back to your life"))
+                    Text(L10n.tr("Everything stays on your machine. No account, no telemetry, open source"))
+                }
+                .font(.system(size: 12.5, design: .serif))
+                .foregroundStyle(.white.opacity(0.66))
+                .lineSpacing(5)
+                .fixedSize(horizontal: false, vertical: true)
+
+                Rectangle()
+                    .fill(.white.opacity(0.07))
+                    .frame(height: 0.5)
+                    .padding(.vertical, 4)
+
+                VStack(alignment: .leading, spacing: 9) {
+                    aboutFact(L10n.tr("Made by"), value: "Tristan Tang") {
+                        NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666")!)
+                    }
+                    aboutFact(L10n.tr("License"), value: "MIT · open source") {
+                        NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666/agent-island/blob/main/LICENSE")!)
+                    }
+                    aboutFact(L10n.tr("Website"), value: "agent-island.dev") {
+                        NSWorkspace.shared.open(URL(string: "https://agent-island.dev")!)
+                    }
+                    Text(L10n.tr("Grew out of codex-island by Eric Park — the credit stays"))
+                        .font(Typography.caption)
+                        .foregroundStyle(.white.opacity(0.34))
+                        .padding(.top, 2)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 14)
+        }
+    }
+
+    private func aboutFact(_ label: String, value: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Text(label)
+                    .font(Typography.label)
+                    .foregroundStyle(.white.opacity(0.40))
+                    .frame(width: 74, alignment: .leading)
+                Text(value)
+                    .font(Typography.label.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.80))
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.30))
+            }
+        }
+        .buttonStyle(TactileButtonStyle())
     }
 
     private var releaseNotesTab: some View {

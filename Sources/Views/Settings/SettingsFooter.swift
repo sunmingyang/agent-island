@@ -43,7 +43,7 @@ struct SettingsFooter: View {
                             }
                     }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(TactileButtonStyle())
             .onHover { quitHovered = $0 }
             .help(L10n.tr("Quit AgentIsland"))
             .animation(.strongEaseOut, value: quitHovered)
@@ -101,7 +101,7 @@ private struct SharePillButton: View {
                     .fill(.white.opacity(hovered ? 1.0 : 0.92))
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileButtonStyle())
         .onHover { hovered = $0 }
         .help(help)
         .animation(.strongEaseOut, value: hovered)
@@ -142,7 +142,7 @@ private struct DottedLink: View {
             }
             .padding(.bottom, 2)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileButtonStyle())
         .onHover { hovered = $0 }
         .animation(.easeOut(duration: 0.10), value: hovered)
     }

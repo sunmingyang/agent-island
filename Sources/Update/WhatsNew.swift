@@ -359,7 +359,7 @@ struct PagedCardView: View {
                                     .fill(Color.white.opacity(0.05))
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(TactileButtonStyle())
                 }
                 Button {
                     if isLast {
@@ -378,7 +378,7 @@ struct PagedCardView: View {
                                 .fill(IslandColor.liveTeal)
                         )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(TactileButtonStyle())
             }
         }
         .padding(24)

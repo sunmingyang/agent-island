@@ -34,7 +34,7 @@ struct SegmentedControl<Value: Hashable>: View {
                                 }
                         }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(TactileButtonStyle())
                 .accessibilityLabel(accessibilityPrefix.isEmpty
                     ? itemLabel
                     : L10n.tr("%@, %@", L10n.tr(accessibilityPrefix), itemLabel))
@@ -73,7 +73,7 @@ struct PillButton: View {
                         }
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileButtonStyle())
         .disabled(isLoading)
         .opacity(isLoading ? 0.55 : 1)
     }

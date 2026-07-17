@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import CoreImage
 
 /// The monthly share card — the weekly card's big sibling. v3 (locked
@@ -256,16 +257,30 @@ private struct MonthlyReportSheet: View {
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
 
             HStack(spacing: 10) {
-                pill(copied ? L10n.tr("Copied") : L10n.tr("Copy image")) {
+                pill(copied ? L10n.tr("Copied") : L10n.tr("Copy"),
+                     icon: copied ? "checkmark" : "square.on.square") {
                     if let image = MonthlyReportRenderer.image() {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.writeObjects([image])
+                        Haptics.impact()
                         copied = true
                         showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
                     }
                 }
-                pill(L10n.tr("Share…")) {
+                pill(L10n.tr("Save"), icon: "arrow.down.to.line") {
+                    if let data = MonthlyReportRenderer.pngData() {
+                        let panel = NSSavePanel()
+                        panel.allowedContentTypes = [.png]
+                        panel.nameFieldStringValue = "agent-island-monthly.png"
+                        if panel.runModal() == .OK, let url = panel.url,
+                           (try? data.write(to: url)) != nil {
+                            Haptics.impact()
+                            showCoach(L10n.tr("Saved as PNG"))
+                        }
+                    }
+                }
+                pill(L10n.tr("Share…"), icon: "square.and.arrow.up") {
                     showCoach(L10n.tr("Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲"))
                     openSharePicker()
                 }
@@ -313,16 +328,22 @@ private struct MonthlyReportSheet: View {
         picker.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
     }
 
-    private func pill(_ title: String, action: @escaping () -> Void) -> some View {
+    private func pill(_ title: String, icon: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(.black)
-                .padding(.horizontal, 16)
-                .frame(height: 30)
-                .background(Capsule().fill(Color.white))
+            HStack(spacing: 5) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 10.5, weight: .bold))
+                }
+                Text(title)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(.black)
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .background(Capsule().fill(Color.white))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileButtonStyle())
     }
 }
 
