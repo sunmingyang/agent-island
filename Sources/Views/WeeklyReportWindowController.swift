@@ -166,9 +166,9 @@ private struct WeeklyReportSheet: View {
                 // A tight, grounded shadow — the old radius-34/0.6 halo was
                 // the "floating on fog" feel, not any system glass.
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
-                // Cadence E15 + D12-4: the card tilts under the pointer and
-                // dips once when an action commits.
-                .modifier(CardTilt())
+                // Cadence D12-4: the card dips once when an action commits.
+                // (The 3D tilt was tried and cut — it fought the fixed
+                // close button and read as gimmick; owner call 2026-07-18.)
                 .modifier(SettlePulse(trigger: settle))
 
             // Cadence-style action rail: one centered row of icon pills —

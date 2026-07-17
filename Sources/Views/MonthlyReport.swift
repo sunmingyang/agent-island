@@ -256,7 +256,6 @@ private struct MonthlyReportSheet: View {
         VStack(spacing: 14) {
             MonthlyReportCard(data: .current())
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
-                .modifier(CardTilt())
                 .modifier(SettlePulse(trigger: settle))
 
             HStack(spacing: 10) {
