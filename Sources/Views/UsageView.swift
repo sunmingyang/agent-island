@@ -173,7 +173,6 @@ struct ChartTile: View {
             case .bar:     BarChart(value: value, color: color, label: label, sub: sub)
             case .stepped: SteppedChart(value: value, color: color, label: label, sub: sub)
             case .numeric: NumericChart(value: value, color: color, label: label, sub: compactSubCaption())
-            case .spark:   SparkChart(value: value, color: color, label: label, sub: sub, seed: seed)
             }
         }
         .id(style)

@@ -6,11 +6,10 @@ extension IslandRootView {
         if NSEvent.modifierFlags.contains(.command) {
             switch ScreenPref.shared.screen {
             case .usage: StylePref.shared.cycle()
-            case .cost:
-                if CostPanelVisibilityStore.shared.showInTopPanel {
-                    CostStylePref.shared.cycle()
-                }
-            case .overview, .triggers: return
+            // Cost style no longer cycles by gesture — picked in Settings
+            // only (owner call, 1.7.2 planning: the hidden gesture and its
+            // hint added noise for zero discoverability).
+            case .cost, .overview, .triggers: return
             }
             return
         }

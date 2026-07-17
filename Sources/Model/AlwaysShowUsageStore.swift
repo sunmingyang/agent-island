@@ -18,9 +18,12 @@ final class AlwaysShowUsageStore: ObservableObject {
     }
 
     private init() {
-        // UserDefaults.bool returns false for missing keys, which matches our
-        // intended default (off → preserves the existing hover-only behavior
-        // for users who upgrade).
-        self.enabled = UserDefaults.standard.bool(forKey: Self.key)
+        // Default ON (owner call, 1.7.2 planning: 用量显示必须默认打开).
+        // Users who explicitly turned it off keep their choice.
+        if UserDefaults.standard.object(forKey: Self.key) == nil {
+            self.enabled = true
+        } else {
+            self.enabled = UserDefaults.standard.bool(forKey: Self.key)
+        }
     }
 }

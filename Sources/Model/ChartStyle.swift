@@ -1,7 +1,9 @@
 import SwiftUI
 
+// Sparkline retired 2026-07-17 (owner call: 折线图太丑,直接删掉). A saved
+// "spark" preference fails rawValue decoding and lands on the default.
 enum ChartStyle: String, CaseIterable {
-    case ring, bar, stepped, numeric, spark
+    case ring, bar, stepped, numeric
 
     var label: String {
         switch self {
@@ -9,7 +11,6 @@ enum ChartStyle: String, CaseIterable {
         case .bar: L10n.tr("Bar")
         case .stepped: L10n.tr("Stepped")
         case .numeric: L10n.tr("Numeric")
-        case .spark: L10n.tr("Sparkline")
         }
     }
 }
@@ -22,7 +23,8 @@ final class StylePref: StylePreferenceStore<ChartStyle> {
         super.init(
             styleKey: "AgentIsland.chartStyle",
             cycledKey: "AgentIsland.hasCycledStyle",
-            defaultStyle: .ring
+            // Stepped is the owner-picked default (1.7.2 planning).
+            defaultStyle: .stepped
         )
     }
 }

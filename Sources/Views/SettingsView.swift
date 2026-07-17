@@ -748,11 +748,15 @@ struct SettingsView: View {
 
     private var costStyleSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Cost display", hint: costPanelVisibility.showInTopPanel ? "⌘-click to cycle" : nil)
-            SettingsRow(
-                title: "Show cost page in top panel",
-                subtitle: nil
-            ) {
+            // The enable toggle rides the section header itself (owner call,
+            // 1.7.2 planning) — the old ⌘-click hint slot; no separate row.
+            HStack(alignment: .center) {
+                Text(L10n.tr("Cost display"))
+                    .font(Typography.sectionLabel)
+                    .tracking(1.05)
+                    .textCase(.uppercase)
+                    .foregroundStyle(.white.opacity(0.34))
+                Spacer(minLength: 8)
                 SettingsToggle(isOn: costPanelVisibility.showInTopPanel) {
                     withAnimation(.pageSwipe) {
                         costPanelVisibility.showInTopPanel.toggle()
@@ -760,6 +764,8 @@ struct SettingsView: View {
                     }
                 }
             }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 6)
             if costPanelVisibility.showInTopPanel {
                 CostStylePicker(selected: $costStylePref.style)
                     .padding(.top, 4)
