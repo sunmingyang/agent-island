@@ -33,12 +33,10 @@ struct ChartStylePicker: View {
         switch style {
         case .ring:
             ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.10), lineWidth: 3)
-                Circle()
-                    .trim(from: 0, to: 0.35)
-                    .stroke(claude, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
+                Circle().fill(.white.opacity(0.08))
+                PieSlice(fraction: 0.35)
+                    .fill(claude)
+                Circle().strokeBorder(.white.opacity(0.12), lineWidth: 0.8)
             }
             .frame(width: 26, height: 26)
         case .bar:

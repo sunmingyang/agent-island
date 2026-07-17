@@ -164,8 +164,12 @@ final class ClaudeWebLogin: @unchecked Sendable {
 
     private func send(_ conn: NWConnection, ok: Bool) {
         let emoji = ok ? "✅" : "⚠️"
-        let title = ok ? "已连接 Claude" : "登录未完成"
-        let note = ok ? "认证成功，可以关闭此页并返回 Agent Island。" : "请回到 Agent Island 重试。"
+        // Localized — this page was hardcoded Chinese and leaked into the
+        // English UI (owner report, 1.7.2).
+        let title = ok ? L10n.tr("Connected to Claude") : L10n.tr("Login incomplete")
+        let note = ok
+            ? L10n.tr("Authentication succeeded — close this page and return to Agent Island")
+            : L10n.tr("Please return to Agent Island and try again")
         let body = """
         <!doctype html><html><head><meta charset="utf-8">\
         <meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Island</title></head>\

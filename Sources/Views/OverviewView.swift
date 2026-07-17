@@ -59,10 +59,6 @@ struct OverviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             summary
 
-            if visibility.codexShown, let profile = official.profile {
-                officialLine(profile)
-            }
-
             ContributionGrid(days: days, selectedDate: $selectedDate)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -107,31 +103,19 @@ struct OverviewView: View {
 
     /// The Codex client's own number for the selected day (or lifetime),
     /// straight from the official endpoint — the server day-cut differs
-    /// from our local-calendar cells, so it is labeled as a reference
-    /// figure, never mixed into the grid itself.
-    private func officialLine(_ profile: CodexOfficialProfile) -> some View {
-        let text: String
+    /// from our local-calendar cells, so it stays a reference chip, never
+    /// mixed into the grid itself.
+    private func officialText(_ profile: CodexOfficialProfile) -> String? {
         if let selectedDate {
             let df = DateFormatter()
             df.dateFormat = "yyyy-MM-dd"
             df.timeZone = .current
-            if let v = profile.dailyTokens[df.string(from: selectedDate)] {
-                let f = Self.formatTokens(v)
-                text = String(format: L10n.tr("Codex official · that day %@"), f.value + f.unit)
-            } else {
-                text = ""
-            }
-        } else {
-            let f = Self.formatTokens(profile.lifetimeTokens)
-            text = String(format: L10n.tr("Codex official · lifetime %@"), f.value + f.unit)
+            guard let v = profile.dailyTokens[df.string(from: selectedDate)] else { return nil }
+            let f = Self.formatTokens(v)
+            return String(format: L10n.tr("Codex official · that day %@"), f.value + f.unit)
         }
-        return Group {
-            if !text.isEmpty {
-                Text(text)
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.42))
-            }
-        }
+        let f = Self.formatTokens(profile.lifetimeTokens)
+        return String(format: L10n.tr("Codex official · lifetime %@"), f.value + f.unit)
     }
 
     private var summary: some View {
@@ -171,6 +155,18 @@ struct OverviewView: View {
                 codexVisible: visibility.codexShown
             )
             .padding(.bottom, 5)
+
+            // The Codex client's own number rides the meta row as one more
+            // chip — a separate line pushed the grid past the fixed panel
+            // height and clipped it (owner report, 1.7.2).
+            if visibility.codexShown, let profile = official.profile,
+               let text = officialText(profile) {
+                Text(text)
+                    .font(Typography.caption)
+                    .foregroundStyle(.white.opacity(0.46))
+                    .lineLimit(1)
+                    .padding(.bottom, 5)
+            }
 
             Spacer(minLength: 0)
         }

@@ -372,15 +372,15 @@
 "You're up to date" = "已是最新版本";
 "Couldn't check for updates" = "检查更新失败,稍后再试";
 
-"Codex official · that day %@" = "Codex 官方口径 · 当日 %@";
-"Codex official · lifetime %@" = "Codex 官方口径 · 累计 %@";
+"Codex official · that day %@" = "Codex 官方当日 %@";
+"Codex official · lifetime %@" = "Codex 官方累计 %@";
 
 /* What's New (1.7.2) */
 "What's new in this update" = "本次更新带来了什么";
 "Get started" = "开始使用";
 "Codex accounting v3" = "Codex 记账 v3";
 "The local ledger now drops fork phantom tokens — single-machine days land within about 2% of the official client" = "本机账本挤掉了 fork 幻影 token,纯本机使用日与官方客户端误差约 2% 以内";
-"Official figures, side by side" = "官方口径,并排可见";
+"Official figures, side by side" = "官方数字,并排可见";
 "The usage calendar shows the Codex client's own lifetime and daily numbers — account-wide, every device" = "用量日历新增 Codex 官方的累计与逐日数字——账号级,含所有设备";
 "Token metric toggle works everywhere" = "口径开关全局生效";
 "All tokens vs Input + output now drives the calendar and both report cards" = "全部 Token / 只统计输入输出,现在真正作用于日历与周月报卡";
@@ -388,3 +388,19 @@
 "Every number on the card comes from one scan window, and opening the report refreshes it live" = "卡上所有数字来自同一扫描窗口,打开报告即实时刷新";
 "Cleaner defaults" = "更清爽的默认";
 "Usage display on by default, stepped chart as the default look, sparkline retired, cost section tidied" = "用量显示默认开启,图表默认阶梯样式,折线图退役,成本区更整洁";
+
+/* 1.7.2 preview batch 2 */
+"Pie" = "饼图";
+"Guide" = "教程";
+"Release notes" = "版本说明";
+"What's new in this version" = "本版更新说明";
+"View" = "查看";
+"Show highlights after updates" = "更新后自动展示新功能";
+"A one-time card after each update, so new features never land silently." = "每次更新后弹一次本版亮点,新功能不再无声上线";
+"Full changelog on the website" = "官网完整更新日志";
+"Calm: no ambient light, the lowest GPU and CPU cost" = "清爽:无环境光效,GPU/CPU 占用最低";
+"Vivid: halo and orbit sweep, a touch more GPU" = "流光:光晕与流光扫过,GPU 占用略高";
+"Connected to Claude" = "已连接 Claude";
+"Login incomplete" = "登录未完成";
+"Authentication succeeded — close this page and return to Agent Island" = "认证成功,可以关闭此页并返回 Agent Island";
+"Please return to Agent Island and try again" = "请回到 Agent Island 重试";

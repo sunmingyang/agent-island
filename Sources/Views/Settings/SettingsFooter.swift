@@ -10,10 +10,18 @@ struct SettingsFooter: View {
     private static let githubURL = URL(string: "https://github.com/tristan666666/agent-island")!
 
     var body: some View {
-        // GitHub + Quit on the left, the two share CTAs flush right
-        // (owner's layout, 2026-07-14; License link dropped).
+        // GitHub + the guide on the left; Quit moved to the right rail with
+        // the share CTAs (owner call, 1.7.2: the guide takes Quit's old
+        // slot, Quit slides right).
         HStack(alignment: .center, spacing: 14) {
             link("GitHub", url: Self.githubURL)
+
+            DottedLink(title: "Guide", arrow: false) {
+                WhatsNewWindowController.shared.show()
+            }
+            .help(L10n.tr("What's new in this version"))
+
+            Spacer()
 
             Button {
                 NSApp.terminate(nil)
@@ -37,8 +45,6 @@ struct SettingsFooter: View {
             .onHover { quitHovered = $0 }
             .help(L10n.tr("Quit AgentIsland"))
             .animation(.strongEaseOut, value: quitHovered)
-
-            Spacer()
 
             // Short labels — the full 'Share weekly report' pair overflowed
             // the 480pt window in English and crushed Quit into a vertical
@@ -102,6 +108,7 @@ private struct SharePillButton: View {
 
 private struct DottedLink: View {
     let title: String
+    var arrow = true
     let action: () -> Void
     @State private var hovered = false
 
@@ -111,9 +118,11 @@ private struct DottedLink: View {
                 Text(L10n.tr(title))
                     .font(Typography.label)
                     .foregroundStyle(.white.opacity(hovered ? 0.92 : 0.55))
-                Text("↗")
-                    .font(Typography.micro)
-                    .foregroundStyle(.white.opacity(hovered ? 0.6 : 0.3))
+                if arrow {
+                    Text("↗")
+                        .font(Typography.micro)
+                        .foregroundStyle(.white.opacity(hovered ? 0.6 : 0.3))
+                }
             }
             .overlay(alignment: .bottom) {
                 Rectangle()

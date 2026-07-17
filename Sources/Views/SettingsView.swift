@@ -27,6 +27,7 @@ struct SettingsView: View {
     @ObservedObject private var usage = UsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
+    @ObservedObject private var whatsNewPref = WhatsNewPref.shared
 
     @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.general.rawValue
 
@@ -165,6 +166,7 @@ struct SettingsView: View {
             generalSection
             alertsSection
             updatesSection
+            releaseNotesSection
         }
     }
 
@@ -458,6 +460,42 @@ struct SettingsView: View {
                 // Sparkle feed is unset, so its check would answer nothing.
                 PillButton(label: "Check") {
                     Task { await UpdateNudge.shared.checkNow() }
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
+    }
+
+    /// Release-notes block (owner call, 1.7.2): a dedicated place to reopen
+    /// this version's highlights, control the after-update popup, and reach
+    /// the full changelog on the website.
+    private var releaseNotesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionLabel("Release notes")
+            SettingsRow(
+                title: "What's new in this version",
+                subtitle: nil
+            ) {
+                PillButton(label: "View") {
+                    WhatsNewWindowController.shared.show()
+                }
+            }
+            SettingsRow(
+                title: "Show highlights after updates",
+                subtitle: "A one-time card after each update, so new features never land silently."
+            ) {
+                SettingsToggle(isOn: whatsNewPref.autoShow) {
+                    whatsNewPref.autoShow.toggle()
+                }
+            }
+            SettingsRow(
+                title: "Full changelog on the website",
+                subtitle: nil
+            ) {
+                PillButton(label: "Open") {
+                    NSWorkspace.shared.open(URL(string: "https://agent-island.dev/changelog/")!)
                 }
             }
         }
@@ -781,11 +819,13 @@ struct SettingsView: View {
     private var topPanelSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionLabel("Top bar")
-            // Lives here with the island-appearance controls (design review:
-            // next to Cost display), title + picker only — no sentence.
+            // One explanatory line per mode (owner call, 1.7.2: the picker
+            // alone left users guessing what each mode costs).
             SettingsRow(
                 title: "Visual mode",
-                subtitle: nil
+                subtitle: lowPower.enabled
+                    ? "Calm: no ambient light, the lowest GPU and CPU cost"
+                    : "Vivid: halo and orbit sweep, a touch more GPU"
             ) {
                 effectsPicker
             }

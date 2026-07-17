@@ -94,6 +94,9 @@ struct ChartsBlock: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack(spacing: 18) {
+                // A single-window provider centers its lone tile in the
+                // half (owner call: the freed slot read as a void).
+                if usage.secondaryMissing { Spacer(minLength: 0) }
                 // Label the primary tile by the window length the provider
                 // actually reports — Codex's primary became a weekly window
                 // in July 2026, so it reads "week", not a hardcoded "5h".
@@ -101,6 +104,7 @@ struct ChartsBlock: View {
                           labelKey: usage.fiveHour.isLongPeriod ? "week" : "5h",
                           window: usage.fiveHour, seed: seed,
                           wide: usage.secondaryMissing)
+                if usage.secondaryMissing { Spacer(minLength: 0) }
                 // A provider that reports only one window gets one tile — no
                 // permanent "no data" ghost for a window gone upstream.
                 if !usage.secondaryMissing {
@@ -108,12 +112,17 @@ struct ChartsBlock: View {
                               window: usage.weekly, seed: seed + 1)
                 }
             }
-            if shouldOfferClaudeReauth {
-                ReauthButton()
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 12)
+        // The reauth escape hatch OVERLAYS the tile block instead of adding
+        // a row — an appended row overflowed the fixed panel height and the
+        // button clipped to "重新认…" (community report + owner report).
+        .overlay(alignment: .bottom) {
+            if shouldOfferClaudeReauth {
+                ReauthButton().padding(.bottom, 2)
+            }
+        }
     }
 }
 

@@ -14,6 +14,7 @@ enum WhatsNewGate {
     }
 
     static func maybeShow() {
+        guard WhatsNewPref.shared.autoShow else { return }
         guard !AppEnvironment.isDemo,
               ProcessInfo.processInfo.environment["AGENTISLAND_UI_SCRIPT"] == nil,
               ProcessInfo.processInfo.environment["AGENTISLAND_REPORT_SNAPSHOT"] == nil
@@ -24,6 +25,27 @@ enum WhatsNewGate {
 
     static func markSeen() {
         UserDefaults.standard.set(currentVersion, forKey: seenKey)
+    }
+}
+
+/// User control over the after-update popup (owner call: the logic must be
+/// customizable). Reopening from Settings/footer/version pill always works.
+@MainActor
+final class WhatsNewPref: ObservableObject {
+    static let shared = WhatsNewPref()
+
+    private static let key = "AgentIsland.whatsNewAutoShow"
+
+    @Published var autoShow: Bool {
+        didSet { UserDefaults.standard.set(autoShow, forKey: Self.key) }
+    }
+
+    private init() {
+        if UserDefaults.standard.object(forKey: Self.key) == nil {
+            self.autoShow = true
+        } else {
+            self.autoShow = UserDefaults.standard.bool(forKey: Self.key)
+        }
     }
 }
 

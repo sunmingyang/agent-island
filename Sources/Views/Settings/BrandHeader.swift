@@ -10,6 +10,7 @@ import AppKit
 /// app name + tagline, and a version pill on the right.
 struct BrandHeader: View {
     let version: String
+    @State private var versionHovered = false
 
     private var logo: NSImage? {
         Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
@@ -32,14 +33,25 @@ struct BrandHeader: View {
 
             Spacer(minLength: 8)
 
-            Text("v\(version)")
-                .font(Typography.bodyNumber)
-                .foregroundStyle(.white.opacity(0.34))
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule().fill(.white.opacity(0.04))
-                )
+            // The version pill opens this version's release notes (owner
+            // call, 1.7.2: clicking or hovering the version should explain
+            // what it is).
+            Button {
+                WhatsNewWindowController.shared.show()
+            } label: {
+                Text("v\(version)")
+                    .font(Typography.bodyNumber)
+                    .foregroundStyle(.white.opacity(versionHovered ? 0.75 : 0.34))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule().fill(.white.opacity(versionHovered ? 0.09 : 0.04))
+                    )
+            }
+            .buttonStyle(.plain)
+            .onHover { versionHovered = $0 }
+            .help(L10n.tr("What's new in this version"))
+            .animation(.easeOut(duration: 0.12), value: versionHovered)
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)

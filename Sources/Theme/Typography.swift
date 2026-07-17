@@ -49,11 +49,15 @@ enum Typography {
     static let tabLabel      = Font.system(size: 12, weight: .medium)
     static let label         = Font.system(size: 11, weight: .medium)
     static let button        = Font.system(size: 11, weight: .semibold)
-    static let micro         = Font.system(size: 10, weight: .medium)
-    static let sectionLabel  = Font.system(size: 10, weight: .semibold)
+    // The micro tier carried the "cheap grey text" complaint (owner, 1.7.2):
+    // regular-weight 10pt mono at low opacity read as an afterthought. One
+    // notch of weight (and a half-point on the tracked section labels)
+    // firms the whole tier up without touching the brand faces.
+    static let micro         = Font.system(size: 10, weight: .semibold)
+    static let sectionLabel  = Font.system(size: 10.5, weight: .semibold)
 
     // MARK: - Specialty
 
-    static let caption = Font.system(size: 10, design: .monospaced)
+    static let caption = Font.system(size: 10, weight: .medium, design: .monospaced)
     static let chip    = Font.system(size: 9, weight: .bold).monospaced()
 }
