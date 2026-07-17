@@ -13,7 +13,10 @@ struct SettingsToggle: View {
     private let dotSize: CGFloat = 13
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            Haptics.tap()
+            action()
+        } label: {
             ZStack(alignment: isOn ? .trailing : .leading) {
                 Capsule()
                     .strokeBorder(.white.opacity(hovered ? 0.20 : 0.13), lineWidth: 1)
@@ -34,7 +37,7 @@ struct SettingsToggle: View {
                     .padding(.horizontal, (trackHeight - dotSize) / 2)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileButtonStyle())
         .contentShape(Capsule())
         .onHover { hovered = $0 }
         .animation(.spring(response: 0.32, dampingFraction: 0.72), value: isOn)

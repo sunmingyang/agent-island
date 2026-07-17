@@ -243,8 +243,8 @@ struct SettingsView: View {
                     aboutFact(L10n.tr("Made by"), value: "Tristan Tang") {
                         NSWorkspace.shared.open(URL(string: "https://tristan.media")!)
                     }
-                    aboutFact(L10n.tr("Sponsor"), value: L10n.tr("Buy me a coffee")) {
-                        NSWorkspace.shared.open(URL(string: "https://tristan.media")!)
+                    aboutFact(L10n.tr("Sponsor"), value: L10n.tr("Star on GitHub")) {
+                        NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666/agent-island")!)
                     }
                 }
             }

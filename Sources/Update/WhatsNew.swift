@@ -81,6 +81,14 @@ enum WhatsNewContent {
             title: "Clearer update guidance",
             body: "Every release opens one card like this — once. Reopen it any time from the version pill in Settings"
         ),
+        // The closing spread (owner spec, 2026-07-18): poster art, a
+        // welcome-back line, and the Get-started button beneath it.
+        PagedCardPage(
+            symbol: "sparkles",
+            imageName: "whatsnew-172-start",
+            title: "Get started",
+            body: "Welcome back to Agent Island"
+        ),
     ]
 }
 
@@ -90,8 +98,8 @@ enum GuideContent {
         PagedCardPage(
             symbol: "circle.hexagongrid.circle",
             imageName: nil,
-            title: "Agent Island",
-            body: "A status companion for Claude Code and Codex",
+            title: "A status companion for Claude Code and Codex",
+            body: "A five-page tour of everything the island does.",
             hero: .brand
         ),
         // Titles are FEATURE NOUNS, one word where possible; the sentence
@@ -358,9 +366,18 @@ struct PagedCardView: View {
                 // Page dots — the "there is more" cue the first cut lacked.
                 HStack(spacing: 5) {
                     ForEach(pages.indices, id: \.self) { i in
-                        Circle()
+                        // Tappable; the active dot stretches into a pill
+                        // (small joy, Cadence school).
+                        Capsule()
                             .fill(i == page ? IslandColor.brandTeal : Color.white.opacity(0.16))
-                            .frame(width: 6, height: 6)
+                            .frame(width: i == page ? 16 : 6, height: 6)
+                            .contentShape(Rectangle().inset(by: -4))
+                            .onTapGesture {
+                                Haptics.tap()
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+                                    page = i
+                                }
+                            }
                     }
                 }
                 Spacer()
@@ -434,7 +451,9 @@ private struct VersionHero: View {
     }
 }
 
-/// The guide's opening spread: the brand, plain and confident.
+/// The guide's opening spread: poster-grade — the island artwork behind
+/// the brand, darkened just enough to let the wordmark own the frame
+/// (owner spec, 2026-07-18: 教程也要海报级设计感).
 private struct BrandHero: View {
     let siblings: [PagedCardPage]
 
@@ -443,32 +462,61 @@ private struct BrandHero: View {
             .flatMap { NSImage(contentsOf: $0) }
     }
 
+    private var posterBackdrop: NSImage? {
+        Bundle.main.url(forResource: "guide-brand", withExtension: "png")
+            .flatMap { NSImage(contentsOf: $0) }
+    }
+
     var body: some View {
-        VStack(spacing: 14) {
-            if let logo {
-                Image(nsImage: logo)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 64, height: 64)
-                    .shadow(color: .black.opacity(0.4), radius: 8)
+        Color.clear
+            .frame(height: 240)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                if let posterBackdrop {
+                    ZStack {
+                        Image(nsImage: posterBackdrop)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fill)
+                        LinearGradient(
+                            colors: [.black.opacity(0.18), .black.opacity(0.52)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    }
+                }
             }
-            Text("Agent Island")
-                .font(.system(size: 26, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-            IconRow(symbols: siblings.filter { $0.hero == nil }.map(\.symbol))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 240)
+            .overlay {
+                VStack(spacing: 12) {
+                    if let logo {
+                        Image(nsImage: logo)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 58, height: 58)
+                            .shadow(color: .black.opacity(0.5), radius: 8)
+                    }
+                    Text("Agent Island")
+                        .font(.system(size: 25, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 6)
+                    IconRow(symbols: siblings.filter { $0.hero == nil }.map(\.symbol))
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+            )
     }
 }
 
 private struct IconRow: View {
     let symbols: [String]
+    @State private var appeared = false
 
     var body: some View {
         HStack(spacing: 10) {
-            ForEach(symbols, id: \.self) { symbol in
+            ForEach(Array(symbols.enumerated()), id: \.offset) { i, symbol in
                 Image(systemName: symbol)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(IslandColor.brandTeal)
@@ -481,8 +529,17 @@ private struct IconRow: View {
                                     .strokeBorder(IslandColor.brandTeal.opacity(0.22), lineWidth: 1)
                             )
                     )
+                    // Staggered rise-in — the Cadence chip-flight cadence,
+                    // minus the flight.
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 7)
+                    .animation(
+                        .spring(response: 0.4, dampingFraction: 0.8).delay(Double(i) * 0.07),
+                        value: appeared
+                    )
             }
         }
+        .onAppear { appeared = true }
     }
 }
 
