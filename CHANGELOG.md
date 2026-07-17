@@ -4,6 +4,11 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [Unreleased]
+
+### Fixed
+- macOS: the weekly card could show a single model row bigger than the weekly total (community screenshots). Right after launch the card rendered from the restored snapshot, but its 7-day window was anchored to the wall clock while the model table's window was anchored to the snapshot's scan day — a full day of shear between the two series. Every number on the card now anchors to the snapshot's own day, opening the report kicks a rescan, and the card re-renders live the moment fresh data commits (the copy/share cache re-warms too).
+
 ## [1.7.1] - 2026-07-16
 
 First pass on the external design review (2026-07-15): craft and restraint.

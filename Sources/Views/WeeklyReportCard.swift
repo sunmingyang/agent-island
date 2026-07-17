@@ -39,9 +39,21 @@ struct WeeklyReportData {
     static func current() -> WeeklyReportData {
         let cost = CostStore.shared
         let cal = Calendar.current
+        // Anchor the 7-day window to the freshest SCANNED day, not the wall
+        // clock. Right after launch (or during a long first scan) the store
+        // can still hold yesterday's snapshot; a wall-clock window then
+        // shears against weekByModel — whose window is scan-anchored — and
+        // a single model row can exceed the hero total (field report: a
+        // 125亿 row on a 114亿 card). Anchoring every series to the
+        // snapshot's own day keeps the whole card on one window.
         let today = cal.startOfDay(for: Date())
+        let scanAnchor = max(
+            cost.claude.dailyTokens.last?.dayStart ?? .distantPast,
+            cost.codex.dailyTokens.last?.dayStart ?? .distantPast
+        )
+        let anchor = scanAnchor > .distantPast ? min(scanAnchor, today) : today
         let days: [Date] = (0..<7).reversed().compactMap {
-            cal.date(byAdding: .day, value: -$0, to: today)
+            cal.date(byAdding: .day, value: -$0, to: anchor)
         }
 
         func bucketTotal(_ buckets: [DailyTokenBucket], _ day: Date) -> Int {
@@ -68,7 +80,7 @@ struct WeeklyReportData {
         let df = DateFormatter()
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "M月d日" : "MMM d"
-        let range = "\(df.string(from: days.first ?? today)) – \(df.string(from: today))"
+        let range = "\(df.string(from: days.first ?? anchor)) – \(df.string(from: anchor))"
 
         let letters: [String]
         if zh {

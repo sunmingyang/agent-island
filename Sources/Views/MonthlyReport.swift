@@ -236,6 +236,9 @@ final class MonthlyReportWindowController: NSWindowController, NSWindowDelegate 
 
 @MainActor
 private struct MonthlyReportSheet: View {
+    // Same live-store treatment as the weekly sheet: kick a rescan on open,
+    // re-render when it commits, never freeze a stale launch snapshot.
+    @ObservedObject private var cost = CostStore.shared
     @State private var copied = false
     @State private var coach: String?
     @State private var shareAnchor: NSView?
@@ -276,6 +279,13 @@ private struct MonthlyReportSheet: View {
         .padding(.horizontal, 26)
         .padding(.top, 22)
         .padding(.bottom, 12)
+        .onAppear {
+            CostStore.shared.refresh()
+        }
+        .onReceive(cost.objectWillChange) { _ in
+            MonthlyReportRenderer.invalidateCache()
+            DispatchQueue.main.async { MonthlyReportRenderer.warmCache() }
+        }
     }
 
     private func showCoach(_ text: String) {

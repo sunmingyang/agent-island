@@ -146,6 +146,11 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
 
 @MainActor
 private struct WeeklyReportSheet: View {
+    // Observing the store keeps the card live: opening the window kicks a
+    // rescan, and when it commits the card re-renders on the fresh window
+    // instead of freezing whatever snapshot launch restored (the "one model
+    // row bigger than the weekly total" screenshots were day-old snapshots).
+    @ObservedObject private var cost = CostStore.shared
     @State private var copied = false
     @State private var coach: String?
     @State private var shareAnchor: NSView?
@@ -194,6 +199,16 @@ private struct WeeklyReportSheet: View {
         .padding(.horizontal, 26)
         .padding(.top, 22)
         .padding(.bottom, 12)
+        .onAppear {
+            // A fresh scan self-heals a stale launch snapshot within seconds;
+            // the observed store re-renders the card when it commits.
+            CostStore.shared.refresh()
+        }
+        .onReceive(cost.objectWillChange) { _ in
+            WeeklyReportRenderer.invalidateCache()
+            // Re-warm off the click path once the new values have landed.
+            DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
             // Recording rig: replay the copy interaction on cue.
             if (note.userInfo?["cmd"] as? String) == "report:copy", copyImage() {
