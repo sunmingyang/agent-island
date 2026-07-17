@@ -174,7 +174,7 @@
 "Share monthly report…" = "分享本月月报…";
 "network drop" = "网络中断，已保留上次数据";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传";
-"Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧:隔空投送到 iPhone，图片直接进相册，随手就能发 📲";
+"Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧：隔空投送到 iPhone，图片直接进相册，随手就能发 📲";
 "Drifter" = "漂流者";
 "Islander" = "登岛者";
 "Settler" = "定居者";
@@ -398,8 +398,8 @@
 "Show highlights after updates" = "更新后自动展示新功能";
 "A one-time card after each update, so new features never land silently." = "每次更新后弹一次本版亮点，新功能不再无声上线";
 "Full changelog on the website" = "官网完整更新日志";
-"Calm: no ambient light, the lowest GPU and CPU cost" = "清爽:无环境光效，GPU/CPU 占用最低";
-"Vivid: halo and orbit sweep, a touch more GPU" = "流光:光晕与流光扫过，GPU 占用略高";
+"Calm: no ambient light, the lowest GPU and CPU cost" = "清爽：无环境光效，GPU/CPU 占用最低";
+"Vivid: halo and orbit sweep, a touch more GPU" = "流光：光晕与流光扫过，GPU 占用略高";
 "Connected to Claude" = "已连接 Claude";
 "Login incomplete" = "登录未完成";
 "Authentication succeeded — close this page and return to Agent Island" = "认证成功，可以关闭此页并返回 Agent Island";
@@ -421,7 +421,7 @@
 "Updates that explain themselves" = "更新自己会说话";
 "Every release opens one card like this — once. Turn it off in Settings, reopen it any time from the version pill" = "每个版本只弹一次这样的说明卡；设置里可关，点版本号随时重看";
 "The island watches your agents" = "小岛替你盯着 agent";
-"Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you" = "刘海里两个标志:旋转=在干活，铃铛=轮到你，常红=需要你处理";
+"Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you" = "刘海里两个标志：旋转=在干活，铃铛=轮到你，常红=需要你处理";
 "Quota at a glance" = "额度一眼可见";
 "Expand the island for the 5-hour and weekly windows — percentages come straight from each provider's official endpoint" = "展开小岛看 5 小时与周额度窗口，百分比直连官方接口";
 "Usage, cost, and a year of history" = "用量、成本与全年历史";
@@ -444,3 +444,10 @@
 "Report cards" = "战绩卡";
 "Personalization" = "个性化";
 "Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island" = "展开小岛，看 5 小时与周额度窗口，数字直连官方接口。只订阅了一个工具？它的仪表会独占整座小岛";
+
+/* whatsnew structural titles */
+"At a glance" = "更新速览";
+"Truer numbers" = "更准的数字";
+"Clearer update guidance" = "更清晰的更新引导";
+"Truer numbers, a calmer interface, clearer update guidance" = "更准的数字 · 更清爽的界面 · 更清晰的引导";
+"Every release opens one card like this — once. Reopen it any time from the version pill in Settings" = "每个版本自动展示一次；设置里点版本号可随时重看";

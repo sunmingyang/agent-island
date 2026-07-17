@@ -53,17 +53,20 @@ struct PagedCardPage: Identifiable {
 /// deliberately terse (owner call: 精简,别什么都往上写).
 enum WhatsNewContent {
     static let pages: [PagedCardPage] = [
+        // Titles are STRUCTURAL summaries — "更X的Y" noun phrases, never
+        // slogans (owner call ×N, 2026-07-18: "更清爽的界面"是对的,
+        // "更新自己会说话"是错的).
         PagedCardPage(
             symbol: "sparkles",
             imageName: "whatsnew-172-overview",
-            title: "This update, in one line",
-            body: "Truer numbers, a calmer interface, and updates that explain themselves",
+            title: "At a glance",
+            body: "Truer numbers, a calmer interface, clearer update guidance",
             hero: .version
         ),
         PagedCardPage(
             symbol: "scalemass",
             imageName: "whatsnew-172-accuracy",
-            title: "Numbers you can defend",
+            title: "Truer numbers",
             body: "The accounting engine drops phantom tokens — this machine now lands within ~2% of the official Codex client, and the calendar shows the official figure beside ours"
         ),
         PagedCardPage(
@@ -75,8 +78,8 @@ enum WhatsNewContent {
         PagedCardPage(
             symbol: "map",
             imageName: "whatsnew-172-guide",
-            title: "Updates that explain themselves",
-            body: "Every release opens one card like this — once. Turn it off in Settings, reopen it any time from the version pill"
+            title: "Clearer update guidance",
+            body: "Every release opens one card like this — once. Reopen it any time from the version pill in Settings"
         ),
     ]
 }
@@ -227,15 +230,61 @@ private final class PagedCardPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) { close() }
 }
 
+/// AGENTISLAND_CARD_SNAPSHOT=/dir — renders every page of both cards to
+/// PNGs and exits. The cards' QA channel.
+@MainActor
+enum PagedCardSnapshot {
+    static func writeAll(to dir: String) {
+        let url = URL(fileURLWithPath: dir)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+
+        func render(_ name: String, headline: String, chip: String?,
+                    pages: [PagedCardPage], index: Int) {
+            let view = PagedCardView(
+                headline: headline, versionChip: chip, pages: pages,
+                onClose: {}, initialPage: index
+            )
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            renderer.isOpaque = false
+            guard let image = renderer.nsImage,
+                  let tiff = image.tiffRepresentation,
+                  let rep = NSBitmapImageRep(data: tiff),
+                  let png = rep.representation(using: .png, properties: [:])
+            else { return }
+            try? png.write(to: url.appendingPathComponent("\(name)-\(index).png"))
+        }
+
+        for i in WhatsNewContent.pages.indices {
+            render("whatsnew", headline: L10n.tr("What's new in this update"),
+                   chip: "v\(WhatsNewGate.currentVersion)",
+                   pages: WhatsNewContent.pages, index: i)
+        }
+        for i in GuideContent.pages.indices {
+            render("guide", headline: L10n.tr("How Agent Island works"),
+                   chip: nil, pages: GuideContent.pages, index: i)
+        }
+    }
+}
+
 // MARK: - Paged card view
 
-private struct PagedCardView: View {
+struct PagedCardView: View {
     let headline: String
     let versionChip: String?
     let pages: [PagedCardPage]
     let onClose: () -> Void
 
-    @State private var page = 0
+    @State private var page: Int
+
+    init(headline: String, versionChip: String?, pages: [PagedCardPage],
+         onClose: @escaping () -> Void, initialPage: Int = 0) {
+        self.headline = headline
+        self.versionChip = versionChip
+        self.pages = pages
+        self.onClose = onClose
+        _page = State(initialValue: min(max(0, initialPage), max(0, pages.count - 1)))
+    }
 
     private var isLast: Bool { page == pages.count - 1 }
 
@@ -433,39 +482,45 @@ private struct PageIllustration: View {
     }
 
     var body: some View {
-        Group {
-            if let poster {
-                let ratio = poster.size.height > 0 ? poster.size.width / poster.size.height : 1
-                ZStack {
-                    Color.white.opacity(0.03)
-                    Image(nsImage: poster)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: ratio > 2.2 ? .fit : .fill)
-                        .padding(ratio > 2.2 ? 14 : 0)
-                }
-            } else {
-                ZStack {
-                    LinearGradient(
-                        colors: [
-                            IslandColor.liveTeal.opacity(0.16),
-                            IslandColor.cobalt.opacity(0.10),
-                            Color.white.opacity(0.02),
-                        ],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                    Image(systemName: page.symbol)
-                        .font(.system(size: 46, weight: .medium))
-                        .foregroundStyle(IslandColor.liveTeal.opacity(0.85))
+        // The illustration NEVER participates in layout sizing: a full-res
+        // screenshot's intrinsic width once inflated the whole card column
+        // to 1600+pt and shoved the title off the canvas (owner screenshot,
+        // 2026-07-18). `Color.clear` owns the layout; the art rides an
+        // overlay and gets clipped.
+        Color.clear
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                if let poster {
+                    let ratio = poster.size.height > 0 ? poster.size.width / poster.size.height : 1
+                    ZStack {
+                        Color.white.opacity(0.03)
+                        Image(nsImage: poster)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: ratio > 2.2 ? .fit : .fill)
+                            .padding(ratio > 2.2 ? 14 : 0)
+                    }
+                } else {
+                    ZStack {
+                        LinearGradient(
+                            colors: [
+                                IslandColor.liveTeal.opacity(0.16),
+                                IslandColor.cobalt.opacity(0.10),
+                                Color.white.opacity(0.02),
+                            ],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                        Image(systemName: page.symbol)
+                            .font(.system(size: 46, weight: .medium))
+                            .foregroundStyle(IslandColor.liveTeal.opacity(0.85))
+                    }
                 }
             }
-        }
-        .frame(height: height)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
-        )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+            )
     }
 }

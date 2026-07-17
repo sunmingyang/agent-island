@@ -108,6 +108,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+        // Headless render of every release-notes/guide page — the QA
+        // channel for the paged cards, so layout regressions are caught by
+        // machine instead of on the owner's desktop.
+        if let dir = ProcessInfo.processInfo.environment["AGENTISLAND_CARD_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                PagedCardSnapshot.writeAll(to: dir)
+                NSApp.terminate(nil)
+            }
+        }
         // Weekly report moment: once per ISO week, surface the card ~10s
         // after launch (the cost scan needs a beat). Sharing needs a moment
         // put in front of people, not a buried menu item.
