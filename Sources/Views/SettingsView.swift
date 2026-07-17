@@ -218,7 +218,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Agent Island")
-                    .font(.system(size: 25, weight: .bold, design: .serif))
+                    .font(.system(size: 25, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.95))
                     .padding(.top, 0)
 
@@ -229,7 +229,7 @@ struct SettingsView: View {
                     Text(L10n.tr("It is open source so that every developer — everyone vibe coding — can claim that efficiency too. That is the whole origin"))
                     Text(L10n.tr("If you like it, share it, or leave a star on GitHub — that is the biggest help you can give me"))
                 }
-                .font(.system(size: 11.5, design: .serif))
+                .font(.system(size: 11.5, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.66))
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
