@@ -236,7 +236,9 @@ struct ChartTile: View {
         }
         if let r = window.resetAt {
             let delta = max(0, r.timeIntervalSinceNow)
-            return "↻ " + Duration.compact(delta)
+            // Words, not glyphs (owner call, 1.7.2): "↻ 12m" read as
+            // terminal shorthand; "12m 后重置" reads as product copy.
+            return String(format: L10n.tr("resets in %@"), Duration.compact(delta))
         }
         return ""
     }

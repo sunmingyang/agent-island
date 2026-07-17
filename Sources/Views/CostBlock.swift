@@ -355,7 +355,11 @@ struct CostTile: View {
     // which is the right trade for a glanceable panel.
     private var resetGlyph: String {
         if let err = window.error { return err }
-        return "↻ " + (isMonth ? CostBucketing.monthResetIn() : CostBucketing.todayResetIn())
+        // Same de-glyphing as the usage tiles (owner call, 1.7.2).
+        return String(
+            format: L10n.tr("resets in %@"),
+            isMonth ? CostBucketing.monthResetIn() : CostBucketing.todayResetIn()
+        )
     }
 
     private var resetGlyphSpoken: String {

@@ -91,34 +91,36 @@ enum GuideContent {
             body: "A status companion for Claude Code and Codex",
             hero: .brand
         ),
+        // Titles are FEATURE NOUNS, one word where possible; the sentence
+        // lives in the body (owner call, 1.7.2: 标题=功能名,解释放下面).
         PagedCardPage(
             symbol: "circle.hexagongrid.circle",
             imageName: "guide-status",
-            title: "The island watches your agents",
+            title: "Monitor",
             body: "Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you"
         ),
         PagedCardPage(
             symbol: "gauge.with.needle",
             imageName: "guide-usage",
-            title: "Quota at a glance",
-            body: "Expand the island for the 5-hour and weekly windows — percentages come straight from each provider's official endpoint"
+            title: "Usage",
+            body: "Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island"
         ),
         PagedCardPage(
             symbol: "calendar",
             imageName: "guide-cost",
-            title: "Usage, cost, and a year of history",
+            title: "Cost & history",
             body: "Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine"
         ),
         PagedCardPage(
             symbol: "square.and.arrow.up",
             imageName: "guide-cards",
-            title: "Weekly and monthly cards",
+            title: "Report cards",
             body: "One click renders a shareable battle card — copy it or AirDrop it straight to your phone"
         ),
         PagedCardPage(
             symbol: "paintpalette",
             imageName: "guide-personalize",
-            title: "Make it yours",
+            title: "Personalization",
             body: "Visual modes, glow colors, chart styles, and language — all in Settings"
         ),
     ]

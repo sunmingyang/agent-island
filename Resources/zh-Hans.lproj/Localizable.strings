@@ -430,3 +430,17 @@
 "One click renders a shareable battle card — copy it or AirDrop it straight to your phone" = "一键生成可分享的战绩卡，复制或隔空投送到手机";
 "Make it yours" = "把它调成你的样子";
 "Visual modes, glow colors, chart styles, and language — all in Settings" = "视觉模式、光效颜色、图表样式与语言，都在设置里";
+
+/* guide v2 titles */
+"Monitor" = "监视器";
+"Cost & history" = "成本与历史";
+"Report cards" = "战绩卡";
+"Personalization" = "个性化";
+"Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island" = "展开小岛，看 5 小时与周额度窗口,数字直连官方接口。只订阅了一个工具?它的仪表会独占整座小岛";
+
+/* guide v2 titles */
+"Monitor" = "监视器";
+"Cost & history" = "成本与历史";
+"Report cards" = "战绩卡";
+"Personalization" = "个性化";
+"Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island" = "展开小岛，看 5 小时与周额度窗口，数字直连官方接口。只订阅了一个工具？它的仪表会独占整座小岛";
