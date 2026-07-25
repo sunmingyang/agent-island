@@ -162,18 +162,27 @@ enum LogParseCache {
 
         for root in roots {
             for entry in jsonlFiles(under: root, modifiedAfter: cutoff, filter: fileFilter) {
-                let path = entry.url.path
-                visited.insert(path)
+                // One pool per file. `parse` runs every line through
+                // JSONSerialization, which hands back an autoreleased
+                // NSDictionary tree; without a pool inside the loop those
+                // trees accumulate until the whole walk returns. Measured on a
+                // cold cache over 32,936 transcripts (4 GB): peak physical
+                // footprint 13.5 GB, released in one drop the moment the scan
+                // finished — the shape of a pool draining, not of live state.
+                autoreleasepool {
+                    let path = entry.url.path
+                    visited.insert(path)
 
-                let events: [Event]
-                if let hit = cache.files[path], hit.matches(mtime: entry.mtime, size: entry.size) {
-                    events = hit.events
-                } else {
-                    events = parse(entry.url)
-                    cache.files[path] = CachedFile(mtime: entry.mtime, size: entry.size, events: events)
-                    cacheChanged = true
+                    let events: [Event]
+                    if let hit = cache.files[path], hit.matches(mtime: entry.mtime, size: entry.size) {
+                        events = hit.events
+                    } else {
+                        events = parse(entry.url)
+                        cache.files[path] = CachedFile(mtime: entry.mtime, size: entry.size, events: events)
+                        cacheChanged = true
+                    }
+                    for ev in events { emit(ev) }
                 }
-                for ev in events { emit(ev) }
             }
         }
 
