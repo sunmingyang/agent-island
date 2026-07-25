@@ -17,8 +17,24 @@ extension SessionScanner {
 
     private static func scanClaudeTranscripts(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
         let desktopSessions = claudeDesktopIndex()
-        return claudeTranscriptIndex().map { sid, path in
+        // Drop transcripts that cannot produce anything but .idle before paying
+        // for their I/O. `sessionState` returns .idle outright once the session
+        // is older than `attentionWindow`, yet reaching that early return still
+        // costs a 128 KiB tail read plus a 64 KiB cwd probe per file — on a
+        // machine with 33k transcripts that is ~6 GB of reads on EVERY 6 s tick,
+        // which pins several cores and gets the process jetsam-killed.
+        //
+        // stat(2) is the cheapest way to tell the two apart. The desktop store's
+        // `lastActivityAt` can legitimately run ahead of the transcript's own
+        // mtime (it is written as turn-completion bookkeeping), so a session is
+        // only skipped when BOTH clocks are outside the window — keeping this
+        // strictly equivalent to scanning everything.
+        let cutoff = now.addingTimeInterval(-attentionWindow)
+        return claudeTranscriptIndex().compactMap { sid, path -> ScannedSession? in
             let desktop = desktopSessions[sid]
+            guard mtime(path) > cutoff || (desktop?.lastActivityAt ?? .distantPast) > cutoff else {
+                return nil
+            }
             let cwd = desktop.flatMap { $0.cwd.isEmpty ? nil : $0.cwd }
                 ?? cwdFromClaudeTranscript(path)
             let title = desktop?.title ?? ""

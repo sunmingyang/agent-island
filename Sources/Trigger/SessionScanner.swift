@@ -24,7 +24,7 @@ enum SessionScanner {
     private static let stallAfter: TimeInterval = 5 * 60
     private static let stallCap: TimeInterval = 15 * 60
     private static let needsYouCap: TimeInterval = 20 * 60
-    private static let attentionWindow: TimeInterval = 30 * 60
+    static let attentionWindow: TimeInterval = 30 * 60
     private static let desktopBookkeepingGrace: TimeInterval = 25
 
     static func scan(now: Date = Date(), lastWorking: [String: Date] = [:]) -> [ScannedSession] {
