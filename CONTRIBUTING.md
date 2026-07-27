@@ -15,6 +15,8 @@ If `/api/oauth/usage` or `/wham/usage` starts returning unexpected fields, both 
 
 ## Building locally
 
+### macOS
+
 ```sh
 ./build.sh
 open build/AgentIsland.app
@@ -23,6 +25,17 @@ open build/AgentIsland.app
 `./scripts/verify.sh` builds and smoke-launches the binary for one second — useful in pre-commit hooks since the app runs forever and a normal `./build.sh && ./build/.../AgentIsland` would block.
 
 No Xcode project, no SwiftPM. Just `swiftc Sources/**/*.swift`.
+
+### Windows
+
+Install [Git](https://git-scm.com/download/win) and the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0), then run these commands from the repository root in PowerShell:
+
+```powershell
+dotnet build windows/src/AgentIsland/AgentIsland.csproj -c Release
+dotnet run --project windows/tests/AgentIsland.Tests -c Release
+```
+
+The built app is at `windows\src\AgentIsland\bin\Release\net8.0-windows\AgentIsland.exe`.
 
 ## Code style
 
