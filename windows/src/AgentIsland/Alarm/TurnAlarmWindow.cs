@@ -267,7 +267,9 @@ public sealed class TurnAlarmWindow : Window
         if (_openButton is { } retry) retry.IsEnabled = true;
         if (_error is { } message)
         {
-            message.Text = Localization.L10n.Tr("Couldn't open the thread — is the claude/codex CLI on your PATH?");
+            message.Text = target.LaunchTarget == SessionLaunchTarget.ClaudeDesktop
+                ? Localization.L10n.Tr("Couldn't restore Claude Desktop — open it from the Start menu and try again.")
+                : Localization.L10n.Tr("Couldn't open the thread — is the claude/codex CLI on your PATH?");
             message.Visibility = Visibility.Visible;
         }
     }

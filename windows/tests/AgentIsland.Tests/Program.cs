@@ -111,6 +111,7 @@ public static class Program
             UsageCachePolicyTests.RunAll();
             ReminderDeliveryKeyTests.RunAll();
             SecurityGuardTests.RunAll();
+            TurnAlarmNavigatorTests.RunAll();
             FormattingTests.RunAll();
             ScannerCwdTests.RunAll();
             Console.WriteLine("ALL GREEN");

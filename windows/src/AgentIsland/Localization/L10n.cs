@@ -71,6 +71,7 @@ public static class L10n
         ["The thread finished. Come back and reply."] = "会话已结束，请回来回复",
         ["Open thread"] = "回去处理",
         ["I know"] = "我知道了",
+        ["Couldn't restore Claude Desktop — open it from the Start menu and try again."] = "无法恢复 Claude Desktop——请从开始菜单打开后重试",
         ["Alarm provider"] = "提供商",
         ["Alarm thread"] = "会话",
         ["Alarm project"] = "项目",

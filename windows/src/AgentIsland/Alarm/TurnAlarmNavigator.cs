@@ -6,10 +6,9 @@ using AgentIsland.Usage;
 
 namespace AgentIsland.Alarm;
 
-/// "Open thread" routing, mirroring the macOS navigator: fire the desktop
-/// app's deep link best-effort AND force its window to the foreground —
-/// on Windows, protocol activation alone never unburies an already-running
-/// app. CLI sessions reopen the interactive resume command in a terminal.
+/// "Open thread" routing, mirroring the macOS navigator: activate the desktop
+/// app through its registered URI and foreground an existing window when one
+/// is available. CLI sessions reopen the interactive resume command in a terminal.
 public static class TurnAlarmNavigator
 {
     /// Resumes the session in a terminal via the provider's CLI — the same
@@ -54,13 +53,19 @@ public static class TurnAlarmNavigator
                 {
                     // claude://code/<bridge-id> routes straight to the
                     // conversation once Anthropic's server-side flag opens
-                    // (today it merely fronts the app — same as our fallback,
-                    // so firing it costs nothing and upgrades automatically).
+                    // (today it merely fronts the app — same as our fallback).
                     if (BridgeSessionId(thread.SessionId) is { } bridge)
                     {
-                        TryOpenUri($"claude://code/{bridge}");
+                        if (TryOpenUri(ClaudeDesktopUri(bridge)))
+                        {
+                            FocusAppWindow("claude"); // best effort; activation is asynchronous
+                            return true;
+                        }
                     }
-                    return FocusAppWindow("claude");
+                    // Closing Claude hides its last window but leaves the app
+                    // running. With no HWND to focus, protocol activation asks
+                    // Windows to restore the official Desktop app.
+                    return FocusAppWindow("claude") || TryOpenUri(ClaudeDesktopUri(null));
                 });
             }
             return System.Threading.Tasks.Task.Run(() =>
@@ -147,6 +152,9 @@ public static class TurnAlarmNavigator
             return false;
         }
     }
+
+    internal static string ClaudeDesktopUri(string? bridgeSessionId) =>
+        bridgeSessionId is null ? "claude://" : $"claude://code/{bridgeSessionId}";
 
     /// Brings the named app's main window up: restores it when minimized and
     /// takes the foreground. Works because the click that got us here means
