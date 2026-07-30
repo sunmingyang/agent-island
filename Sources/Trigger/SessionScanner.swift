@@ -24,7 +24,7 @@ enum SessionScanner {
     private static let stallAfter: TimeInterval = 5 * 60
     private static let stallCap: TimeInterval = 15 * 60
     private static let needsYouCap: TimeInterval = 20 * 60
-    private static let attentionWindow: TimeInterval = 30 * 60
+    static let attentionWindow: TimeInterval = 30 * 60
     private static let desktopBookkeepingGrace: TimeInterval = 25
 
     static func scan(now: Date = Date(), lastWorking: [String: Date] = [:]) -> [ScannedSession] {
@@ -207,7 +207,35 @@ enum SessionScanner {
         return out
     }
 
+    /// Rebuilt at most once per poll interval. FSEvents drives ticks as fast as
+    /// ~2/s while a transcript streams, but those events mean "a line was
+    /// appended", not "a session appeared" — and the walk itself costs 0.32 s of
+    /// CPU plus ~5 MB of transient allocations on a machine with 33k transcripts
+    /// (measured). Rebuilding it per tick is what pins a core and inflates RSS
+    /// into the gigabytes as freed small-zone regions pile up. A newly created
+    /// session still surfaces within one poll, exactly as it did back when the
+    /// timer was the only trigger.
+    private static let indexTTL: TimeInterval = 6
+    private static let indexLock = NSLock()
+    private static var indexCache: [String: String] = [:]
+    private static var indexBuiltAt: Date = .distantPast
+
     static func claudeTranscriptIndex() -> [String: String] {
+        indexLock.lock()
+        let cached = indexCache
+        let isFresh = Date().timeIntervalSince(indexBuiltAt) < indexTTL
+        indexLock.unlock()
+        if isFresh { return cached }
+
+        let rebuilt = buildClaudeTranscriptIndex()
+        indexLock.lock()
+        indexCache = rebuilt
+        indexBuiltAt = Date()
+        indexLock.unlock()
+        return rebuilt
+    }
+
+    private static func buildClaudeTranscriptIndex() -> [String: String] {
         let root = NSHomeDirectory() + "/.claude/projects"
         guard let enumerator = FileManager.default.enumerator(atPath: root) else { return [:] }
         var out: [String: String] = [:]
