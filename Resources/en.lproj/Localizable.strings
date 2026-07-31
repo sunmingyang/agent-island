@@ -400,3 +400,10 @@
 /* #9 frontmost chime */
 "Frontmost chime" = "Frontmost chime";
 "Chime instead of staying silent when the session's app is frontmost" = "Chime instead of staying silent when the session's app is frontmost";
+
+/* turn alarm: manual resume + alarm panel settings */
+"Copy resume command" = "Copy resume command";
+"Default alarm action" = "Default alarm action";
+"Focus the session tab" = "Focus the session tab";
+"Which button the Return key triggers on the alarm." = "Which button the Return key triggers on the alarm.";
+"Experimental — try to focus the exact terminal tab instead of just activating the terminal app." = "Experimental — try to focus the exact terminal tab instead of just activating the terminal app.";

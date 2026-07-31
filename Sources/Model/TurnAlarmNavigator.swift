@@ -49,15 +49,17 @@ enum TurnAlarmNavigator {
     }
 
     private static func codexCLIFallback(thread: ActivityMonitor.ActiveThread?) {
-        if let thread, openCLIResume(
+        guard let thread else {
+            activate(bundleIdentifier: codexBundleID)
+            return
+        }
+        returnToCLIThread(
+            provider: .codex,
             executable: "codex",
             arguments: ["resume", thread.sessionId],
             thread: thread,
             fallbackBundleID: codexBundleID
-        ) {
-            return
-        }
-        activate(bundleIdentifier: codexBundleID)
+        )
     }
 
     /// The app bundle a scheme URL should be delivered to. Prefer the running
@@ -103,12 +105,14 @@ enum TurnAlarmNavigator {
             // Opt-in: some people prefer the terminal's exact-conversation
             // resume over landing in the Desktop app.
             if ClaudeJumpPreferenceStore.shared.prefersCLI,
-               let thread, openCLIResume(
-                   executable: "claude",
-                   arguments: ["--resume", thread.sessionId],
-                   thread: thread,
-                   fallbackBundleID: claudeBundleID
-               ) {
+               let thread {
+                returnToCLIThread(
+                    provider: .claude,
+                    executable: "claude",
+                    arguments: ["--resume", thread.sessionId],
+                    thread: thread,
+                    fallbackBundleID: claudeBundleID
+                )
                 return
             }
             // Desktop path. Claude registers claude://code/<bridge-id>, a
@@ -146,15 +150,17 @@ enum TurnAlarmNavigator {
             }
             return
         }
-        if let thread, openCLIResume(
+        guard let thread else {
+            activate(bundleIdentifier: claudeBundleID)
+            return
+        }
+        returnToCLIThread(
+            provider: .claude,
             executable: "claude",
             arguments: ["--resume", thread.sessionId],
             thread: thread,
             fallbackBundleID: claudeBundleID
-        ) {
-            return
-        }
-        activate(bundleIdentifier: claudeBundleID)
+        )
     }
 
     /// Claude Desktop's session store keeps, per conversation, the internal
@@ -201,70 +207,74 @@ enum TurnAlarmNavigator {
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 
-    private static func openCLIResume(
+    /// Reopen a CLI session in the terminal the user actually runs it in. A
+    /// live CLI process gets its tab focused (or at least its terminal app
+    /// activated) — the session is already waiting for input there; a dead
+    /// one is resumed in a fresh Ghostty window, or the resume command is
+    /// surfaced as a notification when that isn't possible.
+    private static func returnToCLIThread(
+        provider: AlertEngine.Provider,
         executable: String,
         arguments: [String],
         thread: ActivityMonitor.ActiveThread,
         fallbackBundleID: String
-    ) -> Bool {
-        guard !thread.sessionId.isEmpty else { return false }
+    ) {
+        guard !thread.sessionId.isEmpty else {
+            activate(bundleIdentifier: fallbackBundleID)
+            return
+        }
         let command = resumeCommand(executable: executable, arguments: arguments, cwd: thread.cwd)
-        let sessionId = thread.sessionId
-        // osascript blocks until Terminal handles the Apple Event — on the
-        // first run that includes the TCC consent prompt, which can sit for
-        // minutes. waitUntilExit on the main actor froze the whole app, so
-        // the run happens off-main and the fallbacks hop back for AppKit.
+        let focusTab = AgentReminderStore.shared.focusTerminalTab
         Task.detached(priority: .userInitiated) {
-            if runTerminalCommand(command) { return }
-            await MainActor.run {
-                if openCommandFile(command: command, executable: executable, sessionId: sessionId) { return }
-                activate(bundleIdentifier: fallbackBundleID)
+            let outcome = TerminalSessionLocator.returnToSession(
+                provider: provider,
+                thread: thread,
+                focusTab: focusTab
+            )
+            switch outcome {
+            case .focused, .appActivated:
+                return
+            case .processGone:
+                let ghostty = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.mitchellh.ghostty")
+                if TerminalSessionLocator.resumeInTerminal(
+                    executable: executable,
+                    arguments: arguments,
+                    cwd: thread.cwd,
+                    appURL: ghostty
+                ) {
+                    return
+                }
+                await MainActor.run {
+                    postResumeCommandNotification(command: command)
+                }
             }
         }
-        return true
     }
 
-    nonisolated private static func runTerminalCommand(_ command: String) -> Bool {
-        let script = """
-        tell application "Terminal"
-            activate
-            do script "\(appleScriptString(command))"
-        end tell
-        """
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
-        do {
-            try process.run()
-            process.waitUntilExit()
-            return process.terminationStatus == 0
-        } catch {
-            return false
-        }
+    /// Copy the raw resume command — the manual escape hatch when neither
+    /// focusing the session nor auto-resuming fits.
+    static func copyResumeCommand(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) {
+        guard let thread, !thread.sessionId.isEmpty else { return }
+        let executable = provider == .claude ? "claude" : "codex"
+        let arguments = provider == .claude
+            ? ["--resume", thread.sessionId]
+            : ["resume", thread.sessionId]
+        let command = resumeCommand(executable: executable, arguments: arguments, cwd: thread.cwd)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(command, forType: .string)
     }
 
-    private static func openCommandFile(command: String, executable: String, sessionId: String) -> Bool {
-        guard let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return false
-        }
-        let dir = root
-            .appendingPathComponent("AgentIsland", isDirectory: true)
-            .appendingPathComponent("ResumeCommands", isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent("resume-\(safeFileComponent(executable))-\(safeFileComponent(sessionId)).command")
-            let body = """
-            #!/bin/zsh
-            \(command)
-            """
-            try body.write(to: url, atomically: true, encoding: .utf8)
-            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
-            return NSWorkspace.shared.open(url)
-        } catch {
-            return false
-        }
+    private static func postResumeCommandNotification(command: String) {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.tr("Copy resume command")
+        content.body = command
+        let request = UNNotificationRequest(
+            identifier: "agent-island-resume-command-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 
     private static func resumeCommand(executable: String, arguments: [String], cwd: String) -> String {
@@ -296,17 +306,5 @@ enum TurnAlarmNavigator {
         return "'" + raw.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    nonisolated private static func appleScriptString(_ raw: String) -> String {
-        raw
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-    }
 
-    private static func safeFileComponent(_ raw: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        let scalars = raw.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
-        let text = String(scalars)
-        return text.isEmpty ? "session" : String(text.prefix(80))
-    }
 }
