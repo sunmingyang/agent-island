@@ -143,7 +143,6 @@ final class AgentReminderStore: ObservableObject {
     @Published var focusTerminalTab: Bool {
         didSet { UserDefaults.standard.set(focusTerminalTab, forKey: Self.focusTerminalTabKey) }
     }
-    }
 
     private init() {
         enabled = UserDefaults.standard.object(forKey: Self.enabledKey) == nil
