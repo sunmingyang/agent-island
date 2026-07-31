@@ -332,6 +332,18 @@ enum TurnAlarmNavigator {
         fallbackBundleID: String?
     ) -> Bool {
         guard !thread.sessionId.isEmpty else { return false }
+        // Patch: with "Focus the session tab" on, try to focus the exact
+        // terminal tab hosting the live CLI process first — the sharpest
+        // jump when the session is still running (opt-in: AppleScript tab
+        // targeting is terminal-version-sensitive).
+        if AgentReminderStore.shared.focusTerminalTab {
+            let outcome = TerminalSessionLocator.returnToSession(
+                provider: providerFor(executable: executable),
+                thread: thread,
+                focusTab: true
+            )
+            if outcome == .focused || outcome == .appActivated { return true }
+        }
         // A live interactive session beats any resume spawn: if the CLI
         // that raised this alarm is still running in some terminal, that
         // window IS the destination — spawning a fresh `grok --continue`
@@ -354,6 +366,9 @@ enum TurnAlarmNavigator {
             await MainActor.run {
                 if openCommandFile(command: command, executable: executable, sessionId: sessionId) { return }
                 if let fallbackBundleID { activate(bundleIdentifier: fallbackBundleID) }
+                // Patch: no desktop fallback (Grok/Antigravity) — surface the
+                // exact resume command instead of silently returning.
+                postResumeCommandNotification(command: command)
             }
         }
         return true
@@ -483,4 +498,50 @@ enum TurnAlarmNavigator {
             .replacingOccurrences(of: "\n", with: "\\n")
     }
 
+    // MARK: - Patch: user-facing resume command helpers
+
+    /// Copy the raw resume command — the manual escape hatch when neither
+    /// focusing the session nor auto-resuming fits.
+    static func copyResumeCommand(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) {
+        guard let thread, !thread.sessionId.isEmpty else { return }
+        let executable: String
+        let arguments: [String]
+        switch provider {
+        case .codex:
+            executable = "codex"; arguments = ["resume", thread.sessionId]
+        case .grok:
+            executable = "grok"; arguments = ["--resume", thread.sessionId]
+        case .antigravity:
+            executable = "agy"; arguments = ["--conversation", thread.sessionId]
+        case .cursor:
+            return // no CLI resume verb for Cursor
+        default:
+            executable = "claude"; arguments = ["--resume", thread.sessionId]
+        }
+        let command = resumeCommand(executable: executable, arguments: arguments, cwd: thread.cwd)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(command, forType: .string)
+    }
+
+    private static func postResumeCommandNotification(command: String) {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.tr("Copy resume command")
+        content.body = command
+        let request = UNNotificationRequest(
+            identifier: "agent-island-resume-command-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
+    private static func providerFor(executable: String) -> AlertEngine.Provider {
+        switch executable {
+        case "codex": return .codex
+        case "grok": return .grok
+        case "agy", "antigravity": return .antigravity
+        default: return .claude
+        }
+    }
 }

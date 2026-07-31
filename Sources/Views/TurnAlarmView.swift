@@ -88,12 +88,35 @@ struct TurnAlarmView: View {
                             }
                     }
                     .buttonStyle(.plain)
+                    .keyboardShortcut(reminders.defaultAction == .openThread ? .defaultAction : nil)
                     .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
                         // Recording rig: replay the open-thread interaction.
                         if (note.userInfo?["cmd"] as? String) == "alarm:open" {
                             openThreadAndDismiss()
                         }
                     }
+                }
+
+                if !isExhausted {
+                    Button {
+                        TurnAlarmNavigator.copyResumeCommand(provider: provider, thread: thread)
+                        dismiss()
+                    } label: {
+                        Text(L10n.tr("Copy resume command"))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.86))
+                            .frame(width: 396, height: 38)
+                            .background {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.white.opacity(0.06))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+                                    }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
                 }
 
                 Button {
@@ -113,6 +136,7 @@ struct TurnAlarmView: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(reminders.defaultAction == .dismiss ? .defaultAction : nil)
                 .padding(.top, 12)
 
                 Spacer(minLength: 18)

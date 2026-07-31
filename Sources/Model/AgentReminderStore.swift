@@ -53,6 +53,19 @@ final class AgentReminderStore: ObservableObject {
         }
     }
 
+    /// Which button the alarm panel's keyboard default (Return) triggers.
+    enum TurnAlarmDefaultAction: String, CaseIterable, Hashable {
+        case openThread
+        case dismiss
+
+        var label: String {
+            switch self {
+            case .openThread: return "Open thread"
+            case .dismiss: return "I know"
+            }
+        }
+    }
+
     enum AlarmSoundChoice: Hashable {
         case ringtone(String)
         case preset(AlarmSoundPreset)
@@ -109,6 +122,8 @@ final class AgentReminderStore: ObservableObject {
     private static let showSessionDetailsKey = "AgentIsland.agentReminderShowSessionDetails"
     private static let frontmostSoundOnlyKey = "AgentIsland.agentReminderFrontmostSoundOnly"
     private static let alarmWhenFrontmostKey = "AgentIsland.agentReminderAlarmWhenFrontmost"
+    private static let defaultActionKey = "AgentIsland.turnAlarmDefaultAction"
+    private static let focusTerminalTabKey = "AgentIsland.focusTerminalTab"
     private var previewSound: NSSound?
     /// Retains the in-flight #9 chime — NSSound stops when released.
     private var frontmostChime: NSSound?
@@ -167,6 +182,17 @@ final class AgentReminderStore: ObservableObject {
     /// switch rather than a rule (owner call, 2026-08-08).
     @Published var alarmWhenFrontmost: Bool {
         didSet { UserDefaults.standard.set(alarmWhenFrontmost, forKey: Self.alarmWhenFrontmostKey) }
+    @Published var defaultAction: TurnAlarmDefaultAction {
+        didSet { UserDefaults.standard.set(defaultAction.rawValue, forKey: Self.defaultActionKey) }
+    }
+
+    /// Experimental, off by default: "Open thread" on a CLI session tries to
+    /// focus the exact terminal tab via AppleScript before falling back to
+    /// activating the terminal app. Ghostty's scriptable surface is thin and
+    /// changes between versions, so this is opt-in rather than the default.
+    @Published var focusTerminalTab: Bool {
+        didSet { UserDefaults.standard.set(focusTerminalTab, forKey: Self.focusTerminalTabKey) }
+    }
     }
 
     private init() {
@@ -200,6 +226,9 @@ final class AgentReminderStore: ObservableObject {
         }
         showSessionDetails = UserDefaults.standard.bool(forKey: Self.showSessionDetailsKey)
         frontmostSoundOnly = UserDefaults.standard.bool(forKey: Self.frontmostSoundOnlyKey)
+        defaultAction = UserDefaults.standard.string(forKey: Self.defaultActionKey)
+            .flatMap(TurnAlarmDefaultAction.init(rawValue:)) ?? .openThread
+        focusTerminalTab = UserDefaults.standard.bool(forKey: Self.focusTerminalTabKey)
     }
 
     var soundLabel: String {

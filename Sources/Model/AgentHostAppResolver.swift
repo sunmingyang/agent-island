@@ -57,7 +57,7 @@ enum AgentHostAppResolver {
     }
 
     /// All live pids whose executable's last path component matches `name`.
-    private static func cliPids(named name: String) -> [pid_t] {
+    static func cliPids(named name: String) -> [pid_t] {
         var count = proc_listallpids(nil, 0)
         guard count > 0 else { return [] }
         var pids = [pid_t](repeating: 0, count: Int(count) + 64)
@@ -73,7 +73,7 @@ enum AgentHostAppResolver {
 
     /// The process's current working directory (same-user processes only,
     /// which is all we need — the CLI runs as the user).
-    private static func workingDirectory(of pid: pid_t) -> String? {
+    static func workingDirectory(of pid: pid_t) -> String? {
         var info = proc_vnodepathinfo()
         let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
         guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
@@ -85,7 +85,7 @@ enum AgentHostAppResolver {
 
     /// Parent pids walking up from `pid` (excluding launchd). Capped so a
     /// cyclic table read can never spin.
-    private static func ancestorPids(of pid: pid_t) -> Set<pid_t> {
+    static func ancestorPids(of pid: pid_t) -> Set<pid_t> {
         var ancestors = Set<pid_t>()
         var current = pid
         for _ in 0..<24 {
@@ -103,7 +103,7 @@ enum AgentHostAppResolver {
 
     /// `/tmp` and `/private/tmp` (and trailing slashes) must compare equal —
     /// the transcript records the logical path, the kernel reports the real one.
-    private static func normalize(_ path: String) -> String {
+    static func normalize(_ path: String) -> String {
         var p = path
         if p.hasPrefix("/private/") { p = String(p.dropFirst("/private".count)) }
         while p.count > 1 && p.hasSuffix("/") { p = String(p.dropLast()) }

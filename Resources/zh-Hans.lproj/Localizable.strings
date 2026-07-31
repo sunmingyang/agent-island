@@ -642,3 +642,10 @@
 "Radar, Beacon, Slow Rise — the alarm rings with Apple's own tones, played straight from the system's ringtone library. Radar is the new default" = "Radar、Beacon、Slow Rise——弹窗铃声来自系统自带的苹果铃声库，默认 Radar";
 "Cost across all five" = "五家成本全覆盖";
 "Grok reports its own dollars, Cursor counts its tokens — cost and reports now cover every agent, read locally, and say so honestly where a provider publishes less" = "Grok 自报美元、Cursor 提供 token 计数——成本与报表覆盖五家，全部本地读取；\n上游没有的数据，如实标注";
+
+/* turn alarm: manual resume + alarm panel settings */
+"Copy resume command" = "拷贝恢复命令";
+"Default alarm action" = "默认弹窗动作";
+"Focus the session tab" = "聚焦会话标签页";
+"Which button the Return key triggers on the alarm." = "回车键在弹窗上默认触发哪个按钮。";
+"Experimental — try to focus the exact terminal tab instead of just activating the terminal app." = "实验性——尝试定位到会话所在的终端标签页，而不是仅激活终端应用。";

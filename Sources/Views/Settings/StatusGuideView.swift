@@ -42,6 +42,24 @@ struct StatusGuideView: View {
                 SettingsToggle(isOn: reminders.showSessionDetails) { reminders.showSessionDetails.toggle() }
             }
             SettingsRow(
+                title: "Default alarm action",
+                subtitle: "Which button the Return key triggers on the alarm."
+            ) {
+                SegmentedControl(
+                    items: AgentReminderStore.TurnAlarmDefaultAction.allCases,
+                    selected: Binding(
+                        get: { reminders.defaultAction },
+                        set: { reminders.defaultAction = $0 }
+                    )
+                ) { $0.label }
+            }
+            SettingsRow(
+                title: "Focus the session tab",
+                subtitle: "Experimental — try to focus the exact terminal tab instead of just activating the terminal app."
+            ) {
+                SettingsToggle(isOn: reminders.focusTerminalTab) { reminders.focusTerminalTab.toggle() }
+            }
+            SettingsRow(
                 title: "Out-of-quota alarm",
                 subtitle: nil
             ) {
