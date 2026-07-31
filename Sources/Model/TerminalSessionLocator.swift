@@ -24,7 +24,7 @@ enum TerminalSessionLocator {
         guard let pid = activeProcess(provider: provider, thread: thread),
               let appURL = terminalAppURL(for: pid)
         else { return .processGone }
-        if focusTab, focusTab(appURL: appURL, thread: thread) {
+        if focusTab, Self.focusTab(appURL: appURL, thread: thread) {
             return .focused
         }
         if activate(appURL: appURL) {
@@ -107,12 +107,21 @@ enum TerminalSessionLocator {
     }
 
     private static func commandLine(of pid: pid_t) -> String? {
-        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
-        var size = 0
-        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else { return nil }
-        var buffer = [CChar](repeating: 0, count: size)
-        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else { return nil }
-        return String(bytes: buffer, encoding: .utf8)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-p", String(pid), "-o", "command="]
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = Pipe()
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8)
+        } catch {
+            return nil
+        }
     }
 
     /// `kp_proc.p_starttime` is a boot-relative timeval, so convert to an
@@ -139,11 +148,10 @@ enum TerminalSessionLocator {
     // MARK: - Activation
 
     private static func activate(appURL: URL) -> Bool {
-        guard let app = NSRunningApplication(url: appURL) else { return false }
-        if #available(macOS 14.0, *) {
-            return app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-        }
-        return app.activateWithOptions([.activateAllWindows, .activateIgnoringOtherApps])
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.openApplication(at: appURL, configuration: config)
+        return true
     }
 
     // MARK: - Tab focus (experimental, AppleScript)

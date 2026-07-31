@@ -81,7 +81,7 @@ enum TurnAlarmNavigator {
             NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config) { app, error in
                 Task { @MainActor in
                     if let app {
-                        app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                        activate(app)
                     } else if error != nil {
                         codexCLIFallback(thread: thread)
                     } else {
@@ -172,7 +172,7 @@ enum TurnAlarmNavigator {
                 NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config) { app, _ in
                     Task { @MainActor in
                         if let app {
-                            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                            activate(app)
                         } else {
                             bringForward(bundleIdentifier: claudeBundleID)
                         }
@@ -314,11 +314,17 @@ enum TurnAlarmNavigator {
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration) { _, _ in
             DispatchQueue.main.async { NSApp.hide(nil) }
         }
+    private static func activate(_ application: NSRunningApplication) {
+        guard let url = application.bundleURL else { return }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: config)
+(fix: build with macOS 26 SDK — NSRunningApplication.activate signature change)
     }
 
     private static func activate(bundleIdentifier: String) {
         if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == bundleIdentifier }) {
-            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            activate(app)
             return
         }
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return }

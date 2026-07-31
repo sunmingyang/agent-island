@@ -193,7 +193,6 @@ final class AgentReminderStore: ObservableObject {
     @Published var focusTerminalTab: Bool {
         didSet { UserDefaults.standard.set(focusTerminalTab, forKey: Self.focusTerminalTabKey) }
     }
-    }
 
     private init() {
         alarmWhenFrontmost = UserDefaults.standard.bool(forKey: Self.alarmWhenFrontmostKey)
