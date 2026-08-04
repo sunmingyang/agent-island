@@ -33,6 +33,12 @@ final class UsageStore: ObservableObject {
     /// gates on this.
     @Published var claudeReauthInProgress = false
     @Published var codexReauthInProgress = false
+    /// The authorize URL of the Claude login round-trip currently in flight.
+    /// Non-nil only while `claudeReauthInProgress` — the UI offers it as
+    /// "Copy login link" for users whose Claude account lives in a different
+    /// browser profile than the system default (the loopback callback
+    /// accepts whichever browser opens the link).
+    @Published var claudeLoginURL: URL?
 
     private var refreshTask: Task<Void, Never>?
     private var reauthPollTask: Task<Void, Never>?
@@ -317,7 +323,11 @@ final class UsageStore: ObservableObject {
         reauthPollTask?.cancel()
         reauthPollTask = Task { [weak self] in
             guard let self else { return }
-            switch await ClaudeWebLogin.shared.start() {
+            let outcome = await ClaudeWebLogin.shared.start { [weak self] url in
+                Task { @MainActor in self?.claudeLoginURL = url }
+            }
+            await MainActor.run { self.claudeLoginURL = nil }
+            switch outcome {
             case .success:
                 await self.finishClaudeReauthWithSingleFetch()
             case .canceled:
@@ -326,6 +336,19 @@ final class UsageStore: ObservableObject {
                 await self.runClaudeCLIReauthFallback()
             }
         }
+    }
+
+    /// Copies the in-flight authorize URL to the pasteboard for a manual
+    /// paste into whichever browser/profile actually holds the user's
+    /// claude.ai session, and stretches the login timeout to 10 minutes to
+    /// cover the hop. Returns false when no login flow is running.
+    @discardableResult
+    func copyClaudeLoginLink() -> Bool {
+        guard let url = claudeLoginURL else { return false }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        ClaudeWebLogin.shared.extendTimeoutForManualPaste()
+        return true
     }
 
     /// Legacy fallback: spawn `claude auth login` in Terminal and poll the

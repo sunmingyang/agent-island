@@ -125,31 +125,65 @@ struct ChartsBlock: View {
 }
 
 /// Inline action shown below the Claude tiles when the keychain token is
-/// missing the scope the usage endpoint now requires. Spawns
-/// `claude auth login` and polls for the keychain to update — the chip
-/// recovers on its own when the new scoped token lands.
+/// missing the scope the usage endpoint now requires. Runs the in-app web
+/// login (browser round-trip + loopback callback) — the chip recovers on
+/// its own when the fresh token lands. While the flow is in flight a
+/// companion link button copies the authorize URL for users whose Claude
+/// session lives in a different browser profile than the system default;
+/// the panel is too tight for the full sentence, so the guidance rides the
+/// tooltips (Settings carries the visible caption).
 struct ReauthButton: View {
     @ObservedObject private var store = UsageStore.shared
     @State private var hovered = false
+    @State private var linkHovered = false
+    @State private var linkCopied = false
 
     var body: some View {
-        Button {
-            store.reauthenticateClaude()
-        } label: {
-            Text(store.claudeReauthInProgress ? L10n.tr("waiting for login…") : L10n.tr("Re-authenticate"))
-                .font(Typography.label)
-                .foregroundStyle(.white.opacity(hovered && !store.claudeReauthInProgress ? 0.95 : 0.72))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(.white.opacity(hovered && !store.claudeReauthInProgress ? 0.08 : 0.04))
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 5))
+        HStack(spacing: 5) {
+            Button {
+                store.reauthenticateClaude()
+            } label: {
+                Text(store.claudeReauthInProgress ? L10n.tr("waiting for login…") : L10n.tr("Re-authenticate"))
+                    .font(Typography.label)
+                    .foregroundStyle(.white.opacity(hovered && !store.claudeReauthInProgress ? 0.95 : 0.72))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(.white.opacity(hovered && !store.claudeReauthInProgress ? 0.08 : 0.04))
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .disabled(store.claudeReauthInProgress)
+            .onHover { hovered = $0 }
+            .help(L10n.tr("Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there"))
+
+            if store.claudeReauthInProgress, store.claudeLoginURL != nil {
+                Button {
+                    guard store.copyClaudeLoginLink() else { return }
+                    linkCopied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                        linkCopied = false
+                    }
+                } label: {
+                    Image(systemName: linkCopied ? "checkmark" : "link")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(.white.opacity(linkHovered || linkCopied ? 0.95 : 0.72))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(.white.opacity(linkHovered ? 0.08 : 0.04))
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 5))
+                }
+                .buttonStyle(.plain)
+                .onHover { linkHovered = $0 }
+                .help(L10n.tr("Copy login link"))
+                .accessibilityLabel(L10n.tr("Copy login link"))
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(store.claudeReauthInProgress)
-        .onHover { hovered = $0 }
     }
 }
 

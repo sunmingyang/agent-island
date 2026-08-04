@@ -30,6 +30,9 @@ struct SettingsView: View {
 
     @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.general.rawValue
 
+    /// Flashes the copy-login-link confirmation caption for a few seconds.
+    @State private var loginLinkCopied = false
+
     private var activeTab: SettingsTab {
         get {
             let tab = SettingsTab(rawValue: activeTabRaw) ?? .general
@@ -722,6 +725,15 @@ struct SettingsView: View {
                 chip: usage.claude.plan?.uppercased()
             ) {
                 HStack(spacing: 8) {
+                    if usage.claudeReauthInProgress, usage.claudeLoginURL != nil {
+                        PillButton(label: loginLinkCopied ? "Copied" : "Copy login link") {
+                            guard usage.copyClaudeLoginLink() else { return }
+                            loginLinkCopied = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                                loginLinkCopied = false
+                            }
+                        }
+                    }
                     if claudeReauthAvailable {
                         PillButton(
                             label: usage.claudeReauthInProgress ? "waiting for login…" : "Re-authenticate",
@@ -736,6 +748,9 @@ struct SettingsView: View {
                         }
                     }
                 }
+            }
+            if claudeReauthAvailable {
+                claudeReauthCaption
             }
             SettingsRow(
                 title: "Codex",
@@ -775,6 +790,25 @@ struct SettingsView: View {
         if usage.claudeReauthInProgress { return true }
         return ClaudeCredentials.isAuthRecoverableError(usage.claude.fiveHour.error)
             || ClaudeCredentials.isAuthRecoverableError(usage.claude.weekly.error)
+    }
+
+    /// One-line hint under the Claude row while re-auth is on offer: the
+    /// flow opens the system default browser, which lands in the wrong
+    /// Google profile for users whose claude.ai session lives elsewhere —
+    /// "Copy login link" is the escape hatch. Swaps to a copied
+    /// confirmation for a few seconds after the copy.
+    private var claudeReauthCaption: some View {
+        Text(loginLinkCopied
+            ? L10n.tr("Copied — paste it into the browser that's signed in to the right account")
+            : L10n.tr("Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there"))
+            .font(Typography.label)
+            .foregroundStyle(loginLinkCopied
+                ? IslandColor.brandTeal.opacity(0.9)
+                : Color.white.opacity(0.45))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 8)
+            .animation(.easeOut(duration: 0.15), value: loginLinkCopied)
     }
 
     /// Lets the user pick which token total drives the TOKENS hero on the

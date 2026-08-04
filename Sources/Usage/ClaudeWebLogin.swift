@@ -41,12 +41,35 @@ final class ClaudeWebLogin: @unchecked Sendable {
     private var state = ""
     private var redirectURI = ""
     private var timeout: DispatchWorkItem?
+    private var onAuthorizeURL: ((URL) -> Void)?
 
     /// Runs the full flow and resolves once the browser round-trip completes,
-    /// times out (~3 min), or fails to start. Safe to call again afterwards.
-    func start() async -> Outcome {
+    /// times out (~3 min one-click; 10 min once the link is copied for a
+    /// manual paste), or fails to start. Safe to call again afterwards.
+    /// `onAuthorizeURL` fires on the main thread with the authorize URL the
+    /// moment it exists — the UI surfaces it as a copyable link so users
+    /// whose Claude session lives in a different browser profile can paste
+    /// it there (the loopback callback accepts any browser).
+    func start(onAuthorizeURL: ((URL) -> Void)? = nil) async -> Outcome {
         await withCheckedContinuation { cont in
-            queue.async { [weak self] in self?.begin(cont) }
+            queue.async { [weak self] in
+                self?.onAuthorizeURL = onAuthorizeURL
+                self?.begin(cont)
+            }
+        }
+    }
+
+    /// Re-arms the round-trip timeout to 10 minutes. Called when the user
+    /// copies the login link — finding the right profile, pasting, and
+    /// signing in takes longer than the one-click default-browser path,
+    /// and a 3-minute cutoff killed the flow mid-paste.
+    func extendTimeoutForManualPaste() {
+        queue.async { [weak self] in
+            guard let self, !self.finished else { return }
+            self.timeout?.cancel()
+            let item = DispatchWorkItem { [weak self] in self?.finish(.failed("login timed out")) }
+            self.timeout = item
+            self.queue.asyncAfter(deadline: .now() + 600, execute: item)
         }
     }
 
@@ -105,7 +128,11 @@ final class ClaudeWebLogin: @unchecked Sendable {
             finish(.failed("bad authorize URL"))
             return
         }
-        DispatchQueue.main.async { NSWorkspace.shared.open(url) }
+        let publish = onAuthorizeURL
+        DispatchQueue.main.async {
+            publish?(url)
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func armTimeout() {
@@ -192,6 +219,7 @@ final class ClaudeWebLogin: @unchecked Sendable {
             self.timeout = nil
             self.listener?.cancel()
             self.listener = nil
+            self.onAuthorizeURL = nil
             let cont = self.continuation
             self.continuation = nil
             cont?.resume(returning: outcome)

@@ -174,6 +174,11 @@
 "Share monthly report…" = "分享本月月报…";
 "network drop" = "网络中断，已保留上次数据";
 "token refresh failed — sign in again" = "token 刷新失败，请重新登录";
+
+/* claude re-auth: copy-link escape hatch for wrong-browser-profile logins */
+"Copy login link" = "复制登录链接";
+"Copied — paste it into the browser that's signed in to the right account" = "已复制，请粘贴到已登录正确账号的浏览器打开";
+"Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there" = "将用系统默认浏览器打开；若你的 Claude 账号绑定在其他浏览器 profile 的 Google 账号上，请点「复制登录链接」手动粘贴打开";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传";
 "Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧：隔空投送到 iPhone，图片直接进相册，随手就能发 📲";
 "Drifter" = "漂流者";
