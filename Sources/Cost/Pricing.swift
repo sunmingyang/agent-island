@@ -10,7 +10,7 @@ import Foundation
 /// Unknown models silently price to $0 — same behavior as ccusage when
 /// LiteLLM has no entry.
 enum Pricing {
-    static let snapshotDate = "2026-07-13"
+    static let snapshotDate = "2026-08-05"
 
     struct Rates {
         let inputPerMillion: Double
@@ -74,19 +74,19 @@ enum Pricing {
         // model name. cache_creation has no separate rate (OpenAI bills
         // cache writes at the standard input rate).
         // Base reasoning models (newest first).
-        // GPT-5.6 tiers (launched 2026-07-09; official developers.openai.com
-        // pricing, fetched 2026-07-13): sol matches 5.5's rates.
+        // GPT-5.6 tiers (launched 2026-07-09). OpenAI cut terra -20% and
+        // luna -80% on 2026-07-30; sol unchanged (verified 2026-08-05).
         "gpt-5.6-sol": Rates(
             inputPerMillion: 5, outputPerMillion: 30,
             cacheCreationPerMillion: 5, cacheReadPerMillion: 0.50
         ),
         "gpt-5.6-terra": Rates(
-            inputPerMillion: 2.5, outputPerMillion: 15,
-            cacheCreationPerMillion: 2.5, cacheReadPerMillion: 0.25
+            inputPerMillion: 2, outputPerMillion: 12,
+            cacheCreationPerMillion: 2, cacheReadPerMillion: 0.20
         ),
         "gpt-5.6-luna": Rates(
-            inputPerMillion: 1, outputPerMillion: 6,
-            cacheCreationPerMillion: 1, cacheReadPerMillion: 0.10
+            inputPerMillion: 0.20, outputPerMillion: 1.20,
+            cacheCreationPerMillion: 0.20, cacheReadPerMillion: 0.02
         ),
         "gpt-5.5": Rates(
             inputPerMillion: 5, outputPerMillion: 30,
