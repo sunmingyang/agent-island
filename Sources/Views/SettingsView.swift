@@ -25,6 +25,7 @@ struct SettingsView: View {
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
     @ObservedObject private var appLanguage = AppLanguageStore.shared
     @ObservedObject private var usage = UsageStore.shared
+    @ObservedObject private var loginTarget = ClaudeLoginTargetStore.shared
     @ObservedObject private var grokStore = GrokUsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
@@ -33,6 +34,10 @@ struct SettingsView: View {
 
     /// Flashes the copy-login-link confirmation caption for a few seconds.
     @State private var loginLinkCopied = false
+
+    /// Browser/profile landscape for the Claude sign-in target picker,
+    /// loaded when the Providers section appears.
+    @State private var claudeLoginDetection = ClaudeLoginDetection.empty
 
     private var activeTab: SettingsTab {
         get {
@@ -742,6 +747,11 @@ struct SettingsView: View {
                         ) {
                             usage.reauthenticateClaude()
                         }
+                        if !usage.claudeReauthInProgress {
+                            ClaudeLoginTargetMenu(detection: claudeLoginDetection) {
+                                usage.reauthenticateClaude()
+                            }
+                        }
                     }
                     SettingsToggle(isOn: visibility.claudeVisible) {
                         withAnimation(.openMorph) {
@@ -793,6 +803,7 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.top, 18)
         .padding(.bottom, 6)
+        .onAppear { claudeLoginDetection = .detect() }
     }
 
     /// Detection state for the Grok row: identity when a login exists,
@@ -826,23 +837,61 @@ struct SettingsView: View {
             || ClaudeCredentials.isAuthRecoverableError(usage.claude.weekly.error)
     }
 
-    /// One-line hint under the Claude row while re-auth is on offer: the
-    /// flow opens the system default browser, which lands in the wrong
-    /// Google profile for users whose claude.ai session lives elsewhere —
-    /// "Copy login link" is the escape hatch. Swaps to a copied
-    /// confirmation for a few seconds after the copy.
+    /// One-line hint under the Claude row while re-auth is on offer: names
+    /// where the sign-in will land BEFORE anything opens (owner ask — the
+    /// old flow revealed the wrong Google profile only after the page
+    /// loaded). Swaps to a copied confirmation once the link is on the
+    /// pasteboard.
     private var claudeReauthCaption: some View {
-        Text(loginLinkCopied
-            ? L10n.tr("Copied — paste it into the browser that's signed in to the right account")
-            : L10n.tr("Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there"))
+        Text(claudeReauthCaptionText)
             .font(Typography.label)
-            .foregroundStyle(loginLinkCopied
+            .foregroundStyle(claudeLoginLinkOnPasteboard
                 ? IslandColor.brandTeal.opacity(0.9)
                 : Color.white.opacity(0.45))
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 10)
             .padding(.bottom, 8)
-            .animation(.easeOut(duration: 0.15), value: loginLinkCopied)
+            .animation(.easeOut(duration: 0.15), value: claudeLoginLinkOnPasteboard)
+    }
+
+    /// True the moment the login link is known to sit on the pasteboard —
+    /// via the manual Copy button or the copy-only target's auto-copy.
+    private var claudeLoginLinkOnPasteboard: Bool {
+        loginLinkCopied
+            || (usage.claudeReauthInProgress && loginTarget.target == .copyOnly
+                && usage.claudeLoginURL != nil)
+    }
+
+    private var claudeReauthCaptionText: String {
+        if claudeLoginLinkOnPasteboard {
+            return L10n.tr("Copied — paste it into the browser that's signed in to the right account")
+        }
+        // Resolve against the detected landscape so a remembered pick whose
+        // browser/profile is gone reads as what will ACTUALLY happen (the
+        // system-default fallback), not as the stale pick.
+        let resolved = loginTarget.resolvedTarget(
+            profiles: claudeLoginDetection.profiles,
+            appURLForBundleID: BrowserProfileResolver.appURL(forBundleID:)
+        )
+        switch resolved {
+        case .systemDefault:
+            guard let name = claudeLoginDetection.defaultBrowser?.name else {
+                return L10n.tr("Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window")
+            }
+            return L10n.tr("Sign-in opens in %@ (default browser) — the arrow menu picks another profile or an incognito window", name)
+        case .chromiumProfile(let appURL, let profileDirectory):
+            guard let profile = claudeLoginDetection.profiles.first(where: {
+                $0.appURL == appURL && $0.profileDirectory == profileDirectory
+            }) else {
+                return L10n.tr("Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window")
+            }
+            return L10n.tr("Sign-in opens in %@", profile.pickerLabel)
+        case .chromiumIncognito(let appURL):
+            return L10n.tr("Sign-in opens in an incognito %@ window",
+                           FileManager.default.displayName(atPath: appURL.path))
+        case .copyOnly:
+            return L10n.tr("Sign-in copies the login link — paste it into any signed-in browser")
+        }
     }
 
     /// Lets the user pick which token total drives the TOKENS hero on the

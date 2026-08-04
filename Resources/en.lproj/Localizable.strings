@@ -181,10 +181,20 @@
 "Previous month" = "Previous month";
 "Next month" = "Next month";
 
-/* claude re-auth: copy-link escape hatch for wrong-browser-profile logins */
+/* claude re-auth: browser/profile target picker + copy-link escape hatch */
 "Copy login link" = "Copy login link";
 "Copied — paste it into the browser that's signed in to the right account" = "Copied — paste it into the browser that's signed in to the right account";
-"Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there" = "Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there";
+"Default browser" = "Default browser";
+"Default browser · %@" = "Default browser · %@";
+"Incognito window (%@)" = "Incognito window (%@)";
+"Account not in any browser? Incognito gives it a clean sign-in" = "Account not in any browser? Incognito gives it a clean sign-in";
+"Choose where the sign-in opens" = "Choose where the sign-in opens";
+"Sign-in opens in %@ (default browser) — the arrow menu picks another profile or an incognito window" = "Sign-in opens in %@ (default browser) — the arrow menu picks another profile or an incognito window";
+"Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window" = "Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window";
+"Sign-in opens in %@" = "Sign-in opens in %@";
+"Sign-in opens in an incognito %@ window" = "Sign-in opens in an incognito %@ window";
+"Sign-in copies the login link — paste it into any signed-in browser" = "Sign-in copies the login link — paste it into any signed-in browser";
+"Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers" = "Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "Copied! Post it — bring a friend to the island 🏝️";
 "Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "Tip: AirDrop to your iPhone — straight into Photos 📲";
 "Drifter" = "Drifter";

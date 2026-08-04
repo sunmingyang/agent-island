@@ -181,10 +181,20 @@
 "Previous month" = "上个月";
 "Next month" = "下个月";
 
-/* claude re-auth: copy-link escape hatch for wrong-browser-profile logins */
+/* claude re-auth: browser/profile target picker + copy-link escape hatch */
 "Copy login link" = "复制登录链接";
 "Copied — paste it into the browser that's signed in to the right account" = "已复制，请粘贴到已登录正确账号的浏览器打开";
-"Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there" = "将用系统默认浏览器打开；若你的 Claude 账号绑定在其他浏览器 profile 的 Google 账号上，请点「复制登录链接」手动粘贴打开";
+"Default browser" = "默认浏览器";
+"Default browser · %@" = "默认浏览器 · %@";
+"Incognito window (%@)" = "隐身窗口（%@）";
+"Account not in any browser? Incognito gives it a clean sign-in" = "账号不在任何浏览器里？用隐身窗口干净登录一次即可";
+"Choose where the sign-in opens" = "选择登录在哪里打开";
+"Sign-in opens in %@ (default browser) — the arrow menu picks another profile or an incognito window" = "登录将在 %@（系统默认浏览器）打开，点箭头可改用其他 profile 或隐身窗口";
+"Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window" = "登录将在系统默认浏览器打开，点箭头可改用其他 profile 或隐身窗口";
+"Sign-in opens in %@" = "登录将在 %@ 打开";
+"Sign-in opens in an incognito %@ window" = "登录将在 %@ 隐身窗口打开";
+"Sign-in copies the login link — paste it into any signed-in browser" = "将复制登录链接，粘贴到任意已登录的浏览器打开即可";
+"Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers" = "按记住的浏览器选择打开 Claude 登录页，可到 设置 → 服务 修改";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传";
 "Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧：隔空投送到 iPhone，图片直接进相册，随手就能发 📲";
 "Drifter" = "漂流者";

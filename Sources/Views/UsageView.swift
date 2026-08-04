@@ -168,7 +168,7 @@ struct ReauthButton: View {
             .buttonStyle(.plain)
             .disabled(store.claudeReauthInProgress)
             .onHover { hovered = $0 }
-            .help(L10n.tr("Opens in your default browser. If your Claude account lives in another browser profile, use Copy login link and paste it there"))
+            .help(L10n.tr("Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers"))
 
             if store.claudeReauthInProgress, store.claudeLoginURL != nil {
                 Button {
