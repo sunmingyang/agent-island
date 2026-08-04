@@ -198,6 +198,77 @@ enum CostSummary {
         )
     }
 
+    /// One report period's aggregation: per-day buckets, total dollars, and
+    /// per-model rows over an arbitrary half-open `[start, end)` interval.
+    /// The report pager feeds this from its own full-year `LogReader.scan`
+    /// (per-file memoization makes the rescan cheap), fully independent of
+    /// the fixed windows `summarize` computes for the live panel — past
+    /// weeks/months never touch the CostStore hot path or its cache schema.
+    struct ReportSlice {
+        /// Calendar-local daily totals covering every day of the interval,
+        /// oldest first — zero-filled days included, same shape as
+        /// `ProviderCost.dailyTokens`.
+        let dailyTokens: [DailyTokenBucket]
+        let dollars: Double
+        /// Same accounting and sorting as the live windows' per-model rows.
+        let byModel: [ModelUsageRow]
+    }
+
+    /// Aggregate `events` over `interval` (start inclusive, end exclusive)
+    /// using the same accounting rules as `summarize`: wire vs billable
+    /// token split, cache reads excluded from `tokens` but included in
+    /// dollars, canonical model grouping.
+    static func reportSlice(events: [TokenEvent], interval: DateInterval) -> ReportSlice {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let startDay = cal.startOfDay(for: interval.start)
+        // End is exclusive, so the last covered day starts just before it.
+        let lastDay = cal.startOfDay(for: interval.end.addingTimeInterval(-1))
+        let dayCount = max(1, (cal.dateComponents([.day], from: startDay, to: lastDay).day ?? 0) + 1)
+
+        var tokenBuckets = Array(repeating: 0, count: dayCount)
+        var billableBuckets = Array(repeating: 0, count: dayCount)
+        var dollars = 0.0
+        var tokensByModel: [String: Int] = [:]
+        var wireByModel: [String: Int] = [:]
+        var dollarsByModel: [String: Double] = [:]
+
+        for event in events {
+            guard event.timestamp >= interval.start, event.timestamp < interval.end else { continue }
+            let cost = Pricing.cost(for: event)
+            let billable = event.inputTokens + event.outputTokens
+            let tokens = billable + event.cacheCreationTokens + event.cacheReadTokens
+
+            let eventDay = cal.startOfDay(for: event.timestamp)
+            let dayOffset = cal.dateComponents([.day], from: startDay, to: eventDay).day ?? -1
+            if tokenBuckets.indices.contains(dayOffset) {
+                tokenBuckets[dayOffset] += tokens
+                billableBuckets[dayOffset] += billable
+            }
+
+            dollars += cost
+            let canon = Pricing.canonicalModelName(event.model)
+            if billable > 0 { tokensByModel[canon, default: 0] += billable }
+            if tokens > 0 { wireByModel[canon, default: 0] += tokens }
+            if cost > 0 { dollarsByModel[canon, default: 0] += cost }
+        }
+
+        return ReportSlice(
+            dailyTokens: dailyTokenBuckets(
+                start: startDay,
+                tokens: tokenBuckets,
+                billableTokens: billableBuckets,
+                calendar: cal
+            ),
+            dollars: dollars,
+            byModel: modelRows(
+                tokensByModel: tokensByModel,
+                wireByModel: wireByModel,
+                dollarsByModel: dollarsByModel
+            )
+        )
+    }
+
     static func yearHistoryDays(now: Date = Date()) -> Int {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
