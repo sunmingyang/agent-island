@@ -12,6 +12,7 @@ cd "$(dirname "$0")/.."
 ./scripts/test-report-slice.sh
 ./scripts/test-grok-parsing.sh
 ./scripts/test-reminder-store.sh
+./scripts/test-browser-profiles.sh
 ./build.sh
 
 BIN="./build/AgentIsland.app/Contents/MacOS/AgentIsland"
