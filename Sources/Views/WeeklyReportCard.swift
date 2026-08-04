@@ -115,6 +115,81 @@ struct WeeklyReportData {
         )
     }
 
+    /// Assembles a PAST page of the report pager from interval slices
+    /// (offset ≠ 0 — the current page keeps `current()`). Mirrors
+    /// `current()` in shape; daily bars, totals, and per-model rows come
+    /// from one full-scan slice instead of the live store windows, so the
+    /// whole card sits on a single consistent window by construction.
+    /// Lifetime rank stays on the store's published history — the rank is
+    /// lifetime, not per-page.
+    @MainActor
+    static func forInterval(_ interval: DateInterval,
+                            claudeSlice: CostSummary.ReportSlice,
+                            codexSlice: CostSummary.ReportSlice) -> WeeklyReportData {
+        let cost = CostStore.shared
+        let cal = Calendar.current
+        let mode = TokenCountModeStore.shared.mode
+        let zh = L10n.locale.identifier.hasPrefix("zh")
+
+        let firstDay = cal.startOfDay(for: interval.start)
+        let days: [Date] = (0..<7).compactMap {
+            cal.date(byAdding: .day, value: $0, to: firstDay)
+        }
+
+        func bucketValue(_ b: DailyTokenBucket) -> Int {
+            mode == .all ? b.tokens : b.billableTokens
+        }
+        let claudeDaily = claudeSlice.dailyTokens.map(bucketValue)
+        let codexDaily = codexSlice.dailyTokens.map(bucketValue)
+        let daily = zip(claudeDaily, codexDaily).map(+)
+
+        let claudeWeek = claudeDaily.reduce(0, +)
+        let codexWeek = codexDaily.reduce(0, +)
+        let total = claudeWeek + codexWeek
+        let dollars = claudeSlice.dollars + codexSlice.dollars
+
+        let models = Self.rankedModels(
+            claudeRows: claudeSlice.byModel,
+            codexRows: codexSlice.byModel,
+            limit: 3,
+            mode: mode
+        )
+
+        let df = DateFormatter()
+        df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
+        df.dateFormat = zh ? "M月d日" : "MMM d"
+        let lastDay = days.last ?? firstDay
+        let range = "\(df.string(from: firstDay)) – \(df.string(from: lastDay))"
+
+        let letters: [String]
+        if zh {
+            let zhDays = ["日", "一", "二", "三", "四", "五", "六"]
+            letters = days.map { zhDays[cal.component(.weekday, from: $0) - 1] }
+        } else {
+            let letterFmt = DateFormatter()
+            letterFmt.locale = Locale(identifier: "en_US_POSIX")
+            letterFmt.dateFormat = "EEEEE"
+            letters = days.map { letterFmt.string(from: $0) }
+        }
+
+        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
+            .reduce(0) { $0 + $1.tokens }
+        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
+
+        return WeeklyReportData(
+            rangeText: range,
+            totalTokens: total,
+            totalDollars: dollars,
+            claudeShare: total > 0 ? Double(claudeWeek) / Double(total) : 0,
+            dailyTokens: daily,
+            dayLetters: letters,
+            topModels: models,
+            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
+            tierEmoji: tier?.emoji,
+            tierName: tier?.nameKey
+        )
+    }
+
     /// Rank models by DOLLARS, not billable tokens: the card's story is
     /// "what my week was worth", and token-ranking buried expensive models.
     /// TOP-N only — no "Others" row; the donut's uncovered arc reads as the

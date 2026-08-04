@@ -175,6 +175,12 @@
 "network drop" = "network drop — showing last data";
 "token refresh failed — sign in again" = "token refresh failed — sign in again";
 
+/* report period pager */
+"Previous week" = "Previous week";
+"Next week" = "Next week";
+"Previous month" = "Previous month";
+"Next month" = "Next month";
+
 /* claude re-auth: copy-link escape hatch for wrong-browser-profile logins */
 "Copy login link" = "Copy login link";
 "Copied — paste it into the browser that's signed in to the right account" = "Copied — paste it into the browser that's signed in to the right account";

@@ -175,6 +175,12 @@
 "network drop" = "网络中断，已保留上次数据";
 "token refresh failed — sign in again" = "token 刷新失败，请重新登录";
 
+/* report period pager */
+"Previous week" = "上一周";
+"Next week" = "下一周";
+"Previous month" = "上个月";
+"Next month" = "下个月";
+
 /* claude re-auth: copy-link escape hatch for wrong-browser-profile logins */
 "Copy login link" = "复制登录链接";
 "Copied — paste it into the browser that's signed in to the right account" = "已复制，请粘贴到已登录正确账号的浏览器打开";

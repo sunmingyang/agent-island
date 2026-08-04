@@ -11,8 +11,8 @@ enum WeeklyReportRenderer {
     /// corners and no backdrop margin: social apps flatten transparency to
     /// white (ugly corner nicks) and a margin frame read as a gray box
     /// around the card. Edge-to-edge card = clean everywhere.
-    private static func exportView() -> some View {
-        WeeklyReportCard(data: .current(), rounded: false)
+    private static func exportView(data: WeeklyReportData) -> some View {
+        WeeklyReportCard(data: data, rounded: false)
     }
 
     // The 3x render of the full card (QR included) costs seconds — doing it
@@ -20,29 +20,45 @@ enum WeeklyReportRenderer {
     // open, serve every action from the cache.
     private static var cachedImage: NSImage?
     private static var cachedPNG: Data?
+    /// Which period the cache holds ("current" or the pager's page key).
+    /// The pager invalidates on every flip; the key additionally refuses to
+    /// serve a stale period even if an invalidate was ever missed — the
+    /// same defense the tokenMode invalidation relies on.
+    private static var cachedKey: String?
 
     static func invalidateCache() {
         cachedImage = nil
         cachedPNG = nil
+        cachedKey = nil
     }
 
     /// Pre-render off the click path (fired right after the window shows).
-    static func warmCache() {
-        _ = pngData()
+    /// No-arg variants serve the live current week (window-open warm and
+    /// the headless snapshot hook).
+    static func warmCache() { warmCache(data: .current(), key: "current") }
+
+    static func warmCache(data: WeeklyReportData, key: String) {
+        _ = pngData(data: data, key: key)
     }
 
-    static func image() -> NSImage? {
-        if let cachedImage { return cachedImage }
-        let renderer = ImageRenderer(content: exportView())
+    static func image() -> NSImage? { image(data: .current(), key: "current") }
+
+    static func image(data: WeeklyReportData, key: String) -> NSImage? {
+        if cachedKey == key, let cachedImage { return cachedImage }
+        let renderer = ImageRenderer(content: exportView(data: data))
         renderer.scale = 3
         renderer.isOpaque = true
         cachedImage = renderer.nsImage
+        cachedPNG = nil
+        cachedKey = key
         return cachedImage
     }
 
-    static func pngData() -> Data? {
-        if let cachedPNG { return cachedPNG }
-        guard let image = image(),
+    static func pngData() -> Data? { pngData(data: .current(), key: "current") }
+
+    static func pngData(data: WeeklyReportData, key: String) -> Data? {
+        if cachedKey == key, let cachedPNG { return cachedPNG }
+        guard let image = image(data: data, key: key),
               let tiff = image.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff) else { return nil }
         cachedPNG = rep.representation(using: .png, properties: [:])
@@ -91,10 +107,10 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
         }
         if window == nil {
             let panel = ReportPanel(
-                // Hugs the content exactly (card 420 + 26pt margins; buttons
-                // below) — a window wider than its content reads as a ghost
-                // slab around the card.
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 670)),
+                // Hugs the content exactly (pager row + card 420 + 26pt
+                // margins; buttons below) — a window wider than its content
+                // reads as a ghost slab around the card.
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 710)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -132,12 +148,12 @@ final class WeeklyReportWindowController: NSWindowController, NSWindowDelegate {
         close.target = window
         close.action = #selector(NSWindow.close)
         contentView.addSubview(close)
-        // Card sits at (26, 22) from the top-left of the content; native
-        // windows inset the light ~12pt into the corner. NSHostingView is
-        // FLIPPED (y grows downward) — measuring from the bottom edge parked
-        // the light at the bottom.
+        // Card sits at (26, 22 + pager row 26 + spacing 14) from the
+        // top-left of the content; native windows inset the light ~12pt
+        // into the corner. NSHostingView is FLIPPED (y grows downward) —
+        // measuring from the bottom edge parked the light at the bottom.
         let inset: CGFloat = 12
-        let yFromTop: CGFloat = 22 + inset
+        let yFromTop: CGFloat = 22 + 26 + 14 + inset
         let y = contentView.isFlipped
             ? yFromTop
             : contentView.bounds.height - yFromTop - close.frame.height
@@ -159,10 +175,34 @@ private struct WeeklyReportSheet: View {
     @State private var shareAnchor: NSView?
     // NSSharingServicePicker dies if released while on screen — park it.
     @State private var pickerHolder = PickerHolder()
+    // Period pager: 0 = the current week (live store), N = N weeks back
+    // (assembled from a full-year rescan). Copy/save/share always export
+    // exactly the page on screen.
+    @State private var pageOffset = 0
+    @State private var pagedData: WeeklyReportData?
+    @State private var pageLoading = false
+
+    private var displayData: WeeklyReportData {
+        pageOffset == 0 ? .current() : (pagedData ?? .current())
+    }
+
+    private var renderKey: String {
+        pageOffset == 0 ? "current" : "week-\(pageOffset)"
+    }
+
+    private var canPageBack: Bool {
+        guard !pageLoading else { return false }
+        return ReportPeriods.hasData(
+            before: ReportPeriods.weekInterval(offset: pageOffset),
+            earliestDataDay: ReportPeriods.earliestDataDay()
+        )
+    }
 
     var body: some View {
         VStack(spacing: 14) {
-            WeeklyReportCard(data: .current())
+            pager
+
+            WeeklyReportCard(data: displayData)
                 // A tight, grounded shadow — the old radius-34/0.6 halo was
                 // the "floating on fog" feel, not any system glass.
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
@@ -206,6 +246,10 @@ private struct WeeklyReportSheet: View {
                 )
             }
             .frame(maxWidth: .infinity)
+            // While a past page is still assembling, the card shows the
+            // previous period — exporting would ship the wrong week.
+            .disabled(pageLoading)
+            .opacity(pageLoading ? 0.5 : 1)
 
             // Fixed one-line slot so the window never reflows.
             Text(coach ?? " ")
@@ -226,11 +270,22 @@ private struct WeeklyReportSheet: View {
         .onReceive(cost.objectWillChange) { _ in
             WeeklyReportRenderer.invalidateCache()
             // Re-warm off the click path once the new values have landed.
-            DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
+            DispatchQueue.main.async {
+                WeeklyReportRenderer.warmCache(data: displayData, key: renderKey)
+            }
         }
         .onReceive(tokenMode.objectWillChange) { _ in
             WeeklyReportRenderer.invalidateCache()
-            DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
+            DispatchQueue.main.async {
+                // A paged card baked its totals with the previous mode —
+                // rebuild it (memoized rescan, cheap); the current card
+                // recomputes on its own.
+                if pageOffset > 0 {
+                    loadPage(pageOffset)
+                } else {
+                    WeeklyReportRenderer.warmCache()
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .islandDemoCommand)) { note in
             // Recording rig: replay the copy interaction on cue.
@@ -239,6 +294,58 @@ private struct WeeklyReportSheet: View {
                 showCoach(L10n.tr("Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { copied = false }
             }
+        }
+    }
+
+    /// ← period label → row above the card. The right edge is the current
+    /// week; the left edge is the earliest day with scanned data.
+    private var pager: some View {
+        HStack(spacing: 10) {
+            ReportPagerArrow(systemName: "chevron.left",
+                             enabled: canPageBack,
+                             accessibilityKey: "Previous week") {
+                flip(to: pageOffset + 1)
+            }
+            Text(displayData.rangeText)
+                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(pageLoading ? 0.35 : 0.7))
+                .frame(minWidth: 150)
+            ReportPagerArrow(systemName: "chevron.right",
+                             enabled: pageOffset > 0 && !pageLoading,
+                             accessibilityKey: "Next week") {
+                flip(to: pageOffset - 1)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func flip(to target: Int) {
+        guard target >= 0, target != pageOffset else { return }
+        pageOffset = target
+        WeeklyReportRenderer.invalidateCache()
+        guard target > 0 else {
+            pagedData = nil
+            pageLoading = false
+            DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
+            return
+        }
+        loadPage(target)
+    }
+
+    private func loadPage(_ target: Int) {
+        pageLoading = true
+        let interval = ReportPeriods.weekInterval(offset: target)
+        Task {
+            let slices = await ReportPeriods.slices(for: interval)
+            // The user may have flipped again while the scan ran.
+            guard pageOffset == target else { return }
+            pagedData = WeeklyReportData.forInterval(
+                interval, claudeSlice: slices.claude, codexSlice: slices.codex
+            )
+            pageLoading = false
+            WeeklyReportRenderer.invalidateCache()
+            WeeklyReportRenderer.warmCache(data: displayData, key: renderKey)
         }
     }
 
@@ -251,7 +358,8 @@ private struct WeeklyReportSheet: View {
 
     @MainActor
     private func openSharePicker() {
-        guard let image = WeeklyReportRenderer.image(), let anchor = shareAnchor else { return }
+        guard let image = WeeklyReportRenderer.image(data: displayData, key: renderKey),
+              let anchor = shareAnchor else { return }
         let picker = NSSharingServicePicker(items: [image])
         pickerHolder.picker = picker
         picker.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
@@ -259,7 +367,7 @@ private struct WeeklyReportSheet: View {
 
     @discardableResult
     private func copyImage() -> Bool {
-        guard let image = WeeklyReportRenderer.image() else { return false }
+        guard let image = WeeklyReportRenderer.image(data: displayData, key: renderKey) else { return false }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
         return true
@@ -288,7 +396,7 @@ private struct WeeklyReportSheet: View {
 
     /// Cadence's third rail: write the rendered card straight to disk.
     private func savePNG() -> Bool {
-        guard let data = WeeklyReportRenderer.pngData() else { return false }
+        guard let data = WeeklyReportRenderer.pngData(data: displayData, key: renderKey) else { return false }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = "agent-island-weekly.png"

@@ -59,6 +59,54 @@ struct MonthlyReportData {
             tierName: tier?.nameKey
         )
     }
+
+    /// Assembles a PAST calendar month from interval slices (offset ≠ 0 —
+    /// the current month keeps `current()`). Same accounting as the live
+    /// month window, sourced from one full-scan slice. Lifetime rank stays
+    /// on the store's published history.
+    @MainActor
+    static func forInterval(_ interval: DateInterval,
+                            claudeSlice: CostSummary.ReportSlice,
+                            codexSlice: CostSummary.ReportSlice) -> MonthlyReportData {
+        let cost = CostStore.shared
+        let mode = TokenCountModeStore.shared.mode
+        let zh = L10n.locale.identifier.hasPrefix("zh")
+
+        func total(_ buckets: [DailyTokenBucket]) -> Int {
+            buckets.reduce(0) { $0 + (mode == .all ? $1.tokens : $1.billableTokens) }
+        }
+        let claudeTokens = total(claudeSlice.dailyTokens)
+        let codexTokens = total(codexSlice.dailyTokens)
+        let totalTokens = claudeTokens + codexTokens
+        let totalDollars = claudeSlice.dollars + codexSlice.dollars
+        let claudeShare = totalTokens > 0 ? Double(claudeTokens) / Double(totalTokens) : 0
+
+        let models = WeeklyReportData.rankedModels(
+            claudeRows: claudeSlice.byModel,
+            codexRows: codexSlice.byModel,
+            limit: 5,
+            mode: mode
+        )
+
+        let df = DateFormatter()
+        df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
+        df.dateFormat = zh ? "yyyy年M月" : "MMMM yyyy"
+
+        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
+            .reduce(0) { $0 + $1.tokens }
+        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
+
+        return MonthlyReportData(
+            monthText: df.string(from: interval.start),
+            totalTokens: totalTokens,
+            totalDollars: totalDollars,
+            claudeShare: claudeShare,
+            topModels: models,
+            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
+            tierEmoji: tier?.emoji,
+            tierName: tier?.nameKey
+        )
+    }
 }
 
 struct MonthlyReportCard: View {
@@ -140,28 +188,41 @@ struct MonthlyReportCard: View {
 enum MonthlyReportRenderer {
     private static var cachedImage: NSImage?
     private static var cachedPNG: Data?
+    /// Which period the cache holds — see WeeklyReportRenderer.cachedKey.
+    private static var cachedKey: String?
 
     static func invalidateCache() {
         cachedImage = nil
         cachedPNG = nil
+        cachedKey = nil
     }
 
-    static func warmCache() {
-        _ = pngData()
+    /// No-arg variants serve the live current month (window-open warm and
+    /// the headless snapshot hook).
+    static func warmCache() { warmCache(data: .current(), key: "current") }
+
+    static func warmCache(data: MonthlyReportData, key: String) {
+        _ = pngData(data: data, key: key)
     }
 
-    static func image() -> NSImage? {
-        if let cachedImage { return cachedImage }
-        let renderer = ImageRenderer(content: MonthlyReportCard(data: .current(), rounded: false))
+    static func image() -> NSImage? { image(data: .current(), key: "current") }
+
+    static func image(data: MonthlyReportData, key: String) -> NSImage? {
+        if cachedKey == key, let cachedImage { return cachedImage }
+        let renderer = ImageRenderer(content: MonthlyReportCard(data: data, rounded: false))
         renderer.scale = 3
         renderer.isOpaque = true
         cachedImage = renderer.nsImage
+        cachedPNG = nil
+        cachedKey = key
         return cachedImage
     }
 
-    static func pngData() -> Data? {
-        if let cachedPNG { return cachedPNG }
-        guard let image = image(),
+    static func pngData() -> Data? { pngData(data: .current(), key: "current") }
+
+    static func pngData(data: MonthlyReportData, key: String) -> Data? {
+        if cachedKey == key, let cachedPNG { return cachedPNG }
+        guard let image = image(data: data, key: key),
               let tiff = image.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff) else { return nil }
         cachedPNG = rep.representation(using: .png, properties: [:])
@@ -200,7 +261,7 @@ final class MonthlyReportWindowController: NSWindowController, NSWindowDelegate 
         }
         if window == nil {
             let panel = MonthlyPanel(
-                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 670)),
+                contentRect: NSRect(origin: .zero, size: NSSize(width: 472, height: 710)),
                 styleMask: [.borderless, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -232,7 +293,8 @@ final class MonthlyReportWindowController: NSWindowController, NSWindowDelegate 
         close.action = #selector(NSWindow.close)
         contentView.addSubview(close)
         let inset: CGFloat = 12
-        let yFromTop: CGFloat = 22 + inset
+        // Card top = 22pt padding + 26pt pager row + 14pt spacing.
+        let yFromTop: CGFloat = 22 + 26 + 14 + inset
         let y = contentView.isFlipped
             ? yFromTop
             : contentView.bounds.height - yFromTop - close.frame.height
@@ -251,17 +313,41 @@ private struct MonthlyReportSheet: View {
     @State private var coach: String?
     @State private var shareAnchor: NSView?
     @State private var pickerHolder = MonthlyPickerHolder()
+    // Period pager: 0 = the current month (live store), N = N calendar
+    // months back (assembled from a full-year rescan). Copy/save/share
+    // always export exactly the page on screen.
+    @State private var pageOffset = 0
+    @State private var pagedData: MonthlyReportData?
+    @State private var pageLoading = false
+
+    private var displayData: MonthlyReportData {
+        pageOffset == 0 ? .current() : (pagedData ?? .current())
+    }
+
+    private var renderKey: String {
+        pageOffset == 0 ? "current" : "month-\(pageOffset)"
+    }
+
+    private var canPageBack: Bool {
+        guard !pageLoading else { return false }
+        return ReportPeriods.hasData(
+            before: ReportPeriods.monthInterval(offset: pageOffset),
+            earliestDataDay: ReportPeriods.earliestDataDay()
+        )
+    }
 
     var body: some View {
         VStack(spacing: 14) {
-            MonthlyReportCard(data: .current())
+            pager
+
+            MonthlyReportCard(data: displayData)
                 .shadow(color: .black.opacity(0.30), radius: 10, y: 4)
                 .modifier(SettlePulse(trigger: settle))
 
             HStack(spacing: 10) {
                 pill(copied ? L10n.tr("Copied") : L10n.tr("Copy"),
                      icon: copied ? "checkmark" : "square.on.square") {
-                    if let image = MonthlyReportRenderer.image() {
+                    if let image = MonthlyReportRenderer.image(data: displayData, key: renderKey) {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.writeObjects([image])
                         Haptics.impact()
@@ -272,7 +358,7 @@ private struct MonthlyReportSheet: View {
                     }
                 }
                 pill(L10n.tr("Save"), icon: "arrow.down.to.line") {
-                    if let data = MonthlyReportRenderer.pngData() {
+                    if let data = MonthlyReportRenderer.pngData(data: displayData, key: renderKey) {
                         let panel = NSSavePanel()
                         panel.allowedContentTypes = [.png]
                         panel.nameFieldStringValue = "agent-island-monthly.png"
@@ -293,6 +379,10 @@ private struct MonthlyReportSheet: View {
                         .frame(width: 1, height: 1)
                 )
             }
+            // While a past page is still assembling, the card shows the
+            // previous period — exporting would ship the wrong month.
+            .disabled(pageLoading)
+            .opacity(pageLoading ? 0.5 : 1)
 
             Text(coach ?? " ")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -309,11 +399,74 @@ private struct MonthlyReportSheet: View {
         }
         .onReceive(cost.objectWillChange) { _ in
             MonthlyReportRenderer.invalidateCache()
-            DispatchQueue.main.async { MonthlyReportRenderer.warmCache() }
+            DispatchQueue.main.async {
+                MonthlyReportRenderer.warmCache(data: displayData, key: renderKey)
+            }
         }
         .onReceive(tokenMode.objectWillChange) { _ in
             MonthlyReportRenderer.invalidateCache()
+            DispatchQueue.main.async {
+                // A paged card baked its totals with the previous mode —
+                // rebuild it (memoized rescan, cheap); the current card
+                // recomputes on its own.
+                if pageOffset > 0 {
+                    loadPage(pageOffset)
+                } else {
+                    MonthlyReportRenderer.warmCache()
+                }
+            }
+        }
+    }
+
+    /// ← period label → row above the card. The right edge is the current
+    /// month; the left edge is the earliest day with scanned data.
+    private var pager: some View {
+        HStack(spacing: 10) {
+            ReportPagerArrow(systemName: "chevron.left",
+                             enabled: canPageBack,
+                             accessibilityKey: "Previous month") {
+                flip(to: pageOffset + 1)
+            }
+            Text(displayData.monthText)
+                .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(pageLoading ? 0.35 : 0.7))
+                .frame(minWidth: 150)
+            ReportPagerArrow(systemName: "chevron.right",
+                             enabled: pageOffset > 0 && !pageLoading,
+                             accessibilityKey: "Next month") {
+                flip(to: pageOffset - 1)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func flip(to target: Int) {
+        guard target >= 0, target != pageOffset else { return }
+        pageOffset = target
+        MonthlyReportRenderer.invalidateCache()
+        guard target > 0 else {
+            pagedData = nil
+            pageLoading = false
             DispatchQueue.main.async { MonthlyReportRenderer.warmCache() }
+            return
+        }
+        loadPage(target)
+    }
+
+    private func loadPage(_ target: Int) {
+        pageLoading = true
+        let interval = ReportPeriods.monthInterval(offset: target)
+        Task {
+            let slices = await ReportPeriods.slices(for: interval)
+            // The user may have flipped again while the scan ran.
+            guard pageOffset == target else { return }
+            pagedData = MonthlyReportData.forInterval(
+                interval, claudeSlice: slices.claude, codexSlice: slices.codex
+            )
+            pageLoading = false
+            MonthlyReportRenderer.invalidateCache()
+            MonthlyReportRenderer.warmCache(data: displayData, key: renderKey)
         }
     }
 
@@ -326,7 +479,8 @@ private struct MonthlyReportSheet: View {
 
     @MainActor
     private func openSharePicker() {
-        guard let image = MonthlyReportRenderer.image(), let anchor = shareAnchor else { return }
+        guard let image = MonthlyReportRenderer.image(data: displayData, key: renderKey),
+              let anchor = shareAnchor else { return }
         let picker = NSSharingServicePicker(items: [image])
         pickerHolder.picker = picker
         picker.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
