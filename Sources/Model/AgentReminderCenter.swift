@@ -10,11 +10,6 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
     private var activeNeedsYouKeys: [String: Set<String>] = [:]
     private var acknowledgedNeedsYouKeys: [String: Date] = [:]
     private var pendingNeedsYouTasks: [String: Task<Void, Never>] = [:]
-    /// Alarms held back because the app hosting the session was frontmost
-    /// when the turn finished (the user was already looking at it). Released
-    /// by `releaseHeldAlarms` when the foreground app changes and the turn is
-    /// still unanswered.
-    private var heldAlarms: [String: (provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread)] = [:]
     private var observedProviders: Set<String> = []
     private let rememberedKeyLifetime: TimeInterval = 12 * 60 * 60
     // Scans are event-driven: a reply appended to the transcript triggers a
@@ -41,19 +36,6 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
                 NSLog("AgentIsland reminders not authorized")
             }
         }
-        // Held alarms fire the moment the hosting app stops being frontmost —
-        // switching away from the session is exactly the moment "it's your
-        // turn" becomes news the user can miss.
-        // Singleton call, not a `self` capture: CI's older compiler rejects
-        // a captured weak `self` referenced inside the @MainActor Task
-        // ("reference to captured var 'self' in concurrently-executing code").
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didActivateApplicationNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            Task { @MainActor in AgentReminderCenter.shared.releaseHeldAlarms() }
-        }
     }
 
     func handle(provider: AlertEngine.Provider, needsYouThreads: [ActivityMonitor.ActiveThread]) {
@@ -69,7 +51,6 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         // pending confirm is void and a visible panel for them is pure noise.
         for staleKey in (activeNeedsYouKeys[providerKey] ?? []).subtracting(currentKeys) {
             cancelPending(staleKey)
-            heldAlarms[staleKey] = nil
             TurnAlarmWindowController.shared.autoDismiss(provider: provider, deliveryKey: staleKey)
         }
         activeNeedsYouKeys[providerKey] = currentKeys
@@ -106,7 +87,6 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
     func acknowledge(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) {
         let deliveryKey = deliveryKey(provider: provider, state: .needsYou, thread: thread)
         cancelPending(deliveryKey)
-        heldAlarms[deliveryKey] = nil
         acknowledgedNeedsYouKeys[deliveryKey] = Date()
         deliveredNeedsYouKeys[deliveryKey] = Date()
         persistAcknowledgedKeys()
@@ -178,37 +158,18 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
               deliveredNeedsYouKeys[deliveryKey] == nil
         else { return }
         // The user is already looking at the session (its hosting app is
-        // frontmost): hold the alarm instead of popping over their reply
-        // prompt. It fires via `releaseHeldAlarms` the moment they switch
-        // away with the turn still open (community report, 2026-07-15).
-        if AgentHostAppResolver.isHostAppFrontmost(provider: provider, cwd: thread.cwd) {
-            heldAlarms[deliveryKey] = (provider, thread)
+        // frontmost) when the turn finishes: they watched it happen, so the
+        // turn counts as seen. v1.7.1 held these and re-fired them on the
+        // next app switch, which read as a stale popup ambush minutes or
+        // hours later (owner report, 2026-08-05) — acknowledged, not queued.
+        if AgentHostAppResolver.isHostAppFrontmost(
+            provider: provider, cwd: thread.cwd, launchTarget: thread.launchTarget
+        ) {
+            baseline(deliveryKey)
             return
         }
         deliveredNeedsYouKeys[deliveryKey] = Date()
         deliver(provider: provider, state: .needsYou, thread: thread)
-    }
-
-    /// Fires held alarms whose hosting app is no longer frontmost and whose
-    /// turn is still waiting. Called on every foreground-app change.
-    private func releaseHeldAlarms() {
-        guard !heldAlarms.isEmpty else { return }
-        for (key, entry) in heldAlarms {
-            guard AgentReminderStore.shared.enabled,
-                  activeNeedsYouKeys[entry.provider.rawValue, default: []].contains(key),
-                  acknowledgedNeedsYouKeys[key] == nil,
-                  deliveredNeedsYouKeys[key] == nil
-            else {
-                heldAlarms[key] = nil
-                continue
-            }
-            guard !AgentHostAppResolver.isHostAppFrontmost(
-                provider: entry.provider, cwd: entry.thread.cwd
-            ) else { continue }
-            heldAlarms[key] = nil
-            deliveredNeedsYouKeys[key] = Date()
-            deliver(provider: entry.provider, state: .needsYou, thread: entry.thread)
-        }
     }
 
     private func cancelPending(_ deliveryKey: String) {

@@ -15,9 +15,30 @@ import Darwin
 /// Fail-open by design: tmux/daemonized sessions re-parent to launchd, the
 /// chain never reaches an app, and the alarm shows exactly as before.
 enum AgentHostAppResolver {
-    static func isHostAppFrontmost(provider: AlertEngine.Provider, cwd: String?) -> Bool {
-        guard let cwd, !cwd.isEmpty,
-              let front = NSWorkspace.shared.frontmostApplication else { return false }
+    static func isHostAppFrontmost(
+        provider: AlertEngine.Provider,
+        cwd: String?,
+        launchTarget: SessionLaunchTarget = .cli
+    ) -> Bool {
+        guard let front = NSWorkspace.shared.frontmostApplication else { return false }
+        // Desktop-hosted sessions never surface in a parent chain — the app
+        // drives the CLI over XPC/daemon, not as an ancestor (GH #30: alarms
+        // fired over a frontmost ChatGPT/Claude Desktop). The desktop app
+        // shows the finished turn in its own UI, so the alarm is redundant
+        // while it is frontmost. Claude gates on the session actually being
+        // desktop-hosted; Codex desktop rollouts all scan as `.cli`, so the
+        // bundle check alone has to carry them.
+        if let bundleId = front.bundleIdentifier {
+            switch provider {
+            case .claude where launchTarget == .claudeDesktop:
+                if bundleId == "com.anthropic.claudefordesktop" { return true }
+            case .codex:
+                if bundleId == "com.openai.codex" || bundleId == "com.openai.chat" { return true }
+            default:
+                break
+            }
+        }
+        guard let cwd, !cwd.isEmpty else { return false }
         let cliName = provider == .claude ? "claude" : "codex"
         let target = normalize(cwd)
         for pid in cliPids(named: cliName) {
