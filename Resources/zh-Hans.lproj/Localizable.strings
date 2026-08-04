@@ -474,6 +474,17 @@
 "Truer numbers" = "更准的数字";
 "Clearer update guidance" = "更清晰的更新引导";
 "Truer numbers, a calmer interface, clearer update guidance" = "更准的数字 · 更清爽的界面 · 更清晰的引导";
+"A lighter background, truer alarms, reports that look back, and Grok aboard" = "更省的后台 · 更准的弹窗 · 能回看的报告 · Grok 上岛";
+"A lighter background" = "更省的后台";
+"Huge transcript libraries no longer pin the CPU — scans skip cold files and reuse the index, dropping a reported 300%+ to single digits" = "大转录库不再拖住 CPU——扫描跳过冷文件、复用索引,社区实测占用从 300%+ 降到个位数";
+"Truer alarms" = "更准的弹窗";
+"A turn you watched finish counts as seen — no more stale popups after you switch apps. Desktop hosts stay quiet while frontmost, with an optional chime" = "看着结束的轮次就算已读,切走后不再补弹旧窗;宿主 App 在前台时保持安静,可选一声提示音";
+"Reports that look back" = "能回看的报告";
+"Flip the weekly and monthly cards to any past week or month with the arrows — and cost estimates ride the new GPT-5.6 prices" = "用箭头把周报月报翻回任意一周或一月,成本估算同步 GPT-5.6 新价";
+"Sign-in that lands right" = "落对账号的登录";
+"Copy the Claude login link into whichever browser profile holds your account; auth errors now say what actually failed" = "把 Claude 登录链接复制到装着你账号的浏览器 profile 打开,认证报错会说清真正原因";
+"Grok on the island" = "Grok 上岛";
+"Signed into the grok CLI? The usage page gains its weekly pool and monthly spend — automatic, and silent when absent" = "登录过 grok CLI,用量页就会多出周额度与月度花费;没装则完全不出现";
 "Every release opens one card like this — once. Reopen it any time from the version pill in Settings" = "每个版本自动展示一次；设置里点版本号可随时重看";
 
 /* About tab */

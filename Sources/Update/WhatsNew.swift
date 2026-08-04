@@ -49,8 +49,9 @@ struct PagedCardPage: Identifiable {
     var hero: Hero?
 }
 
-/// 1.7.2 release pages — overview first, then one page per theme. Copy is
-/// deliberately terse (owner call: 精简,别什么都往上写).
+/// 1.8.1 release pages — overview first, then one page per theme. Copy is
+/// deliberately terse (owner call: 精简,别什么都往上写). The 1.7.2 batch
+/// never shipped, so its two themes ride this card too.
 enum WhatsNewContent {
     static let pages: [PagedCardPage] = [
         // Titles are STRUCTURAL summaries — "更X的Y" noun phrases, never
@@ -58,10 +59,40 @@ enum WhatsNewContent {
         // "更新自己会说话"是错的).
         PagedCardPage(
             symbol: "sparkles",
-            imageName: "whatsnew-172-overview",
+            imageName: "whatsnew-181-overview",
             title: "At a glance",
-            body: "Truer numbers, a calmer interface, clearer update guidance",
+            body: "A lighter background, truer alarms, reports that look back, and Grok aboard",
             hero: .version
+        ),
+        PagedCardPage(
+            symbol: "leaf",
+            imageName: "whatsnew-181-performance",
+            title: "A lighter background",
+            body: "Huge transcript libraries no longer pin the CPU — scans skip cold files and reuse the index, dropping a reported 300%+ to single digits"
+        ),
+        PagedCardPage(
+            symbol: "bell.badge",
+            imageName: "whatsnew-181-alarms",
+            title: "Truer alarms",
+            body: "A turn you watched finish counts as seen — no more stale popups after you switch apps. Desktop hosts stay quiet while frontmost, with an optional chime"
+        ),
+        PagedCardPage(
+            symbol: "calendar.badge.clock",
+            imageName: "whatsnew-181-reports",
+            title: "Reports that look back",
+            body: "Flip the weekly and monthly cards to any past week or month with the arrows — and cost estimates ride the new GPT-5.6 prices"
+        ),
+        PagedCardPage(
+            symbol: "person.badge.key",
+            imageName: "whatsnew-181-signin",
+            title: "Sign-in that lands right",
+            body: "Copy the Claude login link into whichever browser profile holds your account; auth errors now say what actually failed"
+        ),
+        PagedCardPage(
+            symbol: "chart.pie",
+            imageName: "whatsnew-181-grok",
+            title: "Grok on the island",
+            body: "Signed into the grok CLI? The usage page gains its weekly pool and monthly spend — automatic, and silent when absent"
         ),
         PagedCardPage(
             symbol: "scalemass",
@@ -74,12 +105,6 @@ enum WhatsNewContent {
             imageName: "whatsnew-172-interface",
             title: "A calmer interface",
             body: "Solid pie charts, stepped bars by default, a centered solo layout, and each visual mode explained right where you pick it"
-        ),
-        PagedCardPage(
-            symbol: "map",
-            imageName: "whatsnew-172-guide",
-            title: "Clearer update guidance",
-            body: "Every release opens one card like this — once. Reopen it any time from the version pill in Settings"
         ),
         // The closing spread (owner spec, 2026-07-18): poster art, a
         // welcome-back line, and the Get-started button beneath it.
