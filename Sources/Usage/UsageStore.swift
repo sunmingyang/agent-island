@@ -124,6 +124,10 @@ final class UsageStore: ObservableObject {
 
         loading = true
         loadingStartedAt = Date()
+        // Grok rides this exact cadence (poll/wake/unlock/network/manual)
+        // instead of owning a timer; its store no-ops when undetected,
+        // hidden, or kicked again within its attempt floor.
+        GrokUsageStore.shared.kickRefresh()
         refreshTask?.cancel()
         refreshTask = Task {
             async let codexResult = UsageFetcher.fetchCodex()
