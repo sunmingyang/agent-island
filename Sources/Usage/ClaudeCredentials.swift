@@ -19,6 +19,14 @@ enum ClaudeCredentials {
     /// string to swap the error caption for an in-app re-auth button.
     static let reauthRequiredMessage = "re-login: claude /login"
     static let authRequiredMessage = "auth required — run claude"
+    /// Shown when a 401'd keychain token could not be refreshed (revoked
+    /// refresh token, endpoint failure, timeout). Previously this path fell
+    /// out with the generic cold-start caption, leaving users no way to
+    /// self-diagnose (#22). Localized at creation like `shortError`'s
+    /// "network drop"; the raw key is matched too so recoverability
+    /// detection survives a mid-session language switch.
+    static let tokenRefreshFailedKey = "token refresh failed — sign in again"
+    static var tokenRefreshFailedMessage: String { L10n.tr(tokenRefreshFailedKey) }
 
     // MARK: - OAuth endpoints (shared by refresh + in-app web login)
 
@@ -37,6 +45,7 @@ enum ClaudeCredentials {
     static func isAuthRecoverableError(_ message: String?) -> Bool {
         guard let message else { return false }
         return message == authRequiredMessage || message == reauthRequiredMessage
+            || message == tokenRefreshFailedKey || message == tokenRefreshFailedMessage
     }
 
     /// Outcome of a single usage-endpoint probe against one token. The fetcher
@@ -134,6 +143,12 @@ enum ClaudeCredentials {
                 case .scopeInsufficient:    return .reauthRequired(reauthRequiredMessage)
                 case .otherError(let e):    lastError = e
                 }
+            } else {
+                // The keychain token 401'd AND the refresh grant failed —
+                // without this the caption stayed on the cold-start "auth
+                // required" text forever (#22). The precise failure reason
+                // is in the log; the caption carries the remediation.
+                lastError = tokenRefreshFailedMessage
             }
         }
 
@@ -298,6 +313,7 @@ enum ClaudeCredentials {
     private static func refreshClaudeToken(refreshToken: String) async -> RefreshedTokens? {
         var req = URLRequest(url: URL(string: "https://platform.claude.com/v1/oauth/token")!)
         req.httpMethod = "POST"
+        req.timeoutInterval = 25 // never let a wedged tunnel hang the poll loop
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let body: [String: String] = [
             "grant_type": "refresh_token",
@@ -308,15 +324,24 @@ enum ClaudeCredentials {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
-            guard (response as? HTTPURLResponse)?.statusCode == 200,
-                  let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            guard status == 200 else {
+                NSLog("AgentIsland: Claude token refresh failed — HTTP %d", status)
+                return nil
+            }
+            guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let access = obj["access_token"] as? String,
-                  let refresh = obj["refresh_token"] as? String else { return nil }
+                  let refresh = obj["refresh_token"] as? String else {
+                NSLog("AgentIsland: Claude token refresh failed — malformed token response")
+                return nil
+            }
             // expires_in is seconds; Claude Code stores absolute ms.
             let expiresIn = (obj["expires_in"] as? Double) ?? 28_800
             let expiresAt = Int64((Date().timeIntervalSince1970 + expiresIn) * 1000)
             return RefreshedTokens(accessToken: access, refreshToken: refresh, expiresAt: expiresAt)
         } catch {
+            let nsError = error as NSError
+            NSLog("AgentIsland: Claude token refresh failed — %@ %ld", nsError.domain, nsError.code)
             return nil
         }
     }
