@@ -42,17 +42,24 @@ final class ClaudeWebLogin: @unchecked Sendable {
     private var redirectURI = ""
     private var timeout: DispatchWorkItem?
     private var onAuthorizeURL: ((URL) -> Void)?
+    private var target: ClaudeLoginBrowserTarget = .systemDefault
 
     /// Runs the full flow and resolves once the browser round-trip completes,
     /// times out (~3 min one-click; 10 min once the link is copied for a
     /// manual paste), or fails to start. Safe to call again afterwards.
+    /// `target` picks which browser/profile the authorize page opens in —
+    /// the loopback callback accepts whichever browser ends up loading it.
     /// `onAuthorizeURL` fires on the main thread with the authorize URL the
     /// moment it exists — the UI surfaces it as a copyable link so users
     /// whose Claude session lives in a different browser profile can paste
-    /// it there (the loopback callback accepts any browser).
-    func start(onAuthorizeURL: ((URL) -> Void)? = nil) async -> Outcome {
+    /// it there.
+    func start(
+        target: ClaudeLoginBrowserTarget = .systemDefault,
+        onAuthorizeURL: ((URL) -> Void)? = nil
+    ) async -> Outcome {
         await withCheckedContinuation { cont in
             queue.async { [weak self] in
+                self?.target = target
                 self?.onAuthorizeURL = onAuthorizeURL
                 self?.begin(cont)
             }
@@ -129,9 +136,40 @@ final class ClaudeWebLogin: @unchecked Sendable {
             return
         }
         let publish = onAuthorizeURL
+        let target = self.target
         DispatchQueue.main.async {
             publish?(url)
+            Self.open(url, using: target)
+        }
+    }
+
+    /// Routes the authorize URL to the chosen destination. `.copyOnly` opens
+    /// nothing — the store copies the published URL to the pasteboard
+    /// instead. Chromium targets launch a fresh app instance (`open -na`
+    /// semantics) because handing the URL to an already-running browser
+    /// ignores the profile/incognito arguments.
+    private static func open(_ url: URL, using target: ClaudeLoginBrowserTarget) {
+        switch target {
+        case .copyOnly:
+            break
+        case .systemDefault:
             NSWorkspace.shared.open(url)
+        case .chromiumProfile(let appURL, let profileDirectory):
+            openChromium(url, appURL: appURL, arguments: ["--profile-directory=\(profileDirectory)"])
+        case .chromiumIncognito(let appURL):
+            openChromium(url, appURL: appURL, arguments: ["--incognito"])
+        }
+    }
+
+    private static func openChromium(_ url: URL, appURL: URL, arguments: [String]) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.arguments = arguments
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: configuration) { _, error in
+            guard error != nil else { return }
+            // The picked browser vanished between detection and click — a
+            // default-browser open beats a dead click.
+            DispatchQueue.main.async { NSWorkspace.shared.open(url) }
         }
     }
 

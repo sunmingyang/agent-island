@@ -314,8 +314,10 @@ final class UsageStore: ObservableObject {
     /// Re-authenticate Claude via the in-app browser login.
     ///
     /// Preferred path (`ClaudeWebLogin`): opens the real Claude authorize page
-    /// in the default browser — reusing the user's claude.ai session, usually a
-    /// single click — and catches the OAuth redirect on a local loopback
+    /// in the user's remembered browser target (`ClaudeLoginTargetStore` —
+    /// default browser, a specific Chromium profile, an incognito window, or
+    /// copy-the-link) so the sign-in lands where the claude.ai session
+    /// actually lives, and catches the OAuth redirect on a local loopback
     /// listener, writing the fresh, fully-scoped token pair straight to the
     /// keychain. No Terminal, no manual code paste. On any failure we fall back
     /// to the legacy `claude auth login` + keychain-poll so a machine that can't
@@ -325,10 +327,17 @@ final class UsageStore: ObservableObject {
         claudeReauthInProgress = true
         claudeReauthFollowupTask?.cancel()
         reauthPollTask?.cancel()
+        let target = ClaudeLoginTargetStore.shared.resolvedTarget()
         reauthPollTask = Task { [weak self] in
             guard let self else { return }
-            let outcome = await ClaudeWebLogin.shared.start { [weak self] url in
-                Task { @MainActor in self?.claudeLoginURL = url }
+            let outcome = await ClaudeWebLogin.shared.start(target: target) { [weak self] url in
+                Task { @MainActor in
+                    self?.claudeLoginURL = url
+                    // Copy-only: the link IS the flow — it goes straight to
+                    // the pasteboard (which also stretches the timeout to
+                    // manual-paste length).
+                    if target == .copyOnly { self?.copyClaudeLoginLink() }
+                }
             }
             await MainActor.run { self.claudeLoginURL = nil }
             switch outcome {
