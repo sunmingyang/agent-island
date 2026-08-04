@@ -162,9 +162,14 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         // turn counts as seen. v1.7.1 held these and re-fired them on the
         // next app switch, which read as a stale popup ambush minutes or
         // hours later (owner report, 2026-08-05) — acknowledged, not queued.
+        // #9 opt-in: one chime at that moment, because frontmost doesn't
+        // always mean noticed — still no popup, still baselined.
         if AgentHostAppResolver.isHostAppFrontmost(
             provider: provider, cwd: thread.cwd, launchTarget: thread.launchTarget
         ) {
+            if AgentReminderStore.shared.frontmostSoundOnly {
+                AgentReminderStore.shared.playFrontmostChime()
+            }
             baseline(deliveryKey)
             return
         }

@@ -386,3 +386,7 @@
 "$%@ / $%@ monthly" = "$%@ / $%@ monthly";
 "Not detected — sign in with the grok CLI" = "Not detected — sign in with the grok CLI";
 "week %d%%" = "week %d%%";
+
+/* #9 frontmost chime */
+"Frontmost chime" = "Frontmost chime";
+"Chime instead of staying silent when the session's app is frontmost" = "Chime instead of staying silent when the session's app is frontmost";

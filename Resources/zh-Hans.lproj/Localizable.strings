@@ -395,6 +395,10 @@
 "Not detected — sign in with the grok CLI" = "未检测到 grok CLI 登录";
 "week %d%%" = "本周 %d%%";
 
+/* #9 frontmost chime */
+"Frontmost chime" = "前台提示音";
+"Chime instead of staying silent when the session's app is frontmost" = "会话所在 App 在前台时以提示音代替静默";
+
 /* What's New (1.7.2) */
 "What's new in this update" = "本次更新带来了什么";
 "Get started" = "开始使用";

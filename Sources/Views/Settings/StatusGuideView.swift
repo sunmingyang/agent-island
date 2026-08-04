@@ -28,6 +28,12 @@ struct StatusGuideView: View {
                 SettingsToggle(isOn: reminders.enabled) { reminders.enabled.toggle() }
             }
             SettingsRow(
+                title: "Frontmost chime",
+                subtitle: "Chime instead of staying silent when the session's app is frontmost"
+            ) {
+                SettingsToggle(isOn: reminders.frontmostSoundOnly) { reminders.frontmostSoundOnly.toggle() }
+            }
+            SettingsRow(
                 title: "Show thread details",
                 subtitle: "Show session and project names in alarms and notifications."
             ) {

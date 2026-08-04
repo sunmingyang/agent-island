@@ -66,7 +66,10 @@ final class AgentReminderStore: ObservableObject {
     private static let soundChoiceKey = "AgentIsland.agentReminderSoundChoice"
     private static let customSoundPathKey = "AgentIsland.agentReminderCustomSoundPath"
     private static let showSessionDetailsKey = "AgentIsland.agentReminderShowSessionDetails"
+    private static let frontmostSoundOnlyKey = "AgentIsland.agentReminderFrontmostSoundOnly"
     private var previewSound: NSSound?
+    /// Retains the in-flight #9 chime — NSSound stops when released.
+    private var frontmostChime: NSSound?
 
     @Published var enabled: Bool {
         didSet { UserDefaults.standard.set(enabled, forKey: Self.enabledKey) }
@@ -105,6 +108,15 @@ final class AgentReminderStore: ObservableObject {
         didSet { UserDefaults.standard.set(showSessionDetails, forKey: Self.showSessionDetailsKey) }
     }
 
+    /// #9: a turn that finishes while its host app is frontmost is
+    /// baselined (seen, no popup) — but "the app is frontmost" doesn't
+    /// always mean "the user noticed". Opt-in: play one chime at that
+    /// moment instead of total silence. Default off preserves the
+    /// existing fully-silent behavior.
+    @Published var frontmostSoundOnly: Bool {
+        didSet { UserDefaults.standard.set(frontmostSoundOnly, forKey: Self.frontmostSoundOnlyKey) }
+    }
+
     private init() {
         enabled = UserDefaults.standard.object(forKey: Self.enabledKey) == nil
             ? true
@@ -130,6 +142,7 @@ final class AgentReminderStore: ObservableObject {
             soundChoice = .preset(initialPreset)
         }
         showSessionDetails = UserDefaults.standard.bool(forKey: Self.showSessionDetailsKey)
+        frontmostSoundOnly = UserDefaults.standard.bool(forKey: Self.frontmostSoundOnlyKey)
     }
 
     var soundLabel: String {
@@ -192,6 +205,16 @@ final class AgentReminderStore: ObservableObject {
         makeSound(for: soundChoice)
             ?? makeSound(for: .preset(soundPreset))
             ?? NSSound(named: NSSound.Name("Glass"))
+    }
+
+    /// The #9 chime: the turn alarm's exact sound and volume, played once
+    /// (never looped) and honoring the global sound toggle.
+    func playFrontmostChime() {
+        guard soundEnabled, let sound = makeAlarmSound() else { return }
+        frontmostChime?.stop()
+        sound.volume = Float(volume)
+        frontmostChime = sound
+        sound.play()
     }
 
     private func makeSound(for choice: AlarmSoundChoice) -> NSSound? {
