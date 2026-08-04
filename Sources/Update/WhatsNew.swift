@@ -139,7 +139,7 @@ enum GuideContent {
             symbol: "gauge.with.needle",
             imageName: "guide-usage",
             title: "Usage",
-            body: "Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island"
+            body: "Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint — plus Grok's weekly pool when its CLI is signed in. Subscribed to just one tool? Its gauges take the whole island"
         ),
         PagedCardPage(
             symbol: "calendar",
@@ -151,13 +151,13 @@ enum GuideContent {
             symbol: "square.and.arrow.up",
             imageName: "guide-cards",
             title: "Report cards",
-            body: "One click renders a shareable battle card — copy it or AirDrop it straight to your phone"
+            body: "One click renders a shareable battle card — copy it or AirDrop it straight to your phone, and the arrows flip back to any past week or month"
         ),
         PagedCardPage(
             symbol: "paintpalette",
             imageName: "guide-personalize",
             title: "Personalization",
-            body: "Visual modes, glow colors, chart styles, and language — all in Settings"
+            body: "Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings"
         ),
     ]
 }

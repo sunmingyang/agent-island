@@ -451,16 +451,16 @@
 "Usage, cost, and a year of history" = "用量、成本与全年历史";
 "Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine" = "本机会话日志变成 token 统计、API 价值与全年热力图，数据不出你的电脑";
 "Weekly and monthly cards" = "周报与月报战绩卡";
-"One click renders a shareable battle card — copy it or AirDrop it straight to your phone" = "一键生成可分享的战绩卡，复制或隔空投送到手机";
+"One click renders a shareable battle card — copy it or AirDrop it straight to your phone, and the arrows flip back to any past week or month" = "一键生成可分享的战报卡,复制或隔空投送到手机;箭头能翻回任意一周或一月";
 "Make it yours" = "把它调成你的样子";
-"Visual modes, glow colors, chart styles, and language — all in Settings" = "视觉模式、光效颜色、图表样式与语言，都在设置里";
+"Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings" = "视觉模式、光晕颜色、图表样式、语言,以及会话 App 在前台时的提醒方式,全在设置里";
 
 /* guide v2 titles */
 "Monitor" = "监视器";
 "Cost & history" = "成本与历史";
 "Report cards" = "战绩卡";
 "Personalization" = "个性化";
-"Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint. Subscribed to just one tool? Its gauges take the whole island" = "展开小岛，看 5 小时与周额度窗口，数字直连官方接口。只订阅了一个工具?它的仪表会独占整座小岛";
+"Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint — plus Grok's weekly pool when its CLI is signed in. Subscribed to just one tool? Its gauges take the whole island" = "展开岛屿即见 5 小时与周窗口,数字直接来自各家官方端点;登录过 grok CLI 还会多一条它的周额度;只订阅一家,它的仪表盘独占整岛";
 
 /* guide v2 titles */
 "Monitor" = "监视器";
