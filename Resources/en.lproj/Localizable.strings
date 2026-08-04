@@ -378,3 +378,11 @@
 
 "Codex official · that day %@" = "Codex official · that day %@";
 "Codex official · lifetime %@" = "Codex official · lifetime %@";
+
+/* Grok weekly quota (1.8.1) */
+"Grok" = "Grok";
+"Weekly Grok limit" = "Weekly Grok limit";
+"sign in again — run grok login" = "sign in again — run grok login";
+"$%@ / $%@ monthly" = "$%@ / $%@ monthly";
+"Not detected — sign in with the grok CLI" = "Not detected — sign in with the grok CLI";
+"week %d%%" = "week %d%%";

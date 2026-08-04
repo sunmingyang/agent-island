@@ -11,6 +11,11 @@ enum IslandColor {
     /// #5AA8F0 — OpenAI sky blue. Codex logo + ring/bar fills.
     static let codex = Color(red: 90/255, green: 168/255, blue: 240/255)
 
+    /// #D8DEE4 — xAI monochrome. Grok strip fill + settings dot; a cool
+    /// near-white so it sits beside terracotta and sky blue without
+    /// introducing a fourth data hue.
+    static let grok = Color(red: 216/255, green: 222/255, blue: 228/255)
+
     /// #3DD68C — live status dot. Sits next to cobalt without clashing.
     static let liveTeal = Color(red: 61/255, green: 214/255, blue: 140/255)
 

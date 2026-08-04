@@ -46,6 +46,10 @@ final class IslandModel: ObservableObject {
     /// fixed host window height on standard notch/menu-bar sizes.
     private let overviewDetailContentHeight: CGFloat = 52
 
+    /// Extra room on the usage page for the Grok guest strip (30pt row +
+    /// its top gap). Only added while a Grok login is detected and shown.
+    static let usageGrokStripHeight: CGFloat = 34
+
     /// Detection-pure notch from `NotchInfo.detect`. Kept separate from
     /// `notch` (which has the user's spacing override applied) so
     /// `updateNotch`'s diff guard isn't confused by override-induced
@@ -53,6 +57,11 @@ final class IslandModel: ObservableObject {
     private var rawNotch: NotchInfo
     private var activeScreen = ScreenPref.shared.screen
     private var overviewDayDetailVisible = false
+    /// Mirror of `ProviderVisibilityStore.grokShown`. Kept local because
+    /// the store's @Published emits during willSet — reading the store
+    /// inside the sink would still see the old value (same race the
+    /// spacing-store subscription documents).
+    private var grokStripShown = false
 
     private var subs: Set<AnyCancellable> = []
 
@@ -66,10 +75,12 @@ final class IslandModel: ObservableObject {
         self.rawNotch = notch
         self.notch = Self.applyOverride(to: notch, width: IslandSpacingStore.shared.width)
         self.interfaceScale = InterfaceScaleStore.shared.factor
+        self.grokStripShown = ProviderVisibilityStore.shared.grokShown
         recomputeSize()
         subscribeToSpacingStore()
         subscribeToScreenPref()
         subscribeToInterfaceScale()
+        subscribeToGrokVisibility()
     }
 
     /// The magnifier the view applies via scaleEffect; `size` is already
@@ -178,6 +189,26 @@ final class IslandModel: ObservableObject {
             .store(in: &subs)
     }
 
+    /// The Settings toggle adds/removes the Grok strip on the usage page,
+    /// so the panel has to grow/shrink with it. Detection never changes
+    /// after launch — only the manual toggle can flip this. The new value
+    /// comes from the closure parameter, not the store (willSet race, see
+    /// `subscribeToSpacingStore`).
+    private func subscribeToGrokVisibility() {
+        ProviderVisibilityStore.shared.$grokVisible
+            .dropFirst()
+            .sink { [weak self] visible in
+                guard let self else { return }
+                let shown = ProviderVisibilityStore.shared.grokDetected && visible
+                guard shown != self.grokStripShown else { return }
+                self.grokStripShown = shown
+                withAnimation(.openMorph) {
+                    self.recomputeSize()
+                }
+            }
+            .store(in: &subs)
+    }
+
     private func subscribeToScreenPref() {
         ScreenPref.shared.$screen
             .dropFirst()
@@ -230,7 +261,10 @@ final class IslandModel: ObservableObject {
         let detailHeight = activeScreen == .overview && overviewDayDetailVisible
             ? overviewDetailContentHeight
             : 0
-        return baseHeight + detailHeight
+        let grokHeight = activeScreen == .usage && grokStripShown
+            ? Self.usageGrokStripHeight
+            : 0
+        return baseHeight + detailHeight + grokHeight
     }
 
     private func shouldCollapseDetailBeforeShowing(_ screen: ScreenPref.Screen) -> Bool {

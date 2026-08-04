@@ -32,8 +32,9 @@ final class ProviderVisibilityStore: ObservableObject {
             UserDefaults.standard.set(true, forKey: Self.codexTouchedKey)
         }
     }
-    /// Grok has no manual-wins/auto-yield dance: undetected means the row
-    /// never renders anywhere, so the toggle only speaks when detected.
+    /// Grok has no manual-wins/auto-yield dance: undetected hides the
+    /// island strip outright (the Settings row still reports the detection
+    /// state), so the toggle only speaks when detected.
     @Published var grokVisible: Bool {
         didSet { UserDefaults.standard.set(grokVisible, forKey: Self.grokKey) }
     }
@@ -79,8 +80,8 @@ final class ProviderVisibilityStore: ObservableObject {
         return codexDetected || !claudeDetected
     }
 
-    /// Zero-intrusion rule: no Grok login on this machine, no Grok surface
-    /// anywhere — the strip and settings toggle only exist once detected.
+    /// Zero-intrusion rule: no Grok login on this machine, no Grok strip
+    /// on the island — the panel row only exists once detected.
     var grokShown: Bool {
         grokDetected && grokVisible
     }

@@ -387,6 +387,14 @@
 "Codex official · that day %@" = "Codex 官方当日 %@";
 "Codex official · lifetime %@" = "Codex 官方累计 %@";
 
+/* Grok weekly quota (1.8.1) */
+"Grok" = "Grok";
+"Weekly Grok limit" = "Grok 周额度";
+"sign in again — run grok login" = "登录已失效，运行 grok login 重新登录";
+"$%@ / $%@ monthly" = "本月 $%@ / $%@";
+"Not detected — sign in with the grok CLI" = "未检测到 grok CLI 登录";
+"week %d%%" = "本周 %d%%";
+
 /* What's New (1.7.2) */
 "What's new in this update" = "本次更新带来了什么";
 "Get started" = "开始使用";

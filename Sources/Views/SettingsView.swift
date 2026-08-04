@@ -25,6 +25,7 @@ struct SettingsView: View {
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
     @ObservedObject private var appLanguage = AppLanguageStore.shared
     @ObservedObject private var usage = UsageStore.shared
+    @ObservedObject private var grokStore = GrokUsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
 
@@ -774,10 +775,43 @@ struct SettingsView: View {
                     }
                 }
             }
+            SettingsRow(
+                title: "Grok",
+                subtitle: grokSubtitle,
+                dot: IslandColor.grok,
+                chip: visibility.grokDetected ? grokStore.authModeBadge : nil
+            ) {
+                if visibility.grokDetected {
+                    SettingsToggle(isOn: visibility.grokVisible) {
+                        withAnimation(.openMorph) {
+                            visibility.grokVisible.toggle()
+                        }
+                    }
+                }
+            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 18)
         .padding(.bottom, 6)
+    }
+
+    /// Detection state for the Grok row: identity when a login exists,
+    /// a pointer at the CLI when none does. Weekly percent rides along
+    /// once billing data has landed so the row answers "is it working"
+    /// without opening the panel.
+    private var grokSubtitle: String {
+        guard visibility.grokDetected else {
+            return L10n.tr("Not detected — sign in with the grok CLI")
+        }
+        var parts: [String] = []
+        if let email = grokStore.accountEmail { parts.append(email) }
+        if let caption = grokStore.errorCaption {
+            parts.append("⚠ \(caption)")
+        } else if let snapshot = grokStore.snapshot {
+            let percent = Int((snapshot.weeklyUsedPercent * 100).rounded())
+            parts.append(L10n.tr("week %d%%", percent))
+        }
+        return parts.isEmpty ? L10n.tr("idle") : parts.joined(separator: " · ")
     }
 
     /// #31: the re-auth button rides the CURRENT auth state, not the mere

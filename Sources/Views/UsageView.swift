@@ -21,32 +21,43 @@ struct UsageView: View {
         let claudeOn = visibility.claudeShown
         let codexOn = visibility.codexShown
 
-        HStack(spacing: 0) {
-            switch (claudeOn, codexOn) {
-            case (true, true):
-                ChartsBlock(color: IslandColor.claude, usage: store.claude,
-                            showsClaudeReauth: true,
-                            style: style, seed: 1)
-                hairline
-                ChartsBlock(color: IslandColor.codex, usage: store.codex,
-                            style: style, seed: 3)
-            case (true, false):
-                ChartsBlock(color: IslandColor.claude, usage: store.claude,
-                            showsClaudeReauth: true,
-                            style: style, seed: 1)
-                hairline
-                SoloProviderBadge(provider: .claude)
-                    .padding(.horizontal, 12)
-                    .transition(breakdownTransition)
-            case (false, true):
-                SoloProviderBadge(provider: .codex)
-                    .padding(.horizontal, 12)
-                    .transition(breakdownTransition)
-                hairline
-                ChartsBlock(color: IslandColor.codex, usage: store.codex,
-                            style: style, seed: 3)
-            case (false, false):
-                BothHiddenPlaceholder()
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                switch (claudeOn, codexOn) {
+                case (true, true):
+                    ChartsBlock(color: IslandColor.claude, usage: store.claude,
+                                showsClaudeReauth: true,
+                                style: style, seed: 1)
+                    hairline
+                    ChartsBlock(color: IslandColor.codex, usage: store.codex,
+                                style: style, seed: 3)
+                case (true, false):
+                    ChartsBlock(color: IslandColor.claude, usage: store.claude,
+                                showsClaudeReauth: true,
+                                style: style, seed: 1)
+                    hairline
+                    SoloProviderBadge(provider: .claude)
+                        .padding(.horizontal, 12)
+                        .transition(breakdownTransition)
+                case (false, true):
+                    SoloProviderBadge(provider: .codex)
+                        .padding(.horizontal, 12)
+                        .transition(breakdownTransition)
+                    hairline
+                    ChartsBlock(color: IslandColor.codex, usage: store.codex,
+                                style: style, seed: 3)
+                case (false, false):
+                    BothHiddenPlaceholder()
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            // Guest row: the Grok weekly pool. The usage page grows by
+            // `IslandModel.usageGrokStripHeight` while this is visible.
+            if visibility.grokShown {
+                GrokUsageStrip()
+                    .padding(.top, 4)
                     .transition(.opacity)
             }
         }
