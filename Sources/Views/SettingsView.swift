@@ -722,7 +722,7 @@ struct SettingsView: View {
                 chip: usage.claude.plan?.uppercased()
             ) {
                 HStack(spacing: 8) {
-                    if ClaudeCredentials.canPromptReauth() {
+                    if claudeReauthAvailable {
                         PillButton(
                             label: usage.claudeReauthInProgress ? "waiting for login…" : "Re-authenticate",
                             isLoading: usage.claudeReauthInProgress
@@ -763,6 +763,18 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.top, 18)
         .padding(.bottom, 6)
+    }
+
+    /// #31: the re-auth button rides the CURRENT auth state, not the mere
+    /// presence of the `claude` binary on disk — the old
+    /// `canPromptReauth()` gate meant the button never disappeared, even
+    /// with a perfectly healthy login. Kept visible while a login flow is
+    /// in flight so the "waiting" state doesn't vanish mid-flow. The
+    /// in-app web login needs no CLI, so the binary check is gone entirely.
+    private var claudeReauthAvailable: Bool {
+        if usage.claudeReauthInProgress { return true }
+        return ClaudeCredentials.isAuthRecoverableError(usage.claude.fiveHour.error)
+            || ClaudeCredentials.isAuthRecoverableError(usage.claude.weekly.error)
     }
 
     /// Lets the user pick which token total drives the TOKENS hero on the

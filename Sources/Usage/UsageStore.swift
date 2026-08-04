@@ -36,6 +36,7 @@ final class UsageStore: ObservableObject {
 
     private var refreshTask: Task<Void, Never>?
     private var reauthPollTask: Task<Void, Never>?
+    private var claudeReauthFollowupTask: Task<Void, Never>?
     private var codexReauthPollTask: Task<Void, Never>?
     private var pollTimer: Timer?
     private var boundaryTimer: Timer?
@@ -312,6 +313,7 @@ final class UsageStore: ObservableObject {
     func reauthenticateClaude() {
         guard !claudeReauthInProgress else { return }
         claudeReauthInProgress = true
+        claudeReauthFollowupTask?.cancel()
         reauthPollTask?.cancel()
         reauthPollTask = Task { [weak self] in
             guard let self else { return }
@@ -402,6 +404,44 @@ final class UsageStore: ObservableObject {
                 self.lastUpdated = Date()
             }
             self.claudeReauthInProgress = false
+            // #31: a failed single fetch right after re-auth used to strand
+            // the error caption until the next 5–30 min poll corrected it.
+            if UsageStore.isErrorOnly(cl) {
+                self.scheduleClaudeReauthFollowups()
+            }
+        }
+    }
+
+    /// Two quick Claude-only follow-up pulls (15s after the reauth flow
+    /// ends, then again at 60s) so a transiently failing post-login fetch
+    /// self-heals while the fresh token settles, instead of waiting out a
+    /// full poll interval. Stops at the first success; a new reauth cancels
+    /// any pending follow-ups.
+    private func scheduleClaudeReauthFollowups() {
+        claudeReauthFollowupTask?.cancel()
+        claudeReauthFollowupTask = Task { [weak self] in
+            for delaySeconds in [15, 45] {
+                try? await Task.sleep(nanoseconds: UInt64(delaySeconds) * 1_000_000_000)
+                if Task.isCancelled { return }
+                guard let self else { return }
+                let cl = await UsageFetcher.fetchClaude()
+                if Task.isCancelled { return }
+                let healed = await MainActor.run { () -> Bool in
+                    let mergedClaude = UsageStore.mergedUsage(existing: self.claude, fetched: cl)
+                    self.claude = mergedClaude
+                    UsageStore.saveCachedSnapshot(
+                        claude: mergedClaude,
+                        codex: self.codex,
+                        fetchedClaude: true,
+                        fetchedCodex: false
+                    )
+                    if UsageStore.isErrorOnly(cl) { return false }
+                    self.refreshWarning = nil
+                    self.lastUpdated = Date()
+                    return true
+                }
+                if healed { return }
+            }
         }
     }
 
