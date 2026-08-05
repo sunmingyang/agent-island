@@ -33,8 +33,13 @@ enum ClaudeCredentials {
     /// Claude Code's public OAuth client. Confirmed from the live `claude`
     /// authorize URL and already used by the refresh path below.
     static let oauthClientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-    /// Where `ClaudeWebLogin` sends the browser to sign in.
-    static let authorizeURLBase = "https://claude.com/cai/oauth/authorize"
+    /// Where `ClaudeWebLogin` sends the browser to sign in. The legacy
+    /// `claude.com/cai/oauth/authorize` base started forwarding to a claude.ai
+    /// endpoint that rejects this client's params with "Authorization failed —
+    /// Invalid request format" (owner repro, 2026-08-06); a 12-combo probe
+    /// showed `platform.claude.com` accepting every param set including
+    /// dynamic localhost callback ports, so the login rides that base now.
+    static let authorizeURLBase = "https://platform.claude.com/oauth/authorize"
     /// Token endpoint for both refresh and authorization_code exchange.
     static let tokenURLString = "https://platform.claude.com/v1/oauth/token"
     /// Scope set the mid-2026 usage endpoint requires (`user:profile` is the
