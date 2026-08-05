@@ -1,0 +1,29 @@
+# Fork-only: produce an installable .app from this branch.
+# `ditto` (not zip/upload-artifact directly) because the bundle contains
+# Sparkle.framework symlinks and an ad-hoc code signature, both of which a
+# plain artifact upload would flatten.
+name: Build artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/patched
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (auto-update disabled)
+        run: SU_FEED_URL= ./build.sh
+
+      - name: Pack bundle
+        run: ditto -c -k --sequesterRsrc --keepParent build/AgentIsland.app AgentIsland.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AgentIsland-patched
+          path: AgentIsland.zip
+          retention-days: 7
