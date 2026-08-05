@@ -420,3 +420,4 @@
 "Choose from ~/.ssh/config" = "Choose from ~/.ssh/config";
 "Add a server above to start syncing" = "Add a server above to start syncing";
 "Syncing %@…" = "Syncing %@…";
+||||||| parent of e2d9bd8 (feat: SSH target dropdown from ~/.ssh/config in remote-server form)
