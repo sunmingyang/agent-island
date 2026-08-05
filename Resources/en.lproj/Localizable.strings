@@ -397,6 +397,16 @@
 "Not detected — sign in with the grok CLI" = "Not detected — sign in with the grok CLI";
 "week %d%%" = "week %d%%";
 
+/* Gemini quota (1.9) */
+"Gemini" = "Gemini";
+"sign in again — run gemini" = "sign in again — run gemini";
+"needs a local gemini-cli install" = "needs a local gemini-cli install";
+"personal accounts moved to Antigravity — support coming in a later version" = "personal accounts moved to Antigravity — support coming in a later version";
+"this sign-in method isn't supported yet" = "this sign-in method isn't supported yet";
+"Not detected — sign in with the gemini CLI" = "Not detected — sign in with the gemini CLI";
+"pro %d%%" = "pro %d%%";
+"flash %d%%" = "flash %d%%";
+
 /* #9 frontmost chime */
 "Frontmost chime" = "Frontmost chime";
 "Chime instead of staying silent when the session's app is frontmost" = "Chime instead of staying silent when the session's app is frontmost";

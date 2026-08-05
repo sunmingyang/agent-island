@@ -405,6 +405,16 @@
 "Not detected — sign in with the grok CLI" = "未检测到 grok CLI 登录";
 "week %d%%" = "本周 %d%%";
 
+/* Gemini quota (1.9) */
+"Gemini" = "Gemini";
+"sign in again — run gemini" = "登录已失效，运行 gemini 重新登录";
+"needs a local gemini-cli install" = "需要本机安装 gemini-cli";
+"personal accounts moved to Antigravity — support coming in a later version" = "个人账号已迁往 Antigravity，后续版本支持";
+"this sign-in method isn't supported yet" = "暂不支持该认证方式";
+"Not detected — sign in with the gemini CLI" = "未检测到 gemini CLI 登录";
+"pro %d%%" = "Pro %d%%";
+"flash %d%%" = "Flash %d%%";
+
 /* #9 frontmost chime */
 "Frontmost chime" = "前台提示音";
 "Chime instead of staying silent when the session's app is frontmost" = "会话所在 App 在前台时以提示音代替静默";
