@@ -14,6 +14,8 @@ final class RemoteSyncEngine: ObservableObject {
 
     @Published private(set) var isSyncing = false
     @Published private(set) var lastSyncAt: Date?
+    /// "agent-host (codex)" style phase label while a pull is in flight.
+    @Published private(set) var currentActivity: String?
 
     static let syncInterval: TimeInterval = 180
     private var timer: Timer?
@@ -43,12 +45,13 @@ final class RemoteSyncEngine: ObservableObject {
             return
         }
         isSyncing = true
-        defer { isSyncing = false }
+        defer { isSyncing = false; currentActivity = nil }
         NSLog("AgentIsland remote sync: pulling %d server(s)", servers.count)
 
         for server in servers {
+            currentActivity = server.name
             let result: String? = await Task.detached(priority: .utility) {
-                Self.pull(server)
+                await Self.pull(server)
             }.value
             if let result {
                 NSLog("AgentIsland remote sync: %@ failed: %@", server.name, result)
@@ -74,14 +77,25 @@ final class RemoteSyncEngine: ObservableObject {
     nonisolated private static let rsyncOptions = ["-az", "--inplace", "-e", "ssh"]
 
     /// Returns an error string, or nil on success.
-    nonisolated private static func pull(_ server: RemoteServerStore.Server) -> String? {
-        // Reachability gate: if we can't run a trivial command over ssh,
-        // every dir probe below would silently skip and the pull would look
-        // "successful" with nothing synced.
-        let ping = run(sshPath, ["-o", "ConnectTimeout=8", server.sshTarget, "true"], timeout: 15)
+    nonisolated private static func pull(_ server: RemoteServerStore.Server) async -> String? {
+        // Reachability + directory probe in ONE ssh round-trip (was 4).
+        // The remote shell echoes every existing transcript dir, one per line.
+        // Trailing `; true`: the loop's exit code is the LAST `[ -d ]` test,
+        // which fails when the final candidate dir is missing — that must not
+        // be read as an ssh failure.
+        let probe = "for d in \"$HOME/.claude/projects\" \"$HOME/.config/claude/projects\" \"$HOME/.codex/sessions\" \"$HOME/.codex/archived_sessions\"; do [ -d \"$d\" ] && echo \"$d\"; done; true"
+        let ping = run(sshPath, ["-o", "ConnectTimeout=8", server.sshTarget, probe], timeout: 20)
         guard ping.status == 0 else {
             let detail = ping.output.trimmingCharacters(in: .whitespacesAndNewlines)
             return detail.isEmpty ? "cannot reach \(server.sshTarget)" : detail
+        }
+
+        let dirs = ping.output
+            .split(separator: "\n")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        guard !dirs.isEmpty else {
+            return "no transcript directories found on \(server.name)"
         }
 
         let root = RemoteSessionStore.remoteRoot().appendingPathComponent(server.name)
@@ -93,45 +107,29 @@ final class RemoteSyncEngine: ObservableObject {
             )
         }
 
-        // Claude Code transcripts live at ~/.claude/projects on macOS/Linux
-        // and ~/.config/claude/projects on XDG setups. Pull the first one
-        // that exists.
-        for dir in ["~/.claude/projects", "~/.config/claude/projects"] {
-            guard dirExists(target: server.sshTarget, dir: dir) else { continue }
-            if let error = rsyncPull(
-                target: server.sshTarget,
-                remoteDir: dir,
-                dest: root.appendingPathComponent("claude").path
-            ) {
-                return error
+        // Pull every existing dir in parallel — one big first sync (hundreds
+        // of MB over tailscale) shouldn't serialize claude and codex.
+        var failures: [String] = []
+        await withTaskGroup(of: (String, String?).self) { group in
+            for dir in dirs {
+                let dest = destFor(dir, root: root)
+                group.addTask {
+                    (dir, Self.rsyncPull(target: server.sshTarget, remoteDir: dir, dest: dest))
+                }
             }
-            break
-        }
-
-        if dirExists(target: server.sshTarget, dir: "~/.codex/sessions") {
-            if let error = rsyncPull(
-                target: server.sshTarget,
-                remoteDir: "~/.codex/sessions",
-                dest: root.appendingPathComponent("codex").path
-            ) {
-                return error
+            for await (dir, error) in group {
+                if let error { failures.append("\(dir): \(error)") }
             }
         }
-        if dirExists(target: server.sshTarget, dir: "~/.codex/archived_sessions") {
-            if let error = rsyncPull(
-                target: server.sshTarget,
-                remoteDir: "~/.codex/archived_sessions",
-                dest: root.appendingPathComponent("codex-archived").path
-            ) {
-                return error
-            }
-        }
-        return nil
+        return failures.isEmpty ? nil : failures.joined(separator: "; ")
     }
 
-    nonisolated private static func dirExists(target: String, dir: String) -> Bool {
-        let result = run(sshPath, ["-o", "ConnectTimeout=8", target, "test", "-d", dir], timeout: 15)
-        return result.status == 0
+    /// Maps a remote transcript dir to its local mirror subdir.
+    nonisolated private static func destFor(_ remoteDir: String, root: URL) -> String {
+        let lower = remoteDir.lowercased()
+        if lower.contains("archived") { return root.appendingPathComponent("codex-archived").path }
+        if lower.contains("codex") { return root.appendingPathComponent("codex").path }
+        return root.appendingPathComponent("claude").path
     }
 
     nonisolated private static func rsyncPull(target: String, remoteDir: String, dest: String) -> String? {

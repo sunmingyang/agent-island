@@ -452,3 +452,4 @@
 "No ~/.ssh/config hosts found" = "No ~/.ssh/config hosts found";
 "Choose from ~/.ssh/config" = "Choose from ~/.ssh/config";
 "Add a server above to start syncing" = "Add a server above to start syncing";
+"Syncing %@…" = "Syncing %@…";

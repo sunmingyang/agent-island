@@ -668,3 +668,4 @@
 "No ~/.ssh/config hosts found" = "没有找到 ~/.ssh/config 主机";
 "Choose from ~/.ssh/config" = "从 ~/.ssh/config 选择";
 "Add a server above to start syncing" = "先在下方添加服务器，再开始同步";
+"Syncing %@…" = "正在同步 %@…";
