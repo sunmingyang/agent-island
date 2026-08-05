@@ -541,3 +541,4 @@
 "Syncing %@…" = "正在同步 %@…";
 ||||||| parent of e2d9bd8 (feat: SSH target dropdown from ~/.ssh/config in remote-server form)
 ||||||| parent of 39bfc74 (fix: remote sync — openrsync option, status persistence, form UX)
+||||||| parent of 531adc6 (perf: parallel remote sync + one-shot dir probe + activity label)

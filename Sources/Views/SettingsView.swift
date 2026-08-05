@@ -475,9 +475,15 @@ struct SettingsView: View {
                             ProgressView()
                                 .controlSize(.small)
                                 .tint(.white.opacity(0.5))
-                            Text(L10n.tr("Syncing…"))
-                                .font(Typography.micro)
-                                .foregroundStyle(.white.opacity(0.35))
+                            if let activity = remoteSync.currentActivity {
+                                Text(L10n.tr("Syncing %@…", activity))
+                                    .font(Typography.micro)
+                                    .foregroundStyle(.white.opacity(0.35))
+                            } else {
+                                Text(L10n.tr("Syncing…"))
+                                    .font(Typography.micro)
+                                    .foregroundStyle(.white.opacity(0.35))
+                            }
                         }
                     } else if let last = remoteSync.lastSyncAt {
                         Text(L10n.tr("Last synced %@", last.formatted(date: .omitted, time: .shortened)))
