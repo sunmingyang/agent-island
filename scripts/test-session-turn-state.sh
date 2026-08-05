@@ -9,6 +9,7 @@ trap 'rm -rf "$tmpdir"' EXIT
 swiftc \
     Sources/Trigger/SessionTurnState.swift \
     Sources/Model/RemoteSessionStore.swift \
+    Sources/Model/RemoteServerStore.swift \
     Tests/SessionScannerStubs.swift \
     Sources/Trigger/SessionScanner.swift \
     Tests/SessionTurnStateTests.swift \

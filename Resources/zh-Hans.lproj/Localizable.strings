@@ -519,3 +519,23 @@
 "If you like it, share it, or leave a star on GitHub — that is the biggest help you can give me" = "如果你喜欢它，发到社交媒体，或者在 GitHub 点一颗 star，这就是对我最大的帮助";
 
 "Welcome back to Agent Island" = "欢迎继续使用 Agent Island";
+
+/* remote transcript sync (GUI-managed servers) */
+"Remote servers" = "远程服务器";
+"Synced every 3 minutes" = "每 3 分钟同步一次";
+"No servers yet" = "还没有服务器";
+"Add a machine you run Claude Code or Codex on over SSH — its usage counts here too." = "添加一台你通过 SSH 运行 Claude Code 或 Codex 的机器，它的消耗也会统计进来。";
+"Server name" = "服务器名称";
+"SSH target" = "SSH 目标";
+"Add server" = "添加服务器";
+"Sync now" = "立即同步";
+"Syncing…" = "同步中…";
+"Last synced %@" = "上次同步 %@";
+"Remove %@" = "移除 %@";
+"just now" = "刚刚";
+"1 min ago" = "1 分钟前";
+"%d min ago" = "%d 分钟前";
+"No ~/.ssh/config hosts found" = "没有找到 ~/.ssh/config 主机";
+"Choose from ~/.ssh/config" = "从 ~/.ssh/config 选择";
+"Add a server above to start syncing" = "先在下方添加服务器，再开始同步";
+"Syncing %@…" = "正在同步 %@…";

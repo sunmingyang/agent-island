@@ -79,6 +79,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         AgentReminderCenter.shared.start()
         ActivityMonitor.shared.start()
+        // Pull remote-server transcripts (Claude Code / Codex over SSH) into
+        // RemoteSessionStore.remoteRoot() so cost stats and monitoring cover
+        // server-side usage too. Starts an immediate pull plus a 3-min timer.
+        RemoteSyncEngine.shared.start()
         showDemoTurnAlarmIfNeeded()
 
         // Touch the shared updater so Sparkle starts its background scheduler.
