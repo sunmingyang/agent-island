@@ -22,21 +22,18 @@ enum RemoteSessionStore {
             .appendingPathComponent("Library/Application Support/AgentIsland/Remote", isDirectory: true)
     }
 
-    /// Every configured remote host, newest-created first for stable ordering.
+    /// Every configured remote host (GUI-managed via RemoteServerStore), as
+    /// long as its sync mirror exists on disk. Newest-added first.
     static func hosts() -> [(host: String, url: URL)] {
-        let fm = FileManager.default
-        guard let entries = try? fm.contentsOfDirectory(
-            at: remoteRoot(),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else { return [] }
-        return entries
-            .compactMap { url -> (String, URL)? in
+        RemoteServerPersistence.load()
+            .compactMap { server in
+                let url = remoteRoot().appendingPathComponent(server.name, isDirectory: true)
                 var isDir: ObjCBool = false
-                guard fm.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
-                return (url.lastPathComponent, url)
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+                      isDir.boolValue
+                else { return nil }
+                return (server.name, url)
             }
-            .sorted { $0.url.lastPathComponent > $1.url.lastPathComponent }
     }
 
     /// Claude project roots for every remote host that has synced them.

@@ -433,3 +433,19 @@
 "Focus the session tab" = "Focus the session tab";
 "Which button the Return key triggers on the alarm." = "Which button the Return key triggers on the alarm.";
 "Experimental — try to focus the exact terminal tab instead of just activating the terminal app." = "Experimental — try to focus the exact terminal tab instead of just activating the terminal app.";
+
+/* remote transcript sync (GUI-managed servers) */
+"Remote servers" = "Remote servers";
+"Synced every 3 minutes" = "Synced every 3 minutes";
+"No servers yet" = "No servers yet";
+"Add a machine you run Claude Code or Codex on over SSH — its usage counts here too." = "Add a machine you run Claude Code or Codex on over SSH — its usage counts here too.";
+"Server name" = "Server name";
+"SSH target" = "SSH target";
+"Add server" = "Add server";
+"Sync now" = "Sync now";
+"Syncing…" = "Syncing…";
+"Last synced %@" = "Last synced %@";
+"Remove %@" = "Remove %@";
+"just now" = "just now";
+"1 min ago" = "1 min ago";
+"%d min ago" = "%d min ago";

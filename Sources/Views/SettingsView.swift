@@ -30,6 +30,11 @@ struct SettingsView: View {
     @ObservedObject private var antigravityStore = AntigravityUsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
+    @ObservedObject private var remoteServers = RemoteServerStore.shared
+    @ObservedObject private var remoteSync = RemoteSyncEngine.shared
+
+    @State private var newServerName = ""
+    @State private var newServerTarget = ""
 
     @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.providers.rawValue
 
@@ -303,6 +308,7 @@ struct SettingsView: View {
     private var generalTab: some View {
         VStack(alignment: .leading, spacing: 0) {
             generalSection
+            remoteServersSection
             updatesSection
         }
     }
@@ -498,6 +504,156 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.top, 4)
         .padding(.bottom, 6)
+    /// Servers whose Claude Code / Codex transcripts are synced into
+    /// RemoteSessionStore.remoteRoot() — cost stats and the session monitor
+    /// fold those in automatically.
+    private var remoteServersSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionLabel("Remote servers", hint: "Synced every 3 minutes")
+
+            if remoteServers.servers.isEmpty {
+                SettingsRow(
+                    title: "No servers yet",
+                    subtitle: "Add a machine you run Claude Code or Codex on over SSH — its usage counts here too."
+                ) { EmptyView() }
+            }
+
+            ForEach(remoteServers.servers) { server in
+                SettingsRow(
+                    title: server.name,
+                    subtitle: serverSubtitle(server),
+                    dot: server.lastError == nil ? .green.opacity(0.8) : .red.opacity(0.85)
+                ) {
+                    HStack(spacing: 10) {
+                        if let lastSynced = server.lastSyncedAt {
+                            Text(syncedCaption(lastSynced))
+                                .font(Typography.micro)
+                                .foregroundStyle(.white.opacity(0.30))
+                        }
+                        Button {
+                            remoteServers.remove(server)
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.tr("Remove %@", server.name))
+                    }
+                }
+            }
+
+            // Add-a-server row.
+            HStack(spacing: 8) {
+                serverField("Server name", text: $newServerName)
+                serverField("SSH target", text: $newServerTarget)
+                Button {
+                    addServer()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(newServerReady ? 0.92 : 0.30))
+                        .frame(width: 22, height: 22)
+                        .background {
+                            Circle().fill(.white.opacity(newServerReady ? 0.10 : 0))
+                        }
+                }
+                .buttonStyle(.plain)
+                .disabled(!newServerReady)
+                .accessibilityLabel(L10n.tr("Add server"))
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+
+            // Sync controls.
+            HStack(spacing: 12) {
+                Button {
+                    Task { await remoteSync.syncAll() }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 10))
+                        Text(L10n.tr("Sync now"))
+                    }
+                    .font(Typography.label)
+                    .foregroundStyle(.white.opacity(0.72))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.white.opacity(0.06))
+                            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.10), lineWidth: 0.5) }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(remoteServers.servers.isEmpty || remoteSync.isSyncing)
+
+                Spacer(minLength: 8)
+
+                if remoteSync.isSyncing {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white.opacity(0.5))
+                        Text(L10n.tr("Syncing…"))
+                            .font(Typography.micro)
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                } else if let last = remoteSync.lastSyncAt {
+                    Text(L10n.tr("Last synced %@", last.formatted(date: .omitted, time: .shortened)))
+                        .font(Typography.micro)
+                        .foregroundStyle(.white.opacity(0.30))
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 4)
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
+    }
+
+    private func serverField(_ placeholder: String, text: Binding<String>) -> some View {
+        TextField(L10n.tr(placeholder), text: text)
+            .textFieldStyle(.plain)
+            .font(Typography.label)
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.white.opacity(0.05))
+                    .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.10), lineWidth: 0.5) }
+            }
+    }
+
+    private var newServerReady: Bool {
+        !newServerName.trimmingCharacters(in: .whitespaces).isEmpty
+            && !newServerTarget.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func addServer() {
+        guard let server = remoteServers.add(name: newServerName, sshTarget: newServerTarget) else { return }
+        newServerName = ""
+        newServerTarget = ""
+        _ = server
+        Task { await remoteSync.syncAll() }
+    }
+
+    private func serverSubtitle(_ server: RemoteServerStore.Server) -> String {
+        if let error = server.lastError {
+            return "\(server.sshTarget) · \(error)"
+        }
+        return server.sshTarget
+    }
+
+    private func syncedCaption(_ date: Date) -> String {
+        let minutes = Int(Date().timeIntervalSince(date) / 60)
+        if minutes < 1 { return L10n.tr("just now") }
+        if minutes == 1 { return L10n.tr("1 min ago") }
+        if minutes < 60 { return L10n.tr("%d min ago", minutes) }
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     /// Approaching-limit alerts. Default off — opt-in via the toggle.
