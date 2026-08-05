@@ -35,6 +35,8 @@ struct SettingsView: View {
 
     @State private var newServerName = ""
     @State private var newServerTarget = ""
+    /// Host aliases from ~/.ssh/config, loaded once when the form appears.
+    @State private var sshAliases: [String] = []
 
     @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.providers.rawValue
 
@@ -546,7 +548,7 @@ struct SettingsView: View {
             // Add-a-server row.
             HStack(spacing: 8) {
                 serverField("Server name", text: $newServerName)
-                serverField("SSH target", text: $newServerTarget)
+                sshTargetField
                 Button {
                     addServer()
                 } label: {
@@ -565,6 +567,7 @@ struct SettingsView: View {
             .padding(.horizontal, 10)
             .padding(.top, 8)
             .padding(.bottom, 4)
+            .onAppear { sshAliases = SSHConfigParser.hostAliases() }
 
             // Sync controls.
             HStack(spacing: 12) {
@@ -626,6 +629,37 @@ struct SettingsView: View {
                     .fill(.white.opacity(0.05))
                     .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.10), lineWidth: 0.5) }
             }
+    }
+
+    /// SSH target field with a dropdown of ~/.ssh/config Host aliases; the
+    /// field stays editable for targets not in the config.
+    private var sshTargetField: some View {
+        HStack(spacing: 4) {
+            serverField("SSH target", text: $newServerTarget)
+            Menu {
+                if sshAliases.isEmpty {
+                    Text(L10n.tr("No ~/.ssh/config hosts found"))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+                ForEach(sshAliases, id: \.self) { alias in
+                    Button(alias) { newServerTarget = alias }
+                }
+            } label: {
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(sshAliases.isEmpty ? 0.22 : 0.55))
+                    .frame(width: 20, height: 20)
+                    .background {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(.white.opacity(0.06))
+                    }
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(sshAliases.isEmpty)
+            .accessibilityLabel(L10n.tr("Choose from ~/.ssh/config"))
+        }
     }
 
     private var newServerReady: Bool {

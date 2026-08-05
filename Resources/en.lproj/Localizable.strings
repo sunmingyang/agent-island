@@ -449,3 +449,5 @@
 "just now" = "just now";
 "1 min ago" = "1 min ago";
 "%d min ago" = "%d min ago";
+"No ~/.ssh/config hosts found" = "No ~/.ssh/config hosts found";
+"Choose from ~/.ssh/config" = "Choose from ~/.ssh/config";

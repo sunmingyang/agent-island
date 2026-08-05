@@ -665,3 +665,5 @@
 "just now" = "刚刚";
 "1 min ago" = "1 分钟前";
 "%d min ago" = "%d 分钟前";
+"No ~/.ssh/config hosts found" = "没有找到 ~/.ssh/config 主机";
+"Choose from ~/.ssh/config" = "从 ~/.ssh/config 选择";
