@@ -33,16 +33,28 @@ final class RemoteSyncEngine: ObservableObject {
     }
 
     func syncAll() async {
-        guard !isSyncing else { return }
+        guard !isSyncing else {
+            NSLog("AgentIsland remote sync: already syncing, skip")
+            return
+        }
         let servers = RemoteServerStore.shared.servers
-        guard !servers.isEmpty else { return }
+        guard !servers.isEmpty else {
+            NSLog("AgentIsland remote sync: no servers configured")
+            return
+        }
         isSyncing = true
         defer { isSyncing = false }
+        NSLog("AgentIsland remote sync: pulling %d server(s)", servers.count)
 
         for server in servers {
             let result: String? = await Task.detached(priority: .utility) {
                 Self.pull(server)
             }.value
+            if let result {
+                NSLog("AgentIsland remote sync: %@ failed: %@", server.name, result)
+            } else {
+                NSLog("AgentIsland remote sync: %@ OK", server.name)
+            }
             RemoteServerStore.shared.updateStatus(
                 server,
                 lastSyncedAt: result == nil ? Date() : nil,
@@ -56,7 +68,10 @@ final class RemoteSyncEngine: ObservableObject {
 
     nonisolated private static let sshPath = "/usr/bin/ssh"
     nonisolated private static let rsyncPath = "/usr/bin/rsync"
-    nonisolated private static let rsyncOptions = ["-az", "--inplace", "--append-verify", "-e", "ssh"]
+    /// macOS ships openrsync, which does NOT support `--append-verify` —
+    /// stick to the portable subset. `--inplace` is what matters for
+    /// append-only JSONL transcripts (no temp-copy swap on a live file).
+    nonisolated private static let rsyncOptions = ["-az", "--inplace", "-e", "ssh"]
 
     /// Returns an error string, or nil on success.
     nonisolated private static func pull(_ server: RemoteServerStore.Server) -> String? {
