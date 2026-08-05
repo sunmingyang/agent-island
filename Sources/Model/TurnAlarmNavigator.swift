@@ -65,7 +65,7 @@ enum TurnAlarmNavigator {
             NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config) { app, error in
                 Task { @MainActor in
                     if let app {
-                        app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                        activate(app)
                     } else if error != nil {
                         codexCLIFallback(thread: thread)
                     } else {
@@ -156,7 +156,7 @@ enum TurnAlarmNavigator {
                 NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config) { app, _ in
                     Task { @MainActor in
                         if let app {
-                            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                            activate(app)
                         } else {
                             bringForward(bundleIdentifier: claudeBundleID)
                         }
@@ -222,6 +222,13 @@ enum TurnAlarmNavigator {
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 
+    private static func activate(_ application: NSRunningApplication) {
+        guard let url = application.bundleURL else { return }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: config)
+    }
+
     /// Brings another app to the front from an .accessory app whose key
     /// window is closing in the same gesture. `NSRunningApplication.activate`
     /// alone loses that race on macOS 14+: our window closes a beat later and
@@ -256,7 +263,7 @@ enum TurnAlarmNavigator {
 
     private static func activate(bundleIdentifier: String) {
         if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == bundleIdentifier }) {
-            app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            activate(app)
             return
         }
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return }
