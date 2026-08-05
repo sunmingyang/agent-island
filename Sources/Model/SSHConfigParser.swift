@@ -10,13 +10,28 @@ enum SSHConfigParser {
     /// user can sync from by name.
     static func hostAliases(configPath: String? = nil) -> [String] {
         let path = configPath ?? "\(NSHomeDirectory())/.ssh/config"
+
+        // mtime-keyed cache: the settings form re-renders often, and parsing
+        // the file on every pass is wasted work for an input that changes
+        // rarely. Guarded so the cost-scanner threads could use this too.
+        let mtime = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate]) as? Date
+        lock.lock()
+        if path == cachePath, mtime == cacheMtime {
+            let cached = cacheResult
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
         guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return [] }
 
         var aliases: [String] = []
         for rawLine in text.split(separator: "\n") {
-            // Strip inline comments before anything else.
-            let line = rawLine.split(separator: "#", maxSplits: 1).first!
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            // Strip inline comments before anything else. A line that is
+            // exactly "#" splits to an EMPTY array (the whole line is the
+            // separator) — map to "" instead of force-unwrapping.
+            let beforeComment = rawLine.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+            let line = beforeComment.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !line.isEmpty else { continue }
 
             // The line's FIRST token must be exactly `host` (case-insensitive)
@@ -35,6 +50,17 @@ enum SSHConfigParser {
                 }
             }
         }
+
+        lock.lock()
+        cachePath = path
+        cacheMtime = mtime
+        cacheResult = aliases
+        lock.unlock()
         return aliases
     }
+
+    private static let lock = NSLock()
+    private static var cachePath: String?
+    private static var cacheMtime: Date?
+    private static var cacheResult: [String] = []
 }
