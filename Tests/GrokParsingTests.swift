@@ -131,6 +131,32 @@ private func testWeeklyActiveUsageNormalizesPercent() throws {
     let pool = GrokBillingParser.parseWeekly(weeklyActiveFixture)
     try expect(pool != nil, "active weekly payload must decode")
     try expect(pool?.usedPercent == 0.375, "creditUsagePercent 37.5 must normalize to 0.375")
+    try expect(pool?.products.count == 1, "productUsage rows must be captured")
+    try expect(pool?.products.first?.product == "grok-code", "product name must survive")
+    try expect(pool?.products.first?.usedPercent == 0.12,
+               "per-product creditUsagePercent must normalize to 0...1")
+}
+
+private func testProductUsageAcceptsBothPercentKeysAndOmission() throws {
+    let fixture = Data("""
+    {
+      "config": {
+        "creditUsagePercent": 50,
+        "productUsage": [
+          { "product": "grok-code", "usagePercent": 41.5 },
+          { "product": "grok-web", "creditUsagePercent": 8 },
+          { "product": "grok-voice" },
+          { "product": "" }
+        ]
+      }
+    }
+    """.utf8)
+    let pool = GrokBillingParser.parseWeekly(fixture)
+    try expect(pool?.products.count == 3, "empty product names must drop, unnamed percents must stay")
+    try expect(pool?.products[0].usedPercent == 0.415, "usagePercent spelling must decode")
+    try expect(pool?.products[1].usedPercent == 0.08, "creditUsagePercent spelling must decode")
+    try expect(pool?.products[2].usedPercent == nil,
+               "a product without a percent must read as nil, not fake 0")
 }
 
 private func testWeeklyGarbageReturnsNil() throws {
@@ -261,6 +287,7 @@ private enum GrokParsingTestRunner {
             ("timestamp parsing handles microsecond fractions", testTimestampParsingHandlesMicrosecondFractions),
             ("weekly zero usage reads as 0", testWeeklyZeroUsageOmittedPercentReadsAsZero),
             ("weekly active usage normalizes percent", testWeeklyActiveUsageNormalizesPercent),
+            ("product usage accepts both percent keys", testProductUsageAcceptsBothPercentKeysAndOmission),
             ("weekly garbage returns nil", testWeeklyGarbageReturnsNil),
             ("monthly budget decodes cents", testMonthlyBudgetDecodesCents),
             ("cents to dollars formatting", testCentsToDollarsFormatting),

@@ -83,7 +83,8 @@ enum GrokUsageFetcher {
                 weeklyPeriodEnd: pool.periodEnd,
                 monthlyUsedCents: budget?.usedCents,
                 monthlyLimitCents: budget?.limitCents,
-                monthlyPeriodEnd: budget?.periodEnd
+                monthlyPeriodEnd: budget?.periodEnd,
+                productUsage: pool.products.isEmpty ? nil : pool.products
             ))
         case .transport(let message):
             return .failed(message)

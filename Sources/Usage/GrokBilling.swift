@@ -18,6 +18,15 @@ enum GrokTimestamp {
     }
 }
 
+/// One per-product consumption row inside the weekly credit pool
+/// (`config.productUsage`) — what the hover tooltip breaks the pool into.
+struct GrokProductUsage: Codable, Equatable {
+    var product: String
+    /// Normalized to 0...1 like the pool percent. nil when the endpoint
+    /// lists the product without a percent (absence is data, not zero).
+    var usedPercent: Double?
+}
+
 /// What the island renders for Grok: the weekly credit pool (the number
 /// SuperGrok users budget around) plus the monthly dollar budget. Codable
 /// so the last good values survive a relaunch via the UserDefaults cache.
@@ -28,6 +37,9 @@ struct GrokBillingSnapshot: Codable, Equatable {
     var monthlyUsedCents: Int?
     var monthlyLimitCents: Int?
     var monthlyPeriodEnd: Date?
+    /// Per-product weekly breakdown. Optional so pre-1.9 cached snapshots
+    /// keep decoding.
+    var productUsage: [GrokProductUsage]? = nil
 }
 
 /// Decoders for the two `cli-chat-proxy.grok.com/v1/billing` payloads.
@@ -38,6 +50,7 @@ enum GrokBillingParser {
     struct WeeklyPool: Equatable {
         var usedPercent: Double
         var periodEnd: Date?
+        var products: [GrokProductUsage] = []
     }
 
     struct MonthlyBudget: Equatable {
@@ -55,7 +68,25 @@ enum GrokBillingParser {
         let percent = number(config["creditUsagePercent"]) ?? number(root["creditUsagePercent"]) ?? 0
         let period = config["currentPeriod"] as? [String: Any]
         let end = timestamp(period?["end"]) ?? timestamp(config["billingPeriodEnd"])
-        return WeeklyPool(usedPercent: min(1, max(0, percent / 100)), periodEnd: end)
+        return WeeklyPool(
+            usedPercent: min(1, max(0, percent / 100)),
+            periodEnd: end,
+            products: productUsage(config["productUsage"])
+        )
+    }
+
+    /// `config.productUsage` rows — proxy builds have shipped the percent
+    /// under both `usagePercent` and `creditUsagePercent`, so accept either.
+    private static func productUsage(_ value: Any?) -> [GrokProductUsage] {
+        guard let rows = value as? [[String: Any]] else { return [] }
+        return rows.compactMap { row in
+            guard let product = row["product"] as? String, !product.isEmpty else { return nil }
+            let percent = number(row["usagePercent"]) ?? number(row["creditUsagePercent"])
+            return GrokProductUsage(
+                product: product,
+                usedPercent: percent.map { min(1, max(0, $0 / 100)) }
+            )
+        }
     }
 
     /// `GET /v1/billing` — monthlyLimit/used are `{ "val": <cents> }`.
