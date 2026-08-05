@@ -5,6 +5,13 @@ import Foundation
 @MainActor
 enum TurnAlarmNavigator {
     static func open(provider: AlertEngine.Provider, thread: ActivityMonitor.ActiveThread?) {
+        // A synced REMOTE session lives on another machine — resuming it here
+        // would start a fresh local session under the same id (or fail). The
+        // alarm panel still shows it and offers the resume command, but the
+        // open-thread action stays a no-op.
+        if let thread, thread.host != RemoteSessionStore.localHost {
+            return
+        }
         switch provider {
         case .codex:
             openCodex(thread: thread)

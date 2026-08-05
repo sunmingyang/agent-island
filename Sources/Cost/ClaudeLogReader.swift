@@ -47,17 +47,22 @@ enum ClaudeLogReader {
     }
 
     private static func projectRoots() -> [URL] {
+        var roots: [URL]
         if let env = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"], !env.isEmpty {
-            return env.split(separator: ",").map {
+            roots = env.split(separator: ",").map {
                 URL(fileURLWithPath: String($0).trimmingCharacters(in: .whitespaces))
                     .appendingPathComponent("projects", isDirectory: true)
             }
+        } else {
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            roots = [
+                home.appendingPathComponent(".claude/projects", isDirectory: true),
+                home.appendingPathComponent(".config/claude/projects", isDirectory: true),
+            ]
         }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return [
-            home.appendingPathComponent(".claude/projects", isDirectory: true),
-            home.appendingPathComponent(".config/claude/projects", isDirectory: true),
-        ].filter { FileManager.default.fileExists(atPath: $0.path) }
+        // Remote servers sync their transcripts into AgentIsland/Remote/<host>/claude.
+        roots += RemoteSessionStore.claudeRoots()
+        return roots.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     /// Parse a single file end-to-end. Caller is responsible for cutoff

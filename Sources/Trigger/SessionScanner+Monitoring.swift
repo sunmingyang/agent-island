@@ -33,7 +33,11 @@ extension SessionScanner {
         // only skipped when BOTH clocks are outside the window — keeping this
         // strictly equivalent to scanning everything.
         let cutoff = now.addingTimeInterval(-attentionWindow)
-        return claudeTranscriptIndex().compactMap { sid, path -> ScannedSession? in
+        return claudeTranscriptIndex().compactMap { key, path -> ScannedSession? in
+            // Index keys are "<host>:<sid>".
+            guard let separator = key.firstIndex(of: ":") else { return nil }
+            let host = String(key[..<separator])
+            let sid = String(key[key.index(after: separator)...])
             let desktop = desktopSessions[sid]
             guard mtime(path) > cutoff || (desktop?.lastActivityAt ?? .distantPast) > cutoff else {
                 return nil
@@ -48,11 +52,13 @@ extension SessionScanner {
                 externalActivityDate: desktop?.lastActivityAt,
                 turnState: SessionTurnState.claude
             )
+            let baseLabel = title.isEmpty ? fallback(cwd, sid) : title
             return ScannedSession(
+                host: host,
                 tool: .claude,
                 sessionId: sid,
                 cwd: cwd,
-                label: title.isEmpty ? fallback(cwd, sid) : title,
+                label: host == RemoteSessionStore.localHost ? baseLabel : "[\(host)] " + baseLabel,
                 modified: state.modified,
                 status: state.status,
                 transcriptPath: path,

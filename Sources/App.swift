@@ -296,6 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 let thread = ActivityMonitor.ActiveThread(
+                    host: RemoteSessionStore.localHost,
                     sessionId: "00000000-0000-0000-0000-000000000000",
                     label: L10n.tr("Demo thread"),
                     cwd: NSHomeDirectory() + "/Documents/Agent Island",
@@ -347,6 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 600_000_000)
             let thread = ActivityMonitor.ActiveThread(
+                host: RemoteSessionStore.localHost,
                 sessionId: "00000000-0000-0000-0000-000000000000",
                 label: L10n.tr("Demo thread"),
                 cwd: NSHomeDirectory() + "/Documents/Agent Island",
