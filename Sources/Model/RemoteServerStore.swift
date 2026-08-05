@@ -63,8 +63,13 @@ final class RemoteServerStore: ObservableObject {
 
     func updateStatus(_ server: Server, lastSyncedAt: Date? = nil, lastError: String? = nil) {
         guard let idx = servers.firstIndex(where: { $0.id == server.id }) else { return }
-        servers[idx].lastSyncedAt = lastSyncedAt
-        servers[idx].lastError = lastError
+        // Mutating an array ELEMENT does NOT trigger the @Published didSet,
+        // so a plain `servers[idx].x = y` would never persist. Rebuild the
+        // array instead — the didSet fires and the status sticks.
+        var updated = servers
+        updated[idx].lastSyncedAt = lastSyncedAt
+        updated[idx].lastError = lastError
+        servers = updated
     }
 }
 

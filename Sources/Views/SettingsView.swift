@@ -570,47 +570,60 @@ struct SettingsView: View {
             .onAppear { sshAliases = SSHConfigParser.hostAliases() }
 
             // Sync controls.
-            HStack(spacing: 12) {
-                Button {
-                    Task { await remoteSync.syncAll() }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 10))
-                        Text(L10n.tr("Sync now"))
-                    }
-                    .font(Typography.label)
-                    .foregroundStyle(.white.opacity(0.72))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(.white.opacity(0.06))
-                            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.10), lineWidth: 0.5) }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(remoteServers.servers.isEmpty || remoteSync.isSyncing)
-
-                Spacer(minLength: 8)
-
-                if remoteSync.isSyncing {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.white.opacity(0.5))
-                        Text(L10n.tr("Syncing…"))
-                            .font(Typography.micro)
-                            .foregroundStyle(.white.opacity(0.35))
-                    }
-                } else if let last = remoteSync.lastSyncAt {
-                    Text(L10n.tr("Last synced %@", last.formatted(date: .omitted, time: .shortened)))
+            if remoteServers.servers.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.25))
+                    Text(L10n.tr("Add a server above to start syncing"))
                         .font(Typography.micro)
                         .foregroundStyle(.white.opacity(0.30))
                 }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 4)
+            } else {
+                HStack(spacing: 12) {
+                    Button {
+                        Task { await remoteSync.syncAll() }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10))
+                            Text(L10n.tr("Sync now"))
+                        }
+                        .font(Typography.label)
+                        .foregroundStyle(.white.opacity(0.72))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.white.opacity(0.06))
+                                .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.10), lineWidth: 0.5) }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(remoteSync.isSyncing)
+
+                    Spacer(minLength: 8)
+
+                    if remoteSync.isSyncing {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white.opacity(0.5))
+                            Text(L10n.tr("Syncing…"))
+                                .font(Typography.micro)
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                    } else if let last = remoteSync.lastSyncAt {
+                        Text(L10n.tr("Last synced %@", last.formatted(date: .omitted, time: .shortened)))
+                            .font(Typography.micro)
+                            .foregroundStyle(.white.opacity(0.30))
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 4)
             }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 4)
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
@@ -642,7 +655,14 @@ struct SettingsView: View {
                         .foregroundStyle(.white.opacity(0.4))
                 }
                 ForEach(sshAliases, id: \.self) { alias in
-                    Button(alias) { newServerTarget = alias }
+                    Button(alias) {
+                        newServerTarget = alias
+                        // Picking a known host also pre-fills the name — the
+                        // user can still edit it afterwards.
+                        if newServerName.trimmingCharacters(in: .whitespaces).isEmpty {
+                            newServerName = alias
+                        }
+                    }
                 }
             } label: {
                 Image(systemName: "chevron.up.chevron.down")
