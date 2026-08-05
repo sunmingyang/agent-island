@@ -2,7 +2,9 @@ import Foundation
 
 /// A resumable session discovered on disk, for the trigger picker.
 struct ScannedSession: Identifiable, Hashable {
-    var id: String { tool.rawValue + ":" + sessionId }
+    var id: String { host + ":" + tool.rawValue + ":" + sessionId }
+    /// "local" for this machine; the Remote/<host> name for synced servers.
+    let host: String
     let tool: TriggerTool
     let sessionId: String   // the id passed to `--resume` / `exec resume`
     let cwd: String
@@ -35,9 +37,10 @@ enum SessionScanner {
         // cliSessionId under two project folders (23 of 41 on the reporting
         // machine), so a raw file scan lists every such session twice in the
         // trigger picker. Sorted newest-first, keep the first sighting of each
-        // (tool, sessionId).
+        // (tool, host, sessionId) — `id` carries the host so a synced remote
+        // session can't collide with a local one of the same UUID.
         var seen = Set<String>()
-        out = out.filter { seen.insert("\($0.tool.rawValue):\($0.sessionId)").inserted }
+        out = out.filter { seen.insert($0.id).inserted }
         return out
     }
 
@@ -62,7 +65,7 @@ enum SessionScanner {
             let title = object["title"] as? String ?? ""
             let ms = (object["lastActivityAt"] as? Double) ?? (object["createdAt"] as? Double) ?? 0
             let desktopActivity = Date(timeIntervalSince1970: ms / 1000)
-            let transcript = transcripts[resume]
+            let transcript = transcripts["\(RemoteSessionStore.localHost):\(resume)"]
             let state = sessionState(
                 for: transcript,
                 now: now,
@@ -71,6 +74,7 @@ enum SessionScanner {
                 turnState: SessionTurnState.claude
             )
             out.append(ScannedSession(
+                host: RemoteSessionStore.localHost,
                 tool: .claude,
                 sessionId: resume,
                 cwd: cwd,
@@ -94,35 +98,51 @@ enum SessionScanner {
         dedupeProjects: Bool = true
     ) -> [ScannedSession] {
         let fm = FileManager.default
-        let root = NSHomeDirectory() + "/.codex/sessions"
-        guard let enumerator = fm.enumerator(atPath: root) else { return [] }
         let titles = codexTitleIndex()
-        var files: [String] = []
-        for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
-            files.append(root + "/" + rel)
+        // Local root plus one root per synced remote host, so server sessions
+        // surface in the same picker/monitor with their host tagged on.
+        var roots: [(host: String, root: String)] = [
+            (RemoteSessionStore.localHost, NSHomeDirectory() + "/.codex/sessions"),
+        ]
+        for (host, url) in RemoteSessionStore.hosts() {
+            let root = url.appendingPathComponent("codex", isDirectory: true).path
+            if fm.fileExists(atPath: root) { roots.append((host, root)) }
+        }
+
+        var files: [(host: String, path: String)] = []
+        for (host, root) in roots {
+            guard let enumerator = fm.enumerator(atPath: root) else { continue }
+            for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
+                files.append((host, root + "/" + rel))
+            }
         }
         // Stat each file ONCE, then sort by the cached mtime. Calling mtime()
         // inside the comparator re-stats every file O(n log n) times — the
         // dominant cost of the every-few-seconds monitoring scan.
         files = files
-            .map { (path: $0, modified: mtime($0)) }
+            .map { (host: $0.host, path: $0.path, modified: mtime($0.path)) }
             .sorted { $0.modified > $1.modified }
-            .map(\.path)
+            .map { (host: $0.host, path: $0.path) }
         var out: [ScannedSession] = []
         var seenProjects = Set<String>()
-        for path in files {
+        for (host, path) in files {
             guard let (sid, cwd) = codexMeta(path), !sid.isEmpty else { continue }
+            // dedupe key carries the host — two servers running the same cwd
+            // must not collapse into one project row.
             let projectKey = cwd.isEmpty ? sid : cwd
             if dedupeProjects {
-                if seenProjects.contains(projectKey) { continue }
-                seenProjects.insert(projectKey)
+                let key = host + ":" + projectKey
+                if seenProjects.contains(key) { continue }
+                seenProjects.insert(key)
             }
             let state = sessionState(for: path, now: now, lastWorking: lastWorking, turnState: SessionTurnState.codex)
+            let baseLabel = titles[sid] ?? fallback(cwd, sid)
             out.append(ScannedSession(
+                host: host,
                 tool: .codex,
                 sessionId: sid,
                 cwd: cwd,
-                label: titles[sid] ?? fallback(cwd, sid),
+                label: host == RemoteSessionStore.localHost ? baseLabel : "[\(host)] " + baseLabel,
                 modified: state.modified,
                 status: state.status,
                 transcriptPath: path,
@@ -236,18 +256,24 @@ enum SessionScanner {
     }
 
     private static func buildClaudeTranscriptIndex() -> [String: String] {
-        let root = NSHomeDirectory() + "/.claude/projects"
-        guard let enumerator = FileManager.default.enumerator(atPath: root) else { return [:] }
         var out: [String: String] = [:]
-        for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
-            // Subagent transcripts: subagents/ dirs (current layout) or
-            // agent-*.jsonl names (flat layouts). Main sessions are always
-            // UUID-named. Machine fan-out must not drive alarms or the logo.
-            if rel.contains("/subagents/") { continue }
-            if ((rel as NSString).lastPathComponent).hasPrefix("agent-") { continue }
-            let path = root + "/" + rel
-            let sid = ((rel as NSString).lastPathComponent as NSString).deletingPathExtension
-            out[sid] = path
+        // Local Claude Code transcripts.
+        let root = NSHomeDirectory() + "/.claude/projects"
+        if let enumerator = FileManager.default.enumerator(atPath: root) {
+            for case let rel as String in enumerator where rel.hasSuffix(".jsonl") {
+                // Subagent transcripts: subagents/ dirs (current layout) or
+                // agent-*.jsonl names (flat layouts). Main sessions are always
+                // UUID-named. Machine fan-out must not drive alarms or the logo.
+                if rel.contains("/subagents/") { continue }
+                if ((rel as NSString).lastPathComponent).hasPrefix("agent-") { continue }
+                let path = root + "/" + rel
+                let sid = ((rel as NSString).lastPathComponent as NSString).deletingPathExtension
+                out["\(RemoteSessionStore.localHost):\(sid)"] = path
+            }
+        }
+        // Synced remote transcripts, keyed "<host>:<sid>".
+        for (key, path) in RemoteSessionStore.remoteClaudeTranscriptIndex() {
+            out[key] = path
         }
         return out
     }

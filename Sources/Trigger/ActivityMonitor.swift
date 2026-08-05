@@ -6,6 +6,8 @@ final class ActivityMonitor: ObservableObject {
     private init() {}
 
     struct ActiveThread: Equatable {
+        /// "local" or the Remote/<host> name for synced server sessions.
+        let host: String
         let sessionId: String
         let label: String
         let cwd: String
@@ -286,6 +288,7 @@ final class ActivityMonitor: ObservableObject {
 
     private static func makeThread(_ session: ScannedSession) -> ActiveThread {
         ActiveThread(
+            host: session.host,
             sessionId: session.sessionId,
             label: session.label,
             cwd: session.cwd,

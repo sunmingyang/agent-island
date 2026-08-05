@@ -28,7 +28,7 @@ enum CodexLogReader {
         var out: [TokenEvent] = []
 
         LogParseCache.walk(
-            roots: [sessionsRoot(), archivedSessionsRoot()],
+            roots: [sessionsRoot(), archivedSessionsRoot()] + RemoteSessionStore.codexRoots(),
             cutoff: cutoff,
             cacheFilename: "codex-parse-cache.v3.json",
             cacheVersion: cacheVersion,
