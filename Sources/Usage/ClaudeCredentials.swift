@@ -91,14 +91,14 @@ enum ClaudeCredentials {
         ) else { return false }
         return persistFreshLogin(tokens)
     }
-    /// Smallest scope set where EVERY item has live server-side proof:
-    /// `user:inference` is what `claude setup-token` sends verbatim
-    /// (captured from the CLI's own authorize URL, 2026-08-08), and
-    /// `user:profile` is the documented hard requirement of the usage
-    /// endpoint (the mid-2026 403 fix). Nothing speculative — five failed
-    /// rounds all traced to shipping scopes this endpoint had never
-    /// been seen to accept.
-    static let loginScopes = "user:profile user:inference"
+    /// EXACTLY the six scopes `claude /login` sends — captured verbatim
+    /// from the running CLI by intercepting the authorize URL it opens
+    /// (2026-08-08). An earlier round cut this to two based on
+    /// `setup-token`, which is a DIFFERENT flow with a smaller scope set;
+    /// the subscription /login the app mimics needs all six, and the
+    /// server rejects a partial set as "Invalid request format" AFTER the
+    /// user signs in. This is the exact string, order included.
+    static let loginScopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
 
     static func isAuthRecoverableError(_ message: String?) -> Bool {
         guard let message else { return false }

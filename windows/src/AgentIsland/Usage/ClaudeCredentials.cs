@@ -60,16 +60,14 @@ public static class ClaudeCredentials
     /// binary, which is the ground truth here.
     public const string PasteRedirectUri = "https://platform.claude.com/oauth/code/callback";
 
-    /// The smallest scope set where every item has live server-side proof:
-    /// `user:inference` is what the CLI's own authorize URL sends, and
-    /// `user:profile` is the documented hard requirement of the usage
-    /// endpoint (the mid-2026 403). Nothing speculative — adding
-    /// Console-side scopes (org:create_api_key, user:file_upload,
-    /// user:mcp_servers, user:sessions:claude_code) makes claude.ai reject
-    /// the whole request as "Invalid request format" AFTER the user has
-    /// already signed in, which is exactly how five debugging rounds were
-    /// spent.
-    public const string LoginScopes = "user:profile user:inference";
+    /// EXACTLY the six scopes `claude /login` sends, captured verbatim by
+    /// intercepting the authorize URL the running CLI opens (2026-08-08).
+    /// An earlier round cut this to two from `setup-token` — a DIFFERENT
+    /// flow with a smaller scope set — and the subscription /login the app
+    /// mimics then failed as "Invalid request format" AFTER sign-in for
+    /// everyone using the in-app button. This is the exact string, order
+    /// included.
+    public const string LoginScopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload";
 
     public abstract record ProbeOutcome
     {
