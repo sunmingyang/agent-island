@@ -60,6 +60,8 @@ macOS：把 Agent Island 拖入 Applications。应用目前是 ad-hoc 签名而�
 
 Windows：解压下载包，运行 `AgentIsland.exe`。
 
+> **macOS 首次打开**（仅手动下载）：Gatekeeper 会提示「Apple 无法验证 AgentIsland」——应用没有购买 Apple 开发者证书，使用 ad-hoc 签名，更新完整性由 Sparkle 自己的 EdDSA 签名保障。右键点按应用选「打开」，或到 系统设置 → 隐私与安全性 → 点「仍要打开」。用 Homebrew 安装则完全没有这一步。
+
 <details>
 <summary>包管理器与源码构建</summary>
 

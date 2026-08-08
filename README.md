@@ -60,6 +60,8 @@ On macOS, drag Agent Island into Applications. The app is ad-hoc signed rather t
 
 On Windows, unzip the archive and run `AgentIsland.exe`.
 
+> **First launch on macOS** (manual download only): Gatekeeper shows "Apple could not verify AgentIsland" because the app ships without a paid Apple Developer certificate — it is ad-hoc signed, and update integrity is handled by Sparkle's own EdDSA signatures instead. Right-click the app and choose Open, or approve it under System Settings → Privacy & Security → Open Anyway. Homebrew installs skip this entirely.
+
 <details>
 <summary>Package managers and source builds</summary>
 
