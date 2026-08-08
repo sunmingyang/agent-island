@@ -51,5 +51,11 @@ public static class IslandColors
         return brush;
     }
 
-    public static Color For(Core.TriggerTool tool) => tool == Core.TriggerTool.Claude ? Claude : Codex;
+    /// Brand accent per provider. Routed through ProviderIdentity rather than
+    /// a Claude/Codex ternary — that ternary painted Gemini, Grok and Cursor
+    /// in Codex blue the moment TriggerTool grew past two members, which is
+    /// exactly the class of bug ProviderIdentity exists to close.
+    public static Color For(Core.TriggerTool tool) => Model.ProviderIdentity.Accent(tool);
+
+    public static Color For(Model.DisplayProvider provider) => Model.ProviderIdentity.Accent(provider);
 }

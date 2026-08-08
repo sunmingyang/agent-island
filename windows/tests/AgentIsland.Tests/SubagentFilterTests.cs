@@ -4,7 +4,10 @@ namespace AgentIsland.Tests;
 
 /// Pins the subagent suppression contract: fan-out workers (Claude sidechain
 /// lines / agent transcripts, Codex subagent rollouts) must never classify or
-/// alarm as the user's own turn unless subagent alarms are opted in.
+/// alarm as the user's own turn. There is no opt-in any more — the Settings
+/// toggle and its store are gone, and the scanner drops subagent transcripts
+/// unconditionally (macOS parity). The ClaudeAgent cases below still pin the
+/// classifier itself, which is what the scanner's skip rule is built on.
 public static class SubagentFilterTests
 {
     public static void RunAll()

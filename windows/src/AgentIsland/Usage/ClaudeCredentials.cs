@@ -27,16 +27,49 @@ public static class ClaudeCredentials
 
     public const string AuthRequiredMessage = "auth required — run claude";
 
-    public static bool IsAuthRecoverableError(string? message) =>
-        message is ReauthRequiredMessage or AuthRequiredMessage;
+    /// The stored token 401'd AND the refresh grant failed. Distinct from the
+    /// cold-start message on purpose: without it the caption stayed on
+    /// "auth required — run claude" forever, so a revoked refresh token was
+    /// indistinguishable from never having signed in (macOS #22).
+    public const string TokenRefreshFailedMessage = "token refresh failed — sign in again";
 
-    // OAuth constants — same values as the macOS ClaudeCredentials (which
-    // mirror the Claude Code CLI's own login flow).
+    public static bool IsAuthRecoverableError(string? message) =>
+        message is ReauthRequiredMessage or AuthRequiredMessage or TokenRefreshFailedMessage;
+
+    // OAuth constants — captured verbatim from what the official `claude`
+    // CLI 2.1.153 opens, and shared with the macOS ClaudeCredentials.
     public const string OauthClientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+
+    /// Where the browser goes to sign in.
+    ///
+    /// This MUST be the claude.com/cai (SUBSCRIPTION) authorize base, not the
+    /// Console one. `platform.claude.com` is the DEVELOPER CONSOLE — the
+    /// API-key product with its own separate account system; sending a
+    /// Max/Pro subscriber there lands them on a sign-up form and no
+    /// authorization code is ever issued. The CLI keeps both bases and picks
+    /// this one for a subscription login.
     public const string AuthorizeUrlBase = "https://claude.com/cai/oauth/authorize";
+
+    /// Token endpoint for both refresh and authorization_code exchange.
     public const string TokenUrl = "https://platform.claude.com/v1/oauth/token";
-    public const string LoginScopes =
-        "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload";
+
+    /// Anthropic's own paste-flow redirect. The pairing with
+    /// `AuthorizeUrlBase` is deliberately CROSS-origin — authorize lives on
+    /// claude.com/cai while the code-display page lives on
+    /// platform.claude.com. Both URLs sit verbatim in the claude CLI 2.1.153
+    /// binary, which is the ground truth here.
+    public const string PasteRedirectUri = "https://platform.claude.com/oauth/code/callback";
+
+    /// The smallest scope set where every item has live server-side proof:
+    /// `user:inference` is what the CLI's own authorize URL sends, and
+    /// `user:profile` is the documented hard requirement of the usage
+    /// endpoint (the mid-2026 403). Nothing speculative — adding
+    /// Console-side scopes (org:create_api_key, user:file_upload,
+    /// user:mcp_servers, user:sessions:claude_code) makes claude.ai reject
+    /// the whole request as "Invalid request format" AFTER the user has
+    /// already signed in, which is exactly how five debugging rounds were
+    /// spent.
+    public const string LoginScopes = "user:profile user:inference";
 
     public abstract record ProbeOutcome
     {
@@ -119,6 +152,10 @@ public static class ClaudeCredentials
                             case ProbeOutcome.Unauthorized: break;
                         }
                     }
+                    else
+                    {
+                        lastError = TokenRefreshFailedMessage;
+                    }
                     break;
             }
         }
@@ -139,7 +176,8 @@ public static class ClaudeCredentials
         {
             var path = IslandPaths.ClaudeCredentialsFile;
             if (!File.Exists(path)) return null;
-            using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
+            using var stream = OpenShared(path);
+            using var doc = JsonDocument.Parse(stream);
             if (Jsonl.GetObject(doc.RootElement, "claudeAiOauth") is not { } oauth) return null;
             var access = Jsonl.GetString(oauth, "accessToken");
             var refresh = Jsonl.GetString(oauth, "refreshToken");
@@ -160,15 +198,26 @@ public static class ClaudeCredentials
     /// invalidated the OLD refresh token server-side, so a lost write means
     /// the on-disk credentials are dead and the caller must force a re-login
     /// rather than 401 forever.
+    ///
+    /// There is no chmod 0600 to mirror here: the file lives inside
+    /// %USERPROFILE%, and both the temp file and the destination inherit that
+    /// tree's per-user DACL — the same protection Claude Code's own writer
+    /// gets on Windows.
     private static bool WriteClaudeCreds(RefreshedTokens refreshed)
     {
+        var tmp = string.Empty;
         try
         {
             var path = IslandPaths.ClaudeCredentialsFile;
             JsonNode root;
             try
             {
-                root = JsonNode.Parse(File.ReadAllText(path)) ?? new JsonObject();
+                // Share the read: Claude Code and Claude Desktop keep this file
+                // open, and an exclusive open would throw — dropping us into the
+                // empty-object branch, which rewrites the file WITHOUT scopes,
+                // subscriptionType or anything else the CLI stores there.
+                using var existing = OpenShared(path);
+                root = JsonNode.Parse(existing) ?? new JsonObject();
             }
             catch
             {
@@ -186,7 +235,11 @@ public static class ClaudeCredentials
             // A fresh web login may land on a machine that never ran the CLI,
             // where ~\.claude doesn't exist yet.
             if (Path.GetDirectoryName(path) is { Length: > 0 } dir) Directory.CreateDirectory(dir);
-            var tmp = path + ".tmp";
+            // Per-write temp name, not a fixed ".tmp": Windows denies a second
+            // opener while the first holds the handle, so two Agent Island
+            // instances refreshing at once would fail each other's write —
+            // and a failed write here forces the user through a re-login.
+            tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
             File.WriteAllText(tmp, root.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
             // Retry the rename: Claude Code / Claude Desktop may hold a brief
             // read lock on the creds file, and dropping the rotated token
@@ -207,9 +260,19 @@ public static class ClaudeCredentials
         catch (Exception error)
         {
             System.Diagnostics.Debug.WriteLine($"AgentIsland: failed to write rotated Claude tokens: {error.Message}");
+            // Never strand the temp copy: it holds a live token pair, and
+            // nothing else ever cleans up ~\.claude.
+            try { if (tmp.Length > 0) File.Delete(tmp); } catch { }
             return false;
         }
     }
+
+    /// Read handle that tolerates the writer still holding the file. Claude
+    /// Code and Claude Desktop keep .credentials.json open while they run, and
+    /// the default File.Read* share mode throws a sharing violation against
+    /// them — which this class would otherwise read as "not signed in".
+    private static FileStream OpenShared(string path) => new(
+        path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
     /// Cheap local change signal used by the re-auth poll — file mtime here,
     /// keychain `mdat` on macOS.
@@ -310,16 +373,56 @@ public static class ClaudeCredentials
         }
     }
 
-    // MARK: - In-app re-auth
+    // MARK: - Paste-code login
 
-    public static bool CanPromptReauth() => Trigger.CLILocator.Locate("claude") is not null;
+    /// What a paste sign-in needs: the page to open, plus the PKCE verifier
+    /// and state to hand back to `CompletePasteLogin`.
+    public sealed record PasteLoginTicket(string Url, string Verifier, string State);
 
-    /// Opens a visible terminal running `claude auth login` — the CLI may
-    /// need an interactive TTY or print a browser URL, so a hidden process
-    /// would strand the user.
-    public static bool SpawnReauth()
+    /// Builds the paste-flow authorize URL and its PKCE pair. The caller
+    /// opens the URL, the user approves and copies the code Anthropic's page
+    /// shows, then the caller passes that code to `CompletePasteLogin`. No
+    /// loopback listener and no browser-profile guessing — this is the escape
+    /// hatch for the machines where the round-trip cannot finish.
+    public static PasteLoginTicket BeginPasteLogin()
     {
-        if (Trigger.CLILocator.Locate("claude") is not { } cli) return false;
-        return TerminalLauncher.RunVisible(cli, "auth login", "Agent Island — Claude login");
+        var verifier = ClaudeWebLogin.RandomUrlSafe(32);
+        var state = ClaudeWebLogin.RandomUrlSafe(16);
+        var challenge = ClaudeWebLogin.PkceChallenge(verifier);
+        return new PasteLoginTicket(
+            ClaudeWebLogin.BuildAuthorizeUrl(challenge, state, PasteRedirectUri),
+            verifier,
+            state);
     }
+
+    /// Exchanges a hand-pasted authorization code and persists the pair it
+    /// returns. Anthropic's success page renders the code as
+    /// `&lt;code&gt;#&lt;state&gt;`; both that form and a bare code are
+    /// accepted.
+    public static async Task<bool> CompletePasteLogin(string pasted, string verifier, string state)
+    {
+        var trimmed = pasted.Trim();
+        if (trimmed.Length == 0) return false;
+        var separator = trimmed.IndexOf('#');
+        var code = separator < 0 ? trimmed : trimmed[..separator];
+        if (code.Length == 0) return false;
+        // A bare code carries no state back, so echo the one we sent.
+        var returnedState = separator < 0 || separator == trimmed.Length - 1
+            ? state
+            : trimmed[(separator + 1)..];
+        if (await ExchangeAuthorizationCode(code, verifier, PasteRedirectUri, returnedState) is not { } tokens)
+        {
+            return false;
+        }
+        return WriteClaudeCreds(tokens);
+    }
+
+    // MARK: - In-app re-auth
+    //
+    // There is deliberately no terminal fallback here. `claude auth login` is
+    // a retired command on the 2.x CLI, so spawning it after a failed browser
+    // round produced an "authentication failed" from nowhere that read as a
+    // system dialog (owner repro, 2026-08-08). macOS deleted that path; the
+    // recovery is `ClaudeWebLogin.Outcome.Failed.Reason` on the Claude row
+    // plus `BeginPasteLogin`, both of which need no CLI at all.
 }

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using AgentIsland.Localization;
 
 namespace AgentIsland.Usage;
 
@@ -25,13 +26,23 @@ public sealed class ClaudeWebLogin
         public sealed record Failed(string Reason) : Outcome;
     }
 
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(180);
+    /// Ten minutes. The old 180s assumed a browser already signed in to
+    /// claude.ai and a single Authorize click; a fresh sign-in through an
+    /// emailed code takes minutes, and the timer expiring mid-login tore
+    /// down the listener before the redirect ever landed (owner repro,
+    /// 2026-08-08). The same ceiling covers the copy-the-link-into-another-
+    /// browser detour, so there is no second, longer timeout to arm.
+    private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(10);
 
     private int _running;
 
     /// Runs the full flow and resolves once the browser round-trip completes,
-    /// times out (~3 min), or fails to start. Safe to call again afterwards.
-    public async Task<Outcome> Start()
+    /// times out (~10 min), or fails to start. Safe to call again afterwards.
+    /// `onAuthorizeUrl` fires the moment the URL exists, on a thread-pool
+    /// thread — the caller marshals it onto the dispatcher and surfaces it as
+    /// a copyable link for users whose Claude session lives in a browser
+    /// profile the default-browser open won't reach.
+    public async Task<Outcome> Start(Action<string>? onAuthorizeUrl = null)
     {
         if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
         {
@@ -39,7 +50,7 @@ public sealed class ClaudeWebLogin
         }
         try
         {
-            return await Run();
+            return await Run(onAuthorizeUrl);
         }
         finally
         {
@@ -47,11 +58,11 @@ public sealed class ClaudeWebLogin
         }
     }
 
-    private static async Task<Outcome> Run()
+    private static async Task<Outcome> Run(Action<string>? onAuthorizeUrl)
     {
         var verifier = RandomUrlSafe(32);
         var state = RandomUrlSafe(16);
-        var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+        var challenge = PkceChallenge(verifier);
 
         var listener = new HttpListener();
         string redirectUri;
@@ -64,12 +75,18 @@ public sealed class ClaudeWebLogin
         }
         catch (Exception error)
         {
+            // The finally below belongs to the SECOND try, which we never
+            // enter — without this close, every failed bind strands an
+            // HTTP.SYS request queue for the life of the process.
+            try { listener.Close(); } catch { }
             return new Outcome.Failed($"could not open local callback server: {error.Message}");
         }
 
         try
         {
-            if (!OpenAuthorizePage(challenge, state, redirectUri))
+            var authorizeUrl = BuildAuthorizeUrl(challenge, state, redirectUri);
+            onAuthorizeUrl?.Invoke(authorizeUrl);
+            if (!OpenInBrowser(authorizeUrl))
             {
                 return new Outcome.Failed("could not open the browser");
             }
@@ -122,9 +139,15 @@ public sealed class ClaudeWebLogin
         }
     }
 
-    /// `code=true` is not decoration: the CLI sends it unconditionally, and
-    /// the authorize SUBMIT (not the consent page render) hard-fails with
-    /// "Invalid request format" without it. Verified live on 2026-07-11.
+    /// The one authorize-URL builder, shared by the loopback flow and the
+    /// paste flow — they differ only in `redirectUri`. Every parameter here
+    /// was captured verbatim from what the official `claude` CLI 2.1.153
+    /// opens; nothing is inferred.
+    ///
+    /// `code=true` is not decoration: it rides BOTH of the CLI's variants,
+    /// and the authorize SUBMIT (not the consent page render) hard-fails with
+    /// "Invalid request format" without it. Verified live on 2026-07-11; an
+    /// earlier theory called it a paste-flow selector and dropped it, wrongly.
     internal static string BuildAuthorizeUrl(string challenge, string state, string redirectUri) =>
         ClaudeCredentials.AuthorizeUrlBase
             + "?code=true"
@@ -136,9 +159,10 @@ public sealed class ClaudeWebLogin
             + "&code_challenge_method=S256"
             + "&state=" + Uri.EscapeDataString(state);
 
-    private static bool OpenAuthorizePage(string challenge, string state, string redirectUri)
+    /// Hands the URL to the default browser. Shared with the paste flow so
+    /// both sign-in paths open pages the same way.
+    internal static bool OpenInBrowser(string url)
     {
-        var url = BuildAuthorizeUrl(challenge, state, redirectUri);
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
@@ -154,12 +178,15 @@ public sealed class ClaudeWebLogin
     }
 
     /// The callback page shown in the browser — same dark card and copy as
-    /// the macOS version.
+    /// the macOS version. Localized, not hardcoded Chinese: this page leaked
+    /// Chinese into the English UI once already (owner report, 1.7.2).
     private static async Task Respond(HttpListenerResponse response, bool ok)
     {
         var emoji = ok ? "✅" : "⚠️";
-        var title = ok ? "已连接 Claude" : "登录未完成";
-        var note = ok ? "认证成功，可以关闭此页并返回 Agent Island。" : "请回到 Agent Island 重试。";
+        var title = L10n.Tr(ok ? "Connected to Claude" : "Login incomplete");
+        var note = L10n.Tr(ok
+            ? "Authentication succeeded — close this page and return to Agent Island"
+            : "Please return to Agent Island and try again");
         var body = "<!doctype html><html><head><meta charset=\"utf-8\">"
             + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Agent Island</title></head>"
             + "<body style=\"margin:0;height:100vh;display:flex;align-items:center;justify-content:center;"
@@ -200,6 +227,12 @@ public sealed class ClaudeWebLogin
     }
 
     // MARK: - PKCE helpers
+
+    /// S256 challenge for a verifier — shared with the paste flow. The
+    /// verifier is base64url text, so ASCII bytes are the same bytes UTF-8
+    /// would produce.
+    internal static string PkceChallenge(string verifier) =>
+        Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
     internal static string RandomUrlSafe(int bytes) =>
         Base64Url(RandomNumberGenerator.GetBytes(bytes));

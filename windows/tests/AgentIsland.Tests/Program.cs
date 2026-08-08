@@ -103,6 +103,8 @@ public static class Program
         {
             SessionTurnStateTests.RunAll();
             SubagentFilterTests.RunAll();
+            GrokTurnStateTests.RunAll();
+            ProviderSelectionTests.RunAll();
             TriggerResetTests.RunAll();
             UsageExhaustionAlarmTests.RunAll();
             SoloCenterLayoutTests.RunAll();

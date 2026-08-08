@@ -13,6 +13,17 @@ public static class Formatting
         return $"{(int)(seconds / 86400)}d";
     }
 
+    /// The one percent readout in the app: a 0-1 fraction as whole points.
+    ///
+    /// Away-from-zero, not .NET's default banker's rounding. Swift's
+    /// `WindowUsage.percentInt` is `Int((usedPercent * 100).rounded())`, which
+    /// rounds .5 up; `Math.Round` alone rounds it to even, so an exact 0.125
+    /// printed 12% on Windows and 13% on macOS — and the tray, the panel and
+    /// the report cards each have to agree with the other platform AND with
+    /// each other.
+    public static int PercentInt(double fraction) =>
+        (int)Math.Round(fraction * 100, MidpointRounding.AwayFromZero);
+
     /// "$146.61" / "$1,510.80" — invariant thousands separators.
     public static string Money(double dollars) =>
         "$" + dollars.ToString("N2", System.Globalization.CultureInfo.InvariantCulture);

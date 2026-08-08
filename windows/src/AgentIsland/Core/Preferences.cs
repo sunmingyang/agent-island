@@ -114,17 +114,25 @@ public static class Preferences
 
     private static void Save()
     {
+        // Per-write temp name, not a fixed ".tmp". Windows denies a second
+        // opener while the first holds the handle, so with two copies of the
+        // app running — the very case the re-read-and-layer design above
+        // exists for — one instance's write would fail and be swallowed here,
+        // silently losing a preference change.
+        var tmp = string.Empty;
         try
         {
             Directory.CreateDirectory(IslandPaths.AppSupportDir);
             var path = IslandPaths.SettingsFile;
-            var tmp = path + ".tmp";
+            tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
             File.WriteAllText(tmp, JsonSerializer.Serialize(_values, SerializerOptions));
             File.Move(tmp, path, overwrite: true);
         }
         catch
         {
-            // A failed save costs one preference write, not the app.
+            // A failed save costs one preference write, not the app — but the
+            // temp copy must not be left behind, since nothing else sweeps it.
+            try { if (tmp.Length > 0) File.Delete(tmp); } catch { }
         }
     }
 }

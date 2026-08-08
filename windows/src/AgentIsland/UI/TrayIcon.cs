@@ -107,7 +107,7 @@ public sealed class TrayIcon : IDisposable
             : $"Agent Island · {status}" + (joined.Length == 0 ? "" : " · " + joined);
     }
 
-    private static string Percent(double fraction) => $"{(int)Math.Round(fraction * 100)}%";
+    private static string Percent(double fraction) => $"{Core.Formatting.PercentInt(fraction)}%";
 
     private static string? StatusWord(ActivityState state) => state switch
     {

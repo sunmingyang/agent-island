@@ -162,7 +162,7 @@ public sealed class OverviewPage : Border
         _activeDays.Text = Localization.L10n.TrFormat("{0} active days", activeDays);
 
         _legend.Inlines.Clear();
-        var claudeShare = total > 0 ? (int)Math.Round(claudeTotal * 100.0 / total) : 0;
+        var claudeShare = total > 0 ? Core.Formatting.PercentInt(claudeTotal / (double)total) : 0;
         AppendLegend(IslandColors.Claude, "Claude", claudeShare);
         _legend.Inlines.Add(new System.Windows.Documents.Run("   "));
         AppendLegend(IslandColors.Codex, "Codex", total > 0 ? 100 - claudeShare : 0);

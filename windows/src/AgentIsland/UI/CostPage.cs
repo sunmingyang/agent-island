@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using AgentIsland.Cost;
+using AgentIsland.Model;
 using AgentIsland.UI.Charts;
 using AgentIsland.UI.Theme;
 
@@ -12,10 +13,16 @@ namespace AgentIsland.UI;
 /// Cost page: per provider, today's spend as the hero number, a cumulative
 /// sparkline for the day, and month + token context lines. The hero swaps
 /// between USD / TOKENS / TREND per the cost style preference.
+///
+/// Cost is reconstructed from LOCAL token logs, which only Claude Code and
+/// Codex write. A guest holding a slot therefore gets its nameplate in that
+/// half rather than a fabricated $0 — and a guests-only island, which used to
+/// render this page entirely blank, now says whose island it is.
 public sealed class CostPage : Border
 {
-    private readonly CostBlock _claude = new(IslandColors.Claude);
-    private readonly CostBlock _codex = new(IslandColors.Codex);
+    private readonly CostBlock _claude = new(ProviderIdentity.Accent(DisplayProvider.Claude));
+    private readonly CostBlock _codex = new(ProviderIdentity.Accent(DisplayProvider.Codex));
+    private readonly Dictionary<DisplayProvider, UIElement> _badges = new();
 
     public CostPage()
     {
@@ -47,28 +54,61 @@ public sealed class CostPage : Border
         Grid.SetColumn(_codex, 2);
         grid.Children.Add(_codex);
 
-        // Solo split: the absent provider's half carries its nameplate.
-        var claudeBadge = new SoloProviderBadge(Core.TriggerTool.Claude) { Visibility = Visibility.Collapsed };
-        var codexBadge = new SoloProviderBadge(Core.TriggerTool.Codex) { Visibility = Visibility.Collapsed };
-        Grid.SetColumn(claudeBadge, 0);
-        grid.Children.Add(claudeBadge);
-        Grid.SetColumn(codexBadge, 2);
-        grid.Children.Add(codexBadge);
+        // Every provider owns a nameplate up front; a slot change only
+        // re-columns and re-shows one, so nothing here is rebuilt mid-flight.
+        foreach (var provider in DisplayProviders.All)
+        {
+            var badge = new SoloProviderBadge(provider) { Visibility = Visibility.Collapsed };
+            _badges[provider] = badge;
+            grid.Children.Add(badge);
+        }
+
+        static void Show(UIElement element, int column)
+        {
+            Grid.SetColumn(element, column);
+            element.Visibility = Visibility.Visible;
+        }
+
+        void Place(DisplayProvider provider, int column) =>
+            Show(provider switch
+            {
+                DisplayProvider.Claude => _claude,
+                DisplayProvider.Codex => _codex,
+                _ => _badges[provider],
+            }, column);
 
         void ApplyVisibility()
         {
-            var visibility = Model.ProviderVisibilityStore.Shared;
-            _claude.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
-            _codex.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
-            claudeBadge.Visibility = !visibility.ClaudeShown && visibility.CodexShown
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            codexBadge.Visibility = !visibility.CodexShown && visibility.ClaudeShown
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            hairline.Visibility = visibility.ClaudeShown || visibility.CodexShown
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+            var slots = ProviderVisibilityStore.Shared.SlotProviders;
+            _claude.Visibility = Visibility.Collapsed;
+            _codex.Visibility = Visibility.Collapsed;
+            foreach (var badge in _badges.Values) badge.Visibility = Visibility.Collapsed;
+
+            if (slots.Count >= 2)
+            {
+                Place(slots[0], 0);
+                Place(slots[1], 2);
+            }
+            else if (slots.Count == 1)
+            {
+                // Solo split: the live column keeps the flank its island logo
+                // holds, and the same provider's nameplate fills the freed
+                // half (macOS soloBadge). A guest solo has no cost column at
+                // all, so its nameplate simply takes the logo flank.
+                var solo = slots[0];
+                var leading = solo.SoloLogoFlankIsLeading();
+                if (solo.HasFullMonitoring())
+                {
+                    Place(solo, leading ? 0 : 2);
+                    Show(_badges[solo], leading ? 2 : 0);
+                }
+                else
+                {
+                    Show(_badges[solo], leading ? 0 : 2);
+                }
+            }
+
+            hairline.Visibility = slots.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         // PagedContent recreates this page on visibility/screen changes;
@@ -80,12 +120,12 @@ public sealed class CostPage : Border
             (_, _) => Dispatcher.BeginInvoke(ApplyVisibility);
         CostStore.Shared.PropertyChanged += onUpdate;
         CostStylePreferenceStore.Shared.PropertyChanged += onUpdate;
-        Model.ProviderVisibilityStore.Shared.PropertyChanged += onVisibility;
+        ProviderVisibilityStore.Shared.PropertyChanged += onVisibility;
         Unloaded += (_, _) =>
         {
             CostStore.Shared.PropertyChanged -= onUpdate;
             CostStylePreferenceStore.Shared.PropertyChanged -= onUpdate;
-            Model.ProviderVisibilityStore.Shared.PropertyChanged -= onVisibility;
+            ProviderVisibilityStore.Shared.PropertyChanged -= onVisibility;
         };
         ApplyVisibility();
         Update();

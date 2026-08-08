@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -97,6 +98,13 @@ public sealed class SettingsWindow : Window
     };
     private Tab _active = Tab.General;
 
+    // Provider rows re-read their stores in place rather than rebuilding the
+    // tab: a rebuild would lose the scroll position and yank the account menu
+    // out from under the cursor. The list belongs to whichever tab built it;
+    // the store subscriptions live for the window's lifetime and just walk it.
+    private readonly List<Action> _providerRefreshers = new();
+    private TextBlock? _slotNotice;
+
     private SettingsWindow()
     {
         Title = "Agent Island — " + L10n.Tr("Settings");
@@ -151,6 +159,23 @@ public sealed class SettingsWindow : Window
         root.Children.Add(bottomHairline);
 
         root.Children.Add(_scroll);
+
+        // Usage lands from background fetches and the guest stores publish on
+        // their own schedule; the provider rows follow along instead of going
+        // stale until the next tab switch.
+        UsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
+        ProviderVisibilityStore.Shared.PropertyChanged += OnProviderStoreChanged;
+        GeminiUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
+        GrokUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
+        CursorUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
+        Closed += (_, _) =>
+        {
+            UsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
+            ProviderVisibilityStore.Shared.PropertyChanged -= OnProviderStoreChanged;
+            GeminiUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
+            GrokUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
+            CursorUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
+        };
 
         var savedTab = Preferences.Get<string?>("Settings.activeTab");
         if (Enum.TryParse<Tab>(savedTab, out var restored)) _active = restored;
@@ -316,9 +341,26 @@ public sealed class SettingsWindow : Window
         return grid;
     }
 
+    /// The stores raise from background completions; hop to the dispatcher
+    /// and let each row re-read whatever it shows.
+    private void OnProviderStoreChanged(object? sender, PropertyChangedEventArgs args) =>
+        Dispatcher.BeginInvoke(RefreshProviderRows);
+
+    private void RefreshProviderRows()
+    {
+        foreach (var refresh in _providerRefreshers)
+        {
+            refresh();
+        }
+    }
+
     private void Select(Tab tab)
     {
         _active = tab;
+        // The refreshers (and the slot notice) belong to the tab that built
+        // them — anything still in the list points at discarded visuals.
+        _providerRefreshers.Clear();
+        _slotNotice = null;
         Preferences.Set("Settings.activeTab", tab.ToString());
         foreach (var (cellTab, cell) in _tabCells)
         {
@@ -799,12 +841,15 @@ public sealed class SettingsWindow : Window
     {
         var stack = TabStack();
         stack.Children.Add(SectionLabel("Providers"));
+        stack.Children.Add(BuildSlotHeader());
 
         // The "Open threads via" pickers are retired (macOS 1.6.1): threads
         // always land back where the session lives — desktop sessions in the
         // desktop app, CLI sessions in a terminal.
-        stack.Children.Add(ProviderRow(TriggerTool.Claude));
-        stack.Children.Add(ProviderRow(TriggerTool.Codex));
+        foreach (var provider in DisplayProviders.All)
+        {
+            stack.Children.Add(ProviderRow(provider));
+        }
 
         stack.Children.Add(SectionLabel("TOKEN"));
         var mode = new Segmented(
@@ -852,39 +897,338 @@ public sealed class SettingsWindow : Window
         return stack;
     }
 
-    private UIElement ProviderRow(TriggerTool tool)
+    /// Slot occupancy spoken by structure instead of a caption sentence: the
+    /// enabled brand marks plus "N / 2". A refused third pick parks its one
+    /// line of explanation on the same row.
+    private UIElement BuildSlotHeader()
     {
-        var store = UsageStore.Shared;
-        var usage = tool == TriggerTool.Claude ? store.Claude : store.Codex;
-        // The toggle reflects the STORED choice, not the detection-aware
-        // Shown value — flipping it is what records intent.
-        var visible = tool == TriggerTool.Claude
-            ? ProviderVisibilityStore.Shared.ClaudeVisible
-            : ProviderVisibilityStore.Shared.CodexVisible;
+        var row = new Grid { Margin = new Thickness(10, 0, 10, 4) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var trailing = new StackPanel { Orientation = Orientation.Horizontal };
-        // Always offered: the click spawns the login terminal directly, and
-        // the branded dialog (with Retry) covers a genuinely missing CLI —
-        // hiding the button just strands people mid CLI update.
-        var reauth = new PillButtonControl(L10n.Tr("Re-authenticate"));
-        reauth.Margin = new Thickness(0, 0, 8, 0);
-        reauth.Clicked += () => ReauthFlow.Run(tool);
-        trailing.Children.Add(reauth);
-        var toggle = new CobaltToggle(visible);
+        _slotNotice = new TextBlock
+        {
+            Text = L10n.Tr("Pick at most two — turn one off first"),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.AlertAmber),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 10, 0),
+            Visibility = Visibility.Collapsed,
+        };
+        Grid.SetColumn(_slotNotice, 0);
+        row.Children.Add(_slotNotice);
+
+        var marks = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var count = new TextBlock
+        {
+            FontFamily = IslandFonts.Mono,
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = IslandColors.Brush(IslandColors.Alpha(IslandColors.LiveTeal, 0.92)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var capsuleBody = new StackPanel { Orientation = Orientation.Horizontal };
+        capsuleBody.Children.Add(marks);
+        capsuleBody.Children.Add(count);
+        var capsule = new Border
+        {
+            Child = capsuleBody,
+            CornerRadius = new CornerRadius(11),
+            Background = IslandColors.Brush(IslandColors.Alpha(IslandColors.LiveTeal, 0.10)),
+            Padding = new Thickness(10, 5, 10, 5),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        Grid.SetColumn(capsule, 1);
+        row.Children.Add(capsule);
+
+        void Refresh()
+        {
+            marks.Children.Clear();
+            foreach (var provider in ProviderVisibilityStore.Shared.Enabled)
+            {
+                marks.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 8,
+                    Height = 8,
+                    Fill = IslandColors.Brush(IslandColors.Alpha(ProviderIdentity.Accent(provider), 0.9)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 7, 0),
+                });
+            }
+            count.Text = $"{ProviderVisibilityStore.Shared.SelectedCount} / {ProviderSelection.MaxEnabled}";
+        }
+
+        _providerRefreshers.Add(Refresh);
+        Refresh();
+        return row;
+    }
+
+    private void ShowSlotLimit(bool refused)
+    {
+        if (_slotNotice is null) return;
+        _slotNotice.Visibility = refused ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// One provider row: a brand-tinted rule marks the leading edge, the name
+    /// carries the plan/tier chip, the status line is live, and the slot
+    /// toggle sits on the trailing edge behind whatever actions the provider
+    /// offers. Guests carry no action buttons — their only recovery is signing
+    /// in with their own tool. No card chrome: separation is a hairline plus
+    /// whitespace (macOS owner call, 2026-08-08: 不喜欢卡片质感).
+    private UIElement ProviderRow(DisplayProvider provider)
+    {
+        var accent = ProviderIdentity.Accent(provider);
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var rule = new Border
+        {
+            Width = 2,
+            CornerRadius = new CornerRadius(1),
+            Margin = new Thickness(0, 6, 12, 6),
+        };
+        Grid.SetColumn(rule, 0);
+        grid.Children.Add(rule);
+
+        var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
+        titleRow.Children.Add(new TextBlock
+        {
+            Text = provider.DisplayName(),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.95)),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var chipText = new TextBlock
+        {
+            FontFamily = IslandFonts.Ui,
+            FontSize = 9,
+            FontWeight = FontWeights.Bold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.62)),
+        };
+        var chip = new Border
+        {
+            Child = chipText,
+            CornerRadius = new CornerRadius(3),
+            Background = IslandColors.Brush(IslandColors.White(0.07)),
+            Padding = new Thickness(5, 2, 5, 2),
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Visibility = Visibility.Collapsed,
+        };
+        titleRow.Children.Add(chip);
+
+        var status = new TextBlock
+        {
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.66)),
+            Margin = new Thickness(0, 3, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(titleRow);
+        text.Children.Add(status);
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+
+        var trailing = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0),
+        };
+        PillButtonControl? reauth = null;
+        PillButtonControl? pasteLogin = null;
+        if (provider.HasFullMonitoring())
+        {
+            var tool = provider.ToTriggerTool();
+            if (provider == DisplayProvider.Codex)
+            {
+                trailing.Children.Add(CodexAccountMenuButton());
+            }
+            if (provider == DisplayProvider.Claude)
+            {
+                // ONE sign-in button by default. The code fallback appears in
+                // the same spot only after a browser round has actually
+                // failed — progressive disclosure, not a toolbar (owner
+                // review, 2026-08-08: 搞成这样子很奇怪).
+                pasteLogin = new PillButtonControl(L10n.Tr("Sign in with a code"))
+                {
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Visibility = Visibility.Collapsed,
+                };
+                pasteLogin.Clicked += StartClaudePasteLogin;
+                trailing.Children.Add(pasteLogin);
+            }
+            reauth = new PillButtonControl(L10n.Tr("Re-authenticate"))
+            {
+                Margin = new Thickness(0, 0, 8, 0),
+                Visibility = Visibility.Collapsed,
+            };
+            reauth.Clicked += () => ReauthFlow.Run(tool);
+            trailing.Children.Add(reauth);
+        }
+        var toggle = new CobaltToggle(ProviderVisibilityStore.Shared.IsEnabled(provider))
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        trailing.Children.Add(toggle);
+        Grid.SetColumn(trailing, 2);
+        grid.Children.Add(trailing);
+
+        var row = new Border
+        {
+            Child = grid,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 12, 10, 12),
+            Background = Brushes.Transparent,
+        };
+        // Hover breathes a faint brand wash across the row and widens the
+        // rule a hair; the rule itself dims when the provider holds no slot.
+        Brush wash = new LinearGradientBrush(
+            new GradientStopCollection
+            {
+                new GradientStop(IslandColors.Alpha(accent, 0.05), 0),
+                new GradientStop(Colors.Transparent, 1),
+            },
+            new Point(0, 0),
+            new Point(1, 0));
+        var hovered = false;
+        void Paint()
+        {
+            var occupied = ProviderVisibilityStore.Shared.IsEnabled(provider);
+            row.Background = hovered ? wash : Brushes.Transparent;
+            rule.Width = hovered ? 3 : 2;
+            rule.Background = IslandColors.Brush(IslandColors.Alpha(
+                accent, occupied ? (hovered ? 1 : 0.85) : (hovered ? 0.45 : 0.22)));
+        }
+        row.MouseEnter += (_, _) =>
+        {
+            hovered = true;
+            Paint();
+        };
+        row.MouseLeave += (_, _) =>
+        {
+            hovered = false;
+            Paint();
+        };
+
         toggle.Toggled += enabled =>
         {
-            if (tool == TriggerTool.Claude) ProviderVisibilityStore.Shared.ClaudeVisible = enabled;
-            else ProviderVisibilityStore.Shared.CodexVisible = enabled;
+            // A third pick is REFUSED, never a silent eviction of an earlier
+            // one. The switch snaps back to what the store actually holds
+            // instead of sitting there showing a state nobody accepted, and
+            // the header says why in one line.
+            if (!ProviderVisibilityStore.Shared.SetEnabled(provider, enabled))
+            {
+                toggle.IsOn = ProviderVisibilityStore.Shared.IsEnabled(provider);
+                ShowSlotLimit(true);
+                return;
+            }
+            ShowSlotLimit(false);
+            if (enabled) KickGuestRefresh(provider);
+            RefreshProviderRows();
         };
-        toggle.VerticalAlignment = VerticalAlignment.Center;
-        trailing.Children.Add(toggle);
 
-        return new SettingsRowControl(
-            tool.Display(),
-            ProviderSubtitle(usage),
-            trailing,
-            dot: IslandColors.For(tool),
-            chip: usage.Plan?.ToUpperInvariant());
+        void Refresh()
+        {
+            toggle.IsOn = ProviderVisibilityStore.Shared.IsEnabled(provider);
+            status.Text = ProviderStatus(provider);
+            var badge = ProviderChip(provider);
+            chipText.Text = badge ?? string.Empty;
+            chip.Visibility = string.IsNullOrEmpty(badge) ? Visibility.Collapsed : Visibility.Visible;
+            if (reauth is not null)
+            {
+                var available = provider == DisplayProvider.Claude
+                    ? ClaudeReauthAvailable()
+                    : CodexReauthAvailable();
+                var waiting = provider == DisplayProvider.Claude
+                    ? UsageStore.Shared.ClaudeReauthInProgress
+                    : UsageStore.Shared.CodexReauthInProgress;
+                reauth.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+                reauth.Label = waiting ? L10n.Tr("waiting for login…") : L10n.Tr("Re-authenticate");
+            }
+            if (pasteLogin is not null)
+            {
+                var store = UsageStore.Shared;
+                pasteLogin.Visibility = store.ClaudeReauthFailureCaption is not null
+                    && !store.ClaudeReauthInProgress
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+            Paint();
+        }
+
+        _providerRefreshers.Add(Refresh);
+        Refresh();
+
+        var host = new StackPanel();
+        host.Children.Add(row);
+        host.Children.Add(new Border
+        {
+            Height = 1,
+            Margin = new Thickness(10, 0, 10, 0),
+            Background = IslandColors.Brush(IslandColors.White(0.05)),
+        });
+        return host;
+    }
+
+    /// A guest slot just turned on: fetch now instead of waiting out the next
+    /// usage poll. The guest stores gate themselves on the selection, so an
+    /// unselected provider had never fetched at all.
+    private static void KickGuestRefresh(DisplayProvider provider)
+    {
+        switch (provider)
+        {
+            case DisplayProvider.Gemini:
+                GeminiUsageStore.Shared.KickRefresh();
+                break;
+            case DisplayProvider.Grok:
+                GrokUsageStore.Shared.KickRefresh();
+                break;
+            case DisplayProvider.Cursor:
+                CursorUsageStore.Shared.KickRefresh();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static string ProviderStatus(DisplayProvider provider) => provider switch
+    {
+        DisplayProvider.Claude => ClaudeStatus(),
+        DisplayProvider.Codex => ProviderSubtitle(UsageStore.Shared.Codex),
+        DisplayProvider.Gemini => GeminiStatus(),
+        DisplayProvider.Grok => GrokStatus(),
+        DisplayProvider.Cursor => CursorStatus(),
+        _ => string.Empty,
+    };
+
+    private static string? ProviderChip(DisplayProvider provider)
+    {
+        var visibility = ProviderVisibilityStore.Shared;
+        return provider switch
+        {
+            DisplayProvider.Claude => UsageStore.Shared.Claude.Plan?.ToUpperInvariant(),
+            DisplayProvider.Codex => UsageStore.Shared.Codex.Plan?.ToUpperInvariant(),
+            // A badge for a provider with no login on this machine would be a
+            // leftover from a cached snapshot, not a fact about this machine.
+            DisplayProvider.Gemini => visibility.GeminiDetected ? GeminiUsageStore.Shared.TierBadge : null,
+            DisplayProvider.Grok => visibility.GrokDetected ? GrokUsageStore.Shared.AuthModeBadge : null,
+            DisplayProvider.Cursor => visibility.CursorDetected ? CursorUsageStore.Shared.PlanBadge : null,
+            _ => null,
+        };
     }
 
     /// "synced 2m ago · 69% / 33%" — the most authoritative diagnostic
@@ -896,19 +1240,533 @@ public sealed class SettingsWindow : Window
         var synced = UsageStore.Shared.LastUpdated is { } updated
             ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsChinese))
             : L10n.Tr("idle");
-        var caption = usage.SecondaryMissing
-            ? WindowCaption(usage.FiveHour)
-            : $"{WindowCaption(usage.FiveHour)} / {WindowCaption(usage.Weekly)}";
+        var five = WindowCaption(usage.FiveHour);
+        var week = WindowCaption(usage.Weekly);
+        // Both windows failing the same way is ONE fact — "⚠ login required /
+        // ⚠ login required" read as a stutter bug (macOS owner screenshot,
+        // 2026-08-08).
+        var caption = usage.SecondaryMissing || (five == week && five.StartsWith("⚠", StringComparison.Ordinal))
+            ? five
+            : $"{five} / {week}";
         return $"{synced} · {caption}";
     }
 
     private static string WindowCaption(WindowUsage window)
     {
-        if (window.Error is { } error && window.UsedPercent == 0)
+        // Gate on the PRINTED number, not the raw fraction: Swift tests
+        // percentInt, so a merged stale window sitting at 0.4% printed "0%"
+        // on Windows while macOS surfaced its error caption.
+        var percent = Formatting.PercentInt(window.UsedPercent);
+        if (window.Error is { } error && percent == 0)
         {
             return "⚠ " + ErrorDisplay.Localize(error);
         }
-        return $"{(int)Math.Round(window.UsedPercent * 100)}%";
+        return $"{percent}%";
+    }
+
+    /// Guest rows read like the Claude/Codex rows — sync freshness first, then
+    /// the quota numbers. The account email deliberately stays out of the line:
+    /// a row leading with a bare email read as a glitch (macOS owner report,
+    /// 2026-08-08); identity lives in the usage-strip hover instead.
+    private static string GeminiStatus()
+    {
+        var store = GeminiUsageStore.Shared;
+        // An api-key / vertex-ai login IS detected but can never be read, so
+        // saying "not detected" would send people hunting for a broken CLI.
+        if (store.UnsupportedAuthType is { } authType)
+        {
+            return L10n.TrFormat("Not available — {0} authentication isn't supported yet", authType);
+        }
+        if (!ProviderVisibilityStore.Shared.GeminiDetected)
+        {
+            return L10n.Tr("Not detected — sign in with the gemini CLI");
+        }
+        var parts = new List<string> { GuestSync(store.LastUpdated) };
+        if (store.StatusCaption is { } caption)
+        {
+            parts.Add("⚠ " + ErrorDisplay.Localize(caption));
+        }
+        else if (store.Snapshot is { } snapshot)
+        {
+            if (snapshot.PrimaryPro is { } pro)
+            {
+                parts.Add(L10n.TrFormat("pro {0}%", Percent(pro.UsedPercent)));
+            }
+            if (snapshot.SecondaryFlash is { } flash)
+            {
+                parts.Add(L10n.TrFormat("flash {0}%", Percent(flash.UsedPercent)));
+            }
+        }
+        return string.Join(" · ", parts);
+    }
+
+    /// A failed browser sign-in has to SAY what went wrong. The old path
+    /// swallowed the reason and spawned a terminal running a retired CLI
+    /// command, which surfaced as an "authentication failed" from nowhere
+    /// (owner repro, 2026-08-08). The reason replaces the usage numbers only
+    /// while it is fresh — a later successful round clears it.
+    private static string ClaudeStatus()
+    {
+        var subtitle = ProviderSubtitle(UsageStore.Shared.Claude);
+        var store = UsageStore.Shared;
+        if (store.ClaudeReauthFailureCaption is not { } reason || store.ClaudeReauthInProgress)
+        {
+            return subtitle;
+        }
+        return $"{subtitle} · ⚠ {ErrorDisplay.Localize(reason)}";
+    }
+
+    private static string GrokStatus()
+    {
+        var store = GrokUsageStore.Shared;
+        if (!ProviderVisibilityStore.Shared.GrokDetected)
+        {
+            return L10n.Tr("Not detected — sign in with the grok CLI");
+        }
+        var parts = new List<string> { GuestSync(store.LastUpdated) };
+        if (store.ErrorCaption is { } caption)
+        {
+            parts.Add("⚠ " + ErrorDisplay.Localize(caption));
+        }
+        else if (store.Snapshot is { } snapshot)
+        {
+            parts.Add(L10n.TrFormat("week {0}%", Percent(snapshot.WeeklyUsedPercent)));
+        }
+        return string.Join(" · ", parts);
+    }
+
+    private static string CursorStatus()
+    {
+        var store = CursorUsageStore.Shared;
+        if (!ProviderVisibilityStore.Shared.CursorDetected)
+        {
+            return L10n.Tr("Not detected — sign in inside Cursor");
+        }
+        var parts = new List<string> { GuestSync(store.LastUpdated) };
+        if (store.ErrorCaption is { } caption)
+        {
+            parts.Add("⚠ " + ErrorDisplay.Localize(caption));
+        }
+        else if (store.Snapshot is { } snapshot)
+        {
+            parts.Add(L10n.TrFormat("cycle {0}%", Percent(snapshot.UsedPercent)));
+        }
+        return string.Join(" · ", parts);
+    }
+
+    private static string GuestSync(DateTimeOffset? updated) => updated is { } stamp
+        ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - stamp, L10n.IsChinese))
+        : L10n.Tr("idle");
+
+    private static int Percent(double fraction) => Formatting.PercentInt(fraction);
+
+    /// #31: the button rides the CURRENT auth state, not the mere presence of
+    /// a CLI on disk — the inherited gate parked a permanent Re-authenticate
+    /// beside a perfectly healthy row (owner review, 2026-08-08:
+    /// 已经登录了为什么会出现重新认证). Kept visible while a login is in
+    /// flight so the "waiting" state doesn't vanish mid-flow. Claude's web
+    /// login needs no CLI, so there is no binary check here at all.
+    private static bool ClaudeReauthAvailable()
+    {
+        if (UsageStore.Shared.ClaudeReauthInProgress) return true;
+        var usage = UsageStore.Shared.Claude;
+        return ClaudeCredentials.IsAuthRecoverableError(usage.FiveHour.Error)
+            || ClaudeCredentials.IsAuthRecoverableError(usage.Weekly.Error);
+    }
+
+    /// Codex has no in-app login, so a locatable CLI stays a precondition for
+    /// the terminal flow — but it is not, on its own, a reason to offer
+    /// re-auth. Mirrors macOS CodexCredentials.canPromptReauth(usage:), which
+    /// the Windows CodexCredentials.CanPromptReauth() (CLI-only) does not.
+    private static bool CodexReauthAvailable()
+    {
+        if (UsageStore.Shared.CodexReauthInProgress) return true;
+        // Caption test FIRST. CanPromptReauth is a full disk probe (dozens of
+        // stats plus a PATH scan), and this runs on the UI thread once per
+        // PropertyChanged from five stores — roughly seven times per poll
+        // while the window is open. A healthy Codex row never pays for it.
+        var usage = UsageStore.Shared.Codex;
+        if (!MentionsAuthFailure(usage.FiveHour.Error) && !MentionsAuthFailure(usage.Weekly.Error))
+        {
+            return false;
+        }
+        return CodexCredentials.CanPromptReauth();
+    }
+
+    private static bool MentionsAuthFailure(string? message) =>
+        message is not null
+        && (message.Contains("auth", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("login", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("401", StringComparison.Ordinal));
+
+    /// One-click Codex account switching: park the live login under a name,
+    /// swap between parked logins, and opt into auto-rotation when the active
+    /// account runs dry (macOS codexAccountMenu). The label turns amber once
+    /// the auto-switcher has rotated on its own — that is the only trace it
+    /// leaves, and the row should say so.
+    private UIElement CodexAccountMenuButton()
+    {
+        var label = new TextBlock
+        {
+            Text = L10n.Tr("Accounts"),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+        };
+        var button = new Border
+        {
+            Child = label,
+            CornerRadius = new CornerRadius(6),
+            Background = IslandColors.Brush(IslandColors.White(0.09)),
+            Padding = new Thickness(10, 5, 10, 5),
+            Margin = new Thickness(0, 0, 8, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        button.MouseLeftButtonUp += (_, args) =>
+        {
+            OpenCodexAccountMenu(button);
+            args.Handled = true;
+        };
+
+        void Refresh()
+        {
+            var switched = UsageStore.Shared.CodexAutoSwitched;
+            label.Foreground = IslandColors.Brush(switched is null
+                ? IslandColors.White(0.85)
+                : IslandColors.Alpha(IslandColors.AlertAmber, 0.9));
+            button.ToolTip = switched is null
+                ? L10n.Tr("Switch Codex account")
+                : L10n.TrFormat("Auto-switched to {0}", switched);
+        }
+
+        _providerRefreshers.Add(Refresh);
+        Refresh();
+        return button;
+    }
+
+    private void OpenCodexAccountMenu(FrameworkElement anchor)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = anchor,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+            Background = IslandColors.Brush(Color.FromRgb(0x12, 0x12, 0x16)),
+            BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
+            BorderThickness = new Thickness(1),
+            Foreground = IslandColors.Brush(IslandColors.White(0.90)),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+        };
+
+        var accounts = CodexAccountSwitcher.Accounts();
+        var active = CodexAccountSwitcher.ActiveLabel();
+        if (accounts.Count == 0)
+        {
+            menu.Items.Add(new MenuItem
+            {
+                Header = L10n.Tr("No saved accounts yet"),
+                IsEnabled = false,
+            });
+        }
+        else
+        {
+            foreach (var account in accounts)
+            {
+                var captured = account;
+                // The tick lives in the header text, not IsChecked: a
+                // checkable item toggles its own mark on click and would then
+                // claim a login is live before the swap even succeeded.
+                var item = new MenuItem
+                {
+                    Header = string.Equals(account.Label, active, StringComparison.Ordinal)
+                        ? "✓ " + account.Label
+                        : account.Label,
+                };
+                item.Click += (_, _) =>
+                {
+                    if (!CodexAccountSwitcher.Activate(captured)) return;
+                    // The badge described the previous rotation; a manual pick
+                    // supersedes it (macOS parity).
+                    UsageStore.Shared.CodexAutoSwitched = null;
+                    UsageStore.Shared.Refresh();
+                    RefreshProviderRows();
+                };
+                menu.Items.Add(item);
+            }
+
+            menu.Items.Add(new Separator());
+            var remove = new MenuItem { Header = L10n.Tr("Remove saved account") };
+            foreach (var account in accounts)
+            {
+                var captured = account;
+                var child = new MenuItem { Header = account.Label };
+                child.Click += (_, _) =>
+                {
+                    CodexAccountSwitcher.Forget(captured);
+                    RefreshProviderRows();
+                };
+                remove.Items.Add(child);
+            }
+            menu.Items.Add(remove);
+            menu.Items.Add(new Separator());
+        }
+
+        var save = new MenuItem { Header = L10n.Tr("Save current account…") };
+        save.Click += (_, _) => PromptParkCodexAccount();
+        menu.Items.Add(save);
+        menu.Items.Add(new Separator());
+
+        var auto = new MenuItem
+        {
+            Header = L10n.Tr("Auto-switch when exhausted"),
+            IsCheckable = true,
+            IsChecked = CodexAccountSwitcher.AutoSwitchEnabled,
+        };
+        auto.Click += (_, _) => CodexAccountSwitcher.AutoSwitchEnabled = auto.IsChecked;
+        menu.Items.Add(auto);
+
+        menu.IsOpen = true;
+    }
+
+    /// Paste-code sign-in: open Anthropic's own code page, let it show a code,
+    /// take that code back through a plain text field. Independent of which
+    /// browser profile holds the claude.ai session, and of whether a loopback
+    /// listener can bind at all — which is exactly why it is the fallback the
+    /// failure caption unlocks.
+    private void StartClaudePasteLogin()
+    {
+        var ticket = ClaudeCredentials.BeginPasteLogin();
+        // The return value is deliberately ignored: if the default browser
+        // won't open, the dialog's own "Copy link" is the remedy, and showing
+        // an error instead would hide it.
+        _ = ClaudeWebLogin.OpenInBrowser(ticket.Url);
+        var pasted = NamePrompt.Ask(
+            this,
+            L10n.Tr("Sign in with a code"),
+            L10n.Tr("Approve the page that just opened, then paste the code it shows here"),
+            L10n.Tr("Paste the code"),
+            confirmLabel: L10n.Tr("Sign in"),
+            // An authorization code plus its state fragment runs well past the
+            // 40-character label cap the account prompt uses.
+            maxLength: 4096,
+            extraLabel: L10n.Tr("Copy link"),
+            extraAction: () =>
+            {
+                // Clipboard access can throw when another process holds it
+                // open; a failed copy must not take down the dialog.
+                try { System.Windows.Clipboard.SetText(ticket.Url); }
+                catch { }
+            });
+        if (pasted is null) return;
+        _ = CompleteClaudePasteLogin(pasted, ticket);
+    }
+
+    private async Task CompleteClaudePasteLogin(string pasted, ClaudeCredentials.PasteLoginTicket ticket)
+    {
+        bool ok;
+        try
+        {
+            ok = await ClaudeCredentials.CompletePasteLogin(pasted, ticket.Verifier, ticket.State);
+        }
+        catch
+        {
+            ok = false;
+        }
+        if (ok)
+        {
+            UsageStore.Shared.ClearClaudeReauthFailure();
+            UsageStore.Shared.Refresh();
+            RefreshProviderRows();
+            return;
+        }
+        IslandDialog.ShowApp(
+            L10n.Tr("That code did not work"),
+            L10n.Tr("Copy the whole code from the page and try once more"),
+            secondaryLabel: L10n.Tr("OK"));
+    }
+
+    private void PromptParkCodexAccount()
+    {
+        var label = NamePrompt.Ask(
+            this,
+            L10n.Tr("Save current account"),
+            L10n.Tr("Give this login a name so you can switch back to it later"),
+            L10n.Tr("work / personal"));
+        if (label is null) return;
+        if (!CodexAccountSwitcher.ParkCurrent(label)) return;
+        RefreshProviderRows();
+    }
+
+    /// Single-field name prompt for parking the live Codex login — the
+    /// island-styled stand-in for macOS's NSAlert accessory text field.
+    /// IslandDialog carries no input form and this is the only place in the
+    /// app that needs one.
+    private sealed class NamePrompt : Window
+    {
+        private readonly TextBox _field;
+        private bool _accepted;
+
+        private NamePrompt(
+            string title,
+            string message,
+            string placeholder,
+            string confirmLabel,
+            int maxLength,
+            string? extraLabel,
+            Action? extraAction)
+        {
+            Width = 400;
+            SizeToContent = SizeToContent.Height;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+            ShowInTaskbar = false;
+            ResizeMode = ResizeMode.NoResize;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            Title = title;
+            System.Windows.Media.TextOptions.SetTextFormattingMode(
+                this, System.Windows.Media.TextFormattingMode.Display);
+
+            var card = new Border
+            {
+                CornerRadius = new CornerRadius(18),
+                Background = IslandColors.Brush(IslandColors.AlarmBackground),
+                BorderBrush = IslandColors.Brush(IslandColors.White(0.07)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(12),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 4,
+                    Direction = 270,
+                    BlurRadius = 18,
+                    Color = Colors.Black,
+                    Opacity = 0.55,
+                },
+            };
+            Content = card;
+
+            var stack = new StackPanel { Margin = new Thickness(28, 24, 28, 22) };
+            card.Child = stack;
+            stack.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontFamily = IslandFonts.Ui,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = IslandColors.Brush(IslandColors.White(0.95)),
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = message,
+                FontFamily = IslandFonts.Ui,
+                FontSize = 12,
+                Foreground = IslandColors.Brush(IslandColors.White(0.60)),
+                Margin = new Thickness(0, 6, 0, 14),
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            _field = new TextBox
+            {
+                FontFamily = IslandFonts.Ui,
+                FontSize = 13,
+                Foreground = IslandColors.Brush(IslandColors.White(0.95)),
+                CaretBrush = IslandColors.Brush(IslandColors.White(0.80)),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                // The switcher caps stored labels at 40 characters anyway;
+                // stopping here means the name the user typed is the name
+                // they get back in the menu. An OAuth code is far longer, so
+                // the cap is per-prompt rather than a constant.
+                MaxLength = maxLength,
+            };
+            var hint = new TextBlock
+            {
+                Text = placeholder,
+                FontFamily = IslandFonts.Ui,
+                FontSize = 13,
+                Foreground = IslandColors.Brush(IslandColors.White(0.28)),
+                IsHitTestVisible = false,
+            };
+            _field.TextChanged += (_, _) =>
+                hint.Visibility = _field.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            var fieldLayer = new Grid();
+            fieldLayer.Children.Add(hint);
+            fieldLayer.Children.Add(_field);
+            stack.Children.Add(new Border
+            {
+                Child = fieldLayer,
+                CornerRadius = new CornerRadius(8),
+                Background = IslandColors.Brush(IslandColors.White(0.06)),
+                BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 8, 10, 8),
+            });
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 16, 0, 0),
+            };
+            if (extraLabel is not null && extraAction is { } onExtra)
+            {
+                // "Copy link" is a side action, not an exit: it puts the URL
+                // on the clipboard and leaves the dialog up, because the user
+                // still has to come back and paste the code.
+                var extra = new PillButtonControl(extraLabel) { Margin = new Thickness(0, 0, 8, 0) };
+                extra.Clicked += () => onExtra();
+                buttons.Children.Add(extra);
+            }
+            var cancel = new PillButtonControl(L10n.Tr("Cancel")) { Margin = new Thickness(0, 0, 8, 0) };
+            cancel.Clicked += Close;
+            var confirm = new PillButtonControl(confirmLabel);
+            confirm.Clicked += Accept;
+            buttons.Children.Add(cancel);
+            buttons.Children.Add(confirm);
+            stack.Children.Add(buttons);
+
+            KeyDown += (_, args) =>
+            {
+                if (args.Key == System.Windows.Input.Key.Enter) Accept();
+                else if (args.Key == System.Windows.Input.Key.Escape) Close();
+            };
+            Loaded += (_, _) => _field.Focus();
+        }
+
+        private void Accept()
+        {
+            _accepted = true;
+            Close();
+        }
+
+        /// The typed text, or null when the prompt was dismissed or left blank.
+        public static string? Ask(
+            Window owner,
+            string title,
+            string message,
+            string placeholder,
+            string? confirmLabel = null,
+            int maxLength = 40,
+            string? extraLabel = null,
+            Action? extraAction = null)
+        {
+            var prompt = new NamePrompt(
+                title,
+                message,
+                placeholder,
+                confirmLabel ?? L10n.Tr("Save"),
+                maxLength,
+                extraLabel,
+                extraAction)
+            {
+                Owner = owner,
+            };
+            prompt.ShowDialog();
+            if (!prompt._accepted) return null;
+            var value = prompt._field.Text.Trim();
+            return value.Length == 0 ? null : value;
+        }
     }
 
     // MARK: - Triggers
@@ -1051,7 +1909,13 @@ public sealed class SettingsWindow : Window
                         .ToList())
                 .ContinueWith(task =>
                 {
-                    var scanned = task.Result;
+                    // task.Result rethrows a faulted scan inside a continuation
+                    // nobody observes, which would leave the picker stuck on
+                    // "Loading…" with no way back. An empty list at least lets
+                    // the ↻ button try again.
+                    var scanned = task.IsCompletedSuccessfully
+                        ? task.Result
+                        : new List<Core.ScannedSession>();
                     Dispatcher.BeginInvoke(() =>
                     {
                         if (tool != requestedTool) return;
@@ -1240,12 +2104,9 @@ public sealed class SettingsWindow : Window
             "Show session and project names in alarms and notifications.",
             details));
 
-        var subagents = new CobaltToggle(SubagentAlarmStore.Shared.Enabled);
-        subagents.Toggled += value => SubagentAlarmStore.Shared.Enabled = value;
-        stack.Children.Add(new SettingsRowControl(
-            "Subagent alarms",
-            "Also alarm when orchestrated subagents finish. Off: only your own threads alarm.",
-            subagents));
+        // The subagent-alarm toggle is gone: orchestrated subagents and child
+        // threads are now skipped by the scanner outright, so there is no
+        // setting left to expose.
 
         // The exhaustion-alarm opt-out: some people only want auto-resume and
         // treat the "out of quota" popup as noise. Subtitle nil, matching mac.

@@ -26,59 +26,68 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private ActivityState _claude = ActivityState.Idle;
-    private ActivityState _codex = ActivityState.Idle;
-    private ActiveThread? _claudeThread;
-    private ActiveThread? _codexThread;
-    private ActivityState? _demoClaude;
-    private ActivityState? _demoCodex;
-    private ActivityState _rawClaude = ActivityState.Idle;
-    private ActivityState _rawCodex = ActivityState.Idle;
+    /// Providers whose session status is actually scanned. Cursor is absent
+    /// on purpose: its conversation-search.db is a batch search cache, not a
+    /// live stream — several rows commonly share one mtime — so publishing it
+    /// as status would present stale state as fresh.
+    private static readonly TriggerTool[] MonitoredProviders =
+    {
+        TriggerTool.Claude,
+        TriggerTool.Codex,
+        TriggerTool.Grok,
+        TriggerTool.Gemini,
+    };
+
+    // Per-provider maps rather than per-provider fields: with fields, every
+    // provider past Codex silently read CODEX's state (the macOS 2.1.1 bug
+    // this port fixes). Replaced wholesale on each scan, never mutated in
+    // place, so a binding reading `States` can never see a half-built map.
+    private Dictionary<TriggerTool, ActivityState> _states = new();
+    private Dictionary<TriggerTool, ActivityState> _rawStates = new();
+    private Dictionary<TriggerTool, ActiveThread> _threads = new();
+    private Dictionary<TriggerTool, ActivityState> _demoStates = new();
     private Dictionary<string, DateTimeOffset> _lastWorking = new();
 
-    public ActivityState Claude
-    {
-        get => _demoClaude ?? _claude;
-        private set { _claude = value; Raise(nameof(Claude)); }
-    }
+    /// Visible state for every monitored provider. Raised as one change so
+    /// five-wide surfaces refresh together.
+    public IReadOnlyDictionary<TriggerTool, ActivityState> States => _states;
 
-    public ActivityState Codex
-    {
-        get => _demoCodex ?? _codex;
-        private set { _codex = value; Raise(nameof(Codex)); }
-    }
+    public IReadOnlyDictionary<TriggerTool, ActiveThread> Threads => _threads;
 
-    public ActiveThread? ClaudeThread
+    public ActivityState StateFor(TriggerTool provider)
     {
-        get => _claudeThread;
-        private set { _claudeThread = value; Raise(nameof(ClaudeThread)); }
+        if (_demoStates.TryGetValue(provider, out var demo)) return demo;
+        return _states.TryGetValue(provider, out var state) ? state : ActivityState.Idle;
     }
-
-    public ActiveThread? CodexThread
-    {
-        get => _codexThread;
-        private set { _codexThread = value; Raise(nameof(CodexThread)); }
-    }
-
-    public ActivityState StateFor(TriggerTool provider) =>
-        provider == TriggerTool.Claude ? Claude : Codex;
 
     /// Pre-overlay scan state. The turn-alarm confirm gate must read this:
     /// the usage overlay (rateLimited/authRequired outrank needsYou) would
     /// otherwise swallow alarms exactly when the quota is exhausted or the
     /// network is down — the moments a finished turn most needs surfacing.
     public ActivityState RawStateFor(TriggerTool provider) =>
-        provider == TriggerTool.Claude ? _rawClaude : _rawCodex;
+        _rawStates.TryGetValue(provider, out var state) ? state : ActivityState.Idle;
 
     public ActiveThread? ThreadFor(TriggerTool provider) =>
-        provider == TriggerTool.Claude ? ClaudeThread : CodexThread;
+        _threads.TryGetValue(provider, out var thread) ? thread : null;
 
+    // The island and tray bind to these two by name; they stay as thin views
+    // over the maps so those bindings keep working unchanged.
+    public ActivityState Claude => StateFor(TriggerTool.Claude);
+    public ActivityState Codex => StateFor(TriggerTool.Codex);
+    public ActiveThread? ClaudeThread => ThreadFor(TriggerTool.Claude);
+    public ActiveThread? CodexThread => ThreadFor(TriggerTool.Codex);
+
+    /// Recording rig / settings preview: pins every provider's published
+    /// state, or clears the pin when passed null.
     public void Demo(ActivityState? state)
     {
-        _demoClaude = state;
-        _demoCodex = state;
-        Raise(nameof(Claude));
-        Raise(nameof(Codex));
+        var next = new Dictionary<TriggerTool, ActivityState>();
+        if (state is { } forced)
+        {
+            foreach (var tool in TriggerToolExtensions.All) next[tool] = forced;
+        }
+        _demoStates = next;
+        RaiseAll();
     }
 
     private DispatcherTimer? _timer;
@@ -157,50 +166,75 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
         }
         _scanInFlight = true;
         var now = DateTimeOffset.UtcNow;
-        var lastWorkingSnapshot = new Dictionary<string, DateTimeOffset>(_lastWorking);
+        // The comparer has to be restated: the copy constructor takes the
+        // entries but NOT the source's comparer, and the scanner looks these
+        // paths up again — Windows hands back whatever casing the directory
+        // entry carries, so an ordinal snapshot would lose a session's
+        // last-working stamp and downgrade a stall to idle.
+        var lastWorkingSnapshot = new Dictionary<string, DateTimeOffset>(
+            _lastWorking, StringComparer.OrdinalIgnoreCase);
         Task.Run(() => SessionScanner.MonitoringScan(now, lastWorkingSnapshot))
             .ContinueWith(task =>
             {
                 var sessions = task.IsCompletedSuccessfully ? task.Result : new List<ScannedSession>();
-                Apply(sessions, now);
-                _scanInFlight = false;
+                // Apply reaches the alarm center and every bound surface. A
+                // throw there is swallowed by the continuation's own task, so
+                // without the finally the in-flight flag would latch and the
+                // monitor would silently never scan again.
+                try
+                {
+                    Apply(sessions, now);
+                }
+                finally
+                {
+                    _scanInFlight = false;
+                }
                 if (_rescanQueued)
                 {
                     _rescanQueued = false;
                     Tick();
                 }
-            }, _dispatcher is { } d
+            }, _dispatcher is not null
                 ? TaskScheduler.FromCurrentSynchronizationContext()
                 : TaskScheduler.Default);
     }
 
     private void Apply(List<ScannedSession> sessions, DateTimeOffset now)
     {
-        var claudeResult = BestSession(sessions, TriggerTool.Claude,
-            thread => AgentReminderCenter.Shared.HasAcknowledged(TriggerTool.Claude, thread));
-        var codexResult = BestSession(sessions, TriggerTool.Codex,
-            thread => AgentReminderCenter.Shared.HasAcknowledged(TriggerTool.Codex, thread));
         // Usage-level attention (rate-limited / auth-required red) only
         // applies to providers switched ON in Settings. Someone who only
         // runs Claude keeps Codex hidden - its missing login must not
         // pulse the island red forever.
         var visibility = Model.ProviderVisibilityStore.Shared;
-        var claude = visibility.ClaudeShown
-            ? OverlayUsageAttention(claudeResult.State, UsageStore.Shared.Claude)
-            : claudeResult.State;
-        var codex = visibility.CodexShown
-            ? OverlayUsageAttention(codexResult.State, UsageStore.Shared.Codex)
-            : codexResult.State;
         UpdateLastWorking(sessions, now);
-        _rawClaude = claudeResult.State;
-        _rawCodex = codexResult.State;
-        ClaudeThread = claudeResult.Thread;
-        Claude = claude;
-        AgentReminderCenter.Shared.Handle(TriggerTool.Claude, NeedsYouThreads(sessions, TriggerTool.Claude));
-        CodexThread = codexResult.Thread;
-        Codex = codex;
-        AgentReminderCenter.Shared.Handle(TriggerTool.Codex, NeedsYouThreads(sessions, TriggerTool.Codex));
+        var nextStates = new Dictionary<TriggerTool, ActivityState>();
+        var nextRaw = new Dictionary<TriggerTool, ActivityState>();
+        var nextThreads = new Dictionary<TriggerTool, ActiveThread>();
+        foreach (var tool in MonitoredProviders)
+        {
+            var result = BestSession(sessions, tool,
+                thread => AgentReminderCenter.Shared.HasAcknowledged(tool, thread));
+            nextRaw[tool] = result.State;
+            if (result.Thread is { } thread) nextThreads[tool] = thread;
+            nextStates[tool] = visibility.IsVisible(tool)
+                ? OverlayUsageAttention(result.State, UsageFor(tool))
+                : result.State;
+            AgentReminderCenter.Shared.Handle(tool, NeedsYouThreads(sessions, tool));
+        }
+        _rawStates = nextRaw;
+        _threads = nextThreads;
+        _states = nextStates;
+        RaiseAll();
     }
+
+    /// Only Claude and Codex have a usage endpoint; the guests carry no quota
+    /// of their own, so nothing can overlay onto their scan state.
+    private static AppUsage UsageFor(TriggerTool tool) => tool switch
+    {
+        TriggerTool.Claude => UsageStore.Shared.Claude,
+        TriggerTool.Codex => UsageStore.Shared.Codex,
+        _ => AppUsage.Empty,
+    };
 
     private void UpdateLastWorking(List<ScannedSession> sessions, DateTimeOffset now)
     {
@@ -313,6 +347,20 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
         session.TranscriptPath,
         session.TurnKey,
         session.LaunchTarget);
+
+    /// Both the maps and the two named views have to be announced: the island
+    /// and tray listen for "Claude"/"Codex", the five-wide panel reads the
+    /// maps, and a provider whose notification is missing simply stops
+    /// updating on screen.
+    private void RaiseAll()
+    {
+        Raise(nameof(States));
+        Raise(nameof(Threads));
+        Raise(nameof(Claude));
+        Raise(nameof(Codex));
+        Raise(nameof(ClaudeThread));
+        Raise(nameof(CodexThread));
+    }
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

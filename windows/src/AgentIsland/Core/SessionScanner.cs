@@ -3,10 +3,14 @@ using System.Text;
 
 namespace AgentIsland.Core;
 
-/// Discovers Claude Code / Claude Desktop / Codex sessions from the local
-/// artifacts those tools already write, and classifies each one through a
-/// conservative state machine. Direct port of the macOS SessionScanner; the
-/// thresholds are the tuned values from the shipping app.
+/// Discovers Claude Code / Claude Desktop / Codex / Grok / Gemini sessions
+/// from the local artifacts those tools already write, and classifies each one
+/// through a conservative state machine. Direct port of the macOS
+/// SessionScanner; the thresholds are the tuned values from the shipping app.
+///
+/// Cursor is absent on purpose: its conversation-search.db is a batch search
+/// cache rather than a live stream, so it cannot answer "is this session
+/// running right now" honestly.
 public static class SessionScanner
 {
     private static readonly TimeSpan ActiveWindow = TimeSpan.FromSeconds(18);
@@ -21,11 +25,14 @@ public static class SessionScanner
 
     private const int MonitoringCodexLimit = 120;
 
+    private static string GrokSessionsRoot => Path.Combine(IslandPaths.Home, ".grok", "sessions");
+    private static string GeminiTmpRoot => Path.Combine(IslandPaths.Home, ".gemini", "tmp");
+
     // MARK: - Entry points
 
     /// Picker scan: desktop-titled Claude threads (archived filtered) UNION
-    /// transcript-only CLI threads the desktop store has never seen, plus
-    /// one Codex entry per project.
+    /// transcript-only CLI threads the desktop store has never seen, one Codex
+    /// entry per project, plus every Grok and Gemini session.
     public static List<ScannedSession> Scan(DateTimeOffset now, IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
     {
         var output = ScanClaudeFromDesktopStore(now, lastWorking);
@@ -33,19 +40,31 @@ public static class SessionScanner
         output.AddRange(ScanClaudeTranscripts(now, lastWorking, excludeArchived: true)
             .Where(s => !known.Contains(s.SessionId)));
         output.AddRange(ScanCodex(now, lastWorking, limit: 30, dedupeProjects: true));
+        output.AddRange(ScanGrok(now, lastWorking));
+        output.AddRange(ScanGemini(now, lastWorking));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
+        // Dedupe by session: the Claude Desktop store commonly holds the SAME
+        // cliSessionId under two project folders (23 of 41 on the reporting
+        // machine), so a raw file scan lists every such session twice in the
+        // picker. Sorted newest-first, keep the first sighting of each
+        // (tool, sessionId).
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        output.RemoveAll(session => !seen.Add(session.Id));
         return output;
     }
 
-    /// Monitoring scan: every Claude transcript (desktop-labelled when known)
-    /// + every recent Codex rollout, no project dedupe. Subagent threads only
-    /// participate when the user opted into subagent alarms.
+    /// Monitoring scan: every Claude transcript (desktop-labelled when known),
+    /// every recent Codex rollout with no project dedupe, plus every Grok and
+    /// Gemini session. Subagent / child threads never participate — machine
+    /// fan-out finishes dozens of threads per prompt and a human is never "up"
+    /// in any of them, so they are skipped outright rather than gated behind a
+    /// toggle (owner call, 2026-08-08).
     public static List<ScannedSession> MonitoringScan(DateTimeOffset now, IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
     {
-        var includeSubagents = Alarm.SubagentAlarmStore.Shared.Enabled;
-        var output = ScanClaudeTranscripts(now, lastWorking, excludeArchived: false, includeSubagents);
-        output.AddRange(ScanCodex(
-            now, lastWorking, limit: MonitoringCodexLimit, dedupeProjects: false, includeSubagents));
+        var output = ScanClaudeTranscripts(now, lastWorking, excludeArchived: false);
+        output.AddRange(ScanCodex(now, lastWorking, limit: MonitoringCodexLimit, dedupeProjects: false));
+        output.AddRange(ScanGrok(now, lastWorking));
+        output.AddRange(ScanGemini(now, lastWorking));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         return output;
     }
@@ -90,18 +109,12 @@ public static class SessionScanner
     private static List<ScannedSession> ScanClaudeTranscripts(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
-        bool excludeArchived = false,
-        bool includeSubagents = false)
+        bool excludeArchived = false)
     {
         var desktopSessions = ClaudeDesktopIndex();
         var output = new List<ScannedSession>();
-        foreach (var (sid, path) in ClaudeTranscriptIndex(includeSubagents))
+        foreach (var (sid, path) in ClaudeTranscriptIndex())
         {
-            if (IsClaudeSubagentTranscript(path))
-            {
-                if (AgentSession(path, now, lastWorking) is { } agent) output.Add(agent);
-                continue;
-            }
             desktopSessions.TryGetValue(sid, out var desktop);
             if (excludeArchived && desktop is { IsArchived: true }) continue;
             var cwd = desktop?.Cwd is { Length: > 0 } dc ? dc : CwdFromClaudeTranscript(path);
@@ -126,79 +139,6 @@ public static class SessionScanner
         return output;
     }
 
-    /// A subagent transcript scanned as an alarm source (opt-in). The thread
-    /// resumes through its PARENT session — `claude --resume` only accepts
-    /// real session ids, and every subagent line carries the parent's.
-    private static ScannedSession? AgentSession(
-        string path,
-        DateTimeOffset now,
-        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
-    {
-        var (parentSid, cwd) = ClaudeAgentMeta(path);
-        if (string.IsNullOrEmpty(parentSid)) return null;
-        var state = SessionState(path, now, lastWorking, null, SessionTurnState.ClaudeAgent);
-        var label = ClaudeAgentLabel(path);
-        return new ScannedSession(
-            TriggerTool.Claude,
-            parentSid,
-            cwd,
-            string.IsNullOrEmpty(label) ? Fallback(cwd, parentSid) : label,
-            state.Modified,
-            state.Status,
-            path,
-            state.TurnKey,
-            SessionLaunchTarget.Cli);
-    }
-
-    /// Parent session id + cwd from the transcript's own lines; falls back to
-    /// the nested layout's directory name (<parent-session>/subagents/…).
-    private static (string ParentSid, string Cwd) ClaudeAgentMeta(string path)
-    {
-        try
-        {
-            using var stream = new FileStream(
-                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-            for (var i = 0; i < 30 && reader.ReadLine() is { } line; i++)
-            {
-                using var doc = Jsonl.TryParseLine(line);
-                if (doc is null) continue;
-                var sid = Jsonl.GetString(doc.RootElement, "sessionId");
-                if (!string.IsNullOrEmpty(sid))
-                {
-                    return (sid!, Jsonl.GetString(doc.RootElement, "cwd") ?? "");
-                }
-            }
-        }
-        catch
-        {
-        }
-        var dir = Path.GetDirectoryName(path);
-        if (string.Equals(Path.GetFileName(dir), "subagents", StringComparison.OrdinalIgnoreCase)
-            && Path.GetDirectoryName(dir) is { } parentDir)
-        {
-            return (Path.GetFileName(parentDir), "");
-        }
-        return ("", "");
-    }
-
-    /// The sibling agent-<id>.meta.json carries the Task tool's one-line
-    /// description — the best available alarm title for a subagent.
-    private static string ClaudeAgentLabel(string path)
-    {
-        try
-        {
-            var metaPath = Path.ChangeExtension(path, ".meta.json");
-            if (!File.Exists(metaPath)) return "";
-            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(metaPath));
-            return Jsonl.GetString(doc.RootElement, "description") ?? "";
-        }
-        catch
-        {
-            return "";
-        }
-    }
-
     /// True when a transcript belongs to an orchestrated subagent rather
     /// than a user conversation: nested under a subagents/ directory (the
     /// current layout) or named agent-*.jsonl (flat layouts). Main session
@@ -210,14 +150,13 @@ public static class SessionScanner
         return segments[^1].StartsWith("agent-", StringComparison.OrdinalIgnoreCase);
     }
 
-    // MARK: - Codex: ~/.codex/sessions
+    // MARK: - Codex: %USERPROFILE%\.codex\sessions (CODEX_HOME overrides)
 
     public static List<ScannedSession> ScanCodex(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
         int limit = 30,
-        bool dedupeProjects = true,
-        bool includeSubagents = false)
+        bool dedupeProjects = true)
     {
         var root = IslandPaths.CodexSessionsRoot;
         if (!Directory.Exists(root)) return new List<ScannedSession>();
@@ -234,9 +173,12 @@ public static class SessionScanner
         var seenProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in files)
         {
-            if (CodexMeta(path) is not var (sid, cwd, kind) || string.IsNullOrEmpty(sid)) continue;
-            if (kind == CodexRolloutKind.Automation) continue;
-            if (kind == CodexRolloutKind.Subagent && !includeSubagents) continue;
+            if (CodexMeta(path) is not { } meta || string.IsNullOrEmpty(meta.Sid)) continue;
+            var (sid, cwd, kind) = meta;
+            // Neither machine tier ever surfaces: automation runs have no
+            // human in them at all, and subagent fan-out finishes constantly
+            // without anyone's turn coming up.
+            if (kind is CodexRolloutKind.Automation or CodexRolloutKind.Subagent) continue;
             var projectKey = string.IsNullOrEmpty(cwd) ? sid : cwd;
             if (dedupeProjects && !seenProjects.Add(projectKey)) continue;
             var state = SessionState(path, now, lastWorking, null, SessionTurnState.Codex);
@@ -342,9 +284,117 @@ public static class SessionScanner
         return (Jsonl.GetString(payload, "id") ?? "", Jsonl.GetString(payload, "cwd") ?? "", kind);
     }
 
+    // MARK: - Grok: %USERPROFILE%\.grok\sessions\<url-encoded cwd>\<uuid>\
+
+    /// Grok mirrors Claude's layout almost exactly — one directory per
+    /// percent-encoded cwd, one directory per session inside it.
+    /// `summary.json` carries identity + title; `updates.jsonl` is the live
+    /// event stream the turn detector reads, with `chat_history.jsonl` as the
+    /// fallback for sessions that predate the updates stream.
+    public static List<ScannedSession> ScanGrok(
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+    {
+        var output = new List<ScannedSession>();
+        foreach (var projectDir in SafeEnumerateDirectories(GrokSessionsRoot))
+        {
+            var cwd = DecodePathSegment(Path.GetFileName(projectDir));
+            foreach (var sessionDir in SafeEnumerateDirectories(projectDir))
+            {
+                var summary = Path.Combine(sessionDir, "summary.json");
+                if (!File.Exists(summary)) continue;
+                var sid = Path.GetFileName(sessionDir);
+                var title = GrokTitle(summary);
+                var updates = Path.Combine(sessionDir, "updates.jsonl");
+                var transcript = File.Exists(updates)
+                    ? updates
+                    : Path.Combine(sessionDir, "chat_history.jsonl");
+                var state = SessionState(transcript, now, lastWorking, null, SessionTurnState.Grok);
+                output.Add(new ScannedSession(
+                    TriggerTool.Grok,
+                    sid,
+                    cwd,
+                    string.IsNullOrEmpty(title) ? Fallback(cwd, sid) : title,
+                    state.Modified,
+                    state.Status,
+                    transcript,
+                    state.TurnKey,
+                    SessionLaunchTarget.Cli));
+            }
+        }
+        return output;
+    }
+
+    private static string GrokTitle(string summaryPath)
+    {
+        try
+        {
+            using var stream = OpenShared(summaryPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(stream);
+            return (Jsonl.GetString(doc.RootElement, "session_summary") ?? "").Trim();
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    // MARK: - Gemini: %USERPROFILE%\.gemini\tmp\<project>\chats\session-*.jsonl
+
+    /// Gemini's chat files are a `$set` checkpoint stream with no verified
+    /// turn boundary, so status is recency-only (MtimeOnly — working while
+    /// the file moves, idle after, never a "your turn" alarm). The session id
+    /// lives in the first line's header; the filename stem is the fallback.
+    public static List<ScannedSession> ScanGemini(
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+    {
+        var output = new List<ScannedSession>();
+        foreach (var projectDir in SafeEnumerateDirectories(GeminiTmpRoot))
+        {
+            var chats = Path.Combine(projectDir, "chats");
+            if (!Directory.Exists(chats)) continue;
+            var project = Path.GetFileName(projectDir);
+            foreach (var path in SafeEnumerateFiles(chats, "*.jsonl"))
+            {
+                var sid = GeminiSessionId(path) ?? Path.GetFileNameWithoutExtension(path);
+                var state = SessionState(path, now, lastWorking, null, SessionTurnState.MtimeOnly);
+                output.Add(new ScannedSession(
+                    TriggerTool.Gemini,
+                    sid,
+                    project,
+                    Fallback(project, sid),
+                    state.Modified,
+                    state.Status,
+                    path,
+                    state.TurnKey,
+                    SessionLaunchTarget.Cli));
+            }
+        }
+        return output;
+    }
+
+    private static string? GeminiSessionId(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            if (reader.ReadLine() is not { } header) return null;
+            using var doc = Jsonl.TryParseLine(header);
+            if (doc is null) return null;
+            return Jsonl.GetString(doc.RootElement, "sessionId") is { Length: > 0 } sid ? sid : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     // MARK: - Indexes
 
-    public static Dictionary<string, string> ClaudeTranscriptIndex(bool includeSubagents = false)
+    public static Dictionary<string, string> ClaudeTranscriptIndex()
     {
         var output = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var root in IslandPaths.ClaudeProjectRoots)
@@ -353,9 +403,11 @@ public static class SessionScanner
             foreach (var path in SafeEnumerateFiles(root, "*.jsonl"))
             {
                 // Subagent transcripts (subagents/ dirs, agent-*.jsonl) are
-                // machine fan-out, not user conversations; they only enter
-                // the monitoring scan when subagent alarms are opted in.
-                if (!includeSubagents && IsClaudeSubagentTranscript(Path.GetRelativePath(root, path)))
+                // machine fan-out, not user conversations, and never surface.
+                // Matched on the path RELATIVE to the root: an absolute path
+                // can carry an "agent-…" segment from the user's own folder
+                // names (this repo lives in one).
+                if (IsClaudeSubagentTranscript(Path.GetRelativePath(root, path)))
                 {
                     continue;
                 }
@@ -414,11 +466,46 @@ public static class SessionScanner
         return result;
     }
 
+    /// Immediate subdirectories only, tolerating a missing root and a
+    /// directory that vanishes mid-walk (Grok and Gemini both rotate their
+    /// per-project folders while the monitor is running).
+    private static List<string> SafeEnumerateDirectories(string root)
+    {
+        try
+        {
+            if (!Directory.Exists(root)) return new List<string>();
+            return Directory.EnumerateDirectories(root).ToList();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
+    /// Grok's per-cwd folder name is percent-encoded, the same trick Claude's
+    /// projects folder uses. Decoding is best-effort: a name that is not
+    /// valid percent-encoding — or that decodes to nothing — keeps its raw
+    /// form rather than leaving the session with an empty cwd.
+    private static string DecodePathSegment(string name)
+    {
+        if (name.Length == 0) return name;
+        try
+        {
+            var decoded = Uri.UnescapeDataString(name);
+            return decoded.Length == 0 ? name : decoded;
+        }
+        catch
+        {
+            return name;
+        }
+    }
+
     private static DesktopSession? ParseDesktopSessionFile(string path)
     {
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(path));
+            using var stream = OpenShared(path);
+            using var doc = System.Text.Json.JsonDocument.Parse(stream);
             var root = doc.RootElement;
             var cliSessionId = Jsonl.GetString(root, "cliSessionId") ?? "";
             var ms = Jsonl.GetDouble(root, "lastActivityAt") ?? Jsonl.GetDouble(root, "createdAt");
@@ -455,7 +542,9 @@ public static class SessionScanner
         string[] lines;
         try
         {
-            lines = File.ReadAllLines(path, Encoding.UTF8);
+            using var stream = OpenShared(path);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            lines = reader.ReadToEnd().Split('\n');
         }
         catch
         {
@@ -527,6 +616,14 @@ public static class SessionScanner
     private static readonly Dictionary<string, (long Ticks, long Size, SessionTurnStatus Turn, DateTimeOffset Modified)>
         TurnCache = new(StringComparer.Ordinal);
 
+    /// The monitoring scan runs on its own worker while the trigger picker's
+    /// scan runs on another; both land here. An unsynchronized Dictionary
+    /// written from two threads corrupts its bucket chain, and a corrupted
+    /// chain makes the NEXT lookup spin forever — a hung scan thread, not an
+    /// exception. The parse itself stays outside the lock so one slow tail
+    /// read never blocks the other scan.
+    private static readonly object TurnCacheGate = new();
+
     /// The expensive half of SessionState — the tail read plus the JSON turn
     /// parse — depends only on file CONTENT, so it is cached on a (mtime, size)
     /// fingerprint. Transcripts are append-only: a byte written bumps Length,
@@ -547,30 +644,43 @@ public static class SessionScanner
             var info = new FileInfo(path);
             var ticks = info.LastWriteTimeUtc.Ticks;
             var size = info.Length;
-            if (TurnCache.TryGetValue(path, out var cached)
-                && cached.Ticks == ticks && cached.Size == size)
+            lock (TurnCacheGate)
             {
-                return (cached.Turn, cached.Modified);
+                if (TurnCache.TryGetValue(path, out var cached)
+                    && cached.Ticks == ticks && cached.Size == size)
+                {
+                    return (cached.Turn, cached.Modified);
+                }
             }
             var modified = Mtime(path);
             var parsed = turnState(TailLines(path));
-            // Bound the cache against pathological growth (project-folder
-            // rotation minting new transcript paths forever); the working set
-            // is one entry per real session, rebuilt cheaply after a clear.
-            if (TurnCache.Count > 5000) TurnCache.Clear();
-            TurnCache[path] = (ticks, size, parsed, modified);
+            lock (TurnCacheGate)
+            {
+                // Bound the cache against pathological growth (project-folder
+                // rotation minting new transcript paths forever); the working set
+                // is one entry per real session, rebuilt cheaply after a clear.
+                if (TurnCache.Count > 5000) TurnCache.Clear();
+                TurnCache[path] = (ticks, size, parsed, modified);
+            }
             return (parsed, modified);
         }
         catch
         {
             // Stat/read raced a folder rotation — read directly, uncached.
-            return (turnState(TailLines(path)), Mtime(path));
+            // A second failure means the file is unreadable right now, which
+            // is "no turn yet", never a fault that takes the whole scan (and
+            // with it every provider's state) down with it.
+            try { return (turnState(TailLines(path)), Mtime(path)); }
+            catch { return (default, Mtime(path)); }
         }
     }
 
     /// Test seam: drop the fingerprint cache so a suite that rewrites content
     /// behind a reused path never reads a stale parse.
-    internal static void ClearTurnCache() => TurnCache.Clear();
+    internal static void ClearTurnCache()
+    {
+        lock (TurnCacheGate) TurnCache.Clear();
+    }
 
     // MARK: - Helpers
 
@@ -631,8 +741,25 @@ public static class SessionScanner
         {
             return parent[0] + ":\\" + parent[3..].Replace('-', '\\');
         }
-        return "/" + parent.Replace('-', '/');
+        // A UNC root (\\server\share\proj) loses both leading separators to
+        // the same dash, so it arrives as --server-share-proj.
+        if (parent.StartsWith("--", StringComparison.Ordinal))
+        {
+            return @"\\" + parent[2..].Replace('-', '\\');
+        }
+        // Anything else is a session recorded from a shell with its own path
+        // shape (MSYS, WSL). Un-munge to backslashes anyway rather than mint a
+        // POSIX-looking path no Windows surface can act on.
+        return parent.Replace('-', '\\');
     }
+
+    /// Every artifact this scanner reads belongs to a tool that is running
+    /// right now — Claude Desktop's session store, Codex's session index,
+    /// Grok's summary. The default File.ReadAll* share mode throws a sharing
+    /// violation against an open writer, which would silently drop that
+    /// session (or every Codex title) from the scan.
+    private static FileStream OpenShared(string path) => new(
+        path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
     public static List<string> TailLines(string path, long bytes = 131_072, int keep = 200)
     {

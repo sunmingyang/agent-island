@@ -201,7 +201,8 @@ public static class L10n
         ["Claude Code CLI not found. Log in from a terminal with: claude /login"] = "未找到 Claude Code CLI。请在终端中运行 claude /login 登录",
         ["Codex CLI not found. Log in from a terminal with: codex login"] = "未找到 Codex CLI。请在终端中运行 codex login 登录",
         ["Retry"] = "重试",
-        ["Both providers are hidden. Enable one in Settings."] = "两个提供方都已隐藏。请在设置中启用其一",
+        ["Both providers hidden"] = "两个服务都已隐藏",
+        ["Re-enable in Settings → Providers"] = "在设置 → 服务中重新启用",
         // Settings window (macOS-parity copy)
         ["A status companion for Claude Code and Codex"] = "Claude Code 和 Codex 的状态伴侣",
         ["Updates"] = "更新",
@@ -216,7 +217,10 @@ public static class L10n
         [" rank"] = " 段位",
         ["TOP Model"] = "TOP 模型",
         ["Tokens"] = "TOKEN",
-        ["Cost"] = "费用",
+        // No second ["Cost"] entry: these are indexer assignments, so a repeat
+        // silently overwrites the earlier one. "Cost" is already the island's
+        // page tab above ("成本", macOS zh-Hans.lproj) — re-declaring it for a
+        // report-card label renamed the tab.
         ["Share"] = "占比",
         ["Glow color"] = "光效颜色",
         ["Interface scale"] = "界面缩放",
@@ -271,7 +275,9 @@ public static class L10n
         ["Position"] = "位置",
         ["Island position"] = "灵动岛位置",
         ["A bar at the top of the screen, or a floating widget you drag anywhere."] = "贴在屏幕顶部的横条，或可拖到任意位置的悬浮小窗",
-        ["Top bar"] = "顶部条",
+        // ["Top bar"] lives once, above with the display section. These are
+        // indexer assignments, so a second row would silently win and a later
+        // edit to the first would vanish.
         ["Floating window"] = "悬浮小窗",
         ["Slide the island along its edge to clear tabs and title-bar buttons."] = "沿边缘移动岛的位置，避开浏览器标签页和标题栏按钮",
         ["Keep the 5-hour and weekly percentages beside the logos without hovering."] = "无需悬停，也在 Logo 两侧显示 5 小时和本周用量百分比",
@@ -297,8 +303,9 @@ public static class L10n
         ["Reminders"] = "提醒",
         ["Pop up a foreground alarm and system notification when a background run needs you."] = "后台会话轮到你回复时，弹出前台提醒窗口并发送系统通知",
         ["Out-of-quota alarm"] = "额度用完弹窗",
-        ["Subagent alarms"] = "子线程弹窗",
-        ["Also alarm when orchestrated subagents finish. Off: only your own threads alarm."] = "并行子代理（subagent）结束时也弹提醒；关闭时只提醒你自己的主会话",
+        // No "Subagent alarms" rows: the toggle is gone. SessionScanner now
+        // drops subagent transcripts unconditionally (macOS parity), so the
+        // setting had nothing left to switch and its strings were dead.
         ["Show thread details"] = "显示会话详情",
         ["Show session and project names in alarms and notifications."] = "在提醒和通知里显示会话名、项目名",
         ["Choose a built-in sound or use your own file."] = "选择提示音，也可以使用自己的音频文件",
@@ -319,6 +326,65 @@ public static class L10n
         ["Live"] = "实时",
         ["Rate"] = "查询暂停",
         ["Auth"] = "登录",
+        // Claude sign-in: the loopback callback page, the failure reason the
+        // caller now surfaces instead of silently spawning a terminal, and
+        // the paste-code fallback dialog.
+        ["Connected to Claude"] = "已连接 Claude",
+        ["Login incomplete"] = "登录未完成",
+        ["Authentication succeeded — close this page and return to Agent Island"] = "认证成功，可以关闭此页并返回 Agent Island",
+        ["Please return to Agent Island and try again"] = "请回到 Agent Island 重试",
+        ["login timed out"] = "登录超时",
+        ["Sign in with a code"] = "用授权码登录",
+        ["Approve the page that just opened, then paste the code it shows here"] = "在刚打开的页面点授权，然后把它显示的授权码粘贴到这里",
+        ["Paste the code"] = "粘贴授权码",
+        ["Sign in"] = "登录",
+        ["Copy link"] = "复制链接",
+        ["Cancel"] = "取消",
+        ["That code did not work"] = "这个授权码没能通过",
+        ["Copy the whole code from the page and try once more"] = "把页面上的授权码完整复制一次再试",
+        // Five-provider settings rows (2.x). The %d/%@ holes of the macOS
+        // strings become {0} here; the copy itself is byte-identical.
+        ["Pick at most two — turn one off first"] = "最多同时显示两个，先关一个再开",
+        ["Not detected — sign in with the gemini CLI"] = "未检测到 gemini CLI 登录",
+        ["Not detected — sign in with the grok CLI"] = "未检测到 grok CLI 登录",
+        ["Not detected — sign in inside Cursor"] = "未检测到 — 请在 Cursor 里登录",
+        ["Not available — {0} authentication isn't supported yet"] = "不可用 — 暂不支持 {0} 认证方式",
+        ["pro {0}%"] = "Pro {0}%",
+        ["flash {0}%"] = "Flash {0}%",
+        ["week {0}%"] = "本周 {0}%",
+        ["cycle {0}%"] = "账期 {0}%",
+        // Codex account switching
+        ["Switch Codex account"] = "切换 Codex 账号",
+        ["Auto-switched to {0}"] = "已自动切换到 {0}",
+        ["No saved accounts yet"] = "还没有保存的账号",
+        ["Remove saved account"] = "删除已保存的账号",
+        ["Save current account…"] = "保存当前账号…",
+        ["Save current account"] = "保存当前账号",
+        ["Give this login a name so you can switch back to it later"] = "给这个登录起个名字，之后可以一键切回来",
+        ["work / personal"] = "工作 / 个人",
+        ["Auto-switch when exhausted"] = "额度用完自动切换",
+        ["Save"] = "保存",
+        // Guest-provider status captions. Values are the shipped zh-Hans.lproj
+        // strings; without these rows the guest strips fell back to English
+        // inside an otherwise Chinese panel.
+        ["sign in again — run grok login"] = "登录已失效，运行 grok login 重新登录",
+        ["sign in again — run gemini"] = "登录已失效，运行 gemini 重新登录",
+        ["sign in again — open Cursor"] = "需要重新登录 — 打开 Cursor",
+        ["needs a local gemini-cli install"] = "需要本机安装 gemini-cli",
+        ["personal accounts moved to Antigravity — support coming in a later version"] = "个人账号已迁往 Antigravity，后续版本支持",
+        ["this sign-in method isn't supported yet"] = "暂不支持该认证方式",
+        ["Loading…"] = "加载中…",
+        // Tile window labels the guests need: Gemini meters a daily bucket,
+        // Cursor a ~30-day billing cycle. Values from zh-Hans.lproj:201-202.
+        ["24h"] = "24小时",
+        ["30d"] = "30天",
+        // The alarm window's open-thread failure. It had no zh row at all, so
+        // an English sentence appeared inside an otherwise Chinese alarm.
+        ["Couldn't open the thread — is the claude/codex CLI on your PATH?"] =
+            "无法打开会话——claude / codex 命令是否在 PATH 中？",
+        // ClaudeWebLogin failure reasons are internal contract strings like the
+        // provider error sentinels, so they are localized at display time by
+        // ErrorDisplay.Localize rather than looked up here.
     };
     /// English display overrides, mirroring macOS en.lproj where key and
     /// value diverge: the key namespace is frozen history, the values carry
@@ -362,7 +428,6 @@ public static class L10n
         ["You're out until it resets at {0}."] = "You're out until it resets at {0}",
         ["You're rate-limited for now."] = "You're rate-limited for now",
         ["Alarm sound"] = "Alert sound",
-        ["Both providers are hidden. Enable one in Settings."] = "Both providers are hidden. Enable one in Settings",
         ["Open AgentIsland when you sign in."] = "Open Agent Island when you sign in",
         ["How often to refresh."] = "How often to refresh",
         ["Follows the system language."] = "Follows the system language",
@@ -397,7 +462,6 @@ public static class L10n
         ["A thread finished — Agent Island opens an alarm window so you can reply."] = "A session finished — Agent Island opens an alarm window so you can reply",
         ["Limits, login, network, or provider errors make the logo pulse red."] = "Limits, login, network, or provider errors make the logo pulse red",
         ["Pop up a foreground alarm and system notification when a background run needs you."] = "Pop up a foreground alarm and system notification when a background run needs you",
-        ["Also alarm when orchestrated subagents finish. Off: only your own threads alarm."] = "Also alarm when orchestrated subagents finish. Off: only your own threads alarm",
         ["Show thread details"] = "Show session details",
         ["Show session and project names in alarms and notifications."] = "Show session and project names in alarms and notifications",
         ["Choose a built-in sound or use your own file."] = "Choose an alarm tone or use your own audio file",
@@ -411,7 +475,9 @@ public static class L10n
         ["network drop"] = "network drop — showing last data",
         ["TOP Model"] = "TOP MODEL",
         ["Tokens"] = "TOKENS",
-        ["Cost"] = "COST",
+        // No ["Cost"] override: it is the island's page tab, which macOS
+        // en.lproj renders "Cost". SectionLabel uppercases on its own, so a
+        // report-card all-caps entry here bought nothing and renamed the tab.
         ["Share"] = "SHARE",
     };
 }

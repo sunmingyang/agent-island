@@ -640,6 +640,10 @@ public sealed class ChartTile : StackPanel
         {
             return Localization.L10n.Tr(fallbackKey);
         }
+        // A billing cycle is not a week. Cursor's included-usage pool runs ~30
+        // days, and without this branch IsLongPeriod would print "week" over a
+        // month's worth of quota.
+        if (period >= 20 * 86400) return Localization.L10n.Tr("30d");
         if (window.IsLongPeriod) return Localization.L10n.Tr("week");
         var hours = Math.Max(1, (int)Math.Round(period / 3600));
         return $"{hours}h";

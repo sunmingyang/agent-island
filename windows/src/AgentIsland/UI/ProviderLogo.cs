@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using AgentIsland.Core;
+using AgentIsland.Model;
 using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI;
@@ -97,10 +98,28 @@ public sealed class ProviderLogo : Grid
 
     private void ApplyTool()
     {
-        _path.Data = Geometry.Parse("F1 " + (_tool == TriggerTool.Claude
-            ? BrandGeometry.ClaudePath
-            : BrandGeometry.OpenAiPath));
+        // Anything-that-isn't-Claude used to draw the OpenAI knot, so the
+        // moment TriggerTool grew past two members a Grok or Gemini slot
+        // would have rendered Codex's mark. A provider with no extracted
+        // vector gets the ring macOS ProviderMark falls back to instead.
+        _path.Data = BrandGeometry.PathData(_tool.ToDisplayProvider()) is { } data
+            ? Geometry.Parse("F1 " + data)
+            : RingMark;
         ApplyTint();
+    }
+
+    /// Outer circle minus inner: a ring expressed as GEOMETRY, not a stroke,
+    /// so the single animatable Fill brush still drives the tint crossfade.
+    private static readonly Geometry RingMark = BuildRingMark();
+
+    private static Geometry BuildRingMark()
+    {
+        var ring = new CombinedGeometry(
+            GeometryCombineMode.Exclude,
+            new EllipseGeometry(new Point(50, 50), 50, 50),
+            new EllipseGeometry(new Point(50, 50), 42, 42));
+        ring.Freeze();
+        return ring;
     }
 
     /// The attention tint is a brighter alarm red than the chart alertRed —

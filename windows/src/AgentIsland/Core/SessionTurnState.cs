@@ -90,6 +90,38 @@ public static class SessionTurnState
         return new SessionTurnStatus(false, null, null);
     }
 
+    /// Grok appends one JSON object per session event to `updates.jsonl` with
+    /// an explicit `params.update.sessionUpdate` discriminator — and unlike
+    /// Claude it names the turn boundary outright: `turn_completed`. Anything
+    /// written after it (tool calls, streaming chunks, retry_state) means the
+    /// turn is open again. Timestamps here are unix SECONDS, not the
+    /// milliseconds Claude Desktop uses.
+    public static SessionTurnStatus Grok(IReadOnlyList<string> lines)
+    {
+        for (var i = lines.Count - 1; i >= 0; i--)
+        {
+            using var doc = Jsonl.TryParseLine(lines[i]);
+            if (doc is null) continue;
+            if (Jsonl.GetObject(doc.RootElement, "params") is not { } parameters) continue;
+            if (Jsonl.GetObject(parameters, "update") is not { } update) continue;
+            if (Jsonl.GetString(update, "sessionUpdate") is not { } kind) continue;
+            var stamp = UnixSeconds(Jsonl.GetDouble(doc.RootElement, "timestamp"));
+            var seconds = stamp is { } s
+                ? s.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : "";
+            return new SessionTurnStatus(kind == "turn_completed", seconds + ":" + kind, stamp);
+        }
+        return new SessionTurnStatus(false, null, null);
+    }
+
+    /// For sessions whose transcript has no verified turn boundary (Gemini's
+    /// $set checkpoint stream): never claims "done", so the engine derives
+    /// working/idle purely from file recency and can never raise a false
+    /// "your turn" alarm on a format we have not verified. The restraint is
+    /// deliberate — do not turn this into a heuristic without real samples.
+    public static SessionTurnStatus MtimeOnly(IReadOnlyList<string> lines) =>
+        new(false, null, null);
+
     private static bool IsCodexUserOrStart(string? type)
     {
         if (type is null) return false;
@@ -127,18 +159,22 @@ public static class SessionTurnState
         {
             foreach (var field in new[] { "completed_at", "started_at" })
             {
-                // FromUnixTimeMilliseconds throws on out-of-range input; a
-                // corrupt or foreign-unit timestamp must not fault the scan.
-                if (Jsonl.GetDouble(payload, field) is { } seconds)
-                {
-                    var ms = seconds * 1000;
-                    if (ms is >= -62_135_596_800_000 and <= 253_402_300_799_999)
-                    {
-                        return DateTimeOffset.FromUnixTimeMilliseconds((long)ms);
-                    }
-                }
+                if (UnixSeconds(Jsonl.GetDouble(payload, field)) is { } parsedSeconds)
+                    return parsedSeconds;
             }
         }
+        return null;
+    }
+
+    /// FromUnixTimeMilliseconds throws on out-of-range input; a corrupt or
+    /// foreign-unit timestamp must not fault the scan, so anything outside
+    /// the representable range reads as "no date" instead.
+    private static DateTimeOffset? UnixSeconds(double? seconds)
+    {
+        if (seconds is not { } value) return null;
+        var ms = value * 1000;
+        if (ms is >= -62_135_596_800_000 and <= 253_402_300_799_999)
+            return DateTimeOffset.FromUnixTimeMilliseconds((long)ms);
         return null;
     }
 }

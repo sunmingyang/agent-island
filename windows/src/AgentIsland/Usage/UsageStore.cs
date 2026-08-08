@@ -24,6 +24,24 @@ public sealed class UsageStore : INotifyPropertyChanged
     private bool _loading;
     private bool _claudeReauthInProgress;
     private bool _codexReauthInProgress;
+    private string? _claudeReauthFailureCaption;
+    private string? _codexAutoSwitched;
+
+    /// Accounts tried since the current exhaustion episode began; cleared the
+    /// moment a reading comes back under 100%, so each episode walks the pool
+    /// at most once and a fully-exhausted pool goes quiet instead of thrashing
+    /// auth.json forever.
+    private readonly HashSet<string> _codexAutoSwitchTried = new(StringComparer.Ordinal);
+
+    /// The parked labels as they stood when the episode began. Activate parks
+    /// the OUTGOING login under a fresh `previous-<stamp>` name whenever it
+    /// matches nothing on disk — and a Codex CLI that rewrites auth.json
+    /// between polls (token refresh) makes that happen on every rotation. The
+    /// pool would then grow exactly as fast as the tried set, so a candidate
+    /// would always exist and the rotation would rewrite auth.json forever.
+    /// Anything that appears after the snapshot is one of those copies and is
+    /// excluded for the rest of the episode.
+    private List<string>? _codexAutoSwitchPool;
 
     private DispatcherTimer? _pollTimer;
     private DispatcherTimer? _resetEdgeTimer;
@@ -31,7 +49,6 @@ public sealed class UsageStore : INotifyPropertyChanged
     private DateTimeOffset _refreshStartedAt;
     private CancellationTokenSource? _refreshCts;
     private Task? _refreshTask;
-    private CancellationTokenSource? _claudeReauthCts;
     private CancellationTokenSource? _codexReauthCts;
     private bool _networkMonitorArmed;
     private bool _powerMonitorArmed;
@@ -60,6 +77,25 @@ public sealed class UsageStore : INotifyPropertyChanged
     /// re-auth button during this window so users don't double-tap.
     public bool ClaudeReauthInProgress { get => _claudeReauthInProgress; private set { _claudeReauthInProgress = value; Raise(nameof(ClaudeReauthInProgress)); } }
     public bool CodexReauthInProgress { get => _codexReauthInProgress; private set { _codexReauthInProgress = value; Raise(nameof(CodexReauthInProgress)); } }
+
+    /// Why the last browser sign-in round failed, or null. This is the whole
+    /// recovery surface for a failed web login — the Settings row shows it and
+    /// only then offers the paste-code fallback (progressive disclosure, macOS
+    /// claudeReauthFailureCaption).
+    public string? ClaudeReauthFailureCaption
+    {
+        get => _claudeReauthFailureCaption;
+        private set { _claudeReauthFailureCaption = value; Raise(nameof(ClaudeReauthFailureCaption)); }
+    }
+
+    /// Clears the failure caption after the paste-code fallback succeeds —
+    /// the row must drop back to its healthy state, not keep explaining a
+    /// round that has since been recovered.
+    public void ClearClaudeReauthFailure() => ClaudeReauthFailureCaption = null;
+
+    /// Label the auto-switcher rotated to most recently, shown on the Codex
+    /// card until the next manual action. Real state, not explanation.
+    public string? CodexAutoSwitched { get => _codexAutoSwitched; set { _codexAutoSwitched = value; Raise(nameof(CodexAutoSwitched)); } }
 
     /// Refresh only when the last successful update is older than the poll
     /// interval — the panel-open freshness hook. Capped by the user's refresh
@@ -126,6 +162,13 @@ public sealed class UsageStore : INotifyPropertyChanged
 
         Loading = true;
         _refreshStartedAt = DateTimeOffset.Now;
+        // Grok, Gemini and Cursor ride this exact cadence (poll / wake /
+        // unlock / network / manual) instead of owning timers; their stores
+        // no-op when the provider is undetected or when kicked again inside
+        // their own attempt floors.
+        GrokUsageStore.Shared.KickRefresh();
+        GeminiUsageStore.Shared.KickRefresh();
+        CursorUsageStore.Shared.KickRefresh();
         _refreshCts?.Cancel();
         var cts = new CancellationTokenSource();
         _refreshCts = cts;
@@ -164,6 +207,7 @@ public sealed class UsageStore : INotifyPropertyChanged
                     RefreshWarning = WarningFor(codexFailed, claudeFailed);
                     LastUpdated = DateTimeOffset.Now;
                     Loading = false;
+                    MaybeAutoSwitchCodex(mergedCodex);
                 });
             }
             catch
@@ -175,6 +219,47 @@ public sealed class UsageStore : INotifyPropertyChanged
                 });
             }
         }, CancellationToken.None);
+    }
+
+    /// AUTO mode of `CodexAccountSwitcher` (the codex-auto borrow, driven by
+    /// the real usage numbers instead of scraped terminal text). Runs on every
+    /// fresh Codex reading: exhausted + enabled + a candidate exists → swap and
+    /// immediately re-poll so the island shows the incoming account's numbers,
+    /// not a stale 100%.
+    ///
+    /// The tried set is what stops an infinite credential-rewrite loop: the
+    /// outgoing account is recorded before each swap, so once every parked
+    /// login has been walked the rotation stops and auth.json is left alone
+    /// until a reading drops back under 100%.
+    private void MaybeAutoSwitchCodex(AppUsage usage)
+    {
+        if (!CodexAccountSwitcher.AutoSwitchEnabled) return;
+        var primary = usage.FiveHour.Error is null ? usage.FiveHour : usage.Weekly;
+        if (primary.Error is not null) return;
+        if (primary.UsedPercent < 0.999)
+        {
+            _codexAutoSwitchTried.Clear();
+            _codexAutoSwitchPool = null;
+            return;
+        }
+        var pool = _codexAutoSwitchPool ??= CodexAccountSwitcher.Accounts()
+            .Select(account => account.Label)
+            .ToList();
+        // Retire every label the episode did not start with, so the rotation
+        // can only ever walk the snapshot and always runs out of candidates.
+        foreach (var account in CodexAccountSwitcher.Accounts())
+        {
+            if (!pool.Contains(account.Label, StringComparer.Ordinal))
+            {
+                _codexAutoSwitchTried.Add(account.Label);
+            }
+        }
+        if (CodexAccountSwitcher.ActiveLabel() is { } active) _codexAutoSwitchTried.Add(active);
+        if (CodexAccountSwitcher.RotationCandidate(_codexAutoSwitchTried) is not { } next) return;
+        if (!CodexAccountSwitcher.Activate(next)) return;
+        _codexAutoSwitchTried.Add(next.Label);
+        CodexAutoSwitched = next.Label;
+        Refresh();
     }
 
     private static double DemoDouble(string key, double fallback)
@@ -234,16 +319,26 @@ public sealed class UsageStore : INotifyPropertyChanged
             existing.ResetCardDetails);
     }
 
-    private static string? WarningFor(bool codexFailed, bool claudeFailed) => (claudeFailed, codexFailed) switch
+    private static string? WarningFor(bool codexFailed, bool claudeFailed)
     {
-        // Both down after retries = the NETWORK dropped, not the providers;
-        // the caption says so and reassures that the numbers are kept
-        // (macOS ae5bafc wording).
-        (true, true) => L10n.Tr("network drop"),
-        (true, false) => L10n.Tr("Claude stale"),
-        (false, true) => L10n.Tr("Codex stale"),
-        _ => null,
-    };
+        // A provider the user removed from the slots cannot nag from the
+        // footer — "Claude stale" while only Grok + Cursor are selected reads
+        // as a bug, because it was one (owner report, 2026-08-08).
+        var visibility = Model.ProviderVisibilityStore.Shared;
+        var claude = claudeFailed && visibility.ClaudeVisible;
+        var codex = codexFailed && visibility.CodexVisible;
+        return (claude, codex) switch
+        {
+            // Both down says nothing about WHY — two expired logins look
+            // exactly like a dead uplink from here. "network drop" is the
+            // transport-layer caption UsageFetcher hands back when it really
+            // saw one; naming it from this summary would invent a cause.
+            (true, true) => L10n.Tr("Usage refresh failed"),
+            (true, false) => L10n.Tr("Claude stale"),
+            (false, true) => L10n.Tr("Codex stale"),
+            _ => null,
+        };
+    }
 
     // MARK: - Cache
 
@@ -291,57 +386,48 @@ public sealed class UsageStore : INotifyPropertyChanged
 
     // MARK: - Re-auth
 
-    /// Preferred path: the in-app browser login — PKCE + a loopback callback
-    /// caught by our own listener, writing the fresh, fully-scoped token pair
-    /// straight to the credentials file. No terminal, no manual code paste.
-    /// On any web failure we fall back to the legacy `claude auth login`
-    /// terminal flow (spawn + poll the file stamp), so a machine that can't
-    /// run the loopback flow is no worse off than before. Only when even the
-    /// terminal can't spawn (CLI truly missing) does `onCliMissing` fire —
-    /// the web flow itself needs no CLI, so that's the one place the
-    /// "CLI not found" dialog still makes sense.
-    public void ReauthenticateClaude(Action? onCliMissing = null)
+    /// The in-app browser login — PKCE + a loopback callback caught by our own
+    /// listener, writing the fresh, fully-scoped token pair straight to the
+    /// credentials file. No terminal, no manual code paste.
+    ///
+    /// A failure ends here with its reason on `ClaudeReauthFailureCaption`.
+    /// There is no terminal fallback: the old path silently spawned
+    /// `claude auth login`, a retired command on the 2.x CLI, which read as a
+    /// mystery "authentication failed" from nowhere (owner repro, 2026-08-08).
+    /// The recovery the caption unlocks is `ClaudeCredentials.BeginPasteLogin`,
+    /// which the Settings row offers only after a failed round.
+    public void ReauthenticateClaude()
     {
         if (ClaudeReauthInProgress) return;
+        ClaudeReauthFailureCaption = null;
         ClaudeReauthInProgress = true;
-        _claudeReauthCts?.Cancel();
-        var cts = new CancellationTokenSource();
-        _claudeReauthCts = cts;
         var dispatcher = Dispatcher.CurrentDispatcher;
         _ = Task.Run(async () =>
         {
-            if (await ClaudeWebLogin.Shared.Start() is ClaudeWebLogin.Outcome.Success)
+            // Nothing observes this task, so a throw anywhere below would
+            // leave ClaudeReauthInProgress latched — and the in-progress guard
+            // at the top then refuses every later attempt, killing the
+            // Re-authenticate button until the app restarts.
+            try
             {
-                await FinishClaudeReauth(dispatcher);
-                return;
-            }
-
-            // Legacy fallback: spawn `claude auth login` in a terminal and
-            // wait for the credentials file to change. Poll the local file
-            // stamp (cheap), then hit the usage API once when credentials
-            // actually change; polling the endpoint itself can trip
-            // Anthropic's rate limit and hide the real auth recovery behind
-            // a fresh `rate limited` error.
-            var initialStamp = ClaudeCredentials.CredentialsModificationStamp();
-            if (!ClaudeCredentials.SpawnReauth())
-            {
-                await dispatcher.BeginInvoke(() =>
+                var outcome = await ClaudeWebLogin.Shared.Start();
+                if (outcome is ClaudeWebLogin.Outcome.Failed failure)
                 {
-                    ClaudeReauthInProgress = false;
-                    onCliMissing?.Invoke();
-                });
-                return;
-            }
-            for (var i = 0; i < 40; i++)
-            {
-                try { await Task.Delay(TimeSpan.FromSeconds(3), cts.Token); }
-                catch (TaskCanceledException) { return; }
-                var currentStamp = ClaudeCredentials.CredentialsModificationStamp();
-                if (currentStamp is null || currentStamp == initialStamp) continue;
+                    await dispatcher.BeginInvoke(() =>
+                    {
+                        ClaudeReauthInProgress = false;
+                        ClaudeReauthFailureCaption = failure.Reason;
+                    });
+                    return;
+                }
+                await dispatcher.BeginInvoke(() => { ClaudeReauthFailureCaption = null; });
                 await FinishClaudeReauth(dispatcher);
-                return;
             }
-            await FinishClaudeReauth(dispatcher);
+            catch
+            {
+                try { await dispatcher.BeginInvoke(() => { ClaudeReauthInProgress = false; }); }
+                catch { }
+            }
         });
     }
 
@@ -357,16 +443,27 @@ public sealed class UsageStore : INotifyPropertyChanged
         var dispatcher = Dispatcher.CurrentDispatcher;
         _ = Task.Run(async () =>
         {
-            for (var i = 0; i < 40; i++)
+            // Same latch hazard as the Claude flow: nobody observes this task,
+            // and a stuck CodexReauthInProgress makes every later attempt
+            // return early without doing anything.
+            try
             {
-                try { await Task.Delay(TimeSpan.FromSeconds(3), cts.Token); }
-                catch (TaskCanceledException) { return; }
-                var currentStamp = CodexCredentials.AuthModificationStamp();
-                if (currentStamp is null || currentStamp == initialStamp) continue;
+                for (var i = 0; i < 40; i++)
+                {
+                    try { await Task.Delay(TimeSpan.FromSeconds(3), cts.Token); }
+                    catch (TaskCanceledException) { return; }
+                    var currentStamp = CodexCredentials.AuthModificationStamp();
+                    if (currentStamp is null || currentStamp == initialStamp) continue;
+                    await FinishCodexReauth(dispatcher);
+                    return;
+                }
                 await FinishCodexReauth(dispatcher);
-                return;
             }
-            await FinishCodexReauth(dispatcher);
+            catch
+            {
+                try { await dispatcher.BeginInvoke(() => { CodexReauthInProgress = false; }); }
+                catch { }
+            }
         });
         return true;
     }
@@ -393,7 +490,9 @@ public sealed class UsageStore : INotifyPropertyChanged
             var merged = MergedUsage(Codex, fetched);
             Codex = merged;
             SaveCachedSnapshot(Claude, merged, fetchedClaude: false, fetchedCodex: true);
-            RefreshWarning = IsErrorOnly(fetched) ? L10n.Tr("Codex stale") : null;
+            RefreshWarning = IsErrorOnly(fetched) && Model.ProviderVisibilityStore.Shared.CodexVisible
+                ? L10n.Tr("Codex stale")
+                : null;
             if (!IsErrorOnly(fetched)) LastUpdated = DateTimeOffset.Now;
             CodexReauthInProgress = false;
         });
@@ -522,15 +621,27 @@ public sealed class UsageStore : INotifyPropertyChanged
         if (!e.IsAvailable || was) return;
         System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
         {
-            // Cancel any in-flight refresh — it was started on the dead path
-            // and will return an error. Wait for it to finalize so its
-            // loading=false lands before the replacement starts.
-            _refreshCts?.Cancel();
-            if (_refreshTask is { } task)
+            // This lambda is async void on the dispatcher: anything it throws
+            // past the first await lands on the dispatcher as an unhandled
+            // exception, and the app's handler logs without marking it
+            // handled — so a hiccup on a network transition would take the
+            // whole app down. Reconnect recovery is best-effort by nature.
+            try
             {
-                try { await task; } catch { }
+                // Cancel any in-flight refresh — it was started on the dead
+                // path and will return an error. Wait for it to finalize so
+                // its loading=false lands before the replacement starts.
+                _refreshCts?.Cancel();
+                if (_refreshTask is { } task)
+                {
+                    try { await task; } catch { }
+                }
+                Refresh();
             }
-            Refresh();
+            catch
+            {
+                // The poll timer is still the backstop.
+            }
         });
     }
 

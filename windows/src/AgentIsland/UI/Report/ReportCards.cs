@@ -450,7 +450,7 @@ public static class ReportCards
         });
         row.Children.Add(Numeric(new TextBlock
         {
-            Text = $"{Math.Round(share * 100)}%",
+            Text = $"{Core.Formatting.PercentInt(share)}%",
             FontFamily = IslandFonts.Ui,
             FontSize = 11.5,
             FontWeight = FontWeights.ExtraBold,
@@ -636,7 +636,7 @@ public static class ReportCards
             Grid.SetColumn(dollars, 2);
             table.Children.Add(dollars);
 
-            var share = Cell($"{Math.Round(model.Percent * 100)}%", IslandColors.White(0.88));
+            var share = Cell($"{Core.Formatting.PercentInt(model.Percent)}%", IslandColors.White(0.88));
             Grid.SetRow(share, rowIndex);
             Grid.SetColumn(share, 3);
             table.Children.Add(share);

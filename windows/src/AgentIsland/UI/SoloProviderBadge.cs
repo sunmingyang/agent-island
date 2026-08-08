@@ -1,22 +1,27 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using AgentIsland.Core;
+using AgentIsland.Model;
 using AgentIsland.UI.Charts;
 using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI;
 
-/// The freed half of a solo panel: the absent provider's bare mark and
-/// name — a quiet nameplate, not a data widget (macOS SoloProviderBadge).
-/// It replaced the per-model breakdown table, whose "5h" legend read as a
-/// quota window Codex no longer has; per-model data returns with the
-/// report-card redesign.
+/// The freed half of a solo panel: the provider's bare mark and name — a
+/// quiet nameplate, not a data widget (macOS SoloProviderBadge). It replaced
+/// the per-model breakdown table, whose "5h" legend read as a quota window
+/// Codex no longer has; per-model data returns with the report-card redesign.
+///
+/// Identity comes from ProviderIdentity, so a guest can occupy this half
+/// without inheriting Codex's name or blue. BrandGeometry only ships the
+/// Claude spark and the OpenAI knot; a provider with no vector falls back to
+/// an accent-stroked ring, which is what macOS ProviderMark draws when its
+/// logo asset fails to load.
 public sealed class SoloProviderBadge : Grid
 {
-    public SoloProviderBadge(TriggerTool provider)
+    public SoloProviderBadge(DisplayProvider provider)
     {
-        var color = provider == TriggerTool.Claude ? IslandColors.Claude : IslandColors.Codex;
+        var color = ProviderIdentity.Accent(provider);
         var stack = new StackPanel
         {
             Orientation = Orientation.Vertical,
@@ -26,28 +31,34 @@ public sealed class SoloProviderBadge : Grid
             // (macOS bottom padding 30).
             Margin = new Thickness(12, 0, 12, 30),
         };
-        var mark = new System.Windows.Shapes.Path
-        {
-            Data = Geometry.Parse("F1 " + (provider == TriggerTool.Claude
-                ? BrandGeometry.ClaudePath
-                : BrandGeometry.OpenAiPath)),
-            Fill = IslandColors.Brush(IslandColors.Alpha(color, 0.95)),
-            Width = 30,
-            Height = 30,
-            Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
+        stack.Children.Add(BrandGeometry.PathData(provider) is { } data
+            ? new System.Windows.Shapes.Path
             {
-                ShadowDepth = 0,
-                BlurRadius = 30, // macOS shadow radius 10 is a gaussian sigma; ~3x here
-                Color = color,
-                Opacity = 0.30,
-            },
-        };
-        stack.Children.Add(mark);
+                Data = Geometry.Parse("F1 " + data),
+                Fill = IslandColors.Brush(IslandColors.Alpha(color, 0.95)),
+                Width = 30,
+                Height = 30,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    ShadowDepth = 0,
+                    BlurRadius = 30, // macOS shadow radius 10 is a gaussian sigma; ~3x here
+                    Color = color,
+                    Opacity = 0.30,
+                },
+            }
+            : (UIElement)new System.Windows.Shapes.Ellipse
+            {
+                Width = 30,
+                Height = 30,
+                Stroke = IslandColors.Brush(IslandColors.Alpha(color, 0.85)),
+                StrokeThickness = 1.5,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
         stack.Children.Add(new TextBlock
         {
-            Text = provider == TriggerTool.Claude ? "Claude Code" : "Codex",
+            Text = ProviderIdentity.AlarmName(provider),
             FontFamily = IslandFonts.Ui,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
