@@ -506,6 +506,8 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.top, 4)
         .padding(.bottom, 6)
+    }
+
     /// Servers whose Claude Code / Codex transcripts are synced into
     /// RemoteSessionStore.remoteRoot() — cost stats and the session monitor
     /// fold those in automatically.

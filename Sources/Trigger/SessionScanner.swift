@@ -248,6 +248,7 @@ enum SessionScanner {
                     turnState: SessionTurnState.grok
                 )
                 out.append(ScannedSession(
+                    host: RemoteSessionStore.localHost,
                     tool: .grok,
                     sessionId: sid,
                     cwd: cwd,
@@ -295,6 +296,7 @@ enum SessionScanner {
                 )
                 let summary = summaries[conversation]
                 out.append(ScannedSession(
+                    host: RemoteSessionStore.localHost,
                     tool: .antigravity,
                     sessionId: conversation,
                     cwd: summary?.workspace
@@ -570,6 +572,7 @@ enum SessionScanner {
             isDone: conversation.isDone, key: conversation.turnKey, activityDate: conversation.stamp
         )
         return ScannedSession(
+            host: RemoteSessionStore.localHost,
             tool: .cursor,
             sessionId: conversation.id,
             cwd: "",
