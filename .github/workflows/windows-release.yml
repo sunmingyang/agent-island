@@ -1,8 +1,11 @@
 name: Windows Release
 
+# 2.1.1 ships macOS-first (owner call, 2026-08-08): the WPF tree has not
+# absorbed the 2.1.1 feature set yet, so auto-building a "2.1.1" Windows
+# zip from it would ship old features under a new number. Re-enable the
+# tag trigger when the Windows port catches up; until then this runs only
+# by hand via workflow_dispatch.
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
