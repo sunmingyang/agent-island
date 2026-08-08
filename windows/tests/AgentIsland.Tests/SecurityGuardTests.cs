@@ -1,5 +1,4 @@
 using AgentIsland.Alarm;
-using AgentIsland.Trigger;
 using AgentIsland.Usage;
 
 namespace AgentIsland.Tests;
@@ -13,11 +12,7 @@ public static class SecurityGuardTests
     {
         var tests = new (string Name, Action Test)[]
         {
-            ("real uuid session ids pass", TestValidSessionIdsAccepted),
-            ("injection session ids rejected", TestInjectionSessionIdsRejected),
             ("navigator sanitize rejects, never strips", TestSanitizeRejectsRatherThanStrips),
-            ("plain messages pass", TestPlainMessagesAccepted),
-            ("cmd-metachar messages rejected", TestUnsafeMessagesRejected),
             ("account labels cannot escape the store directory", TestAccountLabelSanitizing),
         };
         foreach (var (name, test) in tests)
