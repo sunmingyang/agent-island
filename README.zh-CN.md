@@ -47,14 +47,14 @@
 
 ## 快速开始
 
-选择你的平台，直接安装当前 `v1.7.1` 版本：
+选择你的平台，直接安装当前版本：
 
-> 当前源码已就绪即将发布的 `v2.1.1`——五家服务、全岛会话状态、重写的设置面板。macOS 先行上线，**Windows 端马上同步 2.1.1**。下面仍是已公开发布的 `v1.7.1` 安装包。
+> `v2.1.1` 已在 macOS 上线——五家服务、全岛会话状态、重写的设置面板。**Windows 端马上同步 2.1.1**；同步前下表中的 Windows 包仍是 v1.7.1。
 
 | 平台 | 推荐下载 | 系统要求 |
 |---|---|---|
-| macOS | [AgentIsland-1.7.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1.dmg) | macOS 13+，Apple silicon 或 Intel |
-| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 |
+| macOS | [AgentIsland-2.1.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.1/AgentIsland-2.1.1.dmg) | macOS 13+，Apple silicon 或 Intel |
+| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64——马上同步 2.1.1 |
 
 macOS：把 Agent Island 拖入 Applications。应用目前是 ad-hoc 签名而非 notarize，首次启动需要在 Finder 中右键应用并选择 **打开**。
 
@@ -129,7 +129,9 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 
 可从 Claude、Codex、Gemini、Grok、Cursor 中选择最多两个常驻小岛。实时会话状态（工作中 / 卡住 / 轮到你）覆盖 Claude、Codex、Grok、Gemini；被选中的每一家都保留完整用量行，悬停看模型或产品明细，点击直达官方页面。需要本地已登录对应工具；未检测到登录就不会出现对应槽位或行
 
-Claude/Codex 的成本、日历和报告仍由本机会话记录计算。各服务的额度与重置数据通过本地凭据存储访问服务方自有端点；显示 Gemini/Grok 额度不代表已支持它们的会话监控。
+成本、日历和报告由本机会话记录计算。各服务的额度与重置数据通过本地凭据存储访问服务方自有端点。
+
+Codex 多账号的机器可以把每个登录存成命名档案，在服务菜单里随时切换——还可选开启自动切换：当前账号额度读到用尽时，依据真实用量轮转到下一个档案。
 
 <img src="Assets/agent-island-usage-zh.png" alt="macOS 上的 Claude 和 Codex 用量页面" width="760">
 
@@ -139,7 +141,7 @@ Claude/Codex 的成本、日历和报告仍由本机会话记录计算。各服�
 
 ### 周报与月报卡片
 
-在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、Claude 对 Codex 的阵营对决（火花停在真实占比分割点，占比高的一方戴上王冠）、7 天柱状图 + TOP 3 模型环形图（周报）或 TOP 5 环形图（月报），底部以岛民段位收尾。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
+在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、阵营对决（火花停在真实占比分割点，占比高的一方戴上王冠）、7 天柱状图 + 模型环形图、跑过的每个模型都会列出，底部以岛民段位收尾。两种卡片都支持从日历任选起始日期。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
 
 <table>
   <tr>
@@ -161,7 +163,7 @@ Claude/Codex 的成本、日历和报告仍由本机会话记录计算。各服�
 
 ### 个性化
 
-岛由你调。用量瓦片有五种图表样式，额度可切换已用/剩余视角，成本样式可循环切换。环境光可选**流光**——光晕与环绕流光，颜色任选青、钴蓝、紫、银白——或全暗的**清爽**，把颜色留给真正的警示。无刘海屏幕还有 100–150% 界面缩放。
+岛由你调，设置面板在 2.1.1 全部重写——侧栏导航、青色承载数据、金色标记选中、每个控件都有微动效。用量瓦片有五种图表样式，额度可切换已用/剩余视角，成本样式可循环切换。环境光可选**流光**——光晕与环绕流光，颜色任选青、钴蓝、紫、银白——或全暗的**清爽**，把颜色留给真正的警示。无刘海屏幕还有 100–150% 界面缩放。
 
 <img src="Assets/agent-island-settings-visual-zh.png" alt="设置：视觉模式与光效颜色选择" width="420">
 

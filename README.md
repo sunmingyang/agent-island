@@ -47,14 +47,14 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 
 ## Quick Start
 
-Choose your platform and install the current `v1.7.1` release directly:
+Choose your platform and install the current release directly:
 
-> This source tree carries the upcoming `v2.1.1` release — five providers, island-wide session status, and the rewritten settings panel. It ships on macOS first; **the Windows build syncs to 2.1.1 right after**. The downloads below are the published `v1.7.1` artifacts.
+> `v2.1.1` is live on macOS — five providers, island-wide session status, and the rewritten settings panel. **The Windows build syncs to 2.1.1 shortly**; its download below is the v1.7.1 build until then.
 
 | Platform | Recommended download | Requirement |
 |---|---|---|
-| macOS | [AgentIsland-1.7.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1.dmg) | macOS 13+, Apple silicon or Intel |
-| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 |
+| macOS | [AgentIsland-2.1.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.1/AgentIsland-2.1.1.dmg) | macOS 13+, Apple silicon or Intel |
+| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 — syncs to 2.1.1 shortly |
 
 On macOS, drag Agent Island into Applications. The app is ad-hoc signed rather than notarized, so the first launch requires right-clicking the app in Finder and choosing **Open**.
 
@@ -113,7 +113,7 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
 
 ### Status monitoring
 
-Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activity in a compact top bar. You can scan the state without bringing each session to the foreground — the two states below sit one hover apart:
+Agent Island mirrors local session activity from Claude Code, Claude Desktop, Codex, Grok, and Gemini in a compact top bar. You can scan the state without bringing each session to the foreground — the two states below sit one hover apart:
 
 <img src="Assets/agent-island-bar-working.png" alt="Agent Island showing an active Claude session in the macOS top bar" width="760">
 
@@ -129,7 +129,9 @@ Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activi
 
 Choose up to two compact-island slots from Claude, Codex, Gemini, Grok, and Cursor. Live session state (working / stalled / your turn) covers Claude, Codex, Grok, and Gemini; every selected provider keeps a full usage row with model or product breakdowns on hover and a click-through to its official page. Compatible local sign-in is required; no detected login means no slot or row.
 
-Claude/Codex cost, calendar, and report summaries are still calculated locally from their session records. Provider quota and reset data comes from provider-owned endpoints through the local credential store; Gemini/Grok quota does not imply session monitoring.
+Cost, calendar, and report summaries are calculated locally from session records. Provider quota and reset data comes from provider-owned endpoints through the local credential store.
+
+Codex machines with more than one account can park each login under a name and switch from the provider menu — with an opt-in auto-switch that rotates to the next parked account when the active quota reads exhausted, driven by real usage numbers.
 
 <img src="Assets/agent-island-usage.png" alt="Agent Island usage view for Claude and Codex on macOS" width="760">
 
@@ -139,7 +141,7 @@ Machines with a single subscription get the solo layout automatically — the pr
 
 ### Weekly & monthly report cards
 
-Shareable cards rendered locally: total tokens with an ≈ API value line, a Claude-vs-Codex faction duel whose clash sits exactly at your usage split (the leading side wins the crown), 7-day bars with a TOP-3 model donut (weekly) or a TOP-5 donut (monthly), and your island rank as the closing line. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
+Shareable cards rendered locally: total tokens with an ≈ API value line, a faction duel whose clash sits exactly at your usage split (the leading side wins the crown), 7-day bars with a model donut, every model that ran listed, and your island rank as the closing line. Both cards accept any start date from a calendar picker. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
 
 <table>
   <tr>
@@ -161,7 +163,7 @@ When a background turn finishes, Agent Island can show an alarm window, send a s
 
 ### Personalization
 
-The island is yours to tune. Usage tiles come in five chart styles with a used-or-remaining quota toggle and cycling cost styles. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves color for real warnings. Screens without a notch get a 100–150% interface scale.
+The island is yours to tune from a settings panel rebuilt in 2.1.1 — sidebar navigation, teal-for-data / gold-for-selection color language, and micro-motion on every control. Usage tiles come in five chart styles with a used-or-remaining quota toggle and cycling cost styles. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves color for real warnings. Screens without a notch get a 100–150% interface scale.
 
 <img src="Assets/agent-island-settings-visual.png" alt="Settings: visual mode and glow color choices" width="420">
 
