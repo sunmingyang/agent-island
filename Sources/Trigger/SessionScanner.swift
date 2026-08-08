@@ -307,10 +307,20 @@ enum SessionScanner {
     static func scanCursor(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
         let path = cursorGlobalDBPath
         guard FileManager.default.fileExists(atPath: path) else { return [] }
-        let modified = mtime(path)
+        // Live writes land in the -wal journal and DO NOT touch the main
+        // file's mtime — SQLite only folds them back on checkpoint, minutes
+        // later. Keying the cache on the main file alone froze the scan on
+        // a pre-checkpoint snapshot: the logo never spun while Cursor
+        // worked, and the your-turn alarm arrived only when the checkpoint
+        // finally landed (owner repro, 2026-08-08). The wal's mtime+size
+        // must be part of the fingerprint.
+        let wal = path + "-wal"
+        let walSize = (try? FileManager.default
+            .attributesOfItem(atPath: wal)[.size] as? Int64).flatMap { $0 } ?? 0
+        let stamp = "\(mtime(path).timeIntervalSince1970)|\(mtime(wal).timeIntervalSince1970)|\(walSize)"
 
         cursorLock.lock()
-        let cached = (modified == cursorCacheStamp) ? cursorCache : nil
+        let cached = (stamp == cursorCacheStamp) ? cursorCache : nil
         cursorLock.unlock()
         if let cached {
             // Status is NEVER cached — only the parsed conversation is. A
@@ -327,6 +337,10 @@ enum SessionScanner {
             return []
         }
         defer { sqlite3_close(db) }
+        // Cursor writes while we read; WAL readers don't block writers, but
+        // a checkpoint can hold the lock for a beat. A short wait beats
+        // returning nothing for the whole 6 s tick.
+        sqlite3_busy_timeout(db, 150)
 
         var parsed: [CursorConversation] = []
         for composerID in cursorComposerIDs(db) {
@@ -349,7 +363,7 @@ enum SessionScanner {
         parsed.sort { $0.stamp > $1.stamp }
 
         cursorLock.lock()
-        cursorCacheStamp = modified
+        cursorCacheStamp = stamp
         cursorCache = parsed
         cursorLock.unlock()
         return parsed.map { session(from: $0, now: now, lastWorking: lastWorking) }
@@ -412,7 +426,7 @@ enum SessionScanner {
     }
 
     private static let cursorLock = NSLock()
-    private static var cursorCacheStamp: Date = .distantPast
+    private static var cursorCacheStamp = ""
     private static var cursorCache: [CursorConversation] = []
 
     private static func cursorComposerIDs(_ db: OpaquePointer) -> [String] {
