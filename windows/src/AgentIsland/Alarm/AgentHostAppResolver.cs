@@ -21,6 +21,41 @@ public static class AgentHostAppResolver
     /// discrimination, these names just keep the PEB reads cheap.
     private static readonly string[] CliNames = { "claude", "codex", "gemini", "grok", "node", "bun" };
 
+    /// Provider-aware entry point. Cursor is the editor AND the agent host,
+    /// so a finished turn is already visible in the pane the user is looking
+    /// at — an alarm on top of it is pure noise. It has no CLI and its
+    /// sessions carry no cwd, so the process-chain walk below can never
+    /// catch it; the foreground executable name is the whole test.
+    public static bool IsHostAppFrontmost(TriggerTool provider, string? cwd)
+    {
+        if (provider == TriggerTool.Cursor) return IsForegroundExe("cursor");
+        return IsHostAppFrontmost(cwd);
+    }
+
+    private static bool IsForegroundExe(string name)
+    {
+        try
+        {
+            var foreground = ForegroundProcessId();
+            if (foreground == 0) return false;
+            foreach (var entry in SnapshotProcesses())
+            {
+                if (entry.Pid != foreground) continue;
+                var exe = entry.ExeName;
+                if (exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    exe = exe[..^4];
+                }
+                return string.Equals(exe, name, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch
+        {
+            // fail open
+        }
+        return false;
+    }
+
     public static bool IsHostAppFrontmost(string? cwd)
     {
         if (string.IsNullOrWhiteSpace(cwd)) return false;

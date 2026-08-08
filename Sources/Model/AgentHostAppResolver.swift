@@ -34,6 +34,11 @@ enum AgentHostAppResolver {
                 if bundleId == "com.anthropic.claudefordesktop" { return true }
             case .codex:
                 if bundleId == "com.openai.codex" || bundleId == "com.openai.chat" { return true }
+            case .cursor:
+                // Cursor is the editor AND the agent host: a finished turn is
+                // already visible in the pane the user is looking at, so an
+                // alarm on top of it is pure noise.
+                if bundleId == "com.todesktop.230313mzl4w4u92" { return true }
             default:
                 break
             }

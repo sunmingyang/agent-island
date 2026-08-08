@@ -119,6 +119,49 @@ public static class SessionTurnState
     /// working/idle purely from file recency and can never raise a false
     /// "your turn" alarm on a format we have not verified. The restraint is
     /// deliberate — do not turn this into a heuristic without real samples.
+    /// Cursor: one bubble per message, `type` 1 = user, 2 = assistant
+    /// (verified against live conversation text, 2026-08-08). The assistant
+    /// having spoken last is the same turn boundary Claude's stop_reason
+    /// gives us; the caller adds the quiet gap that separates "still
+    /// streaming" from "finished".
+    public static SessionTurnStatus Cursor(IReadOnlyList<string> lines)
+    {
+        if (lines.Count == 0) return new SessionTurnStatus(false, null, null);
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(lines[^1]);
+            var root = doc.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                return new SessionTurnStatus(false, null, null);
+            }
+            var type = root.TryGetProperty("type", out var t) && t.TryGetInt32(out var parsed) ? parsed : 0;
+            string? key = root.TryGetProperty("bubbleId", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.String
+                ? "cursor:" + b.GetString()
+                : null;
+            DateTimeOffset? stamp = null;
+            if (root.TryGetProperty("createdAt", out var raw))
+            {
+                if (raw.ValueKind == System.Text.Json.JsonValueKind.Number && raw.TryGetInt64(out var epoch))
+                {
+                    stamp = epoch > 100_000_000_000L
+                        ? DateTimeOffset.FromUnixTimeMilliseconds(epoch)
+                        : DateTimeOffset.FromUnixTimeSeconds(epoch);
+                }
+                else if (raw.ValueKind == System.Text.Json.JsonValueKind.String
+                         && DateTimeOffset.TryParse(raw.GetString(), out var iso))
+                {
+                    stamp = iso;
+                }
+            }
+            return new SessionTurnStatus(type == 2, key, stamp);
+        }
+        catch (Exception)
+        {
+            return new SessionTurnStatus(false, null, null);
+        }
+    }
+
     public static SessionTurnStatus MtimeOnly(IReadOnlyList<string> lines) =>
         new(false, null, null);
 

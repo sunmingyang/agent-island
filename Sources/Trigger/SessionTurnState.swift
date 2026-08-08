@@ -84,6 +84,33 @@ enum SessionTurnState {
         return SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
     }
 
+    /// Cursor: one bubble per message, `type` 1 = user, 2 = assistant
+    /// (verified against live conversation text, 2026-08-08). The assistant
+    /// having spoken last is the same turn boundary Claude's stop_reason
+    /// gives us — the caller adds the quiet gap that separates "still
+    /// streaming" from "finished".
+    static func cursor(_ lines: [String]) -> SessionTurnStatus {
+        guard let line = lines.last,
+              let object = json(line) else {
+            return SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
+        }
+        let type = (object["type"] as? Int) ?? (object["type"] as? Double).map(Int.init) ?? 0
+        let bubbleID = object["bubbleId"] as? String
+        return SessionTurnStatus(
+            isDone: type == 2,
+            key: bubbleID.map { "cursor:" + $0 },
+            activityDate: cursorDate(object["createdAt"])
+        )
+    }
+
+    private static func cursorDate(_ raw: Any?) -> Date? {
+        if let seconds = raw as? Double {
+            return Date(timeIntervalSince1970: seconds > 100_000_000_000 ? seconds / 1000 : seconds)
+        }
+        if let text = raw as? String { return parseISO8601(text) }
+        return nil
+    }
+
     /// For sessions whose transcript has no explicit turn boundary yet
     /// (Gemini's $set checkpoint stream): never claims "done", so the
     /// engine derives working/idle purely from file recency and can never

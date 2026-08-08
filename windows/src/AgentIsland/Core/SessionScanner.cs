@@ -356,66 +356,103 @@ public static class SessionScanner
     /// %APPDATA%\Cursor\User\workspaceStorage. That is an honest recency
     /// signal — working / idle, no turn boundary — so like Gemini it rides
     /// MtimeOnly and never claims "your turn".
+    /// Cursor conversations, read from the same globalStorage db the cost
+    /// reader opens through winsqlite3. Rows keyed `composerData:&lt;id&gt;` are
+    /// the conversations; `bubbleId:&lt;composerId&gt;:&lt;bubbleId&gt;` rows are the
+    /// messages, and a bubble's `type` is a REAL turn boundary — 1 user,
+    /// 2 assistant. Same rule Claude gets: assistant spoke last and has gone
+    /// quiet means it is your turn.
+    ///
+    /// Skipped entirely when the db has not been written since the last
+    /// scan — this runs every 6 s against a file that can be hundreds of MB.
     public static List<ScannedSession> ScanCursor(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
     {
-        var output = new List<ScannedSession>();
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Cursor", "User", "workspaceStorage");
-        foreach (var dir in SafeEnumerateDirectories(root))
+        var path = CursorGlobalDbPath;
+        if (!File.Exists(path)) return new List<ScannedSession>();
+        var modified = Mtime(path);
+
+        lock (CursorGate)
         {
-            var db = Path.Combine(dir, "state.vscdb");
-            if (!File.Exists(db)) continue;
-            var wal = db + "-wal";
-            // Live writes land in the -wal journal; the main db only
-            // advances on checkpoint. Whichever moved last is the clock.
-            var modified = Mtime(db);
-            var walTime = Mtime(wal);
-            if (walTime > modified) modified = walTime;
-            var cwd = CursorWorkspaceFolder(dir) ?? string.Empty;
-            var sid = Path.GetFileName(dir);
-            var state = SessionState(
-                File.Exists(wal) ? wal : db,
-                now, lastWorking, modified, SessionTurnState.MtimeOnly,
-                quietMeansDone: true);
+            if (modified == _cursorStamp && _cursorCache.Count > 0)
+            {
+                return RestateCursor(_cursorCache, now);
+            }
+        }
+
+        var rows = CursorConversations.NewestBubblePerConversation(path);
+        var output = new List<ScannedSession>();
+        foreach (var (composerId, json) in rows)
+        {
+            var turn = SessionTurnState.Cursor(new[] { json });
+            var stamp = turn.ActivityDate ?? modified;
+            if ((now - stamp) > AttentionWindow) continue;
+            var key = "cursor:" + composerId;
             output.Add(new ScannedSession(
                 TriggerTool.Cursor,
-                sid,
-                cwd,
-                Fallback(cwd, sid),
-                state.Modified,
-                state.Status,
-                db,
-                state.TurnKey,
+                composerId,
+                string.Empty,
+                CursorConversations.Title(json) ?? composerId[..Math.Min(8, composerId.Length)],
+                stamp,
+                CursorStatus(turn, stamp, now, key, lastWorking),
+                key,
+                turn.Key,
                 SessionLaunchTarget.Cli));
+        }
+
+        lock (CursorGate)
+        {
+            _cursorStamp = modified;
+            _cursorCache = output;
         }
         return output;
     }
 
-    /// workspace.json carries the folder URI ("file:///C:/…"); missing on
-    /// special windows (empty-window), where the hash directory name is all
-    /// we have.
-    private static string? CursorWorkspaceFolder(string dir)
+    private static readonly object CursorGate = new();
+    private static DateTimeOffset _cursorStamp = DateTimeOffset.MinValue;
+    private static List<ScannedSession> _cursorCache = new();
+
+    private static string CursorGlobalDbPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Cursor", "User", "globalStorage", "state.vscdb");
+
+    /// Cached sessions carry a stale clock; age them against the current
+    /// time so a cached "working" becomes idle without re-reading the db.
+    private static List<ScannedSession> RestateCursor(List<ScannedSession> cached, DateTimeOffset now)
     {
-        try
+        var output = new List<ScannedSession>(cached.Count);
+        foreach (var session in cached)
         {
-            var path = Path.Combine(dir, "workspace.json");
-            if (!File.Exists(path)) return null;
-            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
-            if (!doc.RootElement.TryGetProperty("folder", out var folder)) return null;
-            var uri = folder.GetString();
-            if (string.IsNullOrEmpty(uri)) return null;
-            return Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
-                ? parsed.LocalPath
-                : null;
+            output.Add((now - session.Modified) > AttentionWindow
+                ? session with { Status = ActivityState.Idle }
+                : session);
         }
-        catch (Exception)
-        {
-            return null;
-        }
+        return output;
     }
+
+    /// Assistant-last plus a quiet gap means the turn finished; assistant-last
+    /// while still streaming reads as working. A user bubble last means the
+    /// agent is thinking.
+    private static ActivityState CursorStatus(
+        SessionTurnStatus turn, DateTimeOffset stamp, DateTimeOffset now,
+        string key, IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+    {
+        var age = now - stamp;
+        if (turn.IsDone)
+        {
+            if (age.TotalSeconds <= GuestQuietAfterSeconds) return ActivityState.Working;
+            return age < NeedsYouCap ? ActivityState.NeedsYou : ActivityState.Idle;
+        }
+        if (age < StallAfter) return ActivityState.Working;
+        if (lastWorking.TryGetValue(key, out var seen)
+            && (now - seen) < StallCap && age < StallCap)
+        {
+            return ActivityState.Stalled;
+        }
+        return ActivityState.Idle;
+    }
+
 
     public static List<ScannedSession> ScanGemini(
         DateTimeOffset now,

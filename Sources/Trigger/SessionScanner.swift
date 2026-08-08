@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 
 /// A resumable session discovered on disk, for the trigger picker.
 struct ScannedSession: Identifiable, Hashable {
@@ -293,48 +294,152 @@ enum SessionScanner {
 
     // MARK: - Cursor: workspaceStorage state.vscdb activity
 
-    /// Cursor's conversation-search.db is a batch cache (three rows sharing
-    /// one mtime on the survey machine), so it can NOT drive live status.
-    /// What does move in real time is each workspace's `state.vscdb` (and
-    /// its -wal journal), written continuously while a Cursor window is
-    /// open. That gives an honest recency signal — working / idle — with no
-    /// turn boundary, so like Gemini it rides `mtimeOnly` and never raises
-    /// a "your turn" alarm on an unverified format.
+    /// Cursor conversations, read from the same globalStorage db the cost
+    /// reader opens. Rows keyed `composerData:<id>` are the conversations;
+    /// rows keyed `bubbleId:<composerId>:<bubbleId>` are the messages, and a
+    /// bubble's `type` is a REAL turn boundary — 1 is the user, 2 is the
+    /// assistant (verified against live text on the survey machine). So the
+    /// same rule Claude gets applies: assistant spoke last and has gone
+    /// quiet means it is your turn.
+    ///
+    /// The whole pass is skipped when the db has not been written since the
+    /// last scan — this runs every 6 s and the db is hundreds of megabytes.
     static func scanCursor(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
-        let fm = FileManager.default
-        let root = NSHomeDirectory() + "/Library/Application Support/Cursor/User/workspaceStorage"
-        guard let dirs = try? fm.contentsOfDirectory(atPath: root) else { return [] }
+        let path = cursorGlobalDBPath
+        guard FileManager.default.fileExists(atPath: path) else { return [] }
+        let modified = mtime(path)
+
+        cursorLock.lock()
+        if modified == cursorCacheStamp, !cursorCache.isEmpty {
+            let cached = cursorCache
+            cursorLock.unlock()
+            return cached.map { restate($0, now: now, lastWorking: lastWorking) }
+        }
+        cursorLock.unlock()
+
+        var db: OpaquePointer?
+        guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db else {
+            sqlite3_close(db)
+            return []
+        }
+        defer { sqlite3_close(db) }
+
         var out: [ScannedSession] = []
-        for dir in dirs {
-            let base = root + "/" + dir
-            let db = base + "/state.vscdb"
-            guard fm.fileExists(atPath: db) else { continue }
-            let wal = db + "-wal"
-            // The -wal journal is where live writes land; the main db file
-            // only advances on checkpoint. Whichever moved last is the
-            // activity clock.
-            let modified = max(mtime(db), mtime(wal))
-            let cwd = cursorWorkspaceFolder(base) ?? ""
-            let state = sessionState(
-                for: fm.fileExists(atPath: wal) ? wal : db,
-                now: now, lastWorking: lastWorking,
-                externalActivityDate: modified,
-                quietMeansDone: true,
-                turnState: SessionTurnState.mtimeOnly
-            )
+        for composerID in cursorComposerIDs(db) {
+            guard let bubble = cursorNewestBubble(db, composerID: composerID) else { continue }
+            let turn = SessionTurnState.cursor([bubble.json])
+            let stamp = turn.activityDate ?? modified
+            guard now.timeIntervalSince(stamp) <= attentionWindow else { continue }
+            let key = "cursor:" + composerID
+            let status = cursorStatus(turn: turn, stamp: stamp, now: now, key: key, lastWorking: lastWorking)
             out.append(ScannedSession(
                 tool: .cursor,
-                sessionId: dir,
-                cwd: cwd,
-                label: fallback(cwd, dir),
-                modified: state.modified,
-                status: state.status,
-                transcriptPath: db,
-                turnKey: state.turnKey,
+                sessionId: composerID,
+                cwd: "",
+                label: bubble.title ?? String(composerID.prefix(8)),
+                modified: stamp,
+                status: status,
+                transcriptPath: key,
+                turnKey: turn.key,
                 launchTarget: .cli
             ))
         }
+
+        cursorLock.lock()
+        cursorCacheStamp = modified
+        cursorCache = out
+        cursorLock.unlock()
         return out
+    }
+
+    /// Cached sessions carry a stale clock; re-derive the state against the
+    /// current time so a cached "working" ages into idle without a re-read.
+    private static func restate(
+        _ session: ScannedSession, now: Date, lastWorking: [String: Date]
+    ) -> ScannedSession {
+        let age = now.timeIntervalSince(session.modified)
+        guard age <= attentionWindow else {
+            return ScannedSession(
+                tool: session.tool, sessionId: session.sessionId, cwd: session.cwd,
+                label: session.label, modified: session.modified, status: .idle,
+                transcriptPath: session.transcriptPath, turnKey: session.turnKey,
+                launchTarget: session.launchTarget
+            )
+        }
+        return session
+    }
+
+    /// Assistant-last plus a quiet gap means the turn finished; assistant-last
+    /// while still streaming reads as working. A user bubble last means the
+    /// agent is thinking.
+    private static func cursorStatus(
+        turn: SessionTurnStatus, stamp: Date, now: Date,
+        key: String, lastWorking: [String: Date]
+    ) -> ActivityMonitor.State {
+        let age = now.timeIntervalSince(stamp)
+        if turn.isDone {
+            guard age > guestQuietAfter else { return .working }
+            return age < needsYouCap ? .needsYou : .idle
+        }
+        if age < stallAfter { return .working }
+        if let seen = lastWorking[key], now.timeIntervalSince(seen) < stallCap, age < stallCap {
+            return .stalled
+        }
+        return .idle
+    }
+
+    private static var cursorGlobalDBPath: String {
+        NSHomeDirectory()
+            + "/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+    }
+
+    private static let cursorLock = NSLock()
+    private static var cursorCacheStamp: Date = .distantPast
+    private static var cursorCache: [ScannedSession] = []
+
+    private static func cursorComposerIDs(_ db: OpaquePointer) -> [String] {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            db, "SELECT key FROM cursorDiskKV WHERE key LIKE 'composerData:%'", -1, &statement, nil
+        ) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(statement) }
+        var ids: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let raw = sqlite3_column_text(statement, 0) else { continue }
+            let key = String(cString: raw)
+            let id = String(key.dropFirst("composerData:".count))
+            if !id.isEmpty { ids.append(id) }
+        }
+        return ids
+    }
+
+    /// Newest message in a conversation. rowid order is insertion order, so
+    /// the highest rowid for a composer is its latest bubble — far cheaper
+    /// than decoding every bubble to sort by timestamp.
+    private static func cursorNewestBubble(
+        _ db: OpaquePointer, composerID: String
+    ) -> (json: String, title: String?)? {
+        var statement: OpaquePointer?
+        let sql = "SELECT value FROM cursorDiskKV WHERE key LIKE ? ORDER BY rowid DESC LIMIT 1"
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(statement) }
+        let pattern = "bubbleId:" + composerID + ":%"
+        sqlite3_bind_text(statement, 1, pattern, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let raw = sqlite3_column_text(statement, 0) else { return nil }
+        let json = String(cString: raw)
+        return (json, cursorTitle(json))
+    }
+
+    /// A bubble's own text, trimmed to one line, stands in for a conversation
+    /// title — Cursor leaves composerData.name empty on most threads.
+    private static func cursorTitle(_ json: String) -> String? {
+        guard let data = json.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let text = object["text"] as? String else { return nil }
+        let line = text.split(separator: "\n").first.map(String.init) ?? text
+        let clean = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? nil : String(clean.prefix(48))
     }
 
     /// workspace.json carries the folder URI ("file:///Users/…"); missing on

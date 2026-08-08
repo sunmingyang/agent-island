@@ -186,7 +186,7 @@ public sealed class AgentReminderCenter
         // the user is watching. Park it; the focus-change watch below fires
         // it the moment they switch away with the turn still open. Sessions
         // whose host can't be resolved (daemons, containers) fail open.
-        if (AgentHostAppResolver.IsHostAppFrontmost(thread.Cwd))
+        if (AgentHostAppResolver.IsHostAppFrontmost(provider, thread.Cwd))
         {
             _heldAlarms[deliveryKey] = (provider, thread);
             return;
@@ -228,7 +228,7 @@ public sealed class AgentReminderCenter
                 _heldAlarms.Remove(key);
                 continue;
             }
-            if (AgentHostAppResolver.IsHostAppFrontmost(held.Thread.Cwd)) continue; // still watching it
+            if (AgentHostAppResolver.IsHostAppFrontmost(held.Provider, held.Thread.Cwd)) continue; // still watching it
             _heldAlarms.Remove(key);
             _deliveredNeedsYouKeys[key] = DateTimeOffset.Now;
             Deliver(held.Provider, held.Thread, key);
