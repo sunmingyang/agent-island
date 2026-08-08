@@ -35,11 +35,10 @@ extension TriggerSettingsView {
     func loadSessions() async {
         scanning = true
         let found = await Task.detached(priority: .userInitiated) { SessionScanner.scan() }.value
-        // Codex auto-resume is retired (product call, 2026-07-13): Codex has
-        // no intra-day reset to resume at since its 5-hour window was
-        // (per OpenAI, "temporarily") removed — only Claude sessions are
-        // offered. Plumbing stays so this is one line to undo if it returns.
-        allSessions = found.filter { $0.tool == .claude }
+        // Codex auto-resume stays retired (product call, 2026-07-13: its
+        // 5-hour window is gone, so there is no reset to resume at). The
+        // resumable set is everyone whose CLI contract we verified.
+        allSessions = found.filter { $0.tool.supportsAutoResume && $0.tool != .codex }
         if selectedID == nil || allSessions.first(where: { $0.id == selectedID }) == nil {
             selectFirst()
         }

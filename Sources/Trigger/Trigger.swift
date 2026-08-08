@@ -17,14 +17,16 @@ enum TriggerTool: String, Codable, CaseIterable {
         }
     }
 
-    /// Only Claude and Codex expose a `--resume <id>` CLI contract, so only
-    /// they can carry auto-triggers. The other three still flow through the
-    /// monitoring scan (island logo + turn alarms) — session STATUS is
-    /// five-provider, session RESUME is two.
+    /// Who can carry auto-triggers. Verified against each CLI's --help
+    /// (2026-08-08): claude/codex resume by id; gemini resumes
+    /// latest-in-cwd headlessly (`--resume latest -p … --yolo`, daily quota
+    /// reset gives afterReset real meaning); grok continues latest-in-cwd
+    /// (`-c --always-approve "…"`, weekly pool so only everyHours makes
+    /// sense). Cursor has no CLI at all.
     var supportsAutoResume: Bool {
         switch self {
-        case .claude, .codex: return true
-        case .gemini, .grok, .cursor: return false
+        case .claude, .codex, .gemini, .grok: return true
+        case .cursor: return false
         }
     }
 }

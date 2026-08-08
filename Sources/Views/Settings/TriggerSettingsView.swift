@@ -84,10 +84,12 @@ struct TriggerSettingsView: View {
                 .padding(.vertical, 10)
         } else {
             VStack(alignment: .leading, spacing: 4) {
-                // Claude only — Codex auto-resume is retired; existing Codex
-                // triggers stay persisted (one line to restore) but are not
-                // shown and never fire.
+                // Codex stays retired (its 5h window is gone — product call,
+                // 2026-07-13; existing triggers persist unshown). Gemini and
+                // Grok joined 2026-08-08 with their own CLI contracts.
                 groupRows(.claude)
+                groupRows(.gemini)
+                groupRows(.grok)
             }
             .padding(.bottom, 4)
         }
@@ -133,7 +135,7 @@ struct TriggerSettingsView: View {
             VStack(alignment: .leading, spacing: 13) {
                 field("Tool") {
                     SegmentedControl(
-                        items: TriggerTool.allCases.filter(\.supportsAutoResume),
+                        items: TriggerTool.allCases.filter { $0.supportsAutoResume && $0 != .codex },
                         selected: $tool,
                         label: { $0.display },
                         accessibilityPrefix: "Tool"

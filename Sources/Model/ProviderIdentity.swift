@@ -15,6 +15,14 @@ extension DisplayProvider {
     }
 }
 
+extension TriggerTool {
+    /// Trigger rows carry the same five identities; hop via raw value like
+    /// the DisplayProvider bridge above.
+    var accentColor: Color {
+        (AlertEngine.Provider(rawValue: rawValue) ?? .claude).accent
+    }
+}
+
 extension AlertEngine.Provider {
     var displayName: String {
         switch self {
