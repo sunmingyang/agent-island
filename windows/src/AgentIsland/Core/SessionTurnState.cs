@@ -139,19 +139,22 @@ public static class SessionTurnState
             string? key = root.TryGetProperty("bubbleId", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.String
                 ? "cursor:" + b.GetString()
                 : null;
+            // Cursor writes bubble timestamps as an ISO-8601 string with
+            // milliseconds ("2026-08-08T19:46:26.661Z") — verified against
+            // the real store. Numbers are handled defensively.
             DateTimeOffset? stamp = null;
             if (root.TryGetProperty("createdAt", out var raw))
             {
-                if (raw.ValueKind == System.Text.Json.JsonValueKind.Number && raw.TryGetInt64(out var epoch))
+                if (raw.ValueKind == System.Text.Json.JsonValueKind.String
+                    && DateTimeOffset.TryParse(raw.GetString(), out var iso))
+                {
+                    stamp = iso;
+                }
+                else if (raw.ValueKind == System.Text.Json.JsonValueKind.Number && raw.TryGetInt64(out var epoch))
                 {
                     stamp = epoch > 100_000_000_000L
                         ? DateTimeOffset.FromUnixTimeMilliseconds(epoch)
                         : DateTimeOffset.FromUnixTimeSeconds(epoch);
-                }
-                else if (raw.ValueKind == System.Text.Json.JsonValueKind.String
-                         && DateTimeOffset.TryParse(raw.GetString(), out var iso))
-                {
-                    stamp = iso;
                 }
             }
             return new SessionTurnStatus(type == 2, key, stamp);

@@ -386,7 +386,11 @@ public static class SessionScanner
         foreach (var (composerId, json) in rows)
         {
             var turn = SessionTurnState.Cursor(new[] { json });
-            var stamp = turn.ActivityDate ?? modified;
+            // No usable bubble timestamp means we cannot say WHEN this
+            // conversation last moved. Falling back to the db mtime was the
+            // bug behind a permanently spinning logo: Cursor rewrites that
+            // file continuously while it is merely open.
+            if (turn.ActivityDate is not { } stamp) continue;
             if ((now - stamp) > AttentionWindow) continue;
             var key = "cursor:" + composerId;
             output.Add(new ScannedSession(
@@ -401,6 +405,7 @@ public static class SessionScanner
                 SessionLaunchTarget.Cli));
         }
 
+        output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         lock (CursorGate)
         {
             _cursorStamp = modified;

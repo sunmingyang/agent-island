@@ -103,11 +103,22 @@ enum SessionTurnState {
         )
     }
 
+    /// Cursor writes bubble timestamps as an ISO-8601 string with
+    /// milliseconds ("2026-08-08T19:46:26.661Z") — verified on the real
+    /// store. Numbers are handled defensively for older/other shapes. This
+    /// MUST return a real date: falling back to the db mtime made every
+    /// conversation look freshly active, because Cursor writes that file
+    /// continuously while it is merely open (owner bug report: the island
+    /// logo spun with nothing running).
     private static func cursorDate(_ raw: Any?) -> Date? {
-        if let seconds = raw as? Double {
-            return Date(timeIntervalSince1970: seconds > 100_000_000_000 ? seconds / 1000 : seconds)
-        }
         if let text = raw as? String { return parseISO8601(text) }
+        if let number = raw as? Double {
+            return Date(timeIntervalSince1970: number > 100_000_000_000 ? number / 1000 : number)
+        }
+        if let number = raw as? Int {
+            let value = Double(number)
+            return Date(timeIntervalSince1970: value > 100_000_000_000 ? value / 1000 : value)
+        }
         return nil
     }
 

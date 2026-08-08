@@ -328,8 +328,13 @@ enum SessionScanner {
         for composerID in cursorComposerIDs(db) {
             guard let bubble = cursorNewestBubble(db, composerID: composerID) else { continue }
             let turn = SessionTurnState.cursor([bubble.json])
-            let stamp = turn.activityDate ?? modified
-            guard now.timeIntervalSince(stamp) <= attentionWindow else { continue }
+            // No usable bubble timestamp means we cannot say WHEN this
+            // conversation last moved. Falling back to the db mtime was the
+            // bug behind a permanently spinning logo: Cursor rewrites that
+            // file continuously while it is merely open, so every stale
+            // conversation looked like it had just been touched.
+            guard let stamp = turn.activityDate,
+                  now.timeIntervalSince(stamp) <= attentionWindow else { continue }
             let key = "cursor:" + composerID
             let status = cursorStatus(turn: turn, stamp: stamp, now: now, key: key, lastWorking: lastWorking)
             out.append(ScannedSession(
@@ -345,6 +350,7 @@ enum SessionScanner {
             ))
         }
 
+        out.sort { $0.modified > $1.modified }
         cursorLock.lock()
         cursorCacheStamp = modified
         cursorCache = out
