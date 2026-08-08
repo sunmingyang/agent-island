@@ -30,6 +30,15 @@ final class TranscriptEventStream {
             home + "/.claude/projects",
             home + "/.codex/sessions",
             home + "/Library/Application Support/Claude/claude-code-sessions",
+            // The three guests were poll-only until now: their roots were
+            // never watched, so a finished Grok/Gemini/Cursor turn waited up
+            // to a full 6s tick (Cursor worst-case ~12s, since it needs a
+            // second scan to confirm the reply stopped growing). Watching
+            // their roots gives them the same sub-second reaction Claude and
+            // Codex get (owner: make the guests react in real time).
+            home + "/.grok/sessions",
+            home + "/.gemini/tmp",
+            home + "/Library/Application Support/Cursor/User/globalStorage",
         ].filter { FileManager.default.fileExists(atPath: $0) }
         guard !roots.isEmpty else { return }
         var context = FSEventStreamContext(
@@ -62,6 +71,15 @@ final class TranscriptEventStream {
     }
 
     private func isRelevant(_ path: String) -> Bool {
-        path.hasSuffix(".jsonl") || (path as NSString).lastPathComponent.hasPrefix("local_")
+        // Claude/Codex transcripts, Claude desktop store, Grok chat/updates:
+        if path.hasSuffix(".jsonl") { return true }
+        if (path as NSString).lastPathComponent.hasPrefix("local_") { return true }
+        // Cursor writes its conversation store as SQLite. The main db moves
+        // only on checkpoint, so the -wal journal is where a live reply
+        // actually lands — watch both. The -shm shared-memory file churns
+        // many times a second as pure bookkeeping and carries no new content,
+        // so it must NOT trigger a rescan or it becomes a scan storm.
+        if path.hasSuffix("state.vscdb") || path.hasSuffix("state.vscdb-wal") { return true }
+        return false
     }
 }

@@ -431,10 +431,18 @@ enum SessionScanner {
     ) -> ActivityMonitor.State {
         let age = now.timeIntervalSince(stamp)
         if turn.isDone {
-            // Newest bubble is the assistant's. If it only appeared this
-            // scan, more of the reply may still be streaming — hold at
-            // working until it stops growing.
-            guard stable else { return .working }
+            // Newest bubble is the assistant's. Two conditions must BOTH hold
+            // before we call the turn finished, or a mid-reply pause fires a
+            // false alarm:
+            //   1. `stable` — this exact bubble id was already the newest one
+            //      scan ago (no new bubble arrived since).
+            //   2. the bubble is at least `cursorSettle` old — event-driven
+            //      rescans can land <1s apart, and bubbles within one reply
+            //      arrive up to 8.3s apart, so "unchanged for a moment" is not
+            //      enough; the bubble must have sat still for a real beat.
+            // Together they give ~1-3s latency on a genuinely finished turn
+            // while never firing between two bubbles of the same reply.
+            guard stable, age >= cursorSettle else { return .working }
             return age < needsYouCap ? .needsYou : .idle
         }
         // Newest bubble is the user's: the agent is thinking.
@@ -444,6 +452,14 @@ enum SessionScanner {
         }
         return .idle
     }
+
+    /// Minimum age of the newest assistant bubble before its turn counts as
+    /// finished. Above the sub-second event-rescan interval, below the
+    /// smallest gap a human waits for a reply — tuned against a measured
+    /// max intra-reply bubble gap of 8.3s (we do NOT wait that long; the
+    /// `stable` flag already proves no new bubble arrived, this just guards
+    /// the fast-rescan race).
+    private static let cursorSettle: TimeInterval = 3
 
     private static var cursorGlobalDBPath: String {
         NSHomeDirectory()
