@@ -323,12 +323,11 @@ enum SessionScanner {
         let cached = (stamp == cursorCacheStamp) ? cursorCache : nil
         cursorLock.unlock()
         if let cached {
-            // Status is NEVER cached — only the parsed conversation is. A
-            // finished turn becomes "your turn" purely by the clock moving
-            // past the quiet gap, and the db stops changing the moment the
-            // assistant stops writing, so a cached status would freeze at
-            // "working" and the alarm would never fire (owner repro).
-            return cached.map { session(from: $0, now: now, lastWorking: lastWorking) }
+            // Cache hit means the db (main + WAL) has not moved since the
+            // last scan — the assistant has written nothing new — so every
+            // conversation is stable by definition. Status is still
+            // recomputed against the current clock (needsYou ages to idle).
+            return cached.map { session(from: $0, now: now, stable: true, lastWorking: lastWorking) }
         }
 
         var db: OpaquePointer?
@@ -363,10 +362,21 @@ enum SessionScanner {
         parsed.sort { $0.stamp > $1.stamp }
 
         cursorLock.lock()
+        let previousTurns = cursorLastTurn
+        var nextTurns: [String: String] = [:]
+        for conversation in parsed { nextTurns[conversation.id] = conversation.turnKey ?? "" }
+        cursorLastTurn = nextTurns
         cursorCacheStamp = stamp
         cursorCache = parsed
         cursorLock.unlock()
-        return parsed.map { session(from: $0, now: now, lastWorking: lastWorking) }
+        // A conversation is stable when its newest bubble is the SAME one we
+        // saw last scan. The db changed (we are on the cold path), but this
+        // particular conversation may not have — its turn is done only if it
+        // held still while some other conversation moved.
+        return parsed.map { conversation in
+            let stable = previousTurns[conversation.id] == (conversation.turnKey ?? "")
+            return session(from: conversation, now: now, stable: stable, lastWorking: lastWorking)
+        }
     }
 
     /// One parsed conversation. Deliberately holds no status: the status is
@@ -380,7 +390,8 @@ enum SessionScanner {
     }
 
     private static func session(
-        from conversation: CursorConversation, now: Date, lastWorking: [String: Date]
+        from conversation: CursorConversation, now: Date,
+        stable: Bool, lastWorking: [String: Date]
     ) -> ScannedSession {
         let key = "cursor:" + conversation.id
         let turn = SessionTurnStatus(
@@ -393,7 +404,8 @@ enum SessionScanner {
             label: conversation.label,
             modified: conversation.stamp,
             status: cursorStatus(
-                turn: turn, stamp: conversation.stamp, now: now, key: key, lastWorking: lastWorking
+                turn: turn, stamp: conversation.stamp, now: now,
+                key: key, stable: stable, lastWorking: lastWorking
             ),
             transcriptPath: key,
             turnKey: conversation.turnKey,
@@ -404,15 +416,28 @@ enum SessionScanner {
     /// Assistant-last plus a quiet gap means the turn finished; assistant-last
     /// while still streaming reads as working. A user bubble last means the
     /// agent is thinking.
+    /// Cursor has no explicit "turn finished" marker like Claude's
+    /// stop_reason, and a single reply streams in as several assistant
+    /// bubbles seconds apart (measured up to 8.3s between them). So the real
+    /// completion signal is "no NEW bubble since the last scan": `stable`
+    /// means this exact newest bubble was already present one scan ago, i.e.
+    /// the assistant has stopped writing. That gives a your-turn latency of
+    /// one scan tick (~6s) — the same ballpark as Claude/Codex — without the
+    /// 25s guess that made the alarm feel broken, and without firing mid-
+    /// stream on an interim bubble.
     private static func cursorStatus(
         turn: SessionTurnStatus, stamp: Date, now: Date,
-        key: String, lastWorking: [String: Date]
+        key: String, stable: Bool, lastWorking: [String: Date]
     ) -> ActivityMonitor.State {
         let age = now.timeIntervalSince(stamp)
         if turn.isDone {
-            guard age > guestQuietAfter else { return .working }
+            // Newest bubble is the assistant's. If it only appeared this
+            // scan, more of the reply may still be streaming — hold at
+            // working until it stops growing.
+            guard stable else { return .working }
             return age < needsYouCap ? .needsYou : .idle
         }
+        // Newest bubble is the user's: the agent is thinking.
         if age < stallAfter { return .working }
         if let seen = lastWorking[key], now.timeIntervalSince(seen) < stallCap, age < stallCap {
             return .stalled
@@ -428,6 +453,9 @@ enum SessionScanner {
     private static let cursorLock = NSLock()
     private static var cursorCacheStamp = ""
     private static var cursorCache: [CursorConversation] = []
+    /// composerId → the newest bubble id seen last scan. Used to tell a
+    /// still-streaming reply (bubble changed) from a finished one (unchanged).
+    private static var cursorLastTurn: [String: String] = [:]
 
     private static func cursorComposerIDs(_ db: OpaquePointer) -> [String] {
         var statement: OpaquePointer?
