@@ -77,3 +77,35 @@ extension AnyTransition {
         .combined(with: .scale(scale: 0.98, anchor: .top))
     }
 }
+
+/// Cadence B6/B7 content replacement: the outgoing view softens into a
+/// gaussian haze while the incoming one condenses out of it — a cross-
+/// dissolve of focus, not position. Custom modifier pair because
+/// `.contentTransition(.blurReplace)` is macOS 14+ and this app ships 13+.
+private struct BlurFadeModifier: ViewModifier {
+    let radius: CGFloat
+    let opacity: Double
+    let offset: CGFloat
+
+    func body(content: Content) -> some View {
+        content.blur(radius: radius).opacity(opacity).offset(y: offset)
+    }
+}
+
+extension AnyTransition {
+    /// Incoming content condenses out of a soft haze while rising a few
+    /// points into place; outgoing dissolves upward. Asymmetric so the two
+    /// never cross-muddle mid-swap.
+    static var blurFade: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: BlurFadeModifier(radius: 8, opacity: 0, offset: 8),
+                identity: BlurFadeModifier(radius: 0, opacity: 1, offset: 0)
+            ),
+            removal: .modifier(
+                active: BlurFadeModifier(radius: 8, opacity: 0, offset: -6),
+                identity: BlurFadeModifier(radius: 0, opacity: 1, offset: 0)
+            )
+        )
+    }
+}

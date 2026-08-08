@@ -34,20 +34,18 @@ extension IslandRootView {
         }
     }
 
+    func handleProviderTap(_ provider: DisplayProvider) {
+        model.showScreen(.usage)
+        guard model.state != .expanded else { return }
+        handleTap()
+    }
+
     func handleHover(_ isHovering: Bool) {
         hovering = isHovering
         isHovering ? enterPeekFromHover() : exitPeekFromHover()
     }
 
     func handleAppear() {
-        if claudeLogo == nil {
-            claudeLogo = Bundle.main.url(forResource: "claude_logo", withExtension: "pdf")
-                .flatMap { NSImage(contentsOf: $0) }
-        }
-        if openaiLogo == nil {
-            openaiLogo = Bundle.main.url(forResource: "openai_logo", withExtension: "pdf")
-                .flatMap { NSImage(contentsOf: $0) }
-        }
         if alwaysShow.enabled && model.state == .compact {
             model.setState(.peek)
             pillsVisible = true
@@ -111,7 +109,7 @@ extension IslandRootView {
         }
     }
 
-    func logoEdgePadding(for provider: AlertEngine.Provider) -> CGFloat {
+    func logoEdgePadding(for provider: DisplayProvider) -> CGFloat {
         // 9pt from the silhouette BODY edge; the frame is topCurl wider per
         // side (the flare region), which holds no body to align against.
         switch model.state {

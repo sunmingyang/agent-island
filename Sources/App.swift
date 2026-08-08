@@ -213,6 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         case "coststyle:next": CostStylePref.shared.cycle()
                         case "quota:toggle":
                             QuotaDisplayModeStore.shared.showsRemaining.toggle()
+                        case "whatsnew:show": WhatsNewWindowController.shared.show()
                         case "report:weekly": WeeklyReportWindowController.shared.show()
                         case "report:monthly": MonthlyReportWindowController.shared.show()
                         case "settings:show": SettingsWindowController.shared.show()

@@ -28,12 +28,14 @@ struct CostStylePicker: View {
 
     @ViewBuilder
     private func preview(for style: CostStyle) -> some View {
-        let claude = IslandColor.claude
+        // Previews speak ONE voice — brand teal — because the picker is
+        // about SHAPE, not whose data (owner call, 2026-08-08).
+        let claude = IslandColor.brandTeal
         switch style {
         case .dollar:
             HStack(alignment: .firstTextBaseline, spacing: 1) {
                 Text("$")
-                    .font(Typography.micro)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.5))
                 Text("87")
                     .font(Typography.previewNumber)
@@ -53,7 +55,7 @@ struct CostStylePicker: View {
                     .font(Typography.previewNumber)
                     .foregroundStyle(claude)
                 Text("M")
-                    .font(Typography.micro)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.5))
             }
         case .spark:

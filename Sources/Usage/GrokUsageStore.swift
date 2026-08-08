@@ -18,7 +18,7 @@ final class GrokUsageStore: ObservableObject {
     /// "SUPERGROK" for OIDC logins, else the raw auth_mode uppercased.
     @Published private(set) var authModeBadge: String?
 
-    private var loading = false
+    @Published private(set) var loading = false
     private var lastAttempt: Date?
     private static let cacheKey = "GrokUsageStore.lastSnapshot.v1"
     private static let cacheMaxAge: TimeInterval = 24 * 60 * 60
@@ -32,7 +32,25 @@ final class GrokUsageStore: ObservableObject {
     }
 
     private init() {
-        guard !AppEnvironment.isDemo else { return }
+        if AppEnvironment.isDemo {
+            if AppEnvironment.demoGuestFixturesEnabled {
+                let now = Date()
+                snapshot = GrokBillingSnapshot(
+                    weeklyUsedPercent: 0.37,
+                    weeklyPeriodEnd: now.addingTimeInterval(3 * 86400 + 9 * 3600),
+                    monthlyUsedCents: 123,
+                    monthlyLimitCents: 4000,
+                    monthlyPeriodEnd: now.addingTimeInterval(26 * 86400),
+                    productUsage: [
+                        GrokProductUsage(product: "grok-code", usedPercent: 0.29),
+                        GrokProductUsage(product: "grok-web", usedPercent: 0.08),
+                    ]
+                )
+                authModeBadge = "SUPERGROK"
+                lastUpdated = now
+            }
+            return
+        }
         loadIdentity()
         guard let data = UserDefaults.standard.data(forKey: Self.cacheKey),
               let cached = try? JSONDecoder().decode(CachedSnapshot.self, from: data),
@@ -43,7 +61,7 @@ final class GrokUsageStore: ObservableObject {
 
     func kickRefresh() {
         guard !AppEnvironment.isDemo,
-              ProviderVisibilityStore.shared.grokShown,
+              ProviderVisibilityStore.shared.grokPanelShown,
               !loading else { return }
         if let last = lastAttempt, Date().timeIntervalSince(last) < Self.minAttemptGap { return }
         lastAttempt = Date()

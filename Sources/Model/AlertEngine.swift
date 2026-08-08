@@ -28,6 +28,9 @@ final class AlertEngine: ObservableObject {
     enum Provider: String, Hashable {
         case claude
         case codex
+        case gemini
+        case grok
+        case cursor
     }
 
     enum Threshold: Int, Hashable {

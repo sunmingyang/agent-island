@@ -17,6 +17,7 @@ struct NotchPeekPill: View {
     let tint: Color
     let alignment: HorizontalAlignment
     var severity: AlertEngine.Severity = .none
+    var fallbackWindowLabel: String? = nil
 
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
 
@@ -76,7 +77,7 @@ struct NotchPeekPill: View {
     /// weaker presence. The fallback names the window the provider actually
     /// has (Codex has been weekly-only since July 2026).
     private var resetLabel: some View {
-        Text(resetText ?? (usage.isLongPeriod ? "7d" : "5h"))
+        Text(resetText ?? fallbackWindowLabel ?? (usage.isLongPeriod ? "7d" : "5h"))
             .font(Typography.bodyNumber)
             .foregroundStyle(.white.opacity(resetText == nil ? 0.45 : 0.70))
     }

@@ -4,8 +4,7 @@ import SwiftUI
 struct TurnAlarmProviderMark: View {
     let provider: AlertEngine.Provider
     let providerColor: Color
-    private static let claudeLogo = loadLogo("claude_logo")
-    private static let openAILogo = loadLogo("openai_logo")
+
     @State private var glowPulse = false
     @State private var ringPulse = false
 
@@ -46,14 +45,20 @@ struct TurnAlarmProviderMark: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         } else {
-            Image(systemName: provider == .claude ? "sparkle" : "circle.hexagongrid.fill")
+            Image(systemName: provider == .claude ? "sparkle" : "circle.hexagongrid.fill")  // template fallback only
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         }
     }
 
     private var logoImage: NSImage? {
-        provider == .claude ? Self.claudeLogo : Self.openAILogo
+        switch provider {
+        case .claude: return ProviderLogos.claude
+        case .codex: return ProviderLogos.openAI
+        case .gemini: return ProviderLogos.gemini
+        case .grok: return ProviderLogos.grok
+        case .cursor: return ProviderLogos.cursor
+        }
     }
 
     private static func loadLogo(_ name: String) -> NSImage? {

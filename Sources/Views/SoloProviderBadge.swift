@@ -40,11 +40,11 @@ struct SoloProviderBadge: View {
     }
 
     private var color: Color {
-        provider == .claude ? IslandColor.claude : IslandColor.codex
+        provider.accent
     }
 
     private var name: String {
-        provider == .claude ? "Claude Code" : "Codex"
+        provider.displayName
     }
 
     private var image: NSImage? {

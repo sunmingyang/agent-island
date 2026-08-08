@@ -2,18 +2,12 @@ import SwiftUI
 
 struct StatusGuideView: View {
     @ObservedObject private var reminders = AgentReminderStore.shared
-    @ObservedObject private var subagentAlarm = SubagentAlarmStore.shared
     @ObservedObject private var quotaAlarm = QuotaAlarmStore.shared
     @State private var soundPickerExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(L10n.tr("What the island's two logos are telling you."))
-                .font(Typography.label)
-                .foregroundStyle(.white.opacity(0.5))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 10)
-                .padding(.bottom, 12)
+            
 
             sectionLabel("Logo states")
             legendRow(.working, "Working", "The logo rotates while a session is running.")
@@ -23,7 +17,7 @@ struct StatusGuideView: View {
             sectionLabel("Reminders").padding(.top, 14)
             SettingsRow(
                 title: "Turn alarm",
-                subtitle: "Pop up a foreground alarm and system notification when a background run needs you."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: reminders.enabled) { reminders.enabled.toggle() }
             }
@@ -40,12 +34,6 @@ struct StatusGuideView: View {
                 SettingsToggle(isOn: reminders.showSessionDetails) { reminders.showSessionDetails.toggle() }
             }
             SettingsRow(
-                title: "Subagent alarms",
-                subtitle: "Codex spawns child threads that finish constantly. Off by default."
-            ) {
-                SettingsToggle(isOn: subagentAlarm.showSubagentThreads) { subagentAlarm.showSubagentThreads.toggle() }
-            }
-            SettingsRow(
                 title: "Out-of-quota alarm",
                 subtitle: nil
             ) {
@@ -53,7 +41,7 @@ struct StatusGuideView: View {
             }
             SettingsRow(
                 title: "Alarm sound",
-                subtitle: "Choose a built-in sound or use your own file."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: reminders.soundEnabled) { reminders.soundEnabled.toggle() }
             }
@@ -92,7 +80,7 @@ struct StatusGuideView: View {
     private func demoButton(_ label: String, _ state: ActivityMonitor.State?) -> some View {
         Button { ActivityMonitor.shared.demo(state) } label: {
             Text(L10n.tr(label))
-                .font(Typography.label)
+                .font(SettingsType.data)
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(
@@ -110,11 +98,11 @@ struct StatusGuideView: View {
                 .frame(width: 30, height: 26)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.tr(title))
-                    .font(Typography.rowTitle).tracking(-0.07)
+                    .font(SettingsType.rowTitle)
                     .foregroundStyle(.white.opacity(0.92))
                 Text(L10n.tr(desc))
-                    .font(Typography.label)
-                    .foregroundStyle(.white.opacity(0.55))
+                    .font(SettingsType.data)
+                    .foregroundStyle(.white.opacity(0.62))
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
@@ -126,7 +114,7 @@ struct StatusGuideView: View {
     @ViewBuilder
     private func sectionLabel(_ text: String) -> some View {
         Text(L10n.tr(text))
-            .font(Typography.sectionLabel)
+            .font(SettingsType.section)
             .tracking(1.05)
             .textCase(.uppercase)
             .foregroundStyle(.white.opacity(0.34))
@@ -150,11 +138,11 @@ private struct SoundPickerHeader: View {
         } label: {
             HStack(spacing: 10) {
                 Text(L10n.tr("Sound"))
-                    .font(Typography.rowTitle)
+                    .font(SettingsType.rowTitle)
                     .foregroundStyle(.white.opacity(0.92))
                 Spacer(minLength: 8)
                 Text(reminders.soundLabel)
-                    .font(Typography.label)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.58))
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
@@ -196,13 +184,13 @@ private struct SoundChoiceRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(L10n.tr(choice.label))
-                .font(Typography.label)
+                .font(SettingsType.data)
                 .foregroundStyle(.white.opacity(isSelected ? 0.95 : 0.72))
                 .lineLimit(1)
             Spacer(minLength: 8)
             if let actionLabel {
                 Text(L10n.tr(actionLabel))
-                    .font(Typography.micro)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.55))
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
@@ -214,7 +202,7 @@ private struct SoundChoiceRow: View {
             if isSelected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(IslandColor.cobalt)
+                    .foregroundStyle(IslandColor.brandTeal)
             }
         }
         .padding(.horizontal, 12)

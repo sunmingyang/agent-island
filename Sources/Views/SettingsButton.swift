@@ -16,17 +16,21 @@ struct SettingsButton: View {
                 .font(Typography.button)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.white.opacity(hovered ? 0.64 : 0.34))
+                // The gear turns a few degrees under the pointer — machinery
+                // acknowledging the hand before the click.
+                .rotationEffect(.degrees(hovered ? 24 : 0))
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
                 .background {
                     Circle()
                         .fill(.white.opacity(hovered ? 0.08 : 0))
+                        .shadow(color: IslandColor.brandTeal.opacity(hovered ? 0.30 : 0), radius: 6)
                 }
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
         .help(L10n.tr("Settings"))
-        .animation(.strongEaseOut, value: hovered)
+        .animation(.spring(response: 0.34, dampingFraction: 0.72), value: hovered)
         .accessibilityLabel(L10n.tr("Settings"))
     }
 }

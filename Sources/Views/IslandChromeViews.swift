@@ -1,6 +1,16 @@
 import SwiftUI
 import AppKit
 
+extension DisplayProvider {
+    var alertProvider: AlertEngine.Provider? {
+        switch self {
+        case .claude: return .claude
+        case .codex: return .codex
+        case .gemini, .grok, .cursor: return nil
+        }
+    }
+}
+
 struct GlowLayer: View {
     let isExpanded: Bool
     let hovering: Bool
@@ -86,11 +96,12 @@ struct GlowLayer: View {
 }
 
 struct LogoOverlay: View {
-    let image: NSImage?
-    let color: Color
-    let provider: AlertEngine.Provider
+    let provider: DisplayProvider
+    let onTrailingFlank: Bool
     let edgePadding: CGFloat
     let topPadding: CGFloat
+    var forceVisible = false
+    let onTap: () -> Void
 
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
     @ObservedObject private var monitor = ActivityMonitor.shared
@@ -98,31 +109,27 @@ struct LogoOverlay: View {
     @State private var spinAngle: Double = 0
 
     var body: some View {
-        if let image {
-            Image(nsImage: image)
-                .resizable()
-                .renderingMode(.template)
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(tint)
-                .frame(width: 20, height: 20)
-                .scaleEffect(scale)
-                .rotationEffect(.degrees(spinAngle))
-                .shadow(color: tint.opacity(pulse ? 0.9 : 0.25), radius: glowRadius)
-                .padding(provider == .claude ? .leading : .trailing, edgePadding)
-                .padding(.top, topPadding)
-                .opacity(isVisible ? 1 : 0)
-                .animation(.openMorph, value: isVisible)
-                .animation(pulseAnimation, value: pulse)
-                .animation(.easeInOut(duration: 0.3), value: st)
-                .onAppear { pulse = true; updateSpin(st) }
-                .onChange(of: st) { newState in
-                    pulse = false
-                    DispatchQueue.main.async { pulse = true }
-                    updateSpin(newState)
-                }
-                .accessibilityLabel(isVisible ? providerLabel : L10n.tr("%@ (hidden)", providerLabel))
-                .accessibilityHidden(!isVisible)
-        }
+        ProviderMark(provider: provider, size: 20, tint: tint)
+            .scaleEffect(scale)
+            .rotationEffect(.degrees(spinAngle))
+            .shadow(color: tint.opacity(pulse ? 0.9 : 0.25), radius: glowRadius)
+            .padding(onTrailingFlank ? .trailing : .leading, edgePadding)
+            .padding(.top, topPadding)
+            .opacity(isVisible ? 1 : 0)
+            .animation(.openMorph, value: isVisible)
+            .animation(pulseAnimation, value: pulse)
+            .animation(.easeInOut(duration: 0.3), value: st)
+            .onAppear { pulse = true; updateSpin(st) }
+            .onChange(of: st) { newState in
+                pulse = false
+                DispatchQueue.main.async { pulse = true }
+                updateSpin(newState)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
+            .accessibilityLabel(providerLabel)
+            .accessibilityHint(L10n.tr("Open %@ usage", providerLabel))
+            .accessibilityHidden(!isVisible)
     }
 
     private static let alarmRed = Color(red: 0.96, green: 0.34, blue: 0.29)
@@ -130,12 +137,13 @@ struct LogoOverlay: View {
     private var tint: Color {
         switch st {
         case .stalled, .rateLimited, .authRequired: return Self.alarmRed
-        case .idle, .working, .needsYou: return color
+        case .idle, .working, .needsYou: return provider.brandColor
         }
     }
 
     private var st: ActivityMonitor.State {
-        isVisible ? monitor.state(for: provider) : .idle
+        guard isVisible, let alertProvider = provider.alertProvider else { return .idle }
+        return monitor.state(for: alertProvider)
     }
 
     private var scale: CGFloat {
@@ -165,7 +173,7 @@ struct LogoOverlay: View {
         }
     }
 
-    private var spinDirection: Double { provider == .claude ? 1 : -1 }
+    private var spinDirection: Double { onTrailingFlank ? -1 : 1 }
 
     private func updateSpin(_ state: ActivityMonitor.State) {
         guard state == .working else {
@@ -181,19 +189,16 @@ struct LogoOverlay: View {
     }
 
     private var isVisible: Bool {
-        visibility.effectiveVisible(provider: provider)
+        forceVisible || visibility.slotProviders.contains(provider)
     }
 
     private var providerLabel: String {
-        switch provider {
-        case .claude: return "Claude"
-        case .codex: return "OpenAI"
-        }
+        provider.displayName
     }
 }
 
 struct PeekPillOverlay: View {
-    let provider: AlertEngine.Provider
+    let provider: DisplayProvider
     let slotWidth: CGFloat
     let topPadding: CGFloat
     let pillsVisible: Bool
@@ -204,7 +209,7 @@ struct PeekPillOverlay: View {
     var onTrailingFlank: Bool
 
     init(
-        provider: AlertEngine.Provider,
+        provider: DisplayProvider,
         slotWidth: CGFloat,
         topPadding: CGFloat,
         pillsVisible: Bool,
@@ -219,16 +224,20 @@ struct PeekPillOverlay: View {
 
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
     @ObservedObject private var usageStore = UsageStore.shared
+    @ObservedObject private var geminiStore = GeminiUsageStore.shared
+    @ObservedObject private var grokStore = GrokUsageStore.shared
+    @ObservedObject private var cursorStore = CursorUsageStore.shared
     @ObservedObject private var alerts = AlertEngine.shared
 
     var body: some View {
         let window = currentWindow
         NotchPeekPill(
             usage: window,
-            loading: usageStore.loading,
+            loading: loading,
             tint: tint,
             alignment: onTrailingFlank ? .trailing : .leading,
-            severity: severity
+            severity: severity,
+            fallbackWindowLabel: fallbackWindowLabel
         )
         .frame(width: pillContentWidth, alignment: onTrailingFlank ? .trailing : .leading)
         // 14pt from the silhouette BODY edge; the frame is topCurl wider
@@ -244,7 +253,7 @@ struct PeekPillOverlay: View {
     }
 
     private var isVisible: Bool {
-        visibility.effectiveVisible(provider: provider)
+        visibility.slotProviders.contains(provider)
     }
 
     private var pillContentWidth: CGFloat {
@@ -255,6 +264,53 @@ struct PeekPillOverlay: View {
         switch provider {
         case .claude: return usageStore.claude.fiveHour
         case .codex: return usageStore.codex.fiveHour
+        case .gemini:
+            guard let bucket = geminiStore.snapshot?.primaryPro
+                    ?? geminiStore.snapshot?.buckets.first else {
+                return WindowUsage(
+                    usedPercent: 0,
+                    resetAt: nil,
+                    error: geminiStore.statusCaption,
+                    periodSeconds: 24 * 60 * 60
+                )
+            }
+            return WindowUsage(
+                usedPercent: bucket.usedPercent,
+                resetAt: bucket.resetAt,
+                error: geminiStore.statusCaption,
+                periodSeconds: 24 * 60 * 60
+            )
+        case .grok:
+            guard let snapshot = grokStore.snapshot else {
+                return WindowUsage(
+                    usedPercent: 0,
+                    resetAt: nil,
+                    error: grokStore.errorCaption,
+                    periodSeconds: 7 * 24 * 60 * 60
+                )
+            }
+            return WindowUsage(
+                usedPercent: snapshot.weeklyUsedPercent,
+                resetAt: snapshot.weeklyPeriodEnd,
+                error: grokStore.errorCaption,
+                periodSeconds: 7 * 24 * 60 * 60
+            )
+        case .cursor:
+            // One included-usage pool per billing cycle (~30 days).
+            guard let snapshot = cursorStore.snapshot else {
+                return WindowUsage(
+                    usedPercent: 0,
+                    resetAt: nil,
+                    error: cursorStore.errorCaption,
+                    periodSeconds: 30 * 24 * 60 * 60
+                )
+            }
+            return WindowUsage(
+                usedPercent: snapshot.usedPercent,
+                resetAt: snapshot.periodEnd,
+                error: cursorStore.errorCaption,
+                periodSeconds: 30 * 24 * 60 * 60
+            )
         }
     }
 
@@ -262,20 +318,33 @@ struct PeekPillOverlay: View {
         switch provider {
         case .claude: return alerts.claudeSeverity
         case .codex: return alerts.codexSeverity
+        case .gemini, .grok, .cursor: return .none
         }
     }
 
     private var tint: Color {
-        switch provider {
-        case .claude: return IslandColor.claude
-        case .codex: return IslandColor.codex
-        }
+        provider.brandColor
     }
 
     private var providerLabel: String {
+        provider.displayName
+    }
+
+    private var loading: Bool {
         switch provider {
-        case .claude: return "Claude"
-        case .codex: return "Codex"
+        case .claude, .codex: return usageStore.loading
+        case .gemini: return geminiStore.loading
+        case .grok: return grokStore.loading
+        case .cursor: return cursorStore.loading
+        }
+    }
+
+    private var fallbackWindowLabel: String? {
+        switch provider {
+        case .claude, .codex: return nil
+        case .gemini: return "Pro"
+        case .grok: return "7d"
+        case .cursor: return "30d"
         }
     }
 

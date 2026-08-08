@@ -11,6 +11,8 @@ extension SessionScanner {
             limit: monitoringCodexLimit,
             dedupeProjects: false
         )
+        out += scanGrok(now: now, lastWorking: lastWorking)
+        out += scanGemini(now: now, lastWorking: lastWorking)
         out.sort { $0.modified > $1.modified }
         return out
     }

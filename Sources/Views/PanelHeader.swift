@@ -13,36 +13,60 @@ struct PanelHeader: View {
     @ObservedObject private var usageStore = UsageStore.shared
 
     var body: some View {
+        // Titles follow the slots — whichever two providers are selected
+        // get named, not a hardcoded Claude/Codex pair.
+        let slots = visibility.slotProviders
+        let left: DisplayProvider? = slots.count == 2
+            ? slots[0]
+            : slots.first(where: { $0.soloLogoFlankIsLeading })
+        let right: DisplayProvider? = slots.count == 2
+            ? slots[1]
+            : slots.first(where: { !$0.soloLogoFlankIsLeading })
+
         HStack(spacing: 0) {
-            let claudeOn = visibility.claudeShown
-            let codexOn = visibility.codexShown
-            providerTitle(name: "Claude", tag: usageStore.claude.plan?.uppercased(),
-                          color: IslandColor.claude, alignment: .leading)
-                .opacity(claudeOn ? 1 : 0)
-                .animation(.openMorph, value: claudeOn)
-                .accessibilityHidden(!claudeOn)
+            Group {
+                if let left {
+                    providerTitle(name: left.displayName, tag: planTag(left),
+                                  color: left.brandColor, alignment: .leading)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(maxWidth: .infinity)
             Color.clear.frame(width: notch.width)
             HStack(spacing: 0) {
                 Spacer(minLength: 0)
-                // Banked-reset count ("reset cards") — the escape hatches of
-                // the weekly-only quota era. Always shown, ×0 included, in
-                // the dead space left of the title; click for per-card expiry.
-                ResetCardChip(count: usageStore.codex.resetCards ?? 0,
-                              cards: usageStore.codex.resetCardDetails ?? [])
-                    .padding(.trailing, 10)
-                providerTitle(name: "Codex", tag: usageStore.codex.plan?.uppercased(),
-                              color: IslandColor.codex, alignment: .trailing)
-                    .fixedSize()
+                // Banked-reset count ("reset cards") — Codex-only, hidden at
+                // zero (a "×0" chip read as a bug — owner report).
+                if right == .codex || left == .codex,
+                   let resetCards = usageStore.codex.resetCards, resetCards > 0 {
+                    ResetCardChip(count: resetCards,
+                                  cards: usageStore.codex.resetCardDetails ?? [])
+                        .padding(.trailing, 10)
+                }
+                if let right {
+                    providerTitle(name: right.displayName, tag: planTag(right),
+                                  color: right.brandColor, alignment: .trailing)
+                        .fixedSize()
+                }
             }
             .frame(maxWidth: .infinity)
-            .opacity(codexOn ? 1 : 0)
-            .animation(.openMorph, value: codexOn)
-            .accessibilityHidden(!codexOn)
         }
+        .animation(.openMorph, value: slots)
         .frame(height: 22)
         .padding(.horizontal, 16)
         .padding(.top, 4)
         .padding(.bottom, min(14, max(0, notch.height - 22 - 4)))
+    }
+
+    private func planTag(_ provider: DisplayProvider) -> String? {
+        switch provider {
+        case .claude: return usageStore.claude.plan?.uppercased()
+        case .codex:  return usageStore.codex.plan?.uppercased()
+        case .gemini: return GeminiUsageStore.shared.tierBadge
+        case .grok:   return GrokUsageStore.shared.authModeBadge
+        case .cursor: return CursorUsageStore.shared.planBadge
+        }
     }
 
     @ViewBuilder

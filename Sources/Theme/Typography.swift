@@ -61,3 +61,15 @@ enum Typography {
     static let caption = Font.system(size: 10, weight: .medium, design: .rounded)
     static let chip    = Font.system(size: 9, weight: .bold, design: .rounded).monospacedDigit()
 }
+
+
+/// Settings-surface voice: plain SF Pro, tighter and brighter than the
+/// island's rounded brand face — the panel reads as a tool, the island
+/// and report cards keep the rounded identity the owner locked 2026-07-18.
+enum SettingsType {
+    static let pageTitle = Font.system(size: 22, weight: .bold)
+    static let rowTitle  = Font.system(size: 13, weight: .medium)
+    static let data      = Font.system(size: 11.5, weight: .regular).monospacedDigit()
+    static let tabLabel  = Font.system(size: 12, weight: .medium)
+    static let section   = Font.system(size: 10.5, weight: .semibold)
+}

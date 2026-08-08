@@ -45,7 +45,7 @@ struct TriggerSettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel("Auto-Trigger")
             Text(L10n.tr("When your AI limit resets, auto-send a message so a session keeps running."))
-                .font(Typography.label)
+                .font(SettingsType.data)
                 .foregroundStyle(.white.opacity(0.50))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 10)
@@ -78,7 +78,7 @@ struct TriggerSettingsView: View {
     private var existingList: some View {
         if store.triggers.isEmpty {
             Text(L10n.tr("No triggers yet — add one below."))
-                .font(Typography.label)
+                .font(SettingsType.data)
                 .foregroundStyle(.white.opacity(0.36))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 10)
@@ -133,7 +133,7 @@ struct TriggerSettingsView: View {
             VStack(alignment: .leading, spacing: 13) {
                 field("Tool") {
                     SegmentedControl(
-                        items: TriggerTool.allCases,
+                        items: TriggerTool.allCases.filter(\.supportsAutoResume),
                         selected: $tool,
                         label: { $0.display },
                         accessibilityPrefix: "Tool"
@@ -164,7 +164,7 @@ struct TriggerSettingsView: View {
                 field("Message") {
                     TextField(L10n.tr("Continue"), text: $message)
                         .textFieldStyle(.plain)
-                        .font(Typography.label)
+                        .font(SettingsType.data)
                         .foregroundStyle(.white.opacity(0.92))
                         .padding(.horizontal, 9)
                         .padding(.vertical, 6)
@@ -185,7 +185,7 @@ struct TriggerSettingsView: View {
                     )
                     if mode == .everyHours {
                         Stepper("\(hours)h", value: $hours, in: 1...24)
-                            .font(Typography.label)
+                            .font(SettingsType.data)
                             .foregroundStyle(.white.opacity(0.85))
                             .fixedSize()
                     }
@@ -193,20 +193,20 @@ struct TriggerSettingsView: View {
 
                 if mode == .afterReset, let caption = resetCaption {
                     Text(caption)
-                        .font(Typography.label)
+                        .font(SettingsType.data)
                         .foregroundStyle(.white.opacity(0.36))
                         .padding(.leading, 64)
                 }
 
                 Button(action: addTrigger) {
                     Text(L10n.tr("Add & enable"))
-                        .font(Typography.button)
+                        .font(SettingsType.data.weight(.semibold))
                         .foregroundStyle(selectedID == nil ? .white.opacity(0.4) : Color(red: 0.14, green: 0.11, blue: 0.02))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .background {
                             RoundedRectangle(cornerRadius: 7)
-                                .fill(selectedID == nil ? .white.opacity(0.06) : IslandColor.cobalt.opacity(0.9))
+                                .fill(selectedID == nil ? .white.opacity(0.06) : IslandColor.brandTeal.opacity(0.9))
                         }
                 }
                 .buttonStyle(.plain)

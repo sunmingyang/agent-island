@@ -3,11 +3,28 @@ import Foundation
 enum TriggerTool: String, Codable, CaseIterable {
     case claude
     case codex
+    case gemini
+    case grok
+    case cursor
 
     var display: String {
         switch self {
         case .claude: return "Claude"
         case .codex: return "Codex"
+        case .gemini: return "Gemini"
+        case .grok: return "Grok"
+        case .cursor: return "Cursor"
+        }
+    }
+
+    /// Only Claude and Codex expose a `--resume <id>` CLI contract, so only
+    /// they can carry auto-triggers. The other three still flow through the
+    /// monitoring scan (island logo + turn alarms) — session STATUS is
+    /// five-provider, session RESUME is two.
+    var supportsAutoResume: Bool {
+        switch self {
+        case .claude, .codex: return true
+        case .gemini, .grok, .cursor: return false
         }
     }
 }
@@ -67,7 +84,13 @@ struct Trigger: Codable, Identifiable, Equatable {
 /// `ClaudeCredentials.locateClaudeBinary`.
 enum CLILocator {
     static func path(for tool: TriggerTool) -> String? {
-        locate(tool == .claude ? "claude" : "codex")
+        switch tool {
+        case .claude: return locate("claude")
+        case .codex: return locate("codex")
+        case .gemini: return locate("gemini")
+        case .grok: return locate("grok")
+        case .cursor: return nil
+        }
     }
 
     private static func locate(_ name: String) -> String? {
@@ -78,6 +101,9 @@ enum CLILocator {
             "\(home)/.local/bin/\(name)",
             "\(home)/.bun/bin/\(name)",
             "\(home)/.npm-global/bin/\(name)",
+            // hermes-managed npm prefix (owner's machine): global CLIs land
+            // here, invisible to every conventional prefix above.
+            "\(home)/.hermes/node/bin/\(name)",
         ]
         for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
             return path

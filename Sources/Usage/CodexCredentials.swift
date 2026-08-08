@@ -1,8 +1,17 @@
 import Foundation
 
 enum CodexCredentials {
-    static func canPromptReauth() -> Bool {
-        locateCodexBinary() != nil
+    /// Show the re-auth button ONLY when Codex auth is actually broken.
+    /// The inherited behavior ("button whenever the codex binary exists")
+    /// parked a permanent Re-authenticate next to a perfectly healthy row —
+    /// the owner's exact review: 已经登录了为什么会出现重新认证 (2026-08-08).
+    static func canPromptReauth(usage: AppUsage) -> Bool {
+        guard locateCodexBinary() != nil else { return false }
+        let messages = [usage.fiveHour.error, usage.weekly.error].compactMap { $0 }
+        guard !messages.isEmpty else { return false }
+        return messages.contains { message in
+            message.contains("auth") || message.contains("login") || message.contains("401")
+        }
     }
 
     static func authModificationStamp() -> Date? {

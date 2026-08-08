@@ -31,8 +31,30 @@ final class GeminiUsageStore: ObservableObject {
     }
 
     private init() {
-        guard !AppEnvironment.isDemo else {
-            detection = .notInstalled
+        if AppEnvironment.isDemo {
+            if AppEnvironment.demoGuestFixturesEnabled {
+                let now = Date()
+                detection = .oauthPersonal
+                snapshot = GeminiQuotaSnapshot(
+                    buckets: [
+                        GeminiModelBucket(
+                            modelId: "gemini-3-pro-preview",
+                            usedPercent: 0.43,
+                            resetAt: now.addingTimeInterval(7 * 3600 + 24 * 60)
+                        ),
+                        GeminiModelBucket(
+                            modelId: "gemini-3-flash-preview",
+                            usedPercent: 0.18,
+                            resetAt: now.addingTimeInterval(7 * 3600 + 24 * 60)
+                        ),
+                    ],
+                    tierID: "standard-tier",
+                    tierLabel: "Paid"
+                )
+                lastUpdated = now
+            } else {
+                detection = .notInstalled
+            }
             return
         }
         detection = GeminiCredentials.detect()
@@ -54,6 +76,7 @@ final class GeminiUsageStore: ObservableObject {
     func kickRefresh() {
         guard !AppEnvironment.isDemo,
               detection == .oauthPersonal,
+              ProviderVisibilityStore.shared.geminiPanelShown,
               !loading else { return }
         if let last = lastAttempt, Date().timeIntervalSince(last) < Self.minAttemptGap { return }
         lastAttempt = Date()

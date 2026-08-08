@@ -29,7 +29,9 @@ struct ChartStylePicker: View {
 
     @ViewBuilder
     private func preview(for style: ChartStyle) -> some View {
-        let claude = IslandColor.claude
+        // Previews speak ONE voice — brand teal — because the picker is
+        // about SHAPE, not whose data (owner call, 2026-08-08).
+        let claude = IslandColor.brandTeal
         switch style {
         case .ring:
             ZStack {
@@ -61,7 +63,7 @@ struct ChartStylePicker: View {
                     .font(Typography.previewNumber)
                     .foregroundStyle(claude)
                 Text("%")
-                    .font(Typography.micro)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.5))
             }
         }

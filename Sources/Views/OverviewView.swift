@@ -14,8 +14,8 @@ struct OverviewView: View {
 
     private var days: [OverviewDay] {
         Self.joinDays(
-            claudeBuckets: visibility.claudeShown ? costStore.claude.dailyTokens : [],
-            codexBuckets: visibility.codexShown ? costStore.codex.dailyTokens : [],
+            claudeBuckets: costStore.claude.dailyTokens,
+            codexBuckets: costStore.codex.dailyTokens,
             mode: tokenMode.mode
         )
     }
@@ -65,8 +65,8 @@ struct OverviewView: View {
             if let selectedDay {
                 DayDetailStrip(
                     day: selectedDay,
-                    claudeVisible: visibility.claudeShown,
-                    codexVisible: visibility.codexShown
+                    claudeVisible: true,
+                    codexVisible: true
                 )
                 .transition(.detailReveal)
             }
@@ -151,15 +151,15 @@ struct OverviewView: View {
             ProviderSplitRow(
                 claudeTokens: displayedClaudeTokens,
                 codexTokens: displayedCodexTokens,
-                claudeVisible: visibility.claudeShown,
-                codexVisible: visibility.codexShown
+                claudeVisible: true,
+                codexVisible: true
             )
             .padding(.bottom, 5)
 
             // The Codex client's own number rides the meta row as one more
             // chip — a separate line pushed the grid past the fixed panel
             // height and clipped it (owner report, 1.7.2).
-            if visibility.codexShown, let profile = official.profile,
+            if let profile = official.profile,
                let text = officialText(profile) {
                 Text(text)
                     .font(Typography.caption)

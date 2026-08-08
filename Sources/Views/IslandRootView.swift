@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct IslandRootView: View {
     @ObservedObject var model: IslandModel
@@ -9,12 +8,6 @@ struct IslandRootView: View {
     @State var contentVisible = false
     @State var pillsVisible = false
     @State var pulseToken: UUID?
-
-    /// Image decode from disk is ~150µs per call. Computed properties
-    /// re-decoded both logos every render — inside a 120Hz TimelineView
-    /// that's 240 main-thread decodes/sec. Cache once on appear.
-    @State var claudeLogo: NSImage?
-    @State var openaiLogo: NSImage?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,22 +65,28 @@ struct IslandRootView: View {
                         .allowsHitTesting(false)
                 }
                 .overlay(alignment: .topLeading) {
-                    LogoOverlay(
-                        image: claudeLogo,
-                        color: IslandColor.claude,
-                        provider: .claude,
-                        edgePadding: logoEdgePadding(for: .claude),
-                        topPadding: max(0, (model.notch.height - 20) / 2)
-                    )
+                    if let provider = leadingLogoProvider {
+                        LogoOverlay(
+                            provider: provider,
+                            onTrailingFlank: false,
+                            edgePadding: logoEdgePadding(for: provider),
+                            topPadding: max(0, (model.notch.height - 20) / 2),
+                            forceVisible: model.state == .expanded,
+                            onTap: { handleProviderTap(provider) }
+                        )
+                    }
                 }
                 .overlay(alignment: .topTrailing) {
-                    LogoOverlay(
-                        image: openaiLogo,
-                        color: IslandColor.codex,
-                        provider: .codex,
-                        edgePadding: logoEdgePadding(for: .codex),
-                        topPadding: max(0, (model.notch.height - 20) / 2)
-                    )
+                    if let provider = trailingLogoProvider {
+                        LogoOverlay(
+                            provider: provider,
+                            onTrailingFlank: true,
+                            edgePadding: logoEdgePadding(for: provider),
+                            topPadding: max(0, (model.notch.height - 20) / 2),
+                            forceVisible: model.state == .expanded,
+                            onTap: { handleProviderTap(provider) }
+                        )
+                    }
                 }
                 .overlay(alignment: .topLeading) {
                     // Pill lives in the new outboard slot (the 78pt the
@@ -134,7 +133,7 @@ struct IslandRootView: View {
                 .contentShape(IslandShape())
                 .onTapGesture(perform: handleTap)
                 .onHover(perform: handleHover)
-                .animation(.openMorph, value: soloProvider)
+                .animation(.openMorph, value: providerVisibility.enabled)
                 // Interface-scale magnifier (non-notch screens only): the
                 // content above laid out at base size; this blows it up to
                 // model.size, which window hit-testing already uses.
@@ -190,30 +189,41 @@ struct IslandRootView: View {
         }
     }
 
-    /// The one visible provider, or nil when both (or neither) show.
-    var soloProvider: AlertEngine.Provider? {
-        switch (providerVisibility.claudeShown, providerVisibility.codexShown) {
-        case (true, false): return .claude
-        case (false, true): return .codex
-        default: return nil
-        }
+    var soloProvider: DisplayProvider? {
+        providerVisibility.soloSlotProvider
     }
 
-    /// Which provider's pill occupies each flank. Duo: native sides.
-    /// Solo: the number crosses to the flank opposite its logo.
-    private var leadingPillProvider: AlertEngine.Provider? {
-        switch soloProvider {
-        case .claude: return nil      // logo holds the leading flank
-        case .codex:  return .codex   // number crosses over from the right
-        case nil:     return .claude
+    private var leadingLogoProvider: DisplayProvider? {
+        if model.state == .expanded {
+            return providerVisibility.claudePanelShown ? .claude : nil
         }
+        let slots = providerVisibility.slotProviders
+        if slots.count >= 2 { return slots[0] }
+        guard let soloProvider, soloProvider.soloLogoFlankIsLeading else { return nil }
+        return soloProvider
     }
 
-    private var trailingPillProvider: AlertEngine.Provider? {
-        switch soloProvider {
-        case .claude: return .claude  // number crosses over from the left
-        case .codex:  return nil      // logo holds the trailing flank
-        case nil:     return .codex
+    private var trailingLogoProvider: DisplayProvider? {
+        if model.state == .expanded {
+            return providerVisibility.codexPanelShown ? .codex : nil
         }
+        let slots = providerVisibility.slotProviders
+        if slots.count >= 2 { return slots[1] }
+        guard let soloProvider, !soloProvider.soloLogoFlankIsLeading else { return nil }
+        return soloProvider
+    }
+
+    private var leadingPillProvider: DisplayProvider? {
+        let slots = providerVisibility.slotProviders
+        if slots.count >= 2 { return slots[0] }
+        guard let soloProvider, !soloProvider.soloLogoFlankIsLeading else { return nil }
+        return soloProvider
+    }
+
+    private var trailingPillProvider: DisplayProvider? {
+        let slots = providerVisibility.slotProviders
+        if slots.count >= 2 { return slots[1] }
+        guard let soloProvider, soloProvider.soloLogoFlankIsLeading else { return nil }
+        return soloProvider
     }
 }

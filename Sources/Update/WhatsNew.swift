@@ -49,9 +49,9 @@ struct PagedCardPage: Identifiable {
     var hero: Hero?
 }
 
-/// 1.8.1 release pages — overview first, then one page per theme. Copy is
-/// deliberately terse (owner call: 精简,别什么都往上写). The 1.7.2 batch
-/// never shipped, so its two themes ride this card too.
+/// 2.1.1 release pages — overview first, then one page per theme. Copy is
+/// deliberately terse (owner call: 精简,别什么都往上写). The unshipped
+/// 1.7.2 and 1.8.1 batches fold into this card.
 enum WhatsNewContent {
     static let pages: [PagedCardPage] = [
         // Titles are STRUCTURAL summaries — "更X的Y" noun phrases, never
@@ -59,58 +59,58 @@ enum WhatsNewContent {
         // "更新自己会说话"是错的).
         PagedCardPage(
             symbol: "sparkles",
-            imageName: "whatsnew-181-overview",
+            imageName: "whatsnew-211-overview",
             title: "At a glance",
-            body: "A lighter background, truer alarms, reports that look back, and Grok aboard",
+            body: "From two agents to five: Gemini, Grok, and Cursor arrive together, session status stretches across the island, settings start over, and Codex accounts switch in one click",
             hero: .version
         ),
         PagedCardPage(
-            symbol: "leaf",
-            imageName: "whatsnew-181-performance",
-            title: "A lighter background",
-            body: "Huge transcript libraries no longer pin the CPU — scans skip cold files and reuse the index, dropping a reported 300%+ to single digits"
+            symbol: "cube",
+            imageName: "whatsnew-211-cursor",
+            title: "Three new agents arrive",
+            body: "Gemini, Grok, and Cursor land beside Claude and Codex in one release — quotas, plans, and billing cycles, all read locally"
         ),
         PagedCardPage(
-            symbol: "bell.badge",
-            imageName: "whatsnew-181-alarms",
-            title: "Truer alarms",
-            body: "A turn you watched finish counts as seen — no more stale popups after you switch apps. Desktop hosts stay quiet while frontmost, with an optional chime"
+            symbol: "square.grid.2x2",
+            imageName: "whatsnew-211-picker",
+            title: "Five agents, two slots",
+            body: "Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar; every selected provider keeps its full data row"
+        ),
+        PagedCardPage(
+            symbol: "wave.3.right.circle",
+            imageName: "whatsnew-211-performance",
+            title: "Session status, island-wide",
+            body: "Working, stalled, your turn — live session state spans Claude, Codex, Grok, and Gemini, driven by each agent's own records"
+        ),
+        PagedCardPage(
+            symbol: "person.2.badge.key",
+            imageName: "whatsnew-211-accounts",
+            title: "Codex account switching",
+            body: "Park each login under a name and swap from the menu; opt in to auto-switch when a quota runs dry, driven by real usage numbers"
+        ),
+        PagedCardPage(
+            symbol: "slider.horizontal.3",
+            imageName: "whatsnew-211-settings",
+            title: "Settings, started over",
+            body: "Sidebar navigation, teal for data and gold for selection, and micro-motion in every control — press, glide, land"
         ),
         PagedCardPage(
             symbol: "calendar.badge.clock",
-            imageName: "whatsnew-181-reports",
-            title: "Reports that look back",
-            body: "Flip the weekly and monthly cards to any past week or month with the arrows — and cost estimates ride the new GPT-5.6 prices"
+            imageName: "whatsnew-211-reports",
+            title: "Reports for any date",
+            body: "Pick a start date and the card covers that window — every model that ran is listed, not just the top few"
         ),
         PagedCardPage(
             symbol: "person.badge.key",
-            imageName: "whatsnew-181-signin",
+            imageName: "whatsnew-211-signin",
             title: "Sign-in that lands right",
-            body: "Copy the Claude login link into whichever browser profile holds your account; auth errors now say what actually failed"
-        ),
-        PagedCardPage(
-            symbol: "chart.pie",
-            imageName: "whatsnew-181-grok",
-            title: "Grok on the island",
-            body: "Signed into the grok CLI? The usage page gains its weekly pool and monthly spend — automatic, and silent when absent"
-        ),
-        PagedCardPage(
-            symbol: "scalemass",
-            imageName: "whatsnew-172-accuracy",
-            title: "Truer numbers",
-            body: "The accounting engine drops phantom tokens — this machine now lands within ~2% of the official Codex client, and the calendar shows the official figure beside ours"
-        ),
-        PagedCardPage(
-            symbol: "circle.lefthalf.filled",
-            imageName: "whatsnew-172-interface",
-            title: "A calmer interface",
-            body: "Solid pie charts, stepped bars by default, a centered solo layout, and each visual mode explained right where you pick it"
+            body: "Claude login now mirrors the official CLI exactly, with a code fallback when the browser round-trip cannot finish"
         ),
         // The closing spread (owner spec, 2026-07-18): poster art, a
         // welcome-back line, and the Get-started button beneath it.
         PagedCardPage(
             symbol: "sparkles",
-            imageName: "whatsnew-172-start",
+            imageName: "whatsnew-211-start",
             title: "Get started",
             body: "Welcome back to Agent Island"
         ),
@@ -123,8 +123,8 @@ enum GuideContent {
         PagedCardPage(
             symbol: "circle.hexagongrid.circle",
             imageName: nil,
-            title: "A status companion for Claude Code and Codex",
-            body: "A five-page tour of everything the island does.",
+            title: "Live status and quota, together",
+            body: "Five agents on one island — each read from the records it already writes on your Mac",
             hero: .brand
         ),
         // Titles are FEATURE NOUNS, one word where possible; the sentence
@@ -133,13 +133,13 @@ enum GuideContent {
             symbol: "circle.hexagongrid.circle",
             imageName: "guide-status",
             title: "Monitor",
-            body: "Two marks in the notch: spinning means working, a bell means it's your turn, steady red means it needs you"
+            body: "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you"
         ),
         PagedCardPage(
             symbol: "gauge.with.needle",
             imageName: "guide-usage",
             title: "Usage",
-            body: "Expand the island for the 5-hour and weekly windows, straight from each provider's official endpoint — plus Grok's weekly pool when its CLI is signed in. Subscribed to just one tool? Its gauges take the whole island"
+            body: "Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page"
         ),
         PagedCardPage(
             symbol: "calendar",

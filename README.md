@@ -4,7 +4,7 @@
 
 # Agent Island
 
-**A status companion for Claude Code and Codex.**
+**A status companion for your AI coding agents — Claude Code, Codex, Gemini, Grok, and Cursor.**
 
 See what every run is doing. Step away, and Agent Island calls you back when it is your turn. Local-first, no Agent Island account, no product telemetry.
 
@@ -26,7 +26,7 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 [![Listed in Chinese Independent Developer Projects](https://img.shields.io/badge/listed%20in-Chinese%20Independent%20Developer%20Projects-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
 
 <a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
-  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - status companion for Claude Code and Codex | Product Hunt" width="250" height="54">
+  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - live status and quota companion | Product Hunt" width="250" height="54">
 </a>
 
 <img src="docs/media/launch.gif" alt="Agent Island 1.7.1 launch film: live session status, usage windows, and report cards" width="900">
@@ -48,6 +48,8 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 ## Quick Start
 
 Choose your platform and install the current `v1.7.1` release directly:
+
+> This source tree is preparing an unreleased macOS `v1.8.1` preview. The downloads below are the published `v1.7.1` artifacts; Gemini/Grok quota slots are not in those downloads yet.
 
 | Platform | Recommended download | Requirement |
 |---|---|---|
@@ -125,7 +127,9 @@ Agent Island mirrors local Claude Code, Claude Desktop, and Codex session activi
 
 ### Usage
 
-Swipe through local usage and cost views for Claude and Codex. Provider usage data comes from provider-owned usage endpoints through the local credential store; cost and model summaries are calculated locally from session records.
+Choose up to two compact-island slots from Claude, Codex, Gemini, Grok, and Cursor. Live session state (working / stalled / your turn) covers Claude, Codex, Grok, and Gemini; every selected provider keeps a full usage row with model or product breakdowns on hover and a click-through to its official page. Compatible local sign-in is required; no detected login means no slot or row.
+
+Claude/Codex cost, calendar, and report summaries are still calculated locally from their session records. Provider quota and reset data comes from provider-owned endpoints through the local credential store; Gemini/Grok quota does not imply session monitoring.
 
 <img src="Assets/agent-island-usage.png" alt="Agent Island usage view for Claude and Codex on macOS" width="760">
 
@@ -207,21 +211,23 @@ flowchart LR
     B --> C[Top bar and alerts]
     B --> D[Local cost and report views]
     E[Provider-owned usage endpoints] --> D
+    F[Compatible Gemini or Grok CLI login] --> G[Quota-only badges and detail rows]
+    E --> G
 ```
 
-- **Session state** comes from transcript and activity files that Claude Code, Claude Desktop, and Codex already write to disk. Local file events and turn markers drive the working and needs-you states.
-- **Usage and reset data** comes from provider-owned usage endpoints through the local credential store.
+- **Session state** comes only from transcript and activity files that Claude Code, Claude Desktop, and Codex already write to disk. Local file events and turn markers drive the working and needs-you states; Gemini and Grok do not provide session state.
+- **Usage and reset data** comes from provider-owned usage endpoints through the local credential store, for every provider with a compatible local sign-in.
 - **Cost, model, and report summaries** are calculated locally from local session records.
 
 Read the implementation overview: [How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md).
 
 ## Why Agent Island
 
-Long Claude Code and Codex runs should not require keeping every terminal in view. Agent Island gives each provider a persistent status surface, tells you when a run needs attention, and brings you back when the next action is yours.
+Long agent runs should not require keeping every terminal in view. Agent Island gives those sessions a persistent live-status surface, tells you when a run needs attention, and brings you back when the next action is yours — across Claude Code, Codex, Gemini, Grok, and Cursor.
 
 It is built for developers who:
 
-- run Claude Code and Codex sessions in parallel;
+- run Claude Code and Codex sessions in parallel while optionally keeping Gemini/Grok quota in the same compact island;
 - leave long tasks working in the background;
 - want status, alerts, usage views, and shareable report cards without sending session data to another service;
 - care what their desk looks like — the island's light, layout, and cards are tuned like a product, not a debug overlay.
@@ -233,12 +239,12 @@ How it compares with its neighbors:
 | Price & source | Free · MIT | One-time purchase · closed | Free · MIT | Free · MIT | Free · MIT | Free · MIT | Free · MIT |
 | Form | Menu-bar app | Notch app | Menu-bar app | CLI | Terminal dashboard | Menu-bar app | Menu-bar app |
 | Platforms | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+ (CLI also on Linux) | Anywhere Node runs | Anywhere Python runs | macOS | macOS |
-| Agents | Claude Code · Codex | Claude Code, Codex, Gemini CLI, Cursor, and more | 59 providers (limits) | Claude Code (+ Codex) | Claude Code | Claude Code | Codex (+ Claude usage) |
-| Live session status | ✓ | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
+| Agents | Claude Code · Codex · Grok · Gemini (live sessions) · Cursor (usage) | Claude Code, Codex, Gemini CLI, Cursor, and more | 59 providers (limits) | Claude Code (+ Codex) | Claude Code | Claude Code | Codex (+ Claude usage) |
+| Live session status | ✓ Claude/Codex only | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
 | Your-turn alarm window + sound + queue | ✓ | Done notice, click to jump | — | — | — | — | — |
 | Out-of-quota alarm | ✓ | — | — | — | Terminal warnings | 70/90% threshold notifications | — |
 | In-notch permission approvals | — | ✓ | — | — | — | — | — |
-| Usage, cost & resets | ✓ (incl. reset bank) | Usage windows | ✓ (59 providers, reset countdowns, spend) | ✓ (local cost reports) | ✓ (real-time + predictions) | ✓ (5h/weekly gauges + countdowns) | ✓ (incl. reset credits) |
+| Usage, cost & resets | Claude/Codex full · Gemini/Grok quota-only in the 1.8.1 preview | Usage windows | ✓ (59 providers, reset countdowns, spend) | ✓ (local cost reports) | ✓ (real-time + predictions) | ✓ (5h/weekly gauges + countdowns) | ✓ (incl. reset credits) |
 | Weekly/monthly report cards & ranks | ✓ | — | — | — | — | — | — |
 
 <sub>Based on each product's public materials as of July 2026 — corrections welcome via issue.</sub>

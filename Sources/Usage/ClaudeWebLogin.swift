@@ -122,7 +122,12 @@ final class ClaudeWebLogin: @unchecked Sendable {
             finish(.failed("bad authorize base"))
             return
         }
+        // `code=true` rides BOTH of the CLI's variants — its localhost
+        // loopback URL and its paste URL carry it identically (captured
+        // live from `claude setup-token`, 2026-08-08). An earlier theory
+        // here called it a paste-flow selector and dropped it; wrong.
         comps.queryItems = [
+            URLQueryItem(name: "code", value: "true"),
             URLQueryItem(name: "client_id", value: ClaudeCredentials.oauthClientID),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
@@ -176,7 +181,13 @@ final class ClaudeWebLogin: @unchecked Sendable {
     private func armTimeout() {
         let item = DispatchWorkItem { [weak self] in self?.finish(.failed("login timed out")) }
         timeout = item
-        queue.asyncAfter(deadline: .now() + 180, execute: item)
+        // Ten minutes, same as the manual-paste path. The old 180s assumed a
+        // signed-in browser and a single Authorize click; a fresh incognito
+        // sign-in via email code (owner's flow — the account lives in no
+        // local browser) takes minutes, and the timer expiring mid-login
+        // killed the listener before the redirect landed (owner repro,
+        // 2026-08-08).
+        queue.asyncAfter(deadline: .now() + 600, execute: item)
     }
 
     // MARK: - Callback
@@ -266,14 +277,19 @@ final class ClaudeWebLogin: @unchecked Sendable {
 
     // MARK: - PKCE helpers
 
-    private static func randomURLSafe(_ bytes: Int) -> String {
+    /// S256 challenge for a verifier — shared with the paste flow.
+    static func pkceChallenge(for verifier: String) -> String {
+        base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
+    }
+
+    static func randomURLSafe(_ bytes: Int) -> String {
         var generator = SystemRandomNumberGenerator()
         var data = Data(count: bytes)
         for index in 0..<bytes { data[index] = UInt8.random(in: UInt8.min...UInt8.max, using: &generator) }
         return base64URL(data)
     }
 
-    private static func base64URL(_ data: Data) -> String {
+    static func base64URL(_ data: Data) -> String {
         data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")

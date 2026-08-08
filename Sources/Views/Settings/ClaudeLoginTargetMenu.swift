@@ -12,7 +12,47 @@ struct ClaudeLoginDetection: Equatable {
     static let empty = ClaudeLoginDetection(defaultBrowser: nil, profiles: [], incognitoApp: nil)
 
     static func detect() -> ClaudeLoginDetection {
-        ClaudeLoginDetection(
+        if AppEnvironment.demoGuestFixturesEnabled {
+            let bundleID = "com.google.Chrome"
+            let appURL = BrowserProfileResolver.appURL(forBundleID: bundleID)
+                ?? URL(fileURLWithPath: "/Applications/Google Chrome.app")
+            let profiles = [
+                ChromiumBrowserProfile(
+                    browserName: "Chrome",
+                    bundleID: bundleID,
+                    appURL: appURL,
+                    profileDirectory: "Default",
+                    displayName: "Default",
+                    email: nil
+                ),
+                ChromiumBrowserProfile(
+                    browserName: "Chrome",
+                    bundleID: bundleID,
+                    appURL: appURL,
+                    profileDirectory: "Profile 1",
+                    displayName: "Work",
+                    email: nil
+                ),
+                ChromiumBrowserProfile(
+                    browserName: "Chrome",
+                    bundleID: bundleID,
+                    appURL: appURL,
+                    profileDirectory: "Profile 3",
+                    displayName: "Personal",
+                    email: nil
+                ),
+            ]
+            return ClaudeLoginDetection(
+                defaultBrowser: BrowserProfileResolver.DefaultBrowser(appURL: appURL, name: "Chrome"),
+                profiles: profiles,
+                incognitoApp: BrowserProfileResolver.InstalledChromium(
+                    name: "Chrome",
+                    bundleID: bundleID,
+                    appURL: appURL
+                )
+            )
+        }
+        return ClaudeLoginDetection(
             defaultBrowser: BrowserProfileResolver.defaultBrowser(),
             profiles: BrowserProfileResolver.chromiumProfiles(),
             incognitoApp: BrowserProfileResolver.firstInstalledChromium()

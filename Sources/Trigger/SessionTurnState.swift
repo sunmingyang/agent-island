@@ -62,6 +62,36 @@ enum SessionTurnState {
         return SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
     }
 
+    /// Grok appends one JSON object per session event to `updates.jsonl`
+    /// with an explicit `sessionUpdate` discriminator — and unlike Claude,
+    /// it names the turn boundary outright: `turn_completed`. Anything else
+    /// after it (tool calls, streaming, retry_state) means the turn is
+    /// still open. Timestamps are unix seconds.
+    static func grok(_ lines: [String]) -> SessionTurnStatus {
+        for line in lines.reversed() {
+            guard let object = json(line),
+                  let params = object["params"] as? [String: Any],
+                  let update = params["update"] as? [String: Any],
+                  let kind = update["sessionUpdate"] as? String
+            else { continue }
+            let stamp = (object["timestamp"] as? TimeInterval).map { Date(timeIntervalSince1970: $0) }
+            return SessionTurnStatus(
+                isDone: kind == "turn_completed",
+                key: (stamp.map { String(Int($0.timeIntervalSince1970)) } ?? "") + ":" + kind,
+                activityDate: stamp
+            )
+        }
+        return SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
+    }
+
+    /// For sessions whose transcript has no explicit turn boundary yet
+    /// (Gemini's $set checkpoint stream): never claims "done", so the
+    /// engine derives working/idle purely from file recency and can never
+    /// raise a false "your turn" alarm on a format we have not verified.
+    static func mtimeOnly(_ lines: [String]) -> SessionTurnStatus {
+        SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
+    }
+
     private static func isCodexUserOrStart(_ type: String?) -> Bool {
         guard let type else { return false }
         return type == "task_started"

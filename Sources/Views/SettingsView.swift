@@ -25,26 +25,32 @@ struct SettingsView: View {
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
     @ObservedObject private var appLanguage = AppLanguageStore.shared
     @ObservedObject private var usage = UsageStore.shared
-    @ObservedObject private var loginTarget = ClaudeLoginTargetStore.shared
     @ObservedObject private var grokStore = GrokUsageStore.shared
+    @ObservedObject private var cursorStore = CursorUsageStore.shared
+    @ObservedObject private var geminiStore = GeminiUsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
 
-    @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.general.rawValue
+    @AppStorage("Settings.activeTab") private var activeTabRaw: String = SettingsTab.providers.rawValue
 
     /// Flashes the copy-login-link confirmation caption for a few seconds.
-    @State private var loginLinkCopied = false
 
     /// Browser/profile landscape for the Claude sign-in target picker,
     /// loaded when the Providers section appears.
-    @State private var claudeLoginDetection = ClaudeLoginDetection.empty
+    @State private var providerLimitAlert = false
+    @State private var hoveredTab: SettingsTab?
+    /// Bumped after any parked-account change so the menu rebuilds.
+    @State private var codexAccountsToken = 0
+    @Namespace private var sidebarSelection
+    @State private var hoveredProvider: DisplayProvider?
+    @State private var railHovered: String?
 
     private var activeTab: SettingsTab {
         get {
-            let tab = SettingsTab(rawValue: activeTabRaw) ?? .general
+            let tab = SettingsTab(rawValue: activeTabRaw) ?? .providers
             // A window last parked on the retired Triggers tab lands on
-            // General instead of an orphaned tab with no button.
-            return tab == .triggers ? .general : tab
+            // Providers instead of an orphaned tab with no button.
+            return tab == .triggers ? .providers : tab
         }
         nonmutating set { activeTabRaw = newValue.rawValue }
     }
@@ -55,50 +61,140 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Traffic-light gutter — empty by design. Window has transparent
-            // title bar so traffic lights float over the dark fill.
-            Color.clear.frame(height: 28)
+            HStack(alignment: .top, spacing: 0) {
+                sidebar
 
-            BrandHeader(version: version)
+                Rectangle()
+                    .fill(.white.opacity(0.05))
+                    .frame(width: 1)
 
-            tabBar
+                VStack(alignment: .leading, spacing: 0) {
+                    // Traffic-light strip stays over the content column —
+                    // the sidebar runs full-height beside it.
+                    Color.clear.frame(height: 24)
 
-            hairline
-
-            // ScrollView guarantees the footer stays at the bottom of the
-            // window regardless of how much content the active tab has —
-            // overflow scrolls instead of pushing chrome off-screen.
-            ScrollView(.vertical, showsIndicators: false) {
-                Group {
-                    switch activeTab {
-                    case .general:      generalTab
-                    case .display:      displayTab
-                    case .providers:    providersTab
-                    case .triggers:     TriggerSettingsView()
-                    case .statusGuide:  StatusGuideView()
-                    case .releaseNotes: releaseNotesTab
-                    case .about:        aboutTab
+                    // ScrollView keeps the footer parked at the bottom —
+                    // overflow scrolls instead of pushing chrome off-screen.
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(L10n.tr(activeTab.label))
+                                .font(SettingsType.pageTitle)
+                                .foregroundStyle(.white.opacity(0.94))
+                                .padding(.horizontal, 24)
+                                .padding(.top, 6)
+                                .padding(.bottom, 2)
+                            switch activeTab {
+                            case .providers:    providersTab
+                            case .display:      displayTab
+                            case .alerts:       alertsTab
+                            case .general:      generalTab
+                            case .triggers:     TriggerSettingsView()
+                            case .statusGuide:  StatusGuideView()
+                            case .releaseNotes: releaseNotesTab
+                            case .about:        aboutTab
+                            }
+                        }
+                        // Cadence B6: content replacement is a blur cross-
+                        // dissolve in place — zero slide, zero scale.
+                        .id(activeTab)
+                        .transition(.blurFade)
+                        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: activeTab)
+                        .frame(maxWidth: .infinity, alignment: .top)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Recording rig: below-the-fold rows need live-window
+                    // screenshots too (ImageRenderer is banned for chrome).
+                    .modifier(RigScrollAnchor())
+
+                    hairline
+
+                    SettingsFooter()
                 }
-                // Cadence B5: pages cross-fade in place — zero slide, zero
-                // scale (frame study, 2026-07-18).
-                .id(activeTab)
-                .transition(.opacity)
-                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Recording rig: below-the-fold rows need live-window screenshots
-            // too (ImageRenderer is banned for chrome checks).
-            .modifier(RigScrollAnchor())
-
-            hairline
-
-            SettingsFooter()
         }
-        .frame(minWidth: 440, minHeight: 420)
+        .frame(minWidth: 600, minHeight: 460)
         .background(Color(red: 0.020, green: 0.020, blue: 0.027))
         .preferredColorScheme(.dark)
         .id(appLanguage.language)
+        .alert(L10n.tr("Pick at most two — turn one off first"), isPresented: $providerLimitAlert) {
+            Button(L10n.tr("OK"), role: .cancel) { }
+        }
+    }
+
+    // MARK: - Sidebar
+
+    /// Left rail: compact brand up top, one item per page, the version pill
+    /// at the bottom. Replaces the inherited top tab strip — navigation
+    /// reads as structure, not as a row of pills fighting for width.
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Clears the traffic lights, which float over the sidebar.
+            Color.clear.frame(height: 30)
+
+            HStack(spacing: 7) {
+                if let logo = Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
+                    .flatMap({ NSImage(contentsOf: $0) }) {
+                    Image(nsImage: logo)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 19, height: 19)
+                }
+                Text("Agent Island")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 14)
+
+            ForEach(SettingsTab.allCases.filter { $0 != .triggers }, id: \.self) { tab in
+                sidebarItem(tab)
+            }
+
+            Spacer(minLength: 8)
+
+            // Version pill (opens release notes) with Quit at its right —
+            // app-level controls live on the rail, not in the page footer
+            // (owner call, 2.1.1).
+            HStack(spacing: 8) {
+                Button {
+                    WhatsNewWindowController.shared.show()
+                } label: {
+                    Text("v\(version)")
+                        .font(Typography.bodyNumber)
+                        .foregroundStyle(.white.opacity(railHovered == "version" ? 0.75 : 0.38))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(.white.opacity(railHovered == "version" ? 0.10 : 0.05)))
+                }
+                .buttonStyle(TactileButtonStyle())
+                .help(L10n.tr("What's new in this version"))
+                .onHover { railHovered = $0 ? "version" : nil }
+
+                Spacer(minLength: 4)
+
+                Button {
+                    NSApp.terminate(nil)
+                } label: {
+                    Text(L10n.tr("Quit"))
+                        .font(SettingsType.data)
+                        .fixedSize()
+                        .foregroundStyle(.white.opacity(railHovered == "quit" ? 0.92 : 0.55))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(.white.opacity(railHovered == "quit" ? 0.10 : 0.05)))
+                }
+                .buttonStyle(TactileButtonStyle())
+                .help(L10n.tr("Quit AgentIsland"))
+                .onHover { railHovered = $0 ? "quit" : nil }
+            }
+            .animation(.easeOut(duration: 0.14), value: railHovered)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 14)
+        }
+        .frame(width: 158, alignment: .leading)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Color.white.opacity(0.016))
     }
 
     // MARK: - Tabs
@@ -119,64 +215,93 @@ struct SettingsView: View {
     }
 
     enum SettingsTab: String, CaseIterable {
-        // releaseNotes rides the same tab rail as the rest (owner call,
-        // 1.7.2: 版本说明与通用/显示/服务/状态说明同一栏).
-        case general, display, providers, triggers, statusGuide, releaseNotes, about
+        // Declaration order IS the sidebar order (2.1.1 IA): the providers
+        // page leads because it is what the app is about; alerts stand
+        // alone instead of hiding at the bottom of General; General keeps
+        // only the app-level odds and ends.
+        case providers, display, alerts, general, statusGuide, releaseNotes, about, triggers
 
         var label: String {
             switch self {
-            case .general:      "General"
-            case .display:      "Display"
             case .providers:    "Providers"
-            case .triggers:     "Triggers"
+            case .display:      "Display"
+            case .alerts:       "Alerts"
+            case .general:      "General"
             case .statusGuide:  "Status"
             case .releaseNotes: "Notes"
             case .about:        "About"
+            case .triggers:     "Triggers"
+            }
+        }
+
+        /// SF Symbols shipped since macOS 13 — no availability gymnastics.
+        var icon: String {
+            switch self {
+            case .providers:    "square.grid.2x2"
+            case .display:      "display"
+            case .alerts:       "bell.badge"
+            case .general:      "gearshape"
+            case .statusGuide:  "eye"
+            case .releaseNotes: "sparkles"
+            case .about:        "info.circle"
+            case .triggers:     "clock.arrow.circlepath"
             }
         }
     }
 
-    private var tabBar: some View {
-        HStack(spacing: 4) {
-            // Auto-resume is retired (2026-07-13); the Triggers tab is gated
-            // out rather than deleted so restoring it is this one filter.
-            ForEach(SettingsTab.allCases.filter { $0 != .triggers }, id: \.self) { tab in
-                tabButton(tab)
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 4)
-        .padding(.bottom, 10)
-    }
-
+    /// One sidebar row: icon + label, a soft capsule for the selection, a
+    /// fainter one on hover. Restraint over spectacle (Cadence E16): the
+    /// selected state is the only strong signal.
     @ViewBuilder
-    private func tabButton(_ tab: SettingsTab) -> some View {
+    private func sidebarItem(_ tab: SettingsTab) -> some View {
         let isOn = (activeTab == tab)
         Button {
-            withAnimation(.easeInOut(duration: 0.28)) { activeTab = tab }
+            // High-damping spring: the block glides, never overshoots.
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { activeTab = tab }
         } label: {
-            Text(L10n.tr(tab.label))
-                .font(Typography.tabLabel)
-                // Never wraps mid-word — six EN labels overflowed 440pt and
-                // broke into "Genera/l" stacks (owner screenshot).
-                .lineLimit(1)
-                .fixedSize()
-                .foregroundStyle(isOn
-                    ? .white.opacity(0.95)
-                    : .white.opacity(0.50))
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isOn ? .white.opacity(0.08) : .clear)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(.white.opacity(isOn ? 0.08 : 0), lineWidth: 0.5)
-                        }
+            HStack(spacing: 8) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .frame(width: 16)
+                    .foregroundStyle(isOn ? IslandColor.selectGold : .white.opacity(0.48))
+                    // Cadence C9: the icon gives one small confirming pop on
+                    // landing, then settles.
+                    .scaleEffect(isOn ? 1.12 : 1)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.55), value: isOn)
+                Text(L10n.tr(tab.label))
+                    .font(SettingsType.tabLabel)
+                    .lineLimit(1)
+                    .foregroundStyle(isOn ? .white.opacity(0.95) : .white.opacity(0.55))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background {
+                // Cadence C11: ONE selection block that slides between rows
+                // (matchedGeometryEffect), not per-row fills popping in and
+                // out. Hover is a separate, fainter layer underneath.
+                ZStack {
+                    if hoveredTab == tab, !isOn {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(.white.opacity(0.04))
+                    }
+                    if isOn {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(IslandColor.selectGold.opacity(0.13))
+                            .matchedGeometryEffect(id: "sidebarSelection", in: sidebarSelection)
+                    }
                 }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 7))
         }
         .buttonStyle(.plain)
-        .animation(.easeOut(duration: 0.12), value: isOn)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                hoveredTab = hovering ? tab : (hoveredTab == tab ? nil : hoveredTab)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 1)
         .accessibilityLabel(L10n.tr("%@ tab", L10n.tr(tab.label)))
         .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
     }
@@ -186,8 +311,16 @@ struct SettingsView: View {
     private var generalTab: some View {
         VStack(alignment: .leading, spacing: 0) {
             generalSection
-            alertsSection
             updatesSection
+        }
+    }
+
+    /// Alerts get their own page in the 2.1.1 IA — they were buried at the
+    /// bottom of General, which is where nobody looks for "why did the
+    /// island flash amber".
+    private var alertsTab: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            alertsSection
         }
     }
 
@@ -208,7 +341,7 @@ struct SettingsView: View {
                     .blur(radius: 2.5)
                     .opacity(0.07)
                     .rotationEffect(.degrees(-9))
-                    .offset(x: 30, y: 6)
+                    .offset(x: 30, y: 76)
                     .allowsHitTesting(false)
             }
         }
@@ -225,30 +358,31 @@ struct SettingsView: View {
 
     private var aboutContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text("Agent Island")
-                    .font(.system(size: 25, weight: .bold, design: .rounded))
+                    .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(.white.opacity(0.95))
                     .padding(.top, 0)
 
                 // The owner's own words (2026-07-18): the origin is
                 // efficiency, the ask is a share or a star — nothing else.
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.tr("This product exists for one thing: efficiency. I am tired, I am working — the agent runs, and I wait. That time should not be wasted"))
-                    Text(L10n.tr("It is open source so that every developer — everyone vibe coding — can claim that efficiency too. That is the whole origin"))
-                    Text(L10n.tr("If you like it, share it, or leave a star on GitHub — that is the biggest help you can give me"))
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.tr("Agents are part of every builder's day now — Claude Code, Codex, Gemini, Grok, Cursor… and whatever ships next month. They run, you wait, and nobody tells you when it is your turn again"))
+                    Text(L10n.tr("Agent Island 2.0 puts them all on one island. Who is working, whose turn it is, how much quota is left, what it cost — one glance at the notch, no window switching, no terminal tabs to hunt through"))
+                    Text(L10n.tr("Every number is computed on your own computer — Mac or Windows — from logs the agents already write. No account, no telemetry, nothing uploaded"))
+                    Text(L10n.tr("If Agent Island helps you, a star on GitHub and a share with a friend are the two things that keep it going"))
                 }
-                .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.66))
-                .lineSpacing(3)
+                .font(.system(size: 12.5, weight: .regular))
+                .foregroundStyle(.white.opacity(0.74))
+                .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
 
                 Rectangle()
                     .fill(.white.opacity(0.07))
                     .frame(height: 0.5)
-                    .padding(.vertical, 2)
+                    .padding(.top, 20)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 10) {
                     aboutFact(L10n.tr("Made by"), value: "Tristan Tang") {
                         NSWorkspace.shared.open(URL(string: "https://tristan.media")!)
                     }
@@ -256,6 +390,7 @@ struct SettingsView: View {
                         NSWorkspace.shared.open(URL(string: "https://github.com/tristan666666/agent-island")!)
                     }
                 }
+                .padding(.top, 12)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 6)
@@ -266,11 +401,11 @@ struct SettingsView: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(label)
-                    .font(Typography.label)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.40))
                     .frame(width: 74, alignment: .leading)
                 Text(value)
-                    .font(Typography.label.weight(.semibold))
+                    .font(SettingsType.data.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.80))
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 8, weight: .bold))
@@ -299,6 +434,7 @@ struct SettingsView: View {
     private var providersTab: some View {
         VStack(alignment: .leading, spacing: 0) {
             providersSection
+            refreshIntervalSection
             tokenCountingSection
             costSection
         }
@@ -318,14 +454,14 @@ struct SettingsView: View {
     private func sectionLabel(_ text: String, hint: String? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(L10n.tr(text))
-                .font(Typography.sectionLabel)
+                .font(SettingsType.section)
                 .tracking(1.05)
                 .textCase(.uppercase)
                 .foregroundStyle(.white.opacity(0.34))
             Spacer(minLength: 8)
             if let hint {
                 Text(L10n.tr(hint))
-                    .font(Typography.micro)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.18))
             }
         }
@@ -337,22 +473,15 @@ struct SettingsView: View {
 
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("General")
             SettingsRow(
                 title: "Launch at Login",
-                subtitle: launchStore.errorMessage ?? "Open AgentIsland when you sign in."
+                subtitle: launchStore.errorMessage
             ) {
                 SettingsToggle(isOn: launchStore.isEnabled) { launchStore.toggle() }
             }
             SettingsRow(
-                title: "Refresh interval",
-                subtitle: nil
-            ) {
-                refreshSegmented
-            }
-            SettingsRow(
                 title: "Language",
-                subtitle: appLanguage.language.subtitle
+                subtitle: nil
             ) {
                 languagePicker
             }
@@ -362,13 +491,29 @@ struct SettingsView: View {
         .padding(.bottom, 6)
     }
 
+    /// Polling cadence lives with the providers it polls — moved out of
+    /// General in the 2.1.1 IA pass (owner call: group by logic, not by
+    /// where rows historically sat).
+    private var refreshIntervalSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SettingsRow(
+                title: "Refresh interval",
+                subtitle: nil
+            ) {
+                refreshSegmented
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
+    }
+
     /// Approaching-limit alerts. Default off — opt-in via the toggle.
     /// When on, the silhouette glow tints amber/red while a tracked 5h
     /// window is at or above the configured percentages, and the peek
     /// pill auto-extends once when a window first crosses each threshold.
     private var alertsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Alerts")
             SettingsRow(
                 title: "Approaching-limit alerts",
                 subtitle: nil
@@ -495,7 +640,7 @@ struct SettingsView: View {
                 .shadow(color: color.opacity(0.7), radius: 4)
                 .accessibilityHidden(true)
             Text(L10n.tr(label))
-                .font(Typography.rowTitle)
+                .font(SettingsType.rowTitle)
                 .tracking(-0.07)
                 .foregroundStyle(.white.opacity(0.92))
             Spacer(minLength: 8)
@@ -562,7 +707,7 @@ struct SettingsView: View {
             sectionLabel("Updates")
             SettingsRow(
                 title: "Check for updates automatically",
-                subtitle: "Check for new versions in the background and notify you when one's available."
+                subtitle: nil
             ) {
                 SettingsToggle(isOn: updater.automaticallyChecks) {
                     updater.automaticallyChecks.toggle()
@@ -589,7 +734,6 @@ struct SettingsView: View {
     /// full changelog on the website — all in one rail-level place.
     private var releaseNotesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Release notes")
             SettingsRow(
                 title: "What's new in this version",
                 subtitle: nil
@@ -600,7 +744,7 @@ struct SettingsView: View {
             }
             SettingsRow(
                 title: "Product guide",
-                subtitle: "A five-page tour of everything the island does."
+                subtitle: nil
             ) {
                 PillButton(label: "Open") {
                     GuideWindowController.shared.show()
@@ -721,56 +865,61 @@ struct SettingsView: View {
         }
     }
 
+    /// Providers as CARDS — real brand marks leading, live status inside,
+    /// the slot counter riding the group header. Nothing here shares a
+    /// silhouette with the inherited flat row list.
     private var providersSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionLabel("Providers")
-            SettingsRow(
-                title: "Claude",
-                subtitle: providerSubtitle(usage.claude),
-                dot: IslandColor.claude,
-                chip: usage.claude.plan?.uppercased()
-            ) {
-                HStack(spacing: 8) {
-                    if usage.claudeReauthInProgress, usage.claudeLoginURL != nil {
-                        PillButton(label: loginLinkCopied ? "Copied" : "Copy login link") {
-                            guard usage.copyClaudeLoginLink() else { return }
-                            loginLinkCopied = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                loginLinkCopied = false
-                            }
-                        }
+            // Slot occupancy, spoken by structure instead of a caption
+            // sentence: the enabled marks + the count.
+            HStack {
+                Spacer(minLength: 0)
+                HStack(spacing: 7) {
+                    ForEach(visibility.enabled, id: \.self) { provider in
+                        ProviderMark(provider: provider, size: 12,
+                                     tint: provider.brandColor.opacity(0.9))
                     }
+                    Text("\(visibility.enabled.count) / 2")
+                        .font(SettingsType.data)
+                        .foregroundStyle(IslandColor.brandTeal.opacity(0.92))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(IslandColor.brandTeal.opacity(0.10)))
+            }
+            .padding(.bottom, 2)
+
+            providerCard(.claude,
+                         status: providerSubtitle(usage.claude),
+                         chip: usage.claude.plan?.uppercased(),
+                         extra: {
+                AnyView(HStack(spacing: 8) {
+                    // ONE button. The default browser opens claude.ai and
+                    // the loopback catches the redirect. Only after a
+                    // failed round does the same spot offer the code
+                    // fallback — progressive disclosure, not a toolbar
+                    // (owner review, 2026-08-08: 搞成这样子很奇怪).
                     if claudeReauthAvailable {
+                        if usage.claudeReauthFailureCaption != nil, !usage.claudeReauthInProgress {
+                            PillButton(label: "Sign in with a code") { startClaudePasteLogin() }
+                        }
                         PillButton(
                             label: usage.claudeReauthInProgress ? "waiting for login…" : "Re-authenticate",
                             isLoading: usage.claudeReauthInProgress
                         ) {
                             usage.reauthenticateClaude()
                         }
-                        if !usage.claudeReauthInProgress {
-                            ClaudeLoginTargetMenu(detection: claudeLoginDetection) {
-                                usage.reauthenticateClaude()
-                            }
-                        }
                     }
-                    SettingsToggle(isOn: visibility.claudeVisible) {
-                        withAnimation(.openMorph) {
-                            visibility.claudeVisible.toggle()
-                        }
-                    }
-                }
-            }
-            if claudeReauthAvailable {
-                claudeReauthCaption
-            }
-            SettingsRow(
-                title: "Codex",
-                subtitle: providerSubtitle(usage.codex),
-                dot: IslandColor.codex,
-                chip: usage.codex.plan?.uppercased()
-            ) {
-                HStack(spacing: 8) {
-                    if CodexCredentials.canPromptReauth() {
+                })
+            })
+
+            providerCard(.codex,
+                         status: providerSubtitle(usage.codex),
+                         chip: usage.codex.plan?.uppercased(),
+                         extra: {
+                AnyView(HStack(spacing: 8) {
+                    codexAccountMenu
+                    if CodexCredentials.canPromptReauth(usage: usage.codex) {
                         PillButton(
                             label: usage.codexReauthInProgress ? "waiting for login…" : "Re-authenticate",
                             isLoading: usage.codexReauthInProgress
@@ -778,51 +927,304 @@ struct SettingsView: View {
                             usage.reauthenticateCodex()
                         }
                     }
-                    SettingsToggle(isOn: visibility.codexVisible) {
-                        withAnimation(.openMorph) {
-                            visibility.codexVisible.toggle()
+                })
+            })
+
+            providerCard(.gemini, status: geminiSubtitle,
+                         chip: visibility.geminiDetected ? geminiStore.tierBadge : nil)
+            providerCard(.grok, status: grokSubtitle,
+                         chip: visibility.grokDetected ? grokStore.authModeBadge : nil)
+            providerCard(.cursor, status: cursorSubtitle,
+                         chip: visibility.cursorDetected ? cursorStore.planBadge : nil)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
+    }
+
+    /// One provider card: mark → name + plan chip → live status line,
+    /// actions and the slot toggle on the trailing edge.
+    private func providerCard(
+        _ provider: DisplayProvider,
+        status: String,
+        chip: String?,
+        extra: () -> AnyView = { AnyView(EmptyView()) },
+        footer: () -> AnyView? = { nil }
+    ) -> some View {
+        let isHovered = hoveredProvider == provider
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                ProviderMark(provider: provider, size: 20,
+                             tint: provider.brandColor.opacity(0.95))
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 7) {
+                        Text(provider.displayName)
+                            .font(SettingsType.rowTitle.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.95))
+                        if let chip {
+                            Text(chip)
+                                .font(Typography.chip)
+                                .tracking(0.8)
+                                .foregroundStyle(.white.opacity(0.62))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(.white.opacity(0.07))
+                                )
+                        }
+                    }
+                    Text(status)
+                        .font(SettingsType.data)
+                        .foregroundStyle(.white.opacity(0.66))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        // Cadence B7: numbers dissolve into their successor
+                        // instead of snapping.
+                        .id(status)
+                        .transition(.blurFade)
+                        .animation(.easeOut(duration: 0.28), value: status)
+                }
+                Spacer(minLength: 10)
+                extra()
+                SettingsToggle(isOn: visibility.isEnabled(provider)) {
+                    toggleProvider(provider)
+                }
+            }
+            if let footer = footer() {
+                footer
+            }
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
+        .padding(.vertical, 13)
+        // No boxes: a brand-tinted rule on the leading edge marks the row,
+        // and separation comes from a hairline + whitespace (owner call,
+        // 2026-08-08: 不喜欢卡片质感). Hover breathes a faint brand wash
+        // across the row and widens the rule a hair.
+        .background {
+            LinearGradient(
+                colors: [provider.brandColor.opacity(isHovered ? 0.05 : 0), .clear],
+                startPoint: .leading, endPoint: .trailing
+            )
+        }
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(provider.brandColor.opacity(
+                    visibility.isEnabled(provider) ? (isHovered ? 1 : 0.85)
+                                                   : (isHovered ? 0.45 : 0.22)))
+                .frame(width: isHovered ? 3 : 2)
+                .padding(.vertical, 6)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(.white.opacity(0.05)).frame(height: 1)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.16)) {
+                hoveredProvider = hovering ? provider : (hoveredProvider == provider ? nil : hoveredProvider)
+            }
+        }
+    }
+
+    /// One-click Codex account switching: park the current login under a
+    /// name, swap between parked logins, and opt into auto-rotation when
+    /// the live account runs dry (owner call, 2026-08-08 — the codex-auto
+    /// borrow, driven by real usage numbers instead of terminal scraping).
+    private var codexAccountMenu: some View {
+        Menu {
+            let accounts = CodexAccountSwitcher.accounts()
+            let active = CodexAccountSwitcher.activeLabel()
+            if accounts.isEmpty {
+                Text(L10n.tr("No saved accounts yet"))
+            } else {
+                ForEach(accounts) { account in
+                    Button {
+                        if CodexAccountSwitcher.activate(account) {
+                            codexAccountsToken += 1
+                            usage.refresh()
+                        }
+                    } label: {
+                        Text(account.label == active
+                             ? "✓ \(account.label)"
+                             : account.label)
+                    }
+                }
+                Divider()
+                Menu(L10n.tr("Remove saved account")) {
+                    ForEach(accounts) { account in
+                        Button(account.label) {
+                            CodexAccountSwitcher.forget(account)
+                            codexAccountsToken += 1
                         }
                     }
                 }
+                Divider()
             }
-            SettingsRow(
-                title: "Grok",
-                subtitle: grokSubtitle,
-                dot: IslandColor.grok,
-                chip: visibility.grokDetected ? grokStore.authModeBadge : nil
-            ) {
-                if visibility.grokDetected {
-                    SettingsToggle(isOn: visibility.grokVisible) {
-                        withAnimation(.openMorph) {
-                            visibility.grokVisible.toggle()
-                        }
-                    }
+            Button(L10n.tr("Save current account…")) { promptParkCodexAccount() }
+            Divider()
+            Button {
+                CodexAccountSwitcher.autoSwitchEnabled.toggle()
+                codexAccountsToken += 1
+            } label: {
+                Text(CodexAccountSwitcher.autoSwitchEnabled
+                     ? "✓ \(L10n.tr("Auto-switch when exhausted"))"
+                     : L10n.tr("Auto-switch when exhausted"))
+            }
+        } label: {
+            Image(systemName: usage.codexAutoSwitched == nil
+                  ? "person.crop.circle" : "person.crop.circle.badge.checkmark")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(usage.codexAutoSwitched == nil
+                                 ? .white.opacity(0.85)
+                                 : IslandColor.selectGold.opacity(0.9))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 6)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.white.opacity(0.09))
+                }
+        }
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .id(codexAccountsToken)
+        .help(L10n.tr("Switch Codex account"))
+    }
+
+    private func promptParkCodexAccount() {
+        let alert = NSAlert()
+        alert.messageText = L10n.tr("Save current account")
+        alert.informativeText = L10n.tr("Give this login a name so you can switch back to it later")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.placeholderString = L10n.tr("work / personal")
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.tr("Save"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if CodexAccountSwitcher.parkCurrent(as: field.stringValue) {
+            codexAccountsToken += 1
+        }
+    }
+
+    /// Paste-code sign-in: open Anthropic's page, let it show a code, take
+    /// the code back through a plain text field. Independent of which
+    /// browser or Google account the machine happens to have.
+    private func startClaudePasteLogin() {
+        guard let request = ClaudeCredentials.pasteLoginRequest() else { return }
+        NSWorkspace.shared.open(request.url)
+        let alert = NSAlert()
+        alert.messageText = L10n.tr("Sign in with a code")
+        alert.informativeText = L10n.tr("Approve the page that just opened, then paste the code it shows here")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        field.placeholderString = L10n.tr("Paste the code")
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.tr("Sign in"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
+        alert.addButton(withTitle: L10n.tr("Copy link"))
+        let response = alert.runModal()
+        if response == .alertThirdButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(request.url.absoluteString, forType: .string)
+            return
+        }
+        guard response == .alertFirstButtonReturn else { return }
+        let pasted = field.stringValue
+        Task {
+            let ok = await ClaudeCredentials.completePasteLogin(
+                pasted: pasted, verifier: request.verifier, state: request.state
+            )
+            await MainActor.run {
+                if ok {
+                    usage.refresh()
+                } else {
+                    let fail = NSAlert()
+                    fail.messageText = L10n.tr("That code did not work")
+                    fail.informativeText = L10n.tr("Copy the whole code from the page and try once more")
+                    fail.addButton(withTitle: L10n.tr("OK"))
+                    fail.runModal()
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 18)
-        .padding(.bottom, 6)
-        .onAppear { claudeLoginDetection = .detect() }
     }
 
-    /// Detection state for the Grok row: identity when a login exists,
-    /// a pointer at the CLI when none does. Weekly percent rides along
-    /// once billing data has landed so the row answers "is it working"
-    /// without opening the panel.
+    private func toggleProvider(_ provider: DisplayProvider) {
+        withAnimation(.openMorph) {
+            if !visibility.requestToggle(provider) {
+                providerLimitAlert = true
+            }
+        }
+        // A guest slot just turned on: fetch now instead of waiting out the
+        // next usage poll (the guest stores gate themselves on the
+        // selection, so an unselected provider never fetched).
+        if visibility.isEnabled(provider) {
+            switch provider {
+            case .gemini: GeminiUsageStore.shared.kickRefresh()
+            case .grok: GrokUsageStore.shared.kickRefresh()
+            case .cursor: CursorUsageStore.shared.kickRefresh()
+            case .claude, .codex: break
+            }
+        }
+    }
+
+    /// Guest rows read like the Claude/Codex rows — sync freshness first,
+    /// then the quota numbers. The account email stays out of the default-
+    /// visible line (owner report, 2026-08-08 — the row led with a bare
+    /// email and read as a glitch); identity lives in the usage-strip hover.
+    private var geminiSubtitle: String {
+        if let authType = visibility.geminiAuthUnsupported {
+            return L10n.tr("Not available — %@ authentication isn't supported yet", authType)
+        }
+        guard visibility.geminiDetected else {
+            return L10n.tr("Not detected — sign in with the gemini CLI")
+        }
+        var parts: [String] = [guestSyncCaption(geminiStore.lastUpdated)]
+        if let caption = geminiStore.statusCaption {
+            parts.append("⚠ \(caption)")
+        } else if let snapshot = geminiStore.snapshot {
+            if let pro = snapshot.primaryPro {
+                parts.append(L10n.tr("pro %d%%", Int((pro.usedPercent * 100).rounded())))
+            }
+            if let flash = snapshot.secondaryFlash {
+                parts.append(L10n.tr("flash %d%%", Int((flash.usedPercent * 100).rounded())))
+            }
+        }
+        return parts.joined(separator: " · ")
+    }
+
     private var grokSubtitle: String {
         guard visibility.grokDetected else {
             return L10n.tr("Not detected — sign in with the grok CLI")
         }
-        var parts: [String] = []
-        if let email = grokStore.accountEmail { parts.append(email) }
+        var parts: [String] = [guestSyncCaption(grokStore.lastUpdated)]
         if let caption = grokStore.errorCaption {
             parts.append("⚠ \(caption)")
         } else if let snapshot = grokStore.snapshot {
             let percent = Int((snapshot.weeklyUsedPercent * 100).rounded())
             parts.append(L10n.tr("week %d%%", percent))
         }
-        return parts.isEmpty ? L10n.tr("idle") : parts.joined(separator: " · ")
+        return parts.joined(separator: " · ")
+    }
+
+    private var cursorSubtitle: String {
+        guard visibility.cursorDetected else {
+            return L10n.tr("Not detected — sign in inside Cursor")
+        }
+        var parts: [String] = [guestSyncCaption(cursorStore.lastUpdated)]
+        if let caption = cursorStore.errorCaption {
+            parts.append("⚠ \(caption)")
+        } else if let snapshot = cursorStore.snapshot {
+            let percent = Int((snapshot.usedPercent * 100).rounded())
+            parts.append(L10n.tr("cycle %d%%", percent))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func guestSyncCaption(_ updated: Date?) -> String {
+        guard let updated else { return L10n.tr("idle") }
+        return L10n.tr("synced %@", Self.relativeFormatter.localizedString(for: updated, relativeTo: Date()))
     }
 
     /// #31: the re-auth button rides the CURRENT auth state, not the mere
@@ -837,62 +1239,7 @@ struct SettingsView: View {
             || ClaudeCredentials.isAuthRecoverableError(usage.claude.weekly.error)
     }
 
-    /// One-line hint under the Claude row while re-auth is on offer: names
-    /// where the sign-in will land BEFORE anything opens (owner ask — the
-    /// old flow revealed the wrong Google profile only after the page
-    /// loaded). Swaps to a copied confirmation once the link is on the
-    /// pasteboard.
-    private var claudeReauthCaption: some View {
-        Text(claudeReauthCaptionText)
-            .font(Typography.label)
-            .foregroundStyle(claudeLoginLinkOnPasteboard
-                ? IslandColor.brandTeal.opacity(0.9)
-                : Color.white.opacity(0.45))
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 10)
-            .padding(.bottom, 8)
-            .animation(.easeOut(duration: 0.15), value: claudeLoginLinkOnPasteboard)
-    }
 
-    /// True the moment the login link is known to sit on the pasteboard —
-    /// via the manual Copy button or the copy-only target's auto-copy.
-    private var claudeLoginLinkOnPasteboard: Bool {
-        loginLinkCopied
-            || (usage.claudeReauthInProgress && loginTarget.target == .copyOnly
-                && usage.claudeLoginURL != nil)
-    }
-
-    private var claudeReauthCaptionText: String {
-        if claudeLoginLinkOnPasteboard {
-            return L10n.tr("Copied — paste it into the browser that's signed in to the right account")
-        }
-        // Resolve against the detected landscape so a remembered pick whose
-        // browser/profile is gone reads as what will ACTUALLY happen (the
-        // system-default fallback), not as the stale pick.
-        let resolved = loginTarget.resolvedTarget(
-            profiles: claudeLoginDetection.profiles,
-            appURLForBundleID: BrowserProfileResolver.appURL(forBundleID:)
-        )
-        switch resolved {
-        case .systemDefault:
-            guard let name = claudeLoginDetection.defaultBrowser?.name else {
-                return L10n.tr("Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window")
-            }
-            return L10n.tr("Sign-in opens in %@ (default browser) — the arrow menu picks another profile or an incognito window", name)
-        case .chromiumProfile(let appURL, let profileDirectory):
-            guard let profile = claudeLoginDetection.profiles.first(where: {
-                $0.appURL == appURL && $0.profileDirectory == profileDirectory
-            }) else {
-                return L10n.tr("Sign-in opens in your default browser — the arrow menu picks another profile or an incognito window")
-            }
-            return L10n.tr("Sign-in opens in %@", profile.pickerLabel)
-        case .chromiumIncognito(let appURL):
-            return L10n.tr("Sign-in opens in an incognito %@ window",
-                           FileManager.default.displayName(atPath: appURL.path))
-        case .copyOnly:
-            return L10n.tr("Sign-in copies the login link — paste it into any signed-in browser")
-        }
-    }
 
     /// Lets the user pick which token total drives the TOKENS hero on the
     /// cost screen. Anthropic's claude.ai stats panel reports input + output
@@ -905,7 +1252,7 @@ struct SettingsView: View {
             sectionLabel("Tokens")
             SettingsRow(
                 title: "Token counting",
-                subtitle: tokenModeSubtitle
+                subtitle: nil
             ) {
                 tokenModeSegmented
             }
@@ -915,14 +1262,6 @@ struct SettingsView: View {
         .padding(.bottom, 4)
     }
 
-    private var tokenModeSubtitle: String {
-        switch tokenMode.mode {
-        case .all:
-            return L10n.tr("Input, output, and cache.")
-        case .billable:
-            return L10n.tr("Input and output only.")
-        }
-    }
 
     private var tokenModeSegmented: some View {
         SegmentedControl(
@@ -939,13 +1278,13 @@ struct SettingsView: View {
     private var costSection: some View {
         HStack(alignment: .center, spacing: 10) {
             Text(L10n.tr("Cost"))
-                .font(Typography.sectionLabel)
+                .font(SettingsType.section)
                 .tracking(1.05)
                 .textCase(.uppercase)
                 .foregroundStyle(.white.opacity(0.34))
 
             Text(costSubtitle())
-                .font(Typography.label)
+                .font(SettingsType.data)
                 .foregroundStyle(.white.opacity(0.42))
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -1026,7 +1365,7 @@ struct SettingsView: View {
             // 1.7.2 planning) — the old ⌘-click hint slot; no separate row.
             HStack(alignment: .center) {
                 Text(L10n.tr("Cost display"))
-                    .font(Typography.sectionLabel)
+                    .font(SettingsType.section)
                     .tracking(1.05)
                     .textCase(.uppercase)
                     .foregroundStyle(.white.opacity(0.34))
@@ -1077,7 +1416,7 @@ struct SettingsView: View {
             }
             SettingsRow(
                 title: "Interface scale",
-                subtitle: "Non-notch screens only"
+                subtitle: nil
             ) {
                 interfaceScalePicker
             }
@@ -1089,30 +1428,13 @@ struct SettingsView: View {
                     alwaysShow.enabled.toggle()
                 }
             }
-            SettingsRow(
-                title: "Mac type",
-                subtitle: displayModeSubtitle
-            ) {
-                displayModeSegmented
-            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .padding(.bottom, 14)
     }
 
-    private var displayModeSubtitle: String {
-        L10n.tr("Notch width for MacBooks with a camera notch; narrower for those without.")
-    }
 
-    private var displayModeSegmented: some View {
-        SegmentedControl(
-            items: [IslandSpacingStore.Mode.compact, .notchStyle],
-            selected: $spacing.mode,
-            label: { $0.displayLabel },
-            accessibilityPrefix: "Mac type"
-        )
-    }
 
     private var missionControlSection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1216,14 +1538,21 @@ struct SettingsView: View {
         }()
         // Codex's weekly-only world: one window, one number — the second
         // slot would just read "⚠ no data" forever.
-        let nums = u.secondaryMissing
-            ? Self.windowCaption(u.fiveHour)
-            : "\(Self.windowCaption(u.fiveHour)) / \(Self.windowCaption(u.weekly))"
+        let five = Self.windowCaption(u.fiveHour)
+        let week = Self.windowCaption(u.weekly)
+        // Both windows failing the same way is ONE fact — "⚠ login required
+        // / ⚠ login required" read as a stutter bug (owner screenshot,
+        // 2026-08-08).
+        let nums = (u.secondaryMissing || (five == week && five.hasPrefix("⚠")))
+            ? five
+            : "\(five) / \(week)"
         return "\(synced) · \(nums)"
     }
 
     private static func windowCaption(_ w: WindowUsage) -> String {
-        if let err = w.error, w.percentInt == 0 { return "⚠ \(err)" }
+        // Known error sentinels carry Localizable entries; unknown strings
+        // pass through L10n.tr unchanged.
+        if let err = w.error, w.percentInt == 0 { return "⚠ \(L10n.tr(err))" }
         return "\(w.percentInt)%"
     }
 }

@@ -32,7 +32,14 @@ final class UsageStore: ObservableObject {
     /// processes; the click ends up no-ops anyway because the spawn check
     /// gates on this.
     @Published var claudeReauthInProgress = false
+    /// Why the last in-app Claude login died, verbatim from the flow —
+    /// cleared when a new attempt starts or one succeeds. Settings shows it
+    /// under the Claude row so failures explain themselves.
+    @Published var claudeReauthFailureCaption: String?
     @Published var codexReauthInProgress = false
+    /// Label the auto-switcher rotated to most recently, shown on the Codex
+    /// card until the next manual action. Real state, not explanation.
+    @Published var codexAutoSwitched: String?
     /// The authorize URL of the Claude login round-trip currently in flight.
     /// Non-nil only while `claudeReauthInProgress` — the UI offers it as
     /// "Copy login link" for users whose Claude account lives in a different
@@ -91,16 +98,17 @@ final class UsageStore: ObservableObject {
             let codexWeekly = Self.demoDouble("AGENTISLAND_DEMO_CODEX_WEEKLY", fallback: 0.76)
             let claudeReset = Self.demoMinutes("AGENTISLAND_DEMO_CLAUDE_RESET_MINUTES", fallback: 107)
             let codexReset = Self.demoMinutes("AGENTISLAND_DEMO_CODEX_RESET_MINUTES", fallback: 143)
+            let claudeError = ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_CLAUDE_ERROR"]
             self.claude = AppUsage(
                 fiveHour: WindowUsage(
                     usedPercent: claudeFiveHour,
                     resetAt: now.addingTimeInterval(TimeInterval(claudeReset * 60)),
-                    error: nil
+                    error: claudeError
                 ),
                 weekly: WindowUsage(
                     usedPercent: claudeWeekly,
                     resetAt: now.addingTimeInterval(4 * 86400 + 11 * 3600),
-                    error: nil
+                    error: claudeError
                 ),
                 plan: "max"
             )
@@ -126,9 +134,10 @@ final class UsageStore: ObservableObject {
         loadingStartedAt = Date()
         // Grok and Gemini ride this exact cadence (poll/wake/unlock/network/
         // manual) instead of owning timers; their stores no-op when
-        // undetected, hidden, or kicked again within their attempt floors.
+        // undetected or kicked again within their attempt floors.
         GrokUsageStore.shared.kickRefresh()
         GeminiUsageStore.shared.kickRefresh()
+        CursorUsageStore.shared.kickRefresh()
         refreshTask?.cancel()
         refreshTask = Task {
             async let codexResult = UsageFetcher.fetchCodex()
@@ -167,7 +176,36 @@ final class UsageStore: ObservableObject {
             self.lastUpdated = Date()
             self.loading = false
             self.scheduleBoundaryRefresh()
+            self.maybeAutoSwitchCodex(mergedCodex)
         }
+    }
+
+    /// Accounts tried since the current exhaustion episode began; cleared
+    /// the moment a reading comes back under 100%, so each episode walks
+    /// the pool at most once and a fully-exhausted pool goes quiet instead
+    /// of thrashing auth.json forever.
+    private var codexAutoSwitchTried: Set<String> = []
+
+    /// AUTO mode of `CodexAccountSwitcher` (owner call, 2026-08-08 — the
+    /// codex-auto borrow). Runs on every fresh Codex reading: exhausted +
+    /// enabled + a candidate exists → swap and immediately re-poll so the
+    /// island shows the incoming account's numbers, not a stale 100%.
+    private func maybeAutoSwitchCodex(_ usage: AppUsage) {
+        guard CodexAccountSwitcher.autoSwitchEnabled else { return }
+        let primary = usage.fiveHour.error == nil ? usage.fiveHour : usage.weekly
+        guard primary.error == nil else { return }
+        guard primary.usedPercent >= 0.999 else {
+            codexAutoSwitchTried.removeAll()
+            return
+        }
+        if let active = CodexAccountSwitcher.activeLabel() {
+            codexAutoSwitchTried.insert(active)
+        }
+        guard let next = CodexAccountSwitcher.rotationCandidate(excluding: codexAutoSwitchTried),
+              CodexAccountSwitcher.activate(next) else { return }
+        codexAutoSwitchTried.insert(next.label)
+        codexAutoSwitched = next.label
+        refresh()
     }
 
     /// The 5-minute poll floor means a window can sit visibly expired — and,
@@ -238,7 +276,13 @@ final class UsageStore: ObservableObject {
     }
 
     private static func refreshWarning(codexFailed: Bool, claudeFailed: Bool) -> String? {
-        switch (claudeFailed, codexFailed) {
+        // A provider the user removed from the slots cannot nag from the
+        // footer — "Claude 数据过期" while only Grok+Cursor are selected
+        // read as a bug, because it was one (owner report, 2026-08-08).
+        let visibility = ProviderVisibilityStore.shared
+        let claude = claudeFailed && visibility.claudeVisible
+        let codex = codexFailed && visibility.codexVisible
+        switch (claude, codex) {
         case (true, true): return L10n.tr("Usage refresh failed")
         case (true, false): return L10n.tr("Claude stale")
         case (false, true): return L10n.tr("Codex stale")
@@ -320,15 +364,20 @@ final class UsageStore: ObservableObject {
     /// copy-the-link) so the sign-in lands where the claude.ai session
     /// actually lives, and catches the OAuth redirect on a local loopback
     /// listener, writing the fresh, fully-scoped token pair straight to the
-    /// keychain. No Terminal, no manual code paste. On any failure we fall back
-    /// to the legacy `claude auth login` + keychain-poll so a machine that can't
-    /// run the loopback flow is no worse off than before.
+    /// keychain. No Terminal, no manual code paste. Failures surface their
+    /// reason under the Claude row and stop — no legacy CLI fallback.
     func reauthenticateClaude() {
         guard !claudeReauthInProgress else { return }
         claudeReauthInProgress = true
+        claudeReauthFailureCaption = nil
         claudeReauthFollowupTask?.cancel()
         reauthPollTask?.cancel()
-        let target = ClaudeLoginTargetStore.shared.resolvedTarget()
+        // Always the system default browser. The profile/incognito picker
+        // UI is gone (owner review, 2026-08-08 — the row must read like a
+        // normal sign-in), and honoring a REMEMBERED incognito pick from
+        // that era would keep opening ghost windows with no UI left that
+        // explains why.
+        let target = ClaudeLoginBrowserTarget.systemDefault
         reauthPollTask = Task { [weak self] in
             guard let self else { return }
             let outcome = await ClaudeWebLogin.shared.start(target: target) { [weak self] url in
@@ -343,11 +392,21 @@ final class UsageStore: ObservableObject {
             await MainActor.run { self.claudeLoginURL = nil }
             switch outcome {
             case .success:
+                await MainActor.run { self.claudeReauthFailureCaption = nil }
                 await self.finishClaudeReauthWithSingleFetch()
             case .canceled:
                 await MainActor.run { self.claudeReauthInProgress = false }
-            case .failed:
-                await self.runClaudeCLIReauthFallback()
+            case .failed(let reason):
+                // Surface the reason and stop. The old path silently spawned
+                // a Terminal running `claude auth login` — a retired CLI
+                // command that errors on 2.x, which read as a mystery
+                // "authentication failed" from nowhere (owner repro,
+                // 2026-08-08).
+                NSLog("AgentIsland: Claude web login failed — %@", reason)
+                await MainActor.run {
+                    self.claudeReauthInProgress = false
+                    self.claudeReauthFailureCaption = reason
+                }
             }
         }
     }
@@ -417,7 +476,7 @@ final class UsageStore: ObservableObject {
                 fetchedClaude: false,
                 fetchedCodex: true
             )
-            self.refreshWarning = UsageStore.isErrorOnly(c) ? L10n.tr("Codex stale") : nil
+            self.refreshWarning = (UsageStore.isErrorOnly(c) && ProviderVisibilityStore.shared.codexVisible) ? L10n.tr("Codex stale") : nil
             if !UsageStore.isErrorOnly(c) {
                 self.lastUpdated = Date()
             }

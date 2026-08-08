@@ -43,6 +43,9 @@ mkdir -p "$MACOS_DIR" "$RES_DIR" "$FRAMEWORKS_DIR"
 
 cp ./Resources/claude_logo.pdf "$RES_DIR/claude_logo.pdf"
 cp ./Resources/openai_logo.pdf "$RES_DIR/openai_logo.pdf"
+cp ./Resources/gemini_logo.pdf "$RES_DIR/gemini_logo.pdf"
+cp ./Resources/grok_logo.pdf "$RES_DIR/grok_logo.pdf"
+cp ./Resources/cursor_logo.pdf "$RES_DIR/cursor_logo.pdf"
 cp ./Resources/duel-claude-wins.png "$RES_DIR/duel-claude-wins.png"
 cp ./Resources/duel-codex-wins.png "$RES_DIR/duel-codex-wins.png"
 cp ./Resources/duel-draw.png "$RES_DIR/duel-draw.png"
@@ -114,10 +117,8 @@ cat > "$CONTENTS/Info.plist" <<EOF
 </plist>
 EOF
 
-# Ad-hoc sign Sparkle's embedded XPC services first (they're inside the
-# framework bundle), then the framework itself. The outer .app gets re-signed
-# in release.sh after everything's in place.
-#
+xattr -cr "$APP_DIR"
+
 # Sparkle ships both Installer.xpc and Downloader.xpc, but their presence has
 # varied across Sparkle versions. Gate on path existence (so missing helpers
 # don't fail the build) and propagate any real codesign error — silencing
@@ -131,5 +132,7 @@ for xpc in Installer.xpc Downloader.xpc; do
   fi
 done
 codesign --force --sign - --timestamp=none "$FRAMEWORKS_DIR/Sparkle.framework"
+codesign --force --sign - --timestamp=none "$APP_DIR"
+codesign --verify --deep --strict "$APP_DIR"
 
 echo "✓ built $APP_DIR ($VERSION)"

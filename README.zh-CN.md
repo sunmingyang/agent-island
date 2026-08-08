@@ -4,7 +4,7 @@
 
 # Agent Island
 
-**Claude Code 和 Codex 的状态伴侣。**
+**Claude Code、Codex 的实时状态，Gemini、Grok 的额度，一起看。**
 
 随时看清每个任务正在做什么。你可以离开终端，轮到你时 Agent Island 会叫你回来。本地优先、无需 Agent Island 账号、无产品遥测。
 
@@ -26,7 +26,7 @@
 [![收录于中国独立开发者项目列表](https://img.shields.io/badge/listed%20in-%E4%B8%AD%E5%9B%BD%E7%8B%AC%E7%AB%8B%E5%BC%80%E5%8F%91%E8%80%85%E9%A1%B9%E7%9B%AE%E5%88%97%E8%A1%A8-c2410c?style=flat-square)](https://github.com/1c7/chinese-independent-developer/pull/1085/files)
 
 <a href="https://www.producthunt.com/products/agent-island-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-agent-island-2">
-  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - Claude Code 和 Codex 的状态伴侣 | Product Hunt" width="250" height="54">
+  <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - 实时状态与额度伴侣 | Product Hunt" width="250" height="54">
 </a>
 
 <img src="docs/media/launch.gif" alt="Agent Island 1.7.1 发布影片：实时会话状态、额度窗口与报告卡" width="900">
@@ -48,6 +48,8 @@
 ## 快速开始
 
 选择你的平台，直接安装当前 `v1.7.1` 版本：
+
+> 当前源码正在准备尚未发布的 macOS `v2.1.1` 版本。下面仍是已经公开发布的 `v1.7.1` 安装包；这些下载暂不包含 Gemini/Grok 额度槽位。
 
 | 平台 | 推荐下载 | 系统要求 |
 |---|---|---|
@@ -125,7 +127,9 @@ Agent Island 把本机 Claude Code、Claude Desktop 和 Codex 的会话活动显
 
 ### 用量
 
-左右滑动即可查看 Claude 和 Codex 的本地用量与成本页面。服务方用量数据来自各家自有的用量端点，并通过本地凭据存储访问；成本和模型汇总则根据本机会话记录计算。
+可从 Claude、Codex、Gemini、Grok、Cursor 中选择最多两个常驻小岛。实时会话状态（工作中 / 卡住 / 轮到你）覆盖 Claude、Codex、Grok、Gemini；被选中的每一家都保留完整用量行，悬停看模型或产品明细，点击直达官方页面。需要本地已登录对应工具；未检测到登录就不会出现对应槽位或行
+
+Claude/Codex 的成本、日历和报告仍由本机会话记录计算。各服务的额度与重置数据通过本地凭据存储访问服务方自有端点；显示 Gemini/Grok 额度不代表已支持它们的会话监控。
 
 <img src="Assets/agent-island-usage-zh.png" alt="macOS 上的 Claude 和 Codex 用量页面" width="760">
 
@@ -207,21 +211,22 @@ flowchart LR
     B --> C[顶部条与提醒]
     B --> D[本地成本与报告页面]
     E[服务方自有用量端点] --> D
+    F[兼容的 Gemini 或 Grok CLI 登录] --> G[实时会话状态与完整用量行]
+    E --> G
 ```
 
-- **会话状态**来自 Claude Code、Claude Desktop 和 Codex 已经写入磁盘的记录与活动文件。本地文件事件和轮次标记驱动工作中与轮到你的状态。
-- **用量与重置数据**来自各服务方自有的用量端点，并通过本地凭据存储访问。
+- **会话状态**只来自 Claude Code、Claude Desktop 和 Codex 已经写入磁盘的记录与活动文件。本地文件事件和轮次标记驱动工作中与轮到你的状态；Gemini 和 Grok 不提供会话状态。
+- **用量与重置数据**来自各服务方自有的用量端点，并通过本地凭据存储访问——对每一家检测到兼容本地登录的服务都是如此
 - **成本、模型和报告汇总**根据本机会话记录在本地计算。
 
 实现说明（英文）：[How Agent Island detects Claude Code and Codex session state](docs/how-agent-island-detects-session-state.md)。
 
 ## 为什么选 Agent Island
 
-运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为每个服务提供持续可见的状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来。
-
+运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为这些会话提供持续可见的实时状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来——覆盖 Claude Code、Codex、Gemini、Grok 与 Cursor
 它适合这些开发者：
 
-- 同时运行多个 Claude Code 和 Codex 会话；
+- 同时运行多个 Claude Code 和 Codex 会话，并按需把 Gemini/Grok 额度放进同一个顶部条；
 - 让长任务在后台运行；
 - 希望查看状态、提醒、用量和可分享的战绩卡，又不想把会话数据交给另一个服务；
 - 在乎桌面的样子——岛的光效、布局和卡片是按产品调的，不是调试悬浮窗。
@@ -233,12 +238,12 @@ flowchart LR
 | 价格与源码 | 免费 · MIT | 一次性买断 · 闭源 | 免费 · MIT | 免费 · MIT | 免费 · MIT | 免费 · MIT | 免费 · MIT |
 | 形态 | 菜单栏应用 | 刘海应用 | 菜单栏应用 | 命令行工具 | 终端仪表盘 | 菜单栏应用 | 菜单栏应用 |
 | 平台 | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+（CLI 版另支持 Linux） | 任何能跑 Node 的环境 | 任何能跑 Python 的环境 | macOS | macOS |
-| 支持的 Agent | Claude Code · Codex | Claude Code、Codex、Gemini CLI、Cursor 等十余家 | 59 家 provider（限额） | Claude Code（+ Codex） | Claude Code | Claude Code | Codex（+ Claude 用量） |
-| 实时会话状态 | ✓ | ✓ | —（服务商故障徽章） | — | — | — | —（被动用量表） |
+| 支持的 Agent | Claude Code · Codex· Grok · Gemini（实时会话）· Cursor（用量） | Claude Code、Codex、Gemini CLI、Cursor 等十余家 | 59 家 provider（限额） | Claude Code（+ Codex） | Claude Code | Claude Code | Codex（+ Claude 用量） |
+| 实时会话状态 | ✓ 仅 Claude/Codex | ✓ | —（服务商故障徽章） | — | — | — | —（被动用量表） |
 | 轮到你闹钟（弹窗+声音+队列） | ✓ | 完成提示，点击跳回 | — | — | — | — | — |
 | 额度耗尽闹钟 | ✓ | — | — | — | 终端预警 | 70%/90% 阈值通知 | — |
 | 刘海内权限审批 | — | ✓ | — | — | — | — | — |
-| 用量、成本与重置 | ✓（含重置银行） | 用量窗口 | ✓（59 家限额+重置倒计时+开销） | ✓（本地成本报表） | ✓（实时+预测） | ✓（5 小时/周仪表+倒计时） | ✓（含 reset credits） |
+| 用量、成本与重置 | 五家完整（用量窗口 · 成本 · 重置倒计时） | 用量窗口 | ✓（59 家限额+重置倒计时+开销） | ✓（本地成本报表） | ✓（实时+预测） | ✓（5 小时/周仪表+倒计时） | ✓（含 reset credits） |
 | 周报/月报卡与段位 | ✓ | — | — | — | — | — | — |
 
 <sub>基于各产品 2026 年 7 月的公开资料整理，欢迎提 issue 指正。</sub>

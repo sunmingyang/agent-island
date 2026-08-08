@@ -11,7 +11,7 @@ import CoreImage
 /// design review: 底色渐变删掉, and gradients band badly under social-app
 /// compression) — app logo joins the wordmark up top, the API-value line
 /// rides beside the hero number, the faction duel replaces the bare split
-/// bar, models cut to TOP 3, and the rank block closes the card.
+/// bar, every model that ran, and the rank block closes the card.
 struct WeeklyReportData {
     struct ModelShare: Identifiable {
         let id = UUID()
@@ -192,10 +192,11 @@ struct WeeklyReportData {
 
     /// Rank models by DOLLARS, not billable tokens: the card's story is
     /// "what my week was worth", and token-ranking buried expensive models.
-    /// TOP-N only — no "Others" row; the donut's uncovered arc reads as the
-    /// long tail on its own (v3, 2026-07-17). Colors are a RANKED
-    /// categorical palette — provider-shaded hues made neighboring segments
-    /// indistinguishable (owner, 2026-07-14).
+    /// EVERY model that carried real usage — the card is the full ledger,
+    /// not a highlight reel (owner call, 2026-08-08: 这东西是要看全部数据的).
+    /// `limit` caps the palette rotation, never the row count. Colors are a
+    /// RANKED categorical palette — provider-shaded hues made neighboring
+    /// segments indistinguishable (owner, 2026-07-14).
     static func rankedModels(
         claudeRows: [ModelUsageRow],
         codexRows: [ModelUsageRow],
@@ -220,10 +221,9 @@ struct WeeklyReportData {
             Color(red: 91/255, green: 200/255, blue: 175/255),   // teal
             Color(red: 167/255, green: 139/255, blue: 250/255),  // violet
         ]
-        return Array((claude + codex)
+        return (claude + codex)
             .sorted { $0.percent > $1.percent }
             .filter { $0.percent >= 0.005 }
-            .prefix(limit))
             .enumerated().map { i, m in
                 ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
                            percent: m.percent, isClaude: m.isClaude,
@@ -433,7 +433,7 @@ struct ReportModelTable: View {
             }
             .rotationEffect(.degrees(-90))
             .overlay {
-                Text("TOP \(models.count)")
+                Text(L10n.tr("MODELS"))
                     .font(.system(size: 10.5, weight: .heavy, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(.white.opacity(0.5))

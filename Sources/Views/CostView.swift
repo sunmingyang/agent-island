@@ -15,8 +15,12 @@ struct CostView: View {
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
 
     var body: some View {
-        let claudeOn = visibility.claudeShown
-        let codexOn = visibility.codexShown
+        // The cost ledger is a local ARCHIVE (Claude/Codex session logs) —
+        // it renders whatever data exists, never a "hidden" placeholder,
+        // regardless of which providers hold the island slots (owner
+        // report, 2026-08-08: guests-only selection showed 服务已隐藏).
+        let claudeOn = visibility.claudeDetected || !visibility.codexDetected
+        let codexOn = visibility.codexDetected || !visibility.claudeDetected
 
         HStack(spacing: 0) {
             switch (claudeOn, codexOn) {

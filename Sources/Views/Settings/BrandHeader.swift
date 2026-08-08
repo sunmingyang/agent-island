@@ -26,8 +26,11 @@ struct BrandHeader: View {
                     .font(Typography.brand)
                     .tracking(-0.15)
                     .foregroundStyle(.white.opacity(0.92))
-                Text(L10n.tr("A status companion for Claude Code and Codex"))
-                    .font(Typography.label)
+                // Locked positioning (owner call, 2026-08-08): category
+                // line, never a provider roll call — it survives every new
+                // agent the roster gains.
+                Text(L10n.tr("A status companion for your AI coding agents"))
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(0.55))
             }
 
@@ -72,9 +75,9 @@ struct BrandHeader: View {
             // Fallback if the resource is missing in the bundle: a plain
             // cobalt-glowing dot so the header layout doesn't collapse.
             Circle()
-                .fill(IslandColor.cobalt)
+                .fill(IslandColor.brandTeal)
                 .frame(width: 10, height: 10)
-                .shadow(color: IslandColor.cobalt.opacity(0.85), radius: 5)
+                .shadow(color: IslandColor.brandTeal.opacity(0.85), radius: 5)
                 .frame(width: 26, height: 26)
         }
     }

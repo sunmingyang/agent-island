@@ -8,6 +8,9 @@ let subagentAlarmDefaultsKey = "AgentIsland.showSubagentAlarms"
 enum TriggerTool: String {
     case claude
     case codex
+    case gemini
+    case grok
+    case cursor
 }
 
 enum ActivityMonitor {

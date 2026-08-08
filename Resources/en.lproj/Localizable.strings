@@ -139,7 +139,7 @@
 "week" = "week";
 "waiting for login…" = "waiting for login…";
 "You" = "You";
-"A status companion for Claude Code and Codex" = "A status companion for Claude Code and Codex";
+"A status companion for your AI coding agents" = "A status companion for your AI coding agents";
 "⌘-click to cycle" = "⌘-click to cycle";
 "⌘1 — pull real provider data" = "⌘1 — pull real provider data";
 "%@ (hidden)" = "%@ (hidden)";
@@ -265,6 +265,7 @@
 "A thread finished — Agent Island opens an alarm window so you can reply." = "A session finished — Agent Island opens an alarm window so you can reply";
 "stalled" = "paused";
 "auth required" = "login required";
+"auth required — run claude" = "login required — re-authenticate";
 "Needs attention" = "Needs attention";
 "Limits, login, network, or provider errors make the logo pulse red." = "Limits, login, network, or provider errors make the logo pulse red";
 "rate limited" = "usage check paused";
@@ -397,7 +398,7 @@
 "Not detected — sign in with the grok CLI" = "Not detected — sign in with the grok CLI";
 "week %d%%" = "week %d%%";
 
-/* Gemini quota (1.9) */
+/* Gemini quota (1.8.1) */
 "Gemini" = "Gemini";
 "sign in again — run gemini" = "sign in again — run gemini";
 "needs a local gemini-cli install" = "needs a local gemini-cli install";
@@ -410,3 +411,25 @@
 /* #9 frontmost chime */
 "Frontmost chime" = "Frontmost chime";
 "Chime instead of staying silent when the session's app is frontmost" = "Chime instead of staying silent when the session's app is frontmost";
+"Pick at most two — turn one off first" = "Pick at most two — turn one off first";
+"Not available — %@ authentication isn't supported yet" = "Not available — %@ authentication isn't supported yet";
+"Pro" = "Pro";
+"Open %@ usage" = "Open %@ usage";
+"Open Gemini quota details" = "Open Gemini quota details";
+"Gemini quota by model" = "Gemini quota by model";
+"Click to open official quota documentation" = "Click to open official quota documentation";
+"Gemini quota" = "Gemini quota";
+"Gemini Pro quota" = "Gemini Pro quota";
+"%@: %d percent used" = "%@: %d percent used";
+"Grok weekly usage by product" = "Grok weekly usage by product";
+"Open Grok usage" = "Open Grok usage";
+"Weekly pool: %d%%" = "Weekly pool: %d%%";
+"Click to open Grok" = "Click to open Grok";
+"Four providers, a lighter background, truer alarms, and reports that look back" = "Four providers, a lighter background, truer alarms, and reports that look back";
+"Four providers, two slots" = "Four providers, two slots";
+"Pick one or two of Claude, Codex, Gemini, and Grok. Gemini and Grok add quota badges, hover detail, and one-click access to their official pages" = "Pick one or two of Claude, Codex, Gemini, and Grok. Gemini and Grok add quota badges, hover detail, and one-click access to their official pages";
+"Live status and quota, together" = "Live status and quota, together";
+"Claude and Codex monitor live sessions; signed-in Gemini and Grok add quota-only views" = "Claude and Codex monitor live sessions; signed-in Gemini and Grok add quota-only views";
+"A guided tour of everything the island does" = "A guided tour of everything the island does";
+"Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you";
+"Choose one or two providers for the top bar. Claude and Codex keep full monitoring; signed-in Gemini and Grok add quota-only badges and detail rows. Hover for model or product breakdowns, or click through to the official pages" = "Choose one or two providers for the top bar. Claude and Codex keep full monitoring; signed-in Gemini and Grok add quota-only badges and detail rows. Hover for model or product breakdowns, or click through to the official pages";

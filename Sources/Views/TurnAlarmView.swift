@@ -165,7 +165,7 @@ struct TurnAlarmView: View {
     }
 
     private var providerColor: Color {
-        provider == .claude ? IslandColor.claude : IslandColor.codex
+        provider.accent
     }
 
     private var buttonGradient: LinearGradient {

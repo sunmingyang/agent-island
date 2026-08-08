@@ -181,13 +181,22 @@ private struct WeeklyReportSheet: View {
     @State private var pageOffset = 0
     @State private var pagedData: WeeklyReportData?
     @State private var pageLoading = false
+    /// Pick any start date → the card shows that day plus the following six
+    /// (owner ask, 2026-08-08). Arrow paging clears the anchor.
+    @State private var anchorDate: Date?
+    @State private var datePopoverShown = false
+    @State private var anchoredData: WeeklyReportData?
 
     private var displayData: WeeklyReportData {
-        pageOffset == 0 ? .current() : (pagedData ?? .current())
+        if let anchoredData { return anchoredData }
+        return pageOffset == 0 ? .current() : (pagedData ?? .current())
     }
 
     private var renderKey: String {
-        pageOffset == 0 ? "current" : "week-\(pageOffset)"
+        if let anchorDate {
+            return "anchor-\(Int(anchorDate.timeIntervalSince1970))"
+        }
+        return pageOffset == 0 ? "current" : "week-\(pageOffset)"
     }
 
     private var canPageBack: Bool {
@@ -304,7 +313,7 @@ private struct WeeklyReportSheet: View {
             ReportPagerArrow(systemName: "chevron.left",
                              enabled: canPageBack,
                              accessibilityKey: "Previous week") {
-                flip(to: pageOffset + 1)
+                flip(to: anchorDate == nil ? pageOffset + 1 : 1)
             }
             Text(displayData.rangeText)
                 .font(.system(size: 11.5, weight: .bold, design: .rounded))
@@ -312,16 +321,81 @@ private struct WeeklyReportSheet: View {
                 .foregroundStyle(.white.opacity(pageLoading ? 0.35 : 0.7))
                 .frame(minWidth: 150)
             ReportPagerArrow(systemName: "chevron.right",
-                             enabled: pageOffset > 0 && !pageLoading,
+                             enabled: (pageOffset > 0 || anchorDate != nil) && !pageLoading,
                              accessibilityKey: "Next week") {
-                flip(to: pageOffset - 1)
+                flip(to: anchorDate == nil ? pageOffset - 1 : 0)
+            }
+            // Any-date anchor: the window becomes [picked day, +7d).
+            // A real month calendar in a popover — click any day and the
+            // window becomes [that day, +7d). The field-style picker read
+            // as an inert text box (owner report, 2026-08-08).
+            Button {
+                datePopoverShown.toggle()
+            } label: {
+                Image(systemName: "calendar")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(anchorDate == nil
+                        ? .white.opacity(0.6)
+                        : IslandColor.brandTeal.opacity(0.95))
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(.white.opacity(0.10)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(TactileButtonStyle())
+            .disabled(pageLoading || AppEnvironment.isDemo)
+            .accessibilityLabel(L10n.tr("Report start date"))
+            .popover(isPresented: $datePopoverShown, arrowEdge: .bottom) {
+                DatePicker(
+                    "",
+                    selection: Binding(
+                        get: { anchorDate ?? Date() },
+                        set: { date in
+                            setAnchor(date)
+                            datePopoverShown = false
+                        }
+                    ),
+                    in: (ReportPeriods.earliestDataDay() ?? .distantPast)...Date(),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .frame(width: 260)
+                .padding(10)
             }
         }
         .frame(maxWidth: .infinity)
     }
 
+    private func setAnchor(_ date: Date) {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let start = cal.startOfDay(for: date)
+        anchorDate = start
+        pageLoading = true
+        WeeklyReportRenderer.invalidateCache()
+        let interval = DateInterval(
+            start: start,
+            end: cal.date(byAdding: .day, value: 7, to: start) ?? start
+        )
+        Task {
+            let slices = await ReportPeriods.slices(for: interval)
+            guard anchorDate == start else { return }
+            anchoredData = WeeklyReportData.forInterval(
+                interval, claudeSlice: slices.claude, codexSlice: slices.codex
+            )
+            pageLoading = false
+            WeeklyReportRenderer.invalidateCache()
+            WeeklyReportRenderer.warmCache(data: displayData, key: renderKey)
+        }
+    }
+
     private func flip(to target: Int) {
-        guard target >= 0, target != pageOffset else { return }
+        // Arrow paging leaves anchored mode and resumes calendar tiling.
+        if anchorDate != nil {
+            anchorDate = nil
+            anchoredData = nil
+        }
+        guard target >= 0, target != pageOffset || target <= 1 else { return }
         pageOffset = target
         WeeklyReportRenderer.invalidateCache()
         guard target > 0 else {

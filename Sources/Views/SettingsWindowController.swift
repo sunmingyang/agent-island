@@ -12,8 +12,10 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private init() {
         let hosting = NSHostingController(rootView: SettingsView())
+        // Landscape since the sidebar redesign — nav owns width, content
+        // owns a single readable column.
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 680, height: 540),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -26,7 +28,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.backgroundColor = NSColor(
             calibratedRed: 0.075, green: 0.077, blue: 0.090, alpha: 1
         )
-        window.minSize = NSSize(width: 440, height: 420)
+        window.minSize = NSSize(width: 600, height: 460)
+        window.setContentSize(NSSize(width: 680, height: 540))
         // Follow the user to the CURRENT Space. Without this, macOS yanks
         // the user to whatever desktop the window last lived on — "点开设置
         // 把我跳转到 Chrome 那个桌面" (owner report, 1.7.2).

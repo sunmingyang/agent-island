@@ -68,6 +68,8 @@ final class TriggerEngine: ObservableObject {
         switch tool {
         case .claude: return UsageStore.shared.claude.fiveHour.resetAt
         case .codex: return UsageStore.shared.codex.fiveHour.resetAt
+        // No auto-resume contract, so no afterReset boundary to ride.
+        case .gemini, .grok, .cursor: return nil
         }
     }
 
@@ -247,6 +249,10 @@ final class TriggerEngine: ObservableObject {
         case .codex:
             arguments = ["exec", "resume", trigger.sessionId, trigger.message,
                          "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check"]
+        case .gemini, .grok, .cursor:
+            // Creation is gated on `supportsAutoResume`; a persisted trigger
+            // for these can only be hand-edited state — refuse to run it.
+            return nil
         }
         return ResumeCommand(binary: displayBinary, arguments: arguments, cwd: trigger.cwd)
     }

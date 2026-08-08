@@ -54,19 +54,19 @@ final class ActivityMonitor: ObservableObject {
         }
     }
 
-    @Published private(set) var claude: State = .idle
-    @Published private(set) var codex: State = .idle
-    @Published private(set) var claudeThread: ActiveThread?
-    @Published private(set) var codexThread: ActiveThread?
-    @Published private var demoClaude: State?
-    @Published private var demoCodex: State?
-    private var rawClaude: State = .idle
-    private var rawCodex: State = .idle
+    /// Five-provider state maps (2.1.1: session status went five-wide;
+    /// before this, Gemini/Grok/Cursor silently read CODEX's state).
+    @Published private(set) var states: [AlertEngine.Provider: State] = [:]
+    @Published private(set) var threads: [AlertEngine.Provider: ActiveThread] = [:]
+    @Published private var demoStates: [AlertEngine.Provider: State] = [:]
+    private var rawStates: [AlertEngine.Provider: State] = [:]
     private var lastWorking: [String: Date] = [:]
 
+    var claude: State { state(for: .claude) }
+    var codex: State { state(for: .codex) }
+
     func state(for provider: AlertEngine.Provider) -> State {
-        if provider == .claude { return demoClaude ?? claude }
-        return demoCodex ?? codex
+        demoStates[provider] ?? states[provider] ?? .idle
     }
 
     /// Pre-overlay scan state. The turn-alarm confirm gate must read this:
@@ -74,16 +74,17 @@ final class ActivityMonitor: ObservableObject {
     /// otherwise swallow alarms exactly when the quota is exhausted or the
     /// network is down — the moments a finished turn most needs surfacing.
     func rawState(for provider: AlertEngine.Provider) -> State {
-        provider == .claude ? rawClaude : rawCodex
+        rawStates[provider] ?? .idle
     }
 
     func demo(_ state: State?) {
-        demoClaude = state
-        demoCodex = state
+        for provider in [AlertEngine.Provider.claude, .codex, .gemini, .grok, .cursor] {
+            demoStates[provider] = state
+        }
     }
 
     func thread(for provider: AlertEngine.Provider) -> ActiveThread? {
-        provider == .claude ? claudeThread : codexThread
+        threads[provider]
     }
 
     private var timer: Timer?
@@ -109,9 +110,10 @@ final class ActivityMonitor: ObservableObject {
             }
             for pair in raw.split(separator: ",") {
                 let kv = pair.split(separator: "=")
-                guard kv.count == 2 else { continue }
-                if kv[0] == "claude" { demoClaude = parse(kv[1]) }
-                if kv[0] == "codex" { demoCodex = parse(kv[1]) }
+                guard kv.count == 2,
+                      let provider = AlertEngine.Provider(rawValue: String(kv[0]))
+                else { continue }
+                demoStates[provider] = parse(kv[1])
             }
         }
         tick()
@@ -156,33 +158,49 @@ final class ActivityMonitor: ObservableObject {
         Task.detached(priority: .utility) {
             let sessions = SessionScanner.monitoringScan(now: now, lastWorking: lastWorkingSnapshot)
             await MainActor.run {
-                let claudeResult = Self.bestSession(in: sessions, tool: .claude) {
-                    AgentReminderCenter.shared.hasAcknowledged(provider: .claude, thread: $0)
-                }
-                let codexResult = Self.bestSession(in: sessions, tool: .codex) {
-                    AgentReminderCenter.shared.hasAcknowledged(provider: .codex, thread: $0)
-                }
                 // Usage-level attention (rate-limited / auth-required red)
                 // only applies to providers switched ON in Settings. Someone
                 // who only runs Claude keeps Codex hidden — its missing login
                 // must not pulse the island red forever.
                 let visibility = ProviderVisibilityStore.shared
-                let claude = visibility.claudeShown
-                    ? self.overlayUsageAttention(claudeResult.state, usage: UsageStore.shared.claude)
-                    : claudeResult.state
-                let codex = visibility.codexShown
-                    ? self.overlayUsageAttention(codexResult.state, usage: UsageStore.shared.codex)
-                    : codexResult.state
                 self.updateLastWorking(from: sessions, now: now)
-                self.rawClaude = claudeResult.state
-                self.rawCodex = codexResult.state
-                self.claudeThread = claudeResult.thread
-                self.claude = claude
-                AgentReminderCenter.shared.handle(provider: .claude, needsYouThreads: Self.needsYouThreads(in: sessions, tool: .claude))
-                self.codexThread = codexResult.thread
-                self.codex = codex
-                AgentReminderCenter.shared.handle(provider: .codex, needsYouThreads: Self.needsYouThreads(in: sessions, tool: .codex))
+                var nextStates: [AlertEngine.Provider: State] = [:]
+                var nextRaw: [AlertEngine.Provider: State] = [:]
+                var nextThreads: [AlertEngine.Provider: ActiveThread] = [:]
+                for (tool, provider) in Self.monitoredProviders {
+                    let result = Self.bestSession(in: sessions, tool: tool) {
+                        AgentReminderCenter.shared.hasAcknowledged(provider: provider, thread: $0)
+                    }
+                    nextRaw[provider] = result.state
+                    nextThreads[provider] = result.thread
+                    nextStates[provider] = visibility.isShown(provider)
+                        ? self.overlayUsageAttention(result.state, usage: Self.usage(for: provider))
+                        : result.state
+                    AgentReminderCenter.shared.handle(
+                        provider: provider,
+                        needsYouThreads: Self.needsYouThreads(in: sessions, tool: tool)
+                    )
+                }
+                self.rawStates = nextRaw
+                self.threads = nextThreads
+                self.states = nextStates
             }
+        }
+    }
+
+    /// Session-status pairs actually scanned today. Cursor is absent on
+    /// purpose: its conversation-search.db is a batch search cache, not a
+    /// live stream — surfacing it as "status" would show stale state as
+    /// fresh (honesty rule; real source = workspaceStorage, future work).
+    private static let monitoredProviders: [(TriggerTool, AlertEngine.Provider)] = [
+        (.claude, .claude), (.codex, .codex), (.grok, .grok), (.gemini, .gemini),
+    ]
+
+    private static func usage(for provider: AlertEngine.Provider) -> AppUsage {
+        switch provider {
+        case .claude: return UsageStore.shared.claude
+        case .codex: return UsageStore.shared.codex
+        case .gemini, .grok, .cursor: return .empty
         }
     }
 

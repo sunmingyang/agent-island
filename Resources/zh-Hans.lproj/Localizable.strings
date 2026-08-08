@@ -21,6 +21,67 @@
 "Total" = "总计";
 "Approaching-limit alerts" = "接近限额提醒";
 "Alerts" = "提醒";
+"From two agents to five: Gemini, Grok, and Cursor arrive together, session status stretches across the island, settings start over, and Codex accounts switch in one click" = "从两家到五家：Gemini、Grok、Cursor 同批上岛，会话状态铺满全岛，设置面板推倒重来，Codex 账号一键切换";
+"Three new agents arrive" = "三家新 Agent 上岛";
+"Gemini, Grok, and Cursor land beside Claude and Codex in one release — quotas, plans, and billing cycles, all read locally" = "Gemini、Grok、Cursor 与 Claude、Codex 同屏并肩——额度、档位、账期，一次到齐，全部本地读取";
+"Session status, island-wide" = "会话状态铺满全岛";
+"Working, stalled, your turn — live session state spans Claude, Codex, Grok, and Gemini, driven by each agent's own records" = "工作中、卡住了、轮到你——实时会话状态覆盖 Claude、Codex、Grok、Gemini，由各家自己的记录驱动";
+"Reports for any date" = "任意日期的报表";
+"Pick a start date and the card covers that window — every model that ran is listed, not just the top few" = "选一个起始日期，报表就覆盖那段区间——跑过的每一个模型都会列出，不再只显示前几名";
+
+"Five agents on one island: Cursor joins, sessions go five-wide, settings start over, and Codex accounts switch in one click" = "五家 Agent 同在一座岛：Cursor 加入，会话监控五家全开，设置面板推倒重来，Codex 账号一键切换";
+"Cursor joins the island" = "Cursor 上岛";
+"Billing-cycle usage and plan, read locally like everyone else — the fifth agent on the roster" = "账期用量与订阅档位，和其他四家一样在本机读取——阵容里的第五位";
+"Five agents, two slots" = "五家服务，任选两家";
+"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar; every selected provider keeps its full data row" = "Claude、Codex、Gemini、Grok、Cursor——任选两家常驻顶部；选中的每一家都保留完整数据行";
+"Sessions go five-wide" = "会话监控五家全开";
+"The island now tracks Grok and Gemini sessions too — working, stalled, your turn — driven by each agent's own records" = "岛上现在也看得见 Grok 与 Gemini 的会话——工作中、卡住了、轮到你——由各家自己的记录驱动";
+"Codex account switching" = "Codex 账号切换";
+"Park each login under a name and swap from the menu; opt in to auto-switch when a quota runs dry, driven by real usage numbers" = "把每个登录存成命名档案，菜单里随时切换；可选开启额度用完自动换号，依据真实用量而非猜测";
+"Settings, started over" = "重来一遍的设置面板";
+"Sidebar navigation, teal for data and gold for selection, and micro-motion in every control — press, glide, land" = "侧栏导航，青色承载数据、金色标记选中，每个控件都有微动效——按下、滑行、落位";
+"Sign-in that lands right" = "一次到位的登录";
+"Claude login now mirrors the official CLI exactly, with a code fallback when the browser round-trip cannot finish" = "Claude 登录与官方 CLI 完全对齐；浏览器往返走不通时，还有授权码兜底";
+
+"Every number is computed on your own computer — Mac or Windows — from logs the agents already write. No account, no telemetry, nothing uploaded" = "每一个数字都是在你自己的电脑上算出来的——Mac 或 Windows——读的是 Agent 本来就会写的日志。不用注册、没有埋点、什么都不上传";
+"If Agent Island helps you, a star on GitHub and a share with a friend are the two things that keep it going" = "如果 Agent Island 帮到了你，去 GitHub 点一颗 Star（点个心），再分享给身边的朋友——这两件事就是对它最大的支持";
+
+"Star on GitHub" = "GitHub 点亮 Star";
+
+"Auto-switch when exhausted" = "额度用完自动切换";
+
+"Sign in with a code" = "用授权码登录";
+"Approve the page that just opened, then paste the code it shows here" = "在刚打开的页面点授权，然后把它显示的授权码粘贴到这里";
+"Paste the code" = "粘贴授权码";
+"Sign in" = "登录";
+"Copy link" = "复制链接";
+"That code did not work" = "这个授权码没能通过";
+"Copy the whole code from the page and try once more" = "把页面上的授权码完整复制一次再试";
+
+"Agents are part of every builder's day now — Claude Code, Codex, Gemini, Grok, Cursor… and whatever ships next month. They run, you wait, and nobody tells you when it is your turn again" = "Agent 已经是每个 builder 的日常——Claude Code、Codex、Gemini、Grok、Cursor……以及下个月还会冒出来的那些。它们在跑，你在等，而没有人告诉你什么时候又轮到你";
+"Agent Island 2.0 puts them all on one island. Who is working, whose turn it is, how much quota is left, what it cost — one glance at the notch, no window switching, no terminal tabs to hunt through" = "Agent Island 2.0 把它们全部放进同一座岛。谁在干活、谁在等你、额度还剩多少、这段时间烧了多少——抬眼看一下刘海就够了，不用切窗口，不用在一堆终端标签里翻找";
+"Everything is computed on your Mac from logs the agents already write. No account, no telemetry, nothing uploaded — the island reads what is yours and shows it back" = "所有数字都在你自己的 Mac 上算出来，读的是 Agent 本来就会写的日志。不用注册、没有埋点、什么都不上传——岛只是把属于你的东西读出来，再摆回你眼前";
+
+"Switch Codex account" = "切换 Codex 账号";
+"No saved accounts yet" = "还没有保存的账号";
+"Save current account…" = "保存当前账号…";
+"Save current account" = "保存当前账号";
+"Give this login a name so you can switch back to it later" = "给这个登录起个名字，之后可以一键切回来";
+"work / personal" = "工作 / 个人";
+"Remove saved account" = "删除已保存的账号";
+"Save" = "保存";
+"Cancel" = "取消";
+
+"MODELS" = "模型";
+"Report start date" = "报告起始日期";
+"Agents are part of every builder's day now — Claude Code, Codex, Gemini, Grok, Cursor. They run, you wait, and that waiting deserves better" = "Agent 已经是每个 builder 的日常——Claude Code、Codex、Gemini、Grok、Cursor。它们在跑，你在等，这段等待值得更好的安排";
+"Agent Island 2.0 puts five agents on one island: who is working, whose turn it is, how much quota is left — one glance, then back to building" = "Agent Island 2.0 把五家 Agent 放进同一座岛：谁在干活、谁在等你、额度还剩多少，一眼看清，然后回去继续创造";
+"Open source, local, free. If it helps you, share it or leave a star on GitHub — that is the biggest help you can give" = "开源、本地、免费。如果它帮到你，分享出去，或者在 GitHub 点一颗 star，就是对我最大的帮助";
+
+"Connect" = "接入";
+"Connect Gemini" = "接入 Gemini";
+"Run the gemini CLI in Terminal and sign in with Google. The island detects the login automatically after relaunch" = "在终端运行 gemini 并用 Google 账号登录，重启后岛会自动检测到登录";
+"Five providers — pick any two for the island" = "五家服务，任选两家常驻顶部";
 "Auto" = "自动";
 "Auto — showing on %@." = "自动 — 当前显示在 %@";
 "Auto — picks the best available screen." = "自动 — 选择最合适的屏幕";
@@ -137,9 +198,11 @@
 "Warning" = "警告";
 "Warning: %d unpriced models — totals may be incomplete." = "警告：%d 个模型缺少价格，成本总额可能偏低";
 "week" = "周";
+"30d" = "30天";
+"24h" = "24小时";
 "waiting for login…" = "等待登录…";
 "You" = "你";
-"A status companion for Claude Code and Codex" = "Claude Code 和 Codex 的状态伴侣";
+"A status companion for your AI coding agents" = "AI 编码智能体的状态伴侣";
 "⌘-click to cycle" = "⌘ 点击切换";
 "⌘1 — pull real provider data" = "⌘1 — 拉取真实服务数据";
 "%@ (hidden)" = "%@（已隐藏）";
@@ -277,6 +340,11 @@
 "your turn" = "该你回复";
 "stalled" = "暂停";
 "auth required" = "需要登录";
+"login timed out" = "登录超时";
+"Sign-in didn't finish — %@ — try again" = "登录未完成 — %@ — 请重试";
+"auth required — run claude" = "需要登录 — 请重新认证";
+"token refresh failed — sign in again" = "登录续期失败 — 请重新认证";
+"sign in again — run grok login" = "需要重新登录 — 运行 grok login";
 "Needs attention" = "需要处理";
 "Limits, login, network, or provider errors make the logo pulse red." = "额度、登录、网络或服务异常时，图标会变红并放大提示";
 "rate limited" = "查询暂停";
@@ -405,7 +473,7 @@
 "Not detected — sign in with the grok CLI" = "未检测到 grok CLI 登录";
 "week %d%%" = "本周 %d%%";
 
-/* Gemini quota (1.9) */
+/* Gemini quota (1.8.1) */
 "Gemini" = "Gemini";
 "sign in again — run gemini" = "登录已失效，运行 gemini 重新登录";
 "needs a local gemini-cli install" = "需要本机安装 gemini-cli";
@@ -418,6 +486,38 @@
 /* #9 frontmost chime */
 "Frontmost chime" = "前台提示音";
 "Chime instead of staying silent when the session's app is frontmost" = "会话所在 App 在前台时以提示音代替静默";
+"Pick at most two — turn one off first" = "最多同时显示两个，先关一个再开";
+"Not available — %@ authentication isn't supported yet" = "不可用 — 暂不支持 %@ 认证方式";
+"Pro" = "Pro";
+"Open %@ usage" = "打开 %@ 用量";
+"Open Gemini quota details" = "打开 Gemini 额度详情";
+"Gemini quota by model" = "Gemini 各模型额度";
+"Click to open official quota documentation" = "点击打开官方额度文档";
+"Gemini quota" = "Gemini 额度";
+"Gemini Pro quota" = "Gemini Pro 额度";
+"%@: %d percent used" = "%@：已使用 %d%%";
+"Grok weekly usage by product" = "Grok 各产品周用量";
+"Open Grok usage" = "打开 Grok 用量";
+"Weekly pool: %d%%" = "周额度池：%d%%";
+"Click to open Grok" = "点击打开 Grok";
+"cycle" = "账期";
+"cycle %d%%" = "账期 %d%%";
+"sign in again — open Cursor" = "需要重新登录 — 打开 Cursor";
+"Not detected — sign in inside Cursor" = "未检测到 — 请在 Cursor 里登录";
+"Cursor included usage" = "Cursor 套餐用量";
+"%@: %d percent of billing period used" = "%@：本账期已使用 %d%%";
+"Cursor included usage this billing period" = "Cursor 本账期套餐用量";
+"Included pool: %d%%" = "套餐额度：%d%%";
+"Click to open Cursor dashboard" = "点击打开 Cursor 面板";
+"Open Cursor dashboard" = "打开 Cursor 面板";
+"Four providers, a lighter background, truer alarms, and reports that look back" = "四个服务 · 更省的后台 · 更准的提醒 · 能回看的报告";
+"Four providers, two slots" = "四个服务，两个槽位";
+"Pick one or two of Claude, Codex, Gemini, and Grok. Gemini and Grok add quota badges, hover detail, and one-click access to their official pages" = "可从 Claude、Codex、Gemini、Grok 中选一个或两个；Gemini 与 Grok 提供额度徽标、悬停明细与官方页面入口";
+"Live status and quota, together" = "实时状态与额度，一个小岛看全";
+"Five agents on one island — each read from the records it already writes on your Mac" = "五家 Agent 同在一座岛——各自读它们本来就写在你 Mac 上的记录";
+"A guided tour of everything the island does" = "带你看懂小岛的全部能力";
+"Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude 与 Codex 提供实时会话状态：旋转代表工作中，铃铛代表轮到你，常红代表需要处理";
+"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page" = "Claude、Codex、Gemini、Grok、Cursor——任选两家常驻顶部；悬停任意一行看模型或产品明细，点击可打开官方页面";
 
 /* What's New (1.7.2) */
 "What's new in this update" = "本次更新带来了什么";

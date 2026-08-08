@@ -10,6 +10,25 @@ enum TurnAlarmNavigator {
             openCodex(thread: thread)
         case .claude:
             openClaude(thread: thread)
+        case .grok:
+            // Grok has no desktop deep link; land the user in a terminal
+            // resume of the exact thread (grok CLI shares codex's
+            // `resume <id>` verb).
+            if let thread, openCLIResume(
+                executable: "grok",
+                arguments: ["--resume", thread.sessionId],
+                thread: thread,
+                fallbackBundleID: nil
+            ) { return }
+        case .gemini:
+            if let thread, openCLIResume(
+                executable: "gemini",
+                arguments: ["--resume", thread.sessionId],
+                thread: thread,
+                fallbackBundleID: nil
+            ) { return }
+        case .cursor:
+            activate(bundleIdentifier: "com.todesktop.230313mzl4w4u92")
         }
     }
 
@@ -205,7 +224,7 @@ enum TurnAlarmNavigator {
         executable: String,
         arguments: [String],
         thread: ActivityMonitor.ActiveThread,
-        fallbackBundleID: String
+        fallbackBundleID: String?
     ) -> Bool {
         guard !thread.sessionId.isEmpty else { return false }
         let command = resumeCommand(executable: executable, arguments: arguments, cwd: thread.cwd)
@@ -218,7 +237,7 @@ enum TurnAlarmNavigator {
             if runTerminalCommand(command) { return }
             await MainActor.run {
                 if openCommandFile(command: command, executable: executable, sessionId: sessionId) { return }
-                activate(bundleIdentifier: fallbackBundleID)
+                if let fallbackBundleID { activate(bundleIdentifier: fallbackBundleID) }
             }
         }
         return true

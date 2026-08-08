@@ -11,10 +11,15 @@ enum IslandColor {
     /// #5AA8F0 — OpenAI sky blue. Codex logo + ring/bar fills.
     static let codex = Color(red: 90/255, green: 168/255, blue: 240/255)
 
+    static let gemini = Color(red: 126/255, green: 147/255, blue: 255/255)
+
     /// #D8DEE4 — xAI monochrome. Grok strip fill + settings dot; a cool
     /// near-white so it sits beside terracotta and sky blue without
     /// introducing a fourth data hue.
     static let grok = Color(red: 216/255, green: 222/255, blue: 228/255)
+    /// Cursor's brand is monochrome; a warm near-white keeps it legible on
+    /// the dark base while staying apart from Grok's cool silver.
+    static let cursor = Color(red: 245/255, green: 243/255, blue: 238/255)
 
     /// #3DD68C — live status dot. Sits next to cobalt without clashing.
     static let liveTeal = Color(red: 61/255, green: 214/255, blue: 140/255)
@@ -35,6 +40,13 @@ enum IslandColor {
     /// the black silhouette without competing with the cobalt halo. Used
     /// for the static glow + peek pill accent at warning severity.
     static let alertAmber = Color(red: 245/255, green: 165/255, blue: 36/255)
+
+    /// The SELECTION accent for settings chrome. Deliberately NOT the
+    /// brand teal: teal now carries DATA everywhere (previews, meters,
+    /// numbers), so selection needed its own voice or the two collided
+    /// (owner call, 2026-08-08). A warm gold reads as "you chose this"
+    /// against a field of teal readings.
+    static let selectGold = Color(red: 240/255, green: 190/255, blue: 110/255)
 
     /// #E5484D — approaching-limit critical tint. Saturated enough to read
     /// as "stop, you're cooked" without going full red-alert pure.

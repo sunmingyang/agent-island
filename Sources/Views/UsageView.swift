@@ -17,47 +17,35 @@ struct UsageView: View {
 
     private var style: ChartStyle { pref.style }
 
+    @ObservedObject private var geminiStore = GeminiUsageStore.shared
+    @ObservedObject private var grokStore = GrokUsageStore.shared
+    @ObservedObject private var cursorStore = CursorUsageStore.shared
+
     var body: some View {
-        let claudeOn = visibility.claudeShown
-        let codexOn = visibility.codexShown
+        // Whoever holds a slot gets a REAL tile column — five providers,
+        // one rendering path. The old design gave guests a skinny bottom
+        // strip, which left the whole main area an empty void the moment a
+        // guests-only pair was selected (owner screenshot, 2026-08-08).
+        let slots = visibility.slotProviders
 
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                switch (claudeOn, codexOn) {
-                case (true, true):
-                    ChartsBlock(color: IslandColor.claude, usage: store.claude,
-                                showsClaudeReauth: true,
-                                style: style, seed: 1)
+        HStack(spacing: 0) {
+            if slots.count == 2 {
+                providerBlock(slots[0], seed: 1)
+                hairline
+                providerBlock(slots[1], seed: 3)
+            } else if slots.count == 1 {
+                let solo = slots[0]
+                if solo.soloLogoFlankIsLeading {
+                    providerBlock(solo, seed: 1)
                     hairline
-                    ChartsBlock(color: IslandColor.codex, usage: store.codex,
-                                style: style, seed: 3)
-                case (true, false):
-                    ChartsBlock(color: IslandColor.claude, usage: store.claude,
-                                showsClaudeReauth: true,
-                                style: style, seed: 1)
+                    soloBadge(solo)
+                } else {
+                    soloBadge(solo)
                     hairline
-                    SoloProviderBadge(provider: .claude)
-                        .padding(.horizontal, 12)
-                        .transition(breakdownTransition)
-                case (false, true):
-                    SoloProviderBadge(provider: .codex)
-                        .padding(.horizontal, 12)
-                        .transition(breakdownTransition)
-                    hairline
-                    ChartsBlock(color: IslandColor.codex, usage: store.codex,
-                                style: style, seed: 3)
-                case (false, false):
-                    BothHiddenPlaceholder()
-                        .transition(.opacity)
+                    providerBlock(solo, seed: 3)
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-
-            // Guest row: the Grok weekly pool. The usage page grows by
-            // `IslandModel.usageGrokStripHeight` while this is visible.
-            if visibility.grokShown {
-                GrokUsageStrip()
-                    .padding(.top, 4)
+            } else {
+                BothHiddenPlaceholder()
                     .transition(.opacity)
             }
         }
@@ -65,6 +53,93 @@ struct UsageView: View {
         .padding(.horizontal, 22)
         .padding(.top, 12)
         .padding(.bottom, 6)
+    }
+
+    @ViewBuilder
+    private func providerBlock(_ provider: DisplayProvider, seed: Int) -> some View {
+        switch provider {
+        case .claude:
+            ChartsBlock(color: IslandColor.claude, usage: store.claude,
+                        showsClaudeReauth: true, style: style, seed: seed)
+        case .codex:
+            ChartsBlock(color: IslandColor.codex, usage: store.codex,
+                        style: style, seed: seed)
+        case .gemini, .grok, .cursor:
+            ChartsBlock(color: provider.brandColor, usage: guestUsage(provider),
+                        style: style, seed: seed)
+        }
+    }
+
+    @ViewBuilder
+    private func soloBadge(_ provider: DisplayProvider) -> some View {
+        Group {
+            switch provider {
+            case .claude: SoloProviderBadge(provider: .claude)
+            case .codex: SoloProviderBadge(provider: .codex)
+            case .gemini, .grok, .cursor:
+                VStack(spacing: 8) {
+                    ProviderMark(provider: provider, size: 30, tint: provider.brandColor.opacity(0.85))
+                    Text(provider.displayName)
+                        .font(Typography.providerTitle)
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding(.horizontal, 12)
+        .transition(breakdownTransition)
+    }
+
+    /// Guests ride the same tile machinery as Claude/Codex by synthesizing
+    /// an AppUsage: their single pool is the primary window, and a "no
+    /// data" secondary marks them single-window (same mechanism Codex's
+    /// weekly-only world uses).
+    private func guestUsage(_ provider: DisplayProvider) -> AppUsage {
+        let missing = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data", periodSeconds: nil)
+        switch provider {
+        case .gemini:
+            let pro = geminiStore.snapshot?.primaryPro
+            let flash = geminiStore.snapshot?.secondaryFlash
+            return AppUsage(
+                fiveHour: WindowUsage(
+                    usedPercent: pro?.usedPercent ?? 0,
+                    resetAt: pro?.resetAt,
+                    error: geminiStore.statusCaption,
+                    periodSeconds: 24 * 60 * 60
+                ),
+                weekly: flash.map {
+                    WindowUsage(usedPercent: $0.usedPercent, resetAt: $0.resetAt,
+                                error: nil, periodSeconds: 24 * 60 * 60)
+                } ?? missing,
+                plan: geminiStore.tierBadge?.lowercased()
+            )
+        case .grok:
+            let snapshot = grokStore.snapshot
+            return AppUsage(
+                fiveHour: WindowUsage(
+                    usedPercent: snapshot?.weeklyUsedPercent ?? 0,
+                    resetAt: snapshot?.weeklyPeriodEnd,
+                    error: grokStore.errorCaption,
+                    periodSeconds: 7 * 24 * 60 * 60
+                ),
+                weekly: missing,
+                plan: grokStore.authModeBadge?.lowercased()
+            )
+        case .cursor:
+            let snapshot = cursorStore.snapshot
+            return AppUsage(
+                fiveHour: WindowUsage(
+                    usedPercent: snapshot?.usedPercent ?? 0,
+                    resetAt: snapshot?.periodEnd,
+                    error: cursorStore.errorCaption,
+                    periodSeconds: 30 * 24 * 60 * 60
+                ),
+                weekly: missing,
+                plan: cursorStore.planBadge?.lowercased()
+            )
+        case .claude, .codex:
+            return .empty
+        }
     }
 
     /// Slight scale + opacity gives the badge half a sense of "expanding
@@ -102,6 +177,16 @@ struct ChartsBlock: View {
         return usage.fiveHour.error != nil || usage.weekly.error != nil
     }
 
+    /// Speak the window the provider actually meters: 5h, weekly, a daily
+    /// bucket (Gemini), or a billing cycle (Cursor).
+    static func windowLabelKey(_ window: WindowUsage) -> String {
+        guard window.isLongPeriod else { return "5h" }
+        guard let period = window.periodSeconds else { return "week" }
+        if period >= 20 * 86400 { return "30d" }
+        if period <= 2 * 86400 { return "24h" }
+        return "week"
+    }
+
     var body: some View {
         VStack(spacing: 6) {
             HStack(spacing: 18) {
@@ -111,7 +196,7 @@ struct ChartsBlock: View {
                 // A single-window provider's tile is `wide` and centers its
                 // own content (see ChartTile's frame alignment).
                 ChartTile(style: style, color: color,
-                          labelKey: usage.fiveHour.isLongPeriod ? "week" : "5h",
+                          labelKey: Self.windowLabelKey(usage.fiveHour),
                           window: usage.fiveHour, seed: seed,
                           wide: usage.secondaryMissing)
                 // A provider that reports only one window gets one tile — no
@@ -262,7 +347,9 @@ struct ChartTile: View {
                ClaudeCredentials.canPromptReauth() {
                 return ""
             }
-            return err
+            // Known error sentinels have Localizable entries; unknown
+            // strings fall through L10n.tr unchanged.
+            return L10n.tr(err)
         }
         if let r = window.resetAt {
             let delta = max(0, r.timeIntervalSinceNow)
@@ -277,7 +364,7 @@ struct ChartTile: View {
                ClaudeCredentials.canPromptReauth() {
                 return ""
             }
-            return err
+            return L10n.tr(err)
         }
         if let r = window.resetAt {
             let delta = max(0, r.timeIntervalSinceNow)

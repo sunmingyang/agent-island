@@ -17,4 +17,8 @@ enum AppEnvironment {
 
     static var isDemo: Bool { current == .demo }
     static var isDebug: Bool { current == .debug }
+
+    static var demoGuestFixturesEnabled: Bool {
+        isDemo && ProcessInfo.processInfo.environment["AGENTISLAND_DEMO_GUESTS"] == "1"
+    }
 }

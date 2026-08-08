@@ -220,7 +220,7 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func title(provider: AlertEngine.Provider, state: ActivityMonitor.State) -> String {
-        let name = provider == .claude ? "Claude" : "Codex"
+        let name = provider.displayName
         switch state {
         case .needsYou: return L10n.tr("%@ is waiting for you", name)
         case .idle, .working, .stalled, .authRequired, .rateLimited: return name

@@ -33,19 +33,72 @@ enum ClaudeCredentials {
     /// Claude Code's public OAuth client. Confirmed from the live `claude`
     /// authorize URL and already used by the refresh path below.
     static let oauthClientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
-    /// Where `ClaudeWebLogin` sends the browser to sign in. The legacy
-    /// `claude.com/cai/oauth/authorize` base started forwarding to a claude.ai
-    /// endpoint that rejects this client's params with "Authorization failed —
-    /// Invalid request format" (owner repro, 2026-08-06); a 12-combo probe
-    /// showed `platform.claude.com` accepting every param set including
-    /// dynamic localhost callback ports, so the login rides that base now.
-    static let authorizeURLBase = "https://platform.claude.com/oauth/authorize"
+    /// Where `ClaudeWebLogin` sends the browser to sign in.
+    ///
+    /// This MUST be the claude.ai (subscription) authorize base, not the
+    /// Console one. `platform.claude.com` is the DEVELOPER CONSOLE — the
+    /// API-key product with its own separate accounts; sending a Max/Pro
+    /// subscriber there lands them on "Build on the Claude Platform" with
+    /// a sign-up form and no authorization code (owner screenshot,
+    /// 2026-08-08). The CLI keeps both bases and picks this one for a
+    /// subscription login: `CLAUDE_AI_AUTHORIZE_URL` in its config.
+    static let authorizeURLBase = "https://claude.com/cai/oauth/authorize"
     /// Token endpoint for both refresh and authorization_code exchange.
     static let tokenURLString = "https://platform.claude.com/v1/oauth/token"
-    /// Scope set the mid-2026 usage endpoint requires (`user:profile` is the
-    /// one older keychain tokens are missing — a fresh login is the only way
-    /// to acquire it, since refresh re-issues the same scopes).
-    static let loginScopes = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
+
+    /// Anthropic's own paste-flow redirect. The pairing is deliberately
+    /// CROSS-origin: authorize lives on claude.com/cai (subscription) while
+    /// the code-display page lives on platform.claude.com — both URLs sit
+    /// verbatim in the claude CLI 2.1.153 binary, which is the ground
+    /// truth here. Selected by `code=true`; the browser lands on a page
+    /// showing a code to copy back — no loopback listener, no
+    /// browser-profile guessing, no Google account required.
+    static let pasteRedirectURI = "https://platform.claude.com/oauth/code/callback"
+
+    /// Builds the paste-flow authorize URL and its PKCE verifier. Caller
+    /// opens the URL, the user copies the code, then calls
+    /// `completePasteLogin` with it.
+    static func pasteLoginRequest() -> (url: URL, verifier: String, state: String)? {
+        let verifier = ClaudeWebLogin.randomURLSafe(32)
+        let state = ClaudeWebLogin.randomURLSafe(16)
+        let challenge = ClaudeWebLogin.pkceChallenge(for: verifier)
+        guard var comps = URLComponents(string: authorizeURLBase) else { return nil }
+        comps.queryItems = [
+            URLQueryItem(name: "code", value: "true"),
+            URLQueryItem(name: "client_id", value: oauthClientID),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "redirect_uri", value: pasteRedirectURI),
+            URLQueryItem(name: "scope", value: loginScopes),
+            URLQueryItem(name: "code_challenge", value: challenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "state", value: state),
+        ]
+        guard let url = comps.url else { return nil }
+        return (url, verifier, state)
+    }
+
+    /// Exchanges a hand-pasted authorization code. Anthropic's success page
+    /// shows it as `<code>#<state>`; accept either form.
+    static func completePasteLogin(pasted: String, verifier: String, state: String) async -> Bool {
+        let trimmed = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let parts = trimmed.split(separator: "#", maxSplits: 1)
+        let code = String(parts[0])
+        let returnedState = parts.count > 1 ? String(parts[1]) : state
+        guard let tokens = await exchangeAuthorizationCode(
+            code: code, codeVerifier: verifier,
+            redirectURI: pasteRedirectURI, state: returnedState
+        ) else { return false }
+        return persistFreshLogin(tokens)
+    }
+    /// Smallest scope set where EVERY item has live server-side proof:
+    /// `user:inference` is what `claude setup-token` sends verbatim
+    /// (captured from the CLI's own authorize URL, 2026-08-08), and
+    /// `user:profile` is the documented hard requirement of the usage
+    /// endpoint (the mid-2026 403 fix). Nothing speculative — five failed
+    /// rounds all traced to shipping scopes this endpoint had never
+    /// been seen to accept.
+    static let loginScopes = "user:profile user:inference"
 
     static func isAuthRecoverableError(_ message: String?) -> Bool {
         guard let message else { return false }
@@ -117,10 +170,11 @@ enum ClaudeCredentials {
         }
 
         if let creds = cachedCreds {
+            var keychainTokensDead = false
             switch await probe(creds.accessToken, plan) {
             case .success(let u):       return .usage(u)
             case .rateLimited:          lastError = "rate limited"
-            case .unauthorized:         break
+            case .unauthorized:         keychainTokensDead = true
             // Refresh hands back tokens with the same scope set, so it cannot
             // recover from a missing-scope 403. Bail out and surface the only
             // remediation that actually works.
@@ -129,6 +183,7 @@ enum ClaudeCredentials {
             }
 
             if let refreshed = await refreshClaudeToken(refreshToken: creds.refreshToken) {
+                keychainTokensDead = false
                 // Anthropic's OAuth token endpoint rotates the refresh token,
                 // so the one we just used is now invalidated server-side. If we
                 // do not write the new pair back, Claude Code's next refresh
@@ -139,7 +194,7 @@ enum ClaudeCredentials {
                 updated["accessToken"] = refreshed.accessToken
                 updated["refreshToken"] = refreshed.refreshToken
                 updated["expiresAt"] = refreshed.expiresAt
-                writeClaudeCreds(account: creds.account, oauth: updated)
+                writeClaudeCreds(service: creds.service, account: creds.account, oauth: updated)
 
                 switch await probe(refreshed.accessToken, plan) {
                 case .success(let u):       return .usage(u)
@@ -155,6 +210,13 @@ enum ClaudeCredentials {
                 // is in the log; the caption carries the remediation.
                 lastError = tokenRefreshFailedMessage
             }
+
+            // This entry's tokens are dead end to end. Forget it so the next
+            // poll re-runs discovery — a revoked account's leftover entry
+            // must not shadow a fresh login that minted a NEW suffixed item.
+            if keychainTokensDead || lastError == tokenRefreshFailedMessage {
+                invalidateServiceCache()
+            }
         }
 
         return .failed(lastError)
@@ -163,11 +225,33 @@ enum ClaudeCredentials {
     // MARK: - Keychain
 
     private struct ClaudeCreds {
+        let service: String
         let account: String
         let accessToken: String
         let refreshToken: String
         let oauth: [String: Any]
         let subscriptionType: String?
+    }
+
+    /// See `ClaudeKeychainDiscovery` for the naming story (2.x suffixed
+    /// items, MCP-cache lookalikes, freshest-wins).
+    private static var baseService: String { ClaudeKeychainDiscovery.baseService }
+    private static let cachedServiceKey = "AgentIsland.claudeKeychainService"
+
+    /// Forget the remembered item name so the next read re-runs discovery.
+    /// Called when the remembered entry's tokens stop answering — a revoked
+    /// account's entry can shadow a fresh login that minted a NEW suffix.
+    static func invalidateServiceCache() {
+        UserDefaults.standard.removeObject(forKey: cachedServiceKey)
+    }
+
+    /// Suffixed candidates from the keychain listing. Metadata only — no
+    /// `-d`, no secrets — and only runs when the remembered/unsuffixed
+    /// items both miss, so steady state never pays for the dump.
+    private static func discoverSuffixedServices() -> [String] {
+        guard let data = runSecurity(["dump-keychain"], timeout: 20) else { return [] }
+        return ClaudeKeychainDiscovery.parseServiceNames(
+            fromDump: String(data: data, encoding: .utf8) ?? "")
     }
 
     /// Runs `/usr/bin/security` with a hard deadline and returns stdout on
@@ -210,17 +294,45 @@ enum ClaudeCredentials {
         return data
     }
 
-    /// Reads the keychain item Claude Code writes on first login. Returns
-    /// nil silently on any error — the caller falls through to the next
-    /// token source. Captures the account name and the full claudeAiOauth
-    /// dict so a refresh can be written back via writeClaudeCreds without
-    /// dropping unrelated fields (scopes, subscriptionType, rateLimitTier).
+    /// Reads the freshest Claude login the keychain holds. Fast path is the
+    /// remembered item, then the unsuffixed name (what our web login
+    /// writes); only when both miss does the suffixed-item discovery run.
+    /// Returns nil silently on any error — the caller falls through to the
+    /// next token source. Captures the item name and account so a refresh
+    /// writes back to the SAME entry (rotating a different entry's tokens
+    /// would 401 the CLI's next refresh).
     private static func readClaudeCreds() -> ClaudeCreds? {
-        guard let account = readClaudeKeychainAccount() else { return nil }
+        var fastPath: [String] = []
+        if let cached = UserDefaults.standard.string(forKey: cachedServiceKey) {
+            fastPath.append(cached)
+        }
+        if !fastPath.contains(baseService) { fastPath.append(baseService) }
+        if let hit = freshestCreds(in: fastPath) { return remember(hit) }
+
+        let suffixed = discoverSuffixedServices().filter { !fastPath.contains($0) }
+        guard let hit = freshestCreds(in: suffixed) else { return nil }
+        return remember(hit)
+    }
+
+    private static func remember(_ creds: ClaudeCreds) -> ClaudeCreds {
+        UserDefaults.standard.set(creds.service, forKey: cachedServiceKey)
+        return creds
+    }
+
+    private static func freshestCreds(in services: [String]) -> ClaudeCreds? {
+        ClaudeKeychainDiscovery.pickFreshest(services.compactMap { service in
+            guard let creds = readCreds(service: service) else { return nil }
+            let expires = (creds.oauth["expiresAt"] as? NSNumber)?.doubleValue ?? 0
+            return (creds, expires)
+        })
+    }
+
+    private static func readCreds(service: String) -> ClaudeCreds? {
+        guard let account = readClaudeKeychainMetadataValue("acct", service: service) else { return nil }
 
         guard let data = runSecurity([
             "find-generic-password",
-            "-s", "Claude Code-credentials",
+            "-s", service,
             "-a", account,
             "-w",
         ]) else { return nil }
@@ -232,7 +344,26 @@ enum ClaudeCredentials {
               let access = oauth["accessToken"] as? String,
               let refresh = oauth["refreshToken"] as? String else { return nil }
         let plan = oauth["subscriptionType"] as? String
-        return ClaudeCreds(account: account, accessToken: access, refreshToken: refresh, oauth: oauth, subscriptionType: plan)
+        return ClaudeCreds(service: service, account: account, accessToken: access, refreshToken: refresh, oauth: oauth, subscriptionType: plan)
+    }
+
+    /// The CLI-login fallback polls this every 3s while a login runs. A
+    /// fresh 2.x login may mint a brand-new suffixed item, so on a miss the
+    /// discovery re-runs — the stamp flipping nil → non-nil is exactly the
+    /// "login landed" signal that poll wants.
+    static func keychainModificationStamp() -> String? {
+        var candidates: [String] = []
+        if let cached = UserDefaults.standard.string(forKey: cachedServiceKey) {
+            candidates.append(cached)
+        }
+        if !candidates.contains(baseService) { candidates.append(baseService) }
+        for service in candidates {
+            if let stamp = readClaudeKeychainMetadataValue("mdat", service: service) { return stamp }
+        }
+        for service in discoverSuffixedServices() where !candidates.contains(service) {
+            if let stamp = readClaudeKeychainMetadataValue("mdat", service: service) { return stamp }
+        }
+        return nil
     }
 
     /// `security add-generic-password -U` requires the original account name
@@ -240,16 +371,8 @@ enum ClaudeCredentials {
     /// a line shaped like: `    "acct"<blob>="ericpark"` — pull the value
     /// from inside the trailing quotes. Returns nil if the line is missing
     /// or the value is `<NULL>`.
-    private static func readClaudeKeychainAccount() -> String? {
-        readClaudeKeychainMetadataValue("acct")
-    }
-
-    static func keychainModificationStamp() -> String? {
-        readClaudeKeychainMetadataValue("mdat")
-    }
-
-    private static func readClaudeKeychainMetadataValue(_ key: String) -> String? {
-        guard let data = runSecurity(["find-generic-password", "-s", "Claude Code-credentials"]) else {
+    private static func readClaudeKeychainMetadataValue(_ key: String, service: String) -> String? {
+        guard let data = runSecurity(["find-generic-password", "-s", service]) else {
             return nil
         }
         let output = String(data: data, encoding: .utf8) ?? ""
@@ -271,16 +394,19 @@ enum ClaudeCredentials {
         return String(rhs[rhs.index(after: start)..<end])
     }
 
-    /// Updates the existing `Claude Code-credentials` keychain item in place
-    /// (`-U` flag) so the rotated OAuth tokens persist. Best-effort: a
-    /// failure here means the next AgentIsland refresh will pay the same
-    /// rotation cost again, but Claude Code itself recovers because the
-    /// fresh refresh_token we wrote — if the write actually landed — works.
+    /// Updates the given credentials keychain item in place (`-U` flag) so
+    /// the rotated OAuth tokens persist — always the SAME item the tokens
+    /// were read from: the CLI's next refresh reads its own entry, and a
+    /// rotation written anywhere else would leave it holding a revoked
+    /// token. Best-effort: a failure here means the next AgentIsland
+    /// refresh will pay the same rotation cost again, but Claude Code
+    /// itself recovers because the fresh refresh_token we wrote — if the
+    /// write actually landed — works.
     /// Note: passing the JSON via `-w` makes it briefly visible in `ps` to
     /// processes owned by the same user. The keychain itself is gated by
     /// the same trust boundary, so this is not a meaningful regression.
     @discardableResult
-    private static func writeClaudeCreds(account: String, oauth: [String: Any]) -> Bool {
+    private static func writeClaudeCreds(service: String, account: String, oauth: [String: Any]) -> Bool {
         let payload: [String: Any] = ["claudeAiOauth": oauth]
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []),
               let json = String(data: data, encoding: .utf8) else {
@@ -291,7 +417,7 @@ enum ClaudeCredentials {
         guard runSecurity([
             "add-generic-password",
             "-U",
-            "-s", "Claude Code-credentials",
+            "-s", service,
             "-a", account,
             "-w", json,
         ]) != nil else {
@@ -316,7 +442,7 @@ enum ClaudeCredentials {
     /// server and any downstream consumer (Claude Code, Claude Desktop)
     /// 401s on its next refresh.
     private static func refreshClaudeToken(refreshToken: String) async -> RefreshedTokens? {
-        var req = URLRequest(url: URL(string: "https://platform.claude.com/v1/oauth/token")!)
+        var req = URLRequest(url: URL(string: tokenURLString)!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25 // never let a wedged tunnel hang the poll loop
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -395,19 +521,24 @@ enum ClaudeCredentials {
         }
     }
 
-    /// Writes a freshly-minted token pair into the `Claude Code-credentials`
-    /// keychain item, preserving the existing account name and any auxiliary
-    /// fields (subscriptionType, scopes) so downstream consumers keep working.
-    /// Seeds a minimal dict under the login username if no item exists yet.
+    /// Writes a freshly-minted token pair into the credentials keychain
+    /// item, preserving the existing item name, account, and any auxiliary
+    /// fields (subscriptionType, scopes) so downstream consumers keep
+    /// working. Seeds a minimal dict under the unsuffixed name if no item
+    /// exists yet — that name stays first in the read order, so an in-app
+    /// login lands somewhere every future read finds.
     @discardableResult
     private static func persistFreshLogin(_ tokens: RefreshedTokens) -> Bool {
         let existing = readClaudeCreds()
+        let service = existing?.service ?? baseService
         let account = existing?.account ?? NSUserName()
         var oauth = existing?.oauth ?? [:]
         oauth["accessToken"] = tokens.accessToken
         oauth["refreshToken"] = tokens.refreshToken
         oauth["expiresAt"] = tokens.expiresAt
-        return writeClaudeCreds(account: account, oauth: oauth)
+        let ok = writeClaudeCreds(service: service, account: account, oauth: oauth)
+        if ok { UserDefaults.standard.set(service, forKey: cachedServiceKey) }
+        return ok
     }
 
     // MARK: - In-app re-auth

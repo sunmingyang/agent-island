@@ -10,9 +10,8 @@ struct SettingsFooter: View {
     private static let githubURL = URL(string: "https://github.com/tristan666666/agent-island")!
 
     var body: some View {
-        // GitHub + the guide on the left; Quit moved to the right rail with
-        // the share CTAs (owner call, 1.7.2: the guide takes Quit's old
-        // slot, Quit slides right).
+        // GitHub + the guide on the left; the share CTAs right. Quit lives
+        // in the sidebar next to the version pill now (owner call, 2.1.1).
         HStack(alignment: .center, spacing: 14) {
             link("GitHub", url: Self.githubURL)
 
@@ -24,29 +23,6 @@ struct SettingsFooter: View {
             .help(L10n.tr("How Agent Island works"))
 
             Spacer()
-
-            Button {
-                NSApp.terminate(nil)
-            } label: {
-                Text(L10n.tr("Quit"))
-                    .font(Typography.label)
-                    .fixedSize()
-                    .foregroundStyle(.white.opacity(quitHovered ? 0.92 : 0.55))
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 5)
-                    .background {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(.white.opacity(quitHovered ? 0.06 : 0.03))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .strokeBorder(.white.opacity(0.07), lineWidth: 0.5)
-                            }
-                    }
-            }
-            .buttonStyle(TactileButtonStyle())
-            .onHover { quitHovered = $0 }
-            .help(L10n.tr("Quit AgentIsland"))
-            .animation(.strongEaseOut, value: quitHovered)
 
             // Short labels — the full 'Share weekly report' pair overflowed
             // the 480pt window in English and crushed Quit into a vertical
@@ -89,7 +65,7 @@ private struct SharePillButton: View {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 9.5, weight: .bold))
                 Text(title)
-                    .font(Typography.label.weight(.bold))
+                    .font(SettingsType.data.weight(.bold))
                     .lineLimit(1)
             }
             .fixedSize()
@@ -118,11 +94,11 @@ private struct DottedLink: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Text(L10n.tr(title))
-                    .font(Typography.label)
+                    .font(SettingsType.data)
                     .foregroundStyle(.white.opacity(hovered ? 0.92 : 0.55))
                 if arrow {
                     Text("↗")
-                        .font(Typography.micro)
+                        .font(SettingsType.data)
                         .foregroundStyle(.white.opacity(hovered ? 0.6 : 0.3))
                 }
             }

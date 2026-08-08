@@ -30,6 +30,8 @@ enum SessionScanner {
     static func scan(now: Date = Date(), lastWorking: [String: Date] = [:]) -> [ScannedSession] {
         var out = scanClaude(now: now, lastWorking: lastWorking)
         out += scanCodex(now: now, lastWorking: lastWorking)
+        out += scanGrok(now: now, lastWorking: lastWorking)
+        out += scanGemini(now: now, lastWorking: lastWorking)
         out.sort { $0.modified > $1.modified }
         // Dedupe by session: the Claude desktop store commonly holds the SAME
         // cliSessionId under two project folders (23 of 41 on the reporting
@@ -170,7 +172,7 @@ enum SessionScanner {
         }
         // 2. SUBAGENT / child threads (orchestrator fan-out: spawned/review/
         //    compact) — filtered by DEFAULT because they finish constantly, but
-        //    the user can opt back in via SubagentAlarmStore ("Alarm on subagent
+        //    (History: an opt-in toggle existed briefly; deleted 2026-08-08.)
         //    threads"). All three spawn markers must honor the toggle, or an
         //    enabled toggle would still be dead: thread_source == "subagent",
         //    a non-empty parent_thread_id, and a {"subagent": …} source object
@@ -179,10 +181,108 @@ enum SessionScanner {
         let isSubagent = (payload["thread_source"] as? String) == "subagent"
             || (payload["parent_thread_id"] as? String).map({ !$0.isEmpty }) == true
             || (payload["source"] as? [String: Any])?["subagent"] != nil
-        if isSubagent, !UserDefaults.standard.bool(forKey: subagentAlarmDefaultsKey) {
-            return nil
-        }
+        // Subagent/child threads NEVER alarm — the feature (and its toggle)
+        // is deleted outright, not defaulted off (owner call, 2026-08-08:
+        // 默认所有模型的子线程全部不打开,直接关掉这个功能).
+        if isSubagent { return nil }
         return (payload["id"] as? String ?? "", payload["cwd"] as? String ?? "")
+    }
+
+    // MARK: - Grok: ~/.grok/sessions/<url-encoded cwd>/<uuid>/
+
+    /// Grok mirrors Claude's layout almost exactly — one directory per
+    /// percent-encoded cwd, one per session inside it. `summary.json` gives
+    /// identity + title; `updates.jsonl` is the live event stream the turn
+    /// detector reads (chat_history.jsonl is the fallback when a session
+    /// predates the updates stream).
+    static func scanGrok(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
+        let fm = FileManager.default
+        let root = NSHomeDirectory() + "/.grok/sessions"
+        guard let projects = try? fm.contentsOfDirectory(atPath: root) else { return [] }
+        var out: [ScannedSession] = []
+        for project in projects {
+            let projectPath = root + "/" + project
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: projectPath, isDirectory: &isDir), isDir.boolValue,
+                  let sessionDirs = try? fm.contentsOfDirectory(atPath: projectPath) else { continue }
+            let cwd = project.removingPercentEncoding ?? project
+            for sid in sessionDirs {
+                let dir = projectPath + "/" + sid
+                guard fm.fileExists(atPath: dir + "/summary.json") else { continue }
+                var title = ""
+                if let data = fm.contents(atPath: dir + "/summary.json"),
+                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    title = (object["session_summary"] as? String ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                let updates = dir + "/updates.jsonl"
+                let transcript = fm.fileExists(atPath: updates) ? updates : dir + "/chat_history.jsonl"
+                let state = sessionState(
+                    for: transcript, now: now, lastWorking: lastWorking,
+                    turnState: SessionTurnState.grok
+                )
+                out.append(ScannedSession(
+                    tool: .grok,
+                    sessionId: sid,
+                    cwd: cwd,
+                    label: title.isEmpty ? fallback(cwd, sid) : title,
+                    modified: state.modified,
+                    status: state.status,
+                    transcriptPath: transcript,
+                    turnKey: state.turnKey,
+                    launchTarget: .cli
+                ))
+            }
+        }
+        return out
+    }
+
+    // MARK: - Gemini: ~/.gemini/tmp/<project>/chats/session-*.jsonl
+
+    /// Gemini's chat files are a $set checkpoint stream with no verified
+    /// turn boundary yet, so status is recency-only (`mtimeOnly` — working
+    /// while the file moves, idle after; never a "your turn" alarm). The
+    /// session id lives in the first line's header.
+    static func scanGemini(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
+        let fm = FileManager.default
+        let root = NSHomeDirectory() + "/.gemini/tmp"
+        guard let projects = try? fm.contentsOfDirectory(atPath: root) else { return [] }
+        var out: [ScannedSession] = []
+        for project in projects {
+            let chats = root + "/" + project + "/chats"
+            guard let files = try? fm.contentsOfDirectory(atPath: chats) else { continue }
+            for name in files where name.hasSuffix(".jsonl") {
+                let path = chats + "/" + name
+                let sid = geminiSessionId(path)
+                    ?? (name as NSString).deletingPathExtension
+                let state = sessionState(
+                    for: path, now: now, lastWorking: lastWorking,
+                    turnState: SessionTurnState.mtimeOnly
+                )
+                out.append(ScannedSession(
+                    tool: .gemini,
+                    sessionId: sid,
+                    cwd: project,
+                    label: fallback(project, sid),
+                    modified: state.modified,
+                    status: state.status,
+                    transcriptPath: path,
+                    turnKey: state.turnKey,
+                    launchTarget: .cli
+                ))
+            }
+        }
+        return out
+    }
+
+    private static func geminiSessionId(_ path: String) -> String? {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        let data = handle.readData(ofLength: 4096)
+        guard let newline = data.firstIndex(of: 0x0A) else { return nil }
+        guard let object = try? JSONSerialization.jsonObject(with: data.prefix(upTo: newline)) as? [String: Any]
+        else { return nil }
+        return object["sessionId"] as? String
     }
 
     // MARK: - Helpers

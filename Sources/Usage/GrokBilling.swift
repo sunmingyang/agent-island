@@ -37,7 +37,7 @@ struct GrokBillingSnapshot: Codable, Equatable {
     var monthlyUsedCents: Int?
     var monthlyLimitCents: Int?
     var monthlyPeriodEnd: Date?
-    /// Per-product weekly breakdown. Optional so pre-1.9 cached snapshots
+    /// Per-product weekly breakdown. Optional so pre-1.8.1 cached snapshots
     /// keep decoding.
     var productUsage: [GrokProductUsage]? = nil
 }

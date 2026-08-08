@@ -39,7 +39,7 @@ enum AgentHostAppResolver {
             }
         }
         guard let cwd, !cwd.isEmpty else { return false }
-        let cliName = provider == .claude ? "claude" : "codex"
+        let cliName = provider.cliName ?? "codex"
         let target = normalize(cwd)
         for pid in cliPids(named: cliName) {
             guard let processCwd = workingDirectory(of: pid),

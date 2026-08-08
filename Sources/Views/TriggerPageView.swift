@@ -69,7 +69,7 @@ struct TriggerPageView: View {
     private func row(_ trigger: Trigger) -> some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(trigger.tool == .claude ? IslandColor.claude : IslandColor.codex)
+                .fill(trigger.tool == .claude ? IslandColor.claude : IslandColor.codex)  // creation gated to these two
                 .frame(width: 6, height: 6)
             VStack(alignment: .leading, spacing: 1) {
                 Text(trigger.label).font(Typography.label).foregroundStyle(.white.opacity(0.92)).lineLimit(1)

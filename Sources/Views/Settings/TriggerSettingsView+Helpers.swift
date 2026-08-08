@@ -66,7 +66,7 @@ extension TriggerSettingsView {
     @ViewBuilder
     func sectionLabel(_ text: String) -> some View {
         Text(L10n.tr(text))
-            .font(Typography.sectionLabel)
+            .font(SettingsType.section)
             .tracking(1.05)
             .textCase(.uppercase)
             .foregroundStyle(.white.opacity(0.34))
@@ -78,7 +78,7 @@ extension TriggerSettingsView {
     func field<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .center, spacing: 12) {
             Text(L10n.tr(label))
-                .font(Typography.label)
+                .font(SettingsType.data)
                 .foregroundStyle(.white.opacity(0.55))
                 .frame(width: 52, alignment: .leading)
             content()

@@ -6,7 +6,7 @@ import CoreImage
 /// The monthly share card — the weekly card's big sibling. v3 (locked
 /// 2026-07-17): the 24-week heatmap is gone (owner's cut — it competed with
 /// the model table and duplicated the panel's own year view); the month
-/// reads hero → faction duel → TOP-5 models → rank. Same no-upload rules:
+/// reads hero → faction duel → every model → rank. Same no-upload rules:
 /// rendered from local logs only.
 struct MonthlyReportData {
     let monthText: String          // "2026年7月" / "July 2026"
@@ -319,13 +319,22 @@ private struct MonthlyReportSheet: View {
     @State private var pageOffset = 0
     @State private var pagedData: MonthlyReportData?
     @State private var pageLoading = false
+    /// Pick any start date → the card covers that day plus the following 29
+    /// (owner ask, 2026-08-08). Arrow paging clears the anchor.
+    @State private var anchorDate: Date?
+    @State private var datePopoverShown = false
+    @State private var anchoredData: MonthlyReportData?
 
     private var displayData: MonthlyReportData {
-        pageOffset == 0 ? .current() : (pagedData ?? .current())
+        if let anchoredData { return anchoredData }
+        return pageOffset == 0 ? .current() : (pagedData ?? .current())
     }
 
     private var renderKey: String {
-        pageOffset == 0 ? "current" : "month-\(pageOffset)"
+        if let anchorDate {
+            return "anchor-\(Int(anchorDate.timeIntervalSince1970))"
+        }
+        return pageOffset == 0 ? "current" : "month-\(pageOffset)"
     }
 
     private var canPageBack: Bool {
@@ -425,7 +434,7 @@ private struct MonthlyReportSheet: View {
             ReportPagerArrow(systemName: "chevron.left",
                              enabled: canPageBack,
                              accessibilityKey: "Previous month") {
-                flip(to: pageOffset + 1)
+                flip(to: anchorDate == nil ? pageOffset + 1 : 1)
             }
             Text(displayData.monthText)
                 .font(.system(size: 11.5, weight: .bold, design: .rounded))
@@ -433,16 +442,80 @@ private struct MonthlyReportSheet: View {
                 .foregroundStyle(.white.opacity(pageLoading ? 0.35 : 0.7))
                 .frame(minWidth: 150)
             ReportPagerArrow(systemName: "chevron.right",
-                             enabled: pageOffset > 0 && !pageLoading,
+                             enabled: (pageOffset > 0 || anchorDate != nil) && !pageLoading,
                              accessibilityKey: "Next month") {
-                flip(to: pageOffset - 1)
+                flip(to: anchorDate == nil ? pageOffset - 1 : 0)
+            }
+            // Any-date anchor: the window becomes [picked day, +30d).
+            // A real month calendar in a popover — click any day and the
+            // window becomes [that day, +30d). The field-style picker read
+            // as an inert text box (owner report, 2026-08-08).
+            Button {
+                datePopoverShown.toggle()
+            } label: {
+                Image(systemName: "calendar")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(anchorDate == nil
+                        ? .white.opacity(0.6)
+                        : IslandColor.brandTeal.opacity(0.95))
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(.white.opacity(0.10)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(TactileButtonStyle())
+            .disabled(pageLoading || AppEnvironment.isDemo)
+            .accessibilityLabel(L10n.tr("Report start date"))
+            .popover(isPresented: $datePopoverShown, arrowEdge: .bottom) {
+                DatePicker(
+                    "",
+                    selection: Binding(
+                        get: { anchorDate ?? Date() },
+                        set: { date in
+                            setAnchor(date)
+                            datePopoverShown = false
+                        }
+                    ),
+                    in: (ReportPeriods.earliestDataDay() ?? .distantPast)...Date(),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .frame(width: 260)
+                .padding(10)
             }
         }
         .frame(maxWidth: .infinity)
     }
 
+    private func setAnchor(_ date: Date) {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let start = cal.startOfDay(for: date)
+        anchorDate = start
+        pageLoading = true
+        MonthlyReportRenderer.invalidateCache()
+        let interval = DateInterval(
+            start: start,
+            end: cal.date(byAdding: .day, value: 30, to: start) ?? start
+        )
+        Task {
+            let slices = await ReportPeriods.slices(for: interval)
+            guard anchorDate == start else { return }
+            anchoredData = MonthlyReportData.forInterval(
+                interval, claudeSlice: slices.claude, codexSlice: slices.codex
+            )
+            pageLoading = false
+            MonthlyReportRenderer.invalidateCache()
+            MonthlyReportRenderer.warmCache(data: displayData, key: renderKey)
+        }
+    }
+
     private func flip(to target: Int) {
-        guard target >= 0, target != pageOffset else { return }
+        if anchorDate != nil {
+            anchorDate = nil
+            anchoredData = nil
+        }
+        guard target >= 0, target != pageOffset || target <= 1 else { return }
         pageOffset = target
         MonthlyReportRenderer.invalidateCache()
         guard target > 0 else {

@@ -55,3 +55,36 @@ struct SettlePulse: ViewModifier {
             }
     }
 }
+
+/// Cadence C9 — the landing focus ring: an accent-colored halo flares from
+/// a control the moment its choice COMMITS, then breathes out over ~0.6s.
+/// The confirmation lives at the point of change, not in a caption.
+struct LandingRing: ViewModifier {
+    var trigger: Int
+    var color: Color = IslandColor.brandTeal
+    var cornerRadius: CGFloat = 10
+
+    @State private var flare = false
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(color.opacity(flare ? 0 : 0.85), lineWidth: 1.5)
+                .shadow(color: color.opacity(flare ? 0 : 0.55), radius: 6)
+                .scaleEffect(flare ? 1.06 : 1)
+                .opacity(trigger == 0 ? 0 : 1)
+                .allowsHitTesting(false)
+        }
+        .onChange(of: trigger) { _ in
+            flare = false
+            withAnimation(.easeOut(duration: 0.62)) { flare = true }
+        }
+    }
+}
+
+extension View {
+    func landingRing(trigger: Int, color: Color = IslandColor.brandTeal,
+                     cornerRadius: CGFloat = 10) -> some View {
+        modifier(LandingRing(trigger: trigger, color: color, cornerRadius: cornerRadius))
+    }
+}
