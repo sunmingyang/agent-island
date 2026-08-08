@@ -178,9 +178,6 @@ public sealed class SettingsWindow : Window
 
         var savedTab = Preferences.Get<string?>("Settings.activeTab");
         if (Enum.TryParse<Tab>(savedTab, out var restored)) _active = restored;
-        // A window last parked on the retired Triggers tab lands on General
-        // instead of an orphaned tab with no button.
-        if (_active == Tab.Triggers) _active = Tab.General;
         // Scripted-verification hook: jump straight to a tab.
         if (Enum.TryParse<Tab>(
                 Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_SETTINGS_TAB"),

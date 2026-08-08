@@ -229,7 +229,6 @@ public sealed class PanelFooter : Grid
             IslandScreen.Usage => "",
             IslandScreen.Cost => CostStylePreferenceStore.Shared.ChipLabel,
             IslandScreen.Overview => DateTime.Now.Year.ToString(),
-            IslandScreen.Triggers => L10n.Tr("AUTO"),
             _ => StylePreferenceStore.Shared.Style.ToString().ToUpperInvariant(),
         };
         _chipHost.Visibility = _chip.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
