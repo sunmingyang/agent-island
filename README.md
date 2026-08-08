@@ -49,7 +49,7 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 
 Choose your platform and install the current `v1.7.1` release directly:
 
-> This source tree is preparing an unreleased macOS `v1.8.1` preview. The downloads below are the published `v1.7.1` artifacts; Gemini/Grok quota slots are not in those downloads yet.
+> This source tree carries the upcoming `v2.1.1` release — five providers, island-wide session status, and the rewritten settings panel. It ships on macOS first; **the Windows build syncs to 2.1.1 right after**. The downloads below are the published `v1.7.1` artifacts.
 
 | Platform | Recommended download | Requirement |
 |---|---|---|
