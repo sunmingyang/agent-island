@@ -17,6 +17,9 @@ public static class SessionScanner
     private static readonly TimeSpan StallAfter = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan StallCap = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan NeedsYouCap = TimeSpan.FromMinutes(20);
+    /// How long a guest transcript must sit unchanged, after visible
+    /// activity, before quiet counts as turn-done.
+    private const double GuestQuietAfterSeconds = 25;
     private static readonly TimeSpan AttentionWindow = TimeSpan.FromMinutes(30);
     /// Claude Desktop writes lastActivityAt 2.3-4.2s after the final assistant
     /// event as turn-completion bookkeeping; external activity inside this
@@ -375,7 +378,8 @@ public static class SessionScanner
             var sid = Path.GetFileName(dir);
             var state = SessionState(
                 File.Exists(wal) ? wal : db,
-                now, lastWorking, modified, SessionTurnState.MtimeOnly);
+                now, lastWorking, modified, SessionTurnState.MtimeOnly,
+                quietMeansDone: true);
             output.Add(new ScannedSession(
                 TriggerTool.Cursor,
                 sid,
@@ -426,7 +430,7 @@ public static class SessionScanner
             foreach (var path in SafeEnumerateFiles(chats, "*.jsonl"))
             {
                 var sid = GeminiSessionId(path) ?? Path.GetFileNameWithoutExtension(path);
-                var state = SessionState(path, now, lastWorking, null, SessionTurnState.MtimeOnly);
+                var state = SessionState(path, now, lastWorking, null, SessionTurnState.MtimeOnly, quietMeansDone: true);
                 output.Add(new ScannedSession(
                     TriggerTool.Gemini,
                     sid,
@@ -636,12 +640,33 @@ public static class SessionScanner
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
         DateTimeOffset? externalActivityDate,
-        Func<IReadOnlyList<string>, SessionTurnStatus> turnState)
+        Func<IReadOnlyList<string>, SessionTurnStatus> turnState,
+        bool quietMeansDone = false)
     {
         if (path is null)
             return (ActivityState.Idle, null, externalActivityDate ?? DateTimeOffset.MinValue);
 
         var (turn, fileModified) = ReadTurn(path, turnState);
+        // Providers whose transcripts carry no explicit turn boundary
+        // (Gemini's checkpoint stream, Cursor's workspace db) still have an
+        // honest completion signal: the file was being written moments ago
+        // and has now gone quiet. A CLI that stopped writing is either
+        // finished or waiting on an approval — both mean "your turn". The
+        // quiet threshold sits well above streaming gaps so a thinking
+        // pause never fires it.
+        if (quietMeansDone && !turn.IsDone
+            && lastWorking.TryGetValue(path, out var lastActive))
+        {
+            var quietFor = (now - fileModified).TotalSeconds;
+            if (quietFor > GuestQuietAfterSeconds
+                && (now - lastActive) < NeedsYouCap)
+            {
+                turn = new SessionTurnStatus(
+                    true,
+                    $"quiet:{lastActive.ToUnixTimeSeconds()}",
+                    turn.ActivityDate);
+            }
+        }
         var semanticModified = LatestDate(turn.ActivityDate, externalActivityDate);
         var effectiveModified = semanticModified ?? fileModified;
         // For a finished turn, external activity inside the bookkeeping grace

@@ -80,10 +80,4 @@ public static class TriggerToolExtensions
         _ => null,
     };
 
-    /// Only Claude and Codex expose a `--resume &lt;id&gt;` CLI contract, so only
-    /// they can carry auto-triggers. The other three still flow through the
-    /// monitoring scan (island logo + turn alarms) — session STATUS is
-    /// five-provider, session RESUME is two.
-    public static bool SupportsAutoResume(this TriggerTool tool) =>
-        tool is TriggerTool.Claude or TriggerTool.Codex;
 }

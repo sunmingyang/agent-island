@@ -24,6 +24,10 @@ enum SessionScanner {
     private static let stallAfter: TimeInterval = 5 * 60
     private static let stallCap: TimeInterval = 15 * 60
     private static let needsYouCap: TimeInterval = 20 * 60
+    /// How long a guest transcript must sit unchanged, after visible
+    /// activity, before quiet counts as turn-done. Streaming writes land
+    /// every few seconds; approval waits and finishes go silent for good.
+    private static let guestQuietAfter: TimeInterval = 25
     static let attentionWindow: TimeInterval = 30 * 60
     private static let desktopBookkeepingGrace: TimeInterval = 25
 
@@ -258,6 +262,7 @@ enum SessionScanner {
                     ?? (name as NSString).deletingPathExtension
                 let state = sessionState(
                     for: path, now: now, lastWorking: lastWorking,
+                    quietMeansDone: true,
                     turnState: SessionTurnState.mtimeOnly
                 )
                 out.append(ScannedSession(
@@ -314,6 +319,7 @@ enum SessionScanner {
                 for: fm.fileExists(atPath: wal) ? wal : db,
                 now: now, lastWorking: lastWorking,
                 externalActivityDate: modified,
+                quietMeansDone: true,
                 turnState: SessionTurnState.mtimeOnly
             )
             out.append(ScannedSession(
@@ -429,6 +435,7 @@ enum SessionScanner {
         now: Date,
         lastWorking: [String: Date],
         externalActivityDate: Date? = nil,
+        quietMeansDone: Bool = false,
         turnState: ([String]) -> SessionTurnStatus
     ) -> (status: ActivityMonitor.State, turnKey: String?, modified: Date) {
         guard let path else {
@@ -436,7 +443,26 @@ enum SessionScanner {
         }
         let fileModified = mtime(path)
         let lines = tailLines(path)
-        let turn = turnState(lines)
+        var turn = turnState(lines)
+        // Providers whose transcripts carry no explicit turn boundary
+        // (Gemini's checkpoint stream, Cursor's workspace db) still have an
+        // honest completion signal: the file was being written moments ago
+        // and has now gone quiet. A CLI that stopped writing is either
+        // finished or waiting on an approval — both mean "your turn". The
+        // quiet threshold sits well above streaming gaps so a thinking
+        // pause never fires it.
+        if quietMeansDone, !turn.isDone,
+           let lastActive = lastWorking[path] {
+            let quietFor = now.timeIntervalSince(fileModified)
+            if quietFor > Self.guestQuietAfter,
+               now.timeIntervalSince(lastActive) < needsYouCap {
+                turn = SessionTurnStatus(
+                    isDone: true,
+                    key: "quiet:\(Int(lastActive.timeIntervalSince1970))",
+                    activityDate: turn.activityDate
+                )
+            }
+        }
         let semanticModified = latestDate(turn.activityDate, externalActivityDate)
         let effectiveModified = semanticModified ?? fileModified
         // Claude Desktop writes lastActivityAt a few seconds AFTER the final

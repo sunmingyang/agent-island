@@ -16,7 +16,6 @@ cd "$(dirname "$0")/.."
 ./scripts/test-provider-selection.sh
 ./scripts/test-reminder-store.sh
 ./scripts/test-browser-profiles.sh
-./scripts/test-trigger-safety-auth.sh
 ./scripts/test-claude-keychain-discovery.sh
 ./build.sh
 

@@ -9,7 +9,7 @@ extension IslandRootView {
             // Cost style no longer cycles by gesture — picked in Settings
             // only (owner call, 1.7.2 planning: the hidden gesture and its
             // hint added noise for zero discoverability).
-            case .cost, .overview, .triggers: return
+            case .cost, .overview: return
             }
             return
         }

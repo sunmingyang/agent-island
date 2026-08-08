@@ -10,7 +10,6 @@ final class ScreenPref: ObservableObject {
         case usage
         case cost
         case overview
-        case triggers
 
         var pageIndex: Int {
             Self.allCases.firstIndex(of: self) ?? 0
@@ -21,7 +20,6 @@ final class ScreenPref: ObservableObject {
             case .usage:    return L10n.tr("Usage")
             case .cost:     return L10n.tr("Cost")
             case .overview: return L10n.tr("Overview")
-            case .triggers: return L10n.tr("Auto")
             }
         }
     }
@@ -67,11 +65,9 @@ final class ScreenPref: ObservableObject {
     }
 
     var visibleScreens: [Screen] {
-        // Auto-resume is retired entirely (product call, 2026-07-13): a
-        // flagship can't be a feature the owner doesn't trust himself — and
-        // Codex no longer has an intra-day reset at all. The page, the
-        // settings section, and the engine start are all gated; stores and
-        // views stay in the tree so each is one line to restore.
+        // Auto-resume was deleted outright in 2.1.1 (owner call,
+        // 2026-08-08, upgrading the 07-13 gating to a removal): the
+        // engine, stores, pages, and settings are gone from the tree.
         if CostPanelVisibilityStore.shared.showInTopPanel {
             return [.usage, .cost, .overview]
         }

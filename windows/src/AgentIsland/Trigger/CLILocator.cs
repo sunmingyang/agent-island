@@ -15,7 +15,7 @@ namespace AgentIsland.Trigger;
 public static class CLILocator
 {
     /// Extension order is also preference order. `.ps1` comes last and is a
-    /// presence signal more than a launch target — TriggerEngine spawns
+    /// presence signal more than a launch target — the alarm navigator spawns
     /// through `cmd /c`, which cannot run a bare PowerShell script, and npm
     /// always writes a `.cmd` next to the `.ps1` anyway.
     private static readonly string[] Extensions = { ".cmd", ".exe", ".bat", ".ps1" };

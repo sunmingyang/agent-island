@@ -75,7 +75,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Auto-resume is retired (product call, 2026-07-13): the engine no
         // longer starts, so nothing is ever spawned — the page, settings tab,
         // and this start are the three gates; restore by re-enabling them.
-        // TriggerEngine.shared.start()
 
         AgentReminderCenter.shared.start()
         ActivityMonitor.shared.start()

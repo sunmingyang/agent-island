@@ -148,6 +148,18 @@ final class CostStore: ObservableObject {
                 series: [4.32, 11.52, 41.47, 47.80, 67.99, 88.68, 208.14, 249.74, 327.76, 406.09, 438.15, 462.90, 477.83, 576.16, 618.03, 689.91, 710.34, 805.93, 851.29, 866.94, 866.94, 902.46, 951.91, 1010.17, 1073.80, 1128.92, 1182.69, 1219.69, 1366.31, 1510.80],
                 label: "April", error: nil, unknownModels: []
             ),
+            recentByModel: Self.demoModelRows([
+                ("claude-fable-5", "Fable 5", 12_000_000, 120_000_000, 88.00),
+                ("claude-opus-4-8", "Opus 4.8", 9_124_000, 91_240_000, 58.61),
+            ]),
+            weekByModel: Self.demoModelRows([
+                ("claude-fable-5", "Fable 5", 64_000_000, 640_000_000, 210.00),
+                ("claude-opus-4-8", "Opus 4.8", 44_800_000, 448_000_000, 125.00),
+            ]),
+            monthByModel: Self.demoModelRows([
+                ("claude-fable-5", "Fable 5", 125_000_000, 1_250_000_000, 900.40),
+                ("claude-opus-4-8", "Opus 4.8", 92_097_094, 920_970_947, 610.40),
+            ]),
             dailyTokens: Self.demoDailyBuckets([
                 24, 31, 128, 44, 82, 76, 310, 122, 218, 236,
                 98, 64, 47, 286, 140, 205, 59, 276, 119, 48,
@@ -169,6 +181,15 @@ final class CostStore: ObservableObject {
                 series: [12.20, 26.70, 43.50, 62.40, 83.70, 107.10, 132.80, 160.70, 190.90, 223.30, 257.90, 294.80, 333.90, 375.30, 418.90, 464.70, 512.80, 563.10, 615.70, 670.50, 727.50, 786.80, 848.30, 912.00, 978.00, 1046.20, 1116.70, 1189.40, 1264.30, 1342.60],
                 label: "April", error: nil, unknownModels: []
             ),
+            recentByModel: Self.demoModelRows([
+                ("gpt-5.6-sol", "GPT-5.6-sol", 32_824_000, 164_120_000, 136.50),
+            ]),
+            weekByModel: Self.demoModelRows([
+                ("gpt-5.6-sol", "GPT-5.6-sol", 35_800_000, 358_000_000, 244.00),
+            ]),
+            monthByModel: Self.demoModelRows([
+                ("gpt-5.6-sol", "GPT-5.6-sol", 322_860_000, 1_614_300_000, 1_342.60),
+            ]),
             dailyTokens: Self.demoDailyBuckets([
                 12, 18, 24, 29, 37, 42, 51, 59, 66, 74,
                 83, 90, 99, 108, 117, 124, 136, 145, 157, 166,
@@ -176,6 +197,25 @@ final class CostStore: ObservableObject {
             ], millionScale: 1_000_000)
         )
         self.lastUpdated = Date()
+    }
+
+    private static func demoModelRows(
+        _ rows: [(model: String, displayName: String, billableTokens: Int,
+                  wireTokens: Int, dollars: Double)]
+    ) -> [ModelUsageRow] {
+        let billableTotal = max(1, rows.reduce(0) { $0 + $1.billableTokens })
+        let dollarTotal = max(0.01, rows.reduce(0.0) { $0 + $1.dollars })
+        return rows.map { row in
+            ModelUsageRow(
+                model: row.model,
+                displayName: row.displayName,
+                tokens: row.billableTokens,
+                wireTokens: row.wireTokens,
+                dollars: row.dollars,
+                percent: Double(row.billableTokens) / Double(billableTotal),
+                dollarPercent: row.dollars / dollarTotal
+            )
+        }
     }
 
     private static func demoDailyBuckets(

@@ -44,9 +44,6 @@ struct PagedContent: View {
                 }
                 OverviewView(model: model)
                     .frame(width: pageWidth)
-                TriggerPageView()
-                    .offset(y: compactPageYOffset)
-                    .frame(width: pageWidth)
             }
             .frame(width: pageWidth, height: geo.size.height, alignment: .topLeading)
             .offset(x: (-pageWidth * CGFloat(screenPref.visiblePageIndex)) + peekOffset + dragOffset)

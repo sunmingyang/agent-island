@@ -23,11 +23,11 @@
 "Alerts" = "提醒";
 "%@ mode — sessions monitored here, quota lives in Google AI Studio" = "%@ 模式——会话状态照常监控，额度请在 Google AI Studio 查看";
 
-"From two agents to five: Gemini, Grok, and Cursor arrive together, session status stretches across the island, settings start over, and Codex accounts switch in one click" = "从两家到五家：Gemini、Grok、Cursor 同批上岛，会话状态铺满全岛，设置面板推倒重来，Codex 账号一键切换";
+"From two agents to five: Gemini, Grok, and Cursor arrive together, session status stretches across the island, settings start over, and Codex accounts switch in one click" = "从两家到五家：Gemini、Grok、Cursor 一起上岛；\n会话状态贯穿全岛，设置重做，Codex 账号一键切换";
 "Three new agents arrive" = "三家新 Agent 上岛";
-"Gemini, Grok, and Cursor land beside Claude and Codex in one release — quotas, plans, and billing cycles, all read locally" = "Gemini、Grok、Cursor 与 Claude、Codex 同屏并肩——额度、档位、账期，一次到齐，全部本地读取";
+"Gemini, Grok, and Cursor land beside Claude and Codex in one release — quotas, plans, and billing cycles, all read locally" = "Gemini、Grok、Cursor 与 Claude、Codex 同批上线；\n额度、档位和账期均从本地读取";
 "Session status, island-wide" = "会话状态铺满全岛";
-"Working, stalled, your turn — live session state spans Claude, Codex, Grok, and Gemini, driven by each agent's own records" = "工作中、卡住了、轮到你——实时会话状态覆盖 Claude、Codex、Grok、Gemini，由各家自己的记录驱动";
+"Working, stalled, your turn — live session state spans Claude, Codex, Grok, and Gemini, driven by each agent's own records" = "工作中、卡住、轮到你：\nClaude、Codex、Grok、Gemini 的实时状态均由各自记录驱动";
 "Reports for any date" = "任意日期的报表";
 "Pick a start date and the card covers that window — every model that ran is listed, not just the top few" = "选一个起始日期，报表就覆盖那段区间——跑过的每一个模型都会列出，不再只显示前几名";
 
@@ -35,7 +35,7 @@
 "Cursor joins the island" = "Cursor 上岛";
 "Billing-cycle usage and plan, read locally like everyone else — the fifth agent on the roster" = "账期用量与订阅档位，和其他四家一样在本机读取——阵容里的第五位";
 "Five agents, two slots" = "五家服务，任选两家";
-"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar; every selected provider keeps its full data row" = "Claude、Codex、Gemini、Grok、Cursor——任选两家常驻顶部；选中的每一家都保留完整数据行";
+"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar; every selected provider keeps its full data row" = "Claude、Codex、Gemini、Grok、Cursor 任选两家常驻顶部；\n入选服务仍显示完整数据行";
 "Sessions go five-wide" = "会话监控五家全开";
 "The island now tracks Grok and Gemini sessions too — working, stalled, your turn — driven by each agent's own records" = "岛上现在也看得见 Grok 与 Gemini 的会话——工作中、卡住了、轮到你——由各家自己的记录驱动";
 "Codex account switching" = "Codex 账号切换";
@@ -519,7 +519,11 @@
 "Five agents on one island — each read from the records it already writes on your Mac" = "五家 Agent 同在一座岛——各自读它们本来就写在你 Mac 上的记录";
 "A guided tour of everything the island does" = "带你看懂小岛的全部能力";
 "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude 与 Codex 提供实时会话状态：旋转代表工作中，铃铛代表轮到你，常红代表需要处理";
-"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page" = "Claude、Codex、Gemini、Grok、Cursor——任选两家常驻顶部；悬停任意一行看模型或产品明细，点击可打开官方页面";
+"Claude, Codex, Grok, and Gemini carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude、Codex、Grok、Gemini 显示实时状态；Cursor 只显示额度。\n旋转表示工作中，铃铛表示轮到你，常红表示需要处理";
+"Reports that look back" = "能回看的报告";
+"Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran" = "用箭头翻回更早的周报或月报；每一页都按对应的本地时间窗口重新计算，并列出跑过的全部模型";
+"April" = "4月";
+"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page" = "Claude、Codex、Gemini、Grok、Cursor 任选两家常驻顶部；\n悬停服务行查看模型或产品明细，点击打开官方页面";
 
 /* What's New (1.7.2) */
 "What's new in this update" = "本次更新带来了什么";
@@ -575,7 +579,7 @@
 "Weekly and monthly cards" = "周报与月报战绩卡";
 "One click renders a shareable battle card — copy it or AirDrop it straight to your phone, and the arrows flip back to any past week or month" = "一键生成可分享的战报卡,复制或隔空投送到手机;箭头能翻回任意一周或一月";
 "Make it yours" = "把它调成你的样子";
-"Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings" = "视觉模式、光晕颜色、图表样式、语言,以及会话 App 在前台时的提醒方式,全在设置里";
+"Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings" = "视觉模式、光晕、图表、语言和前台提醒，都在设置里";
 
 /* guide v2 titles */
 "Monitor" = "监视器";

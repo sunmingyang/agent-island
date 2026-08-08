@@ -85,10 +85,6 @@ public partial class App : System.Windows.Application
         Update.UpdateInstaller.CleanupAtStartup();
         Update.UpdateChecker.Shared.Start();
         Cost.CostStore.Shared.StartAutoRefresh();
-        // Auto-resume is retired (product call, 2026-07-13): the engine no
-        // longer starts, so nothing is ever spawned — the page, settings tab,
-        // and this start are the three gates; restore by re-enabling them.
-        // Trigger.TriggerEngine.Shared.Start();
         Model.AlertEngine.Shared.Start();
 
         // Weekly report moment: once per ISO week, surface the card shortly

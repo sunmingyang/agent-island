@@ -78,7 +78,7 @@ enum WhatsNewContent {
         ),
         PagedCardPage(
             symbol: "wave.3.right.circle",
-            imageName: "whatsnew-211-performance",
+            imageName: "whatsnew-211-session-status",
             title: "Session status, island-wide",
             body: "Working, stalled, your turn — live session state spans Claude, Codex, Grok, and Gemini, driven by each agent's own records"
         ),
@@ -97,8 +97,8 @@ enum WhatsNewContent {
         PagedCardPage(
             symbol: "calendar.badge.clock",
             imageName: "whatsnew-211-reports",
-            title: "Reports for any date",
-            body: "Pick a start date and the card covers that window — every model that ran is listed, not just the top few"
+            title: "Reports that look back",
+            body: "Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran"
         ),
         PagedCardPage(
             symbol: "person.badge.key",
@@ -133,7 +133,7 @@ enum GuideContent {
             symbol: "circle.hexagongrid.circle",
             imageName: "guide-status",
             title: "Monitor",
-            body: "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you"
+            body: "Claude, Codex, Grok, and Gemini carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you"
         ),
         PagedCardPage(
             symbol: "gauge.with.needle",
@@ -499,10 +499,12 @@ private struct BrandHero: View {
             .overlay {
                 if let posterBackdrop {
                     ZStack {
+                        Color.white.opacity(0.03)
                         Image(nsImage: posterBackdrop)
                             .resizable()
                             .interpolation(.high)
-                            .aspectRatio(contentMode: .fill)
+                            .aspectRatio(contentMode: .fit)
+                            .padding(8)
                         LinearGradient(
                             colors: [.black.opacity(0.18), .black.opacity(0.52)],
                             startPoint: .top, endPoint: .bottom
@@ -600,14 +602,13 @@ private struct PageIllustration: View {
             .frame(maxWidth: .infinity)
             .overlay {
                 if let poster {
-                    let ratio = poster.size.height > 0 ? poster.size.width / poster.size.height : 1
                     ZStack {
                         Color.white.opacity(0.03)
                         Image(nsImage: poster)
                             .resizable()
                             .interpolation(.high)
-                            .aspectRatio(contentMode: ratio > 2.2 ? .fit : .fill)
-                            .padding(ratio > 2.2 ? 14 : 0)
+                            .aspectRatio(contentMode: .fit)
+                            .padding(8)
                     }
                 } else {
                     ZStack {

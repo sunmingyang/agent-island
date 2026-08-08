@@ -40,32 +40,6 @@ public static class Program
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "trigger-status")
-        {
-            // Live diagnostic: everything the auto-resume engine would see
-            // right now — rules, safety gates, baselines, reset boundaries.
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-            var safety = Trigger.TriggerSafetyStore.Shared;
-            Console.WriteLine($"execution enabled  {safety.ExecutionEnabled}");
-            Console.WriteLine($"trusted roots      [{string.Join(" | ", safety.AllowedRoots)}]");
-            var baselines = Core.Preferences.Get<Dictionary<string, double>?>("AgentIsland.triggerResetBaselines");
-            foreach (var (tool, at) in baselines ?? new Dictionary<string, double>())
-            {
-                Console.WriteLine($"baseline {tool,-7} {DateTimeOffset.FromUnixTimeMilliseconds((long)at).ToLocalTime():yyyy-MM-dd HH:mm}");
-            }
-            var usage = Usage.UsageStore.Shared;
-            Console.WriteLine($"claude 5h resetAt  {usage.Claude.FiveHour.ResetAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "(none)"}  err={usage.Claude.FiveHour.Error ?? "-"}");
-            Console.WriteLine($"codex  5h resetAt  {usage.Codex.FiveHour.ResetAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "(none)"}  err={usage.Codex.FiveHour.Error ?? "-"}");
-            var triggers = Trigger.TriggerStore.Shared.Triggers;
-            Console.WriteLine($"{triggers.Count} trigger(s)");
-            foreach (var t in triggers)
-            {
-                Console.WriteLine(
-                    $"  [{(t.Enabled ? "on " : "off")}] {t.Tool.RawValue(),-6} {t.Mode} '{t.Label}' " +
-                    $"cwd={t.Cwd} trusted={safety.IsAllowed(t.Cwd)} lastFired={t.LastFired?.ToLocalTime().ToString("MM-dd HH:mm") ?? "never"}");
-            }
-            return 0;
-        }
         if (args.Length > 0 && args[0] == "weblogin-url")
         {
             // Live diagnostic: the EXACT authorize URL the in-app re-auth
@@ -105,7 +79,6 @@ public static class Program
             SubagentFilterTests.RunAll();
             GrokTurnStateTests.RunAll();
             ProviderSelectionTests.RunAll();
-            TriggerResetTests.RunAll();
             UsageExhaustionAlarmTests.RunAll();
             SoloCenterLayoutTests.RunAll();
             CodexReplayGuardTests.RunAll();

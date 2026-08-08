@@ -8,7 +8,6 @@ public enum IslandScreen
     Usage,
     Cost,
     Overview,
-    Triggers,
 }
 
 /// Which carousel page is showing. Persisted so the island reopens on the

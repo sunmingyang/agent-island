@@ -15,7 +15,7 @@ using AgentIsland.Usage;
 namespace AgentIsland.UI;
 
 /// Settings window — a faithful port of the macOS layout: brand header on
-/// top, pill tab bar (General / Display / Providers / Triggers / Status),
+/// top, pill tab bar (General / Display / Providers / Status),
 /// hairlines, scrolling row content, and the GitHub/License/Quit footer.
 public sealed class SettingsWindow : Window
 {
@@ -85,7 +85,6 @@ public sealed class SettingsWindow : Window
         General,
         Display,
         Providers,
-        Triggers,
         Status,
     }
 
@@ -262,17 +261,14 @@ public sealed class SettingsWindow : Window
     {
         _tabBar.Children.Clear();
         _tabCells.Clear();
-        // Auto-resume is retired (2026-07-13); the Triggers tab is gated out
-        // rather than deleted so restoring it is this one filter.
-        foreach (var tab in Enum.GetValues<Tab>().Where(t => t != Tab.Triggers))
+        foreach (var tab in Enum.GetValues<Tab>())
         {
             var label = tab switch
             {
                 Tab.General => L10n.Tr("General"),
                 Tab.Display => L10n.Tr("Display"),
                 Tab.Providers => L10n.Tr("Providers"),
-                Tab.Triggers => L10n.Tr("Auto-Trigger"),
-                Tab.Status => L10n.Tr("Status"),
+                    Tab.Status => L10n.Tr("Status"),
                 _ => tab.ToString(),
             };
             var cell = new Border
@@ -373,7 +369,6 @@ public sealed class SettingsWindow : Window
             Tab.General => BuildGeneral(),
             Tab.Display => BuildDisplay(),
             Tab.Providers => BuildProviders(),
-            Tab.Triggers => BuildTriggers(),
             Tab.Status => BuildStatus(),
             _ => new StackPanel(),
         };
@@ -1771,299 +1766,6 @@ public sealed class SettingsWindow : Window
             var value = prompt._field.Text.Trim();
             return value.Length == 0 ? null : value;
         }
-    }
-
-    // MARK: - Triggers
-
-    private UIElement BuildTriggers()
-    {
-        var stack = TabStack();
-        stack.Children.Add(SectionLabel("Auto-Trigger"));
-        stack.Children.Add(new TextBlock
-        {
-            Text = L10n.Tr("When your AI limit resets, auto-send a message so a session keeps running."),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 12,
-            Foreground = IslandColors.Brush(IslandColors.White(0.6)),
-            Margin = new Thickness(10, 0, 10, 10),
-            TextWrapping = TextWrapping.Wrap,
-        });
-
-        stack.Children.Add(SectionLabel("Safety"));
-        var kill = new CobaltToggle(TriggerSafetyStore.Shared.ExecutionEnabled);
-        kill.Toggled += enabled => TriggerSafetyStore.Shared.ExecutionEnabled = enabled;
-        stack.Children.Add(new SettingsRowControl(
-            "Auto-resume kill switch",
-            "When off, Agent Island will never spawn Claude or Codex resume commands.",
-            kill));
-
-        var records = new PillButtonControl(L10n.Tr("Open"));
-        records.Clicked += () => TriggerEngine.Shared.OpenLogsDirectory();
-        stack.Children.Add(new SettingsRowControl(
-            "Records",
-            "Open the folder with blocked and executed auto-resume records.",
-            records));
-
-        stack.Children.Add(new TextBlock
-        {
-            Text = TriggerStore.Shared.Triggers.Count == 0
-                ? L10n.Tr("No triggers yet — add one below.")
-                : L10n.TrFormat("{0} rule(s) — manage them on the island's Triggers page.", TriggerStore.Shared.Triggers.Count),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 12,
-            Foreground = IslandColors.Brush(IslandColors.White(0.45)),
-            Margin = new Thickness(10, 12, 10, 6),
-        });
-
-        stack.Children.Add(SectionLabel("New trigger"));
-        stack.Children.Add(BuildNewRuleForm());
-
-        stack.Children.Add(SectionLabel("Trusted projects"));
-        if (TriggerSafetyStore.Shared.AllowedRoots.Count == 0)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = L10n.Tr("No trusted projects yet."),
-                FontFamily = IslandFonts.Ui,
-                FontSize = 11,
-                Foreground = IslandColors.Brush(IslandColors.White(0.35)),
-                Margin = new Thickness(10, 0, 10, 6),
-            });
-        }
-        foreach (var root in TriggerSafetyStore.Shared.AllowedRoots.OrderBy(r => r))
-        {
-            var remove = new PillButtonControl(L10n.Tr("Remove"));
-            var captured = root;
-            remove.Clicked += () =>
-            {
-                TriggerSafetyStore.Shared.SetAllowed(captured, false);
-                Select(Tab.Triggers);
-            };
-            stack.Children.Add(new SettingsRowControl(captured, null, remove, monospaceTitle: true));
-        }
-        return stack;
-    }
-
-    /// The inline rule-creation form from the macOS Triggers tab: provider
-    /// segmented control, session picker with refresh, message field, timing
-    /// segmented control, live reset caption, and the blue create button.
-    private UIElement BuildNewRuleForm()
-    {
-        var tool = Core.TriggerTool.Claude;
-        var sessions = new List<Core.ScannedSession>();
-
-        var grid = new Grid { Margin = new Thickness(12, 10, 12, 12) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (var i = 0; i < 6; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        void Label(string key, int row)
-        {
-            var text = new TextBlock
-            {
-                Text = L10n.Tr(key),
-                FontFamily = IslandFonts.Ui,
-                FontSize = 12,
-                Foreground = IslandColors.Brush(IslandColors.White(0.7)),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 12),
-                TextWrapping = TextWrapping.Wrap,
-            };
-            Grid.SetRow(text, row);
-            Grid.SetColumn(text, 0);
-            grid.Children.Add(text);
-        }
-
-        void Control(UIElement element, int row)
-        {
-            var host = new ContentControl
-            {
-                Content = element,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0, 0, 0, 12),
-            };
-            Grid.SetRow(host, row);
-            Grid.SetColumn(host, 1);
-            grid.Children.Add(host);
-        }
-
-        var sessionBox = new ComboBox { Width = 230, VerticalAlignment = VerticalAlignment.Center };
-        var resetCaption = new TextBlock
-        {
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            Foreground = IslandColors.Brush(IslandColors.White(0.42)),
-            Margin = new Thickness(0, 0, 0, 12),
-        };
-
-        void ReloadSessions()
-        {
-            // Scan tail-reads every transcript; off the UI thread so the tab
-            // build and each provider toggle don't freeze the window. Snapshot
-            // the requested tool so a stale scan can't clobber a newer one.
-            var requestedTool = tool;
-            sessionBox.Items.Clear();
-            sessionBox.Items.Add(Localization.L10n.Tr("Loading…"));
-            sessionBox.SelectedIndex = 0;
-            System.Threading.Tasks.Task.Run(
-                    () => Core.SessionScanner
-                        .Scan(DateTimeOffset.UtcNow, new Dictionary<string, DateTimeOffset>())
-                        .Where(s => s.Tool == requestedTool)
-                        .Take(20)
-                        .ToList())
-                .ContinueWith(task =>
-                {
-                    // task.Result rethrows a faulted scan inside a continuation
-                    // nobody observes, which would leave the picker stuck on
-                    // "Loading…" with no way back. An empty list at least lets
-                    // the ↻ button try again.
-                    var scanned = task.IsCompletedSuccessfully
-                        ? task.Result
-                        : new List<Core.ScannedSession>();
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        if (tool != requestedTool) return;
-                        sessions = scanned;
-                        sessionBox.Items.Clear();
-                        foreach (var session in sessions) sessionBox.Items.Add(session.Label);
-                        if (sessionBox.Items.Count > 0) sessionBox.SelectedIndex = 0;
-                    });
-                }, System.Threading.Tasks.TaskScheduler.Default);
-        }
-
-        void UpdateResetCaption()
-        {
-            var resetAt = tool == Core.TriggerTool.Claude
-                ? UsageStore.Shared.Claude.FiveHour.ResetAt
-                : UsageStore.Shared.Codex.FiveHour.ResetAt;
-            resetCaption.Text = resetAt is { } reset && reset > DateTimeOffset.Now
-                ? L10n.TrFormat("{0} resets {1}.", tool.Display(),
-                    Core.Formatting.LongCountdown(reset - DateTimeOffset.Now, L10n.IsChinese))
-                : L10n.TrFormat("{0} reset time unknown.", tool.Display());
-        }
-
-        Label("Tool", 0);
-        var service = new Segmented(new[] { "Claude", "Codex" }, 0);
-        service.SelectionChanged += index =>
-        {
-            tool = index == 0 ? Core.TriggerTool.Claude : Core.TriggerTool.Codex;
-            ReloadSessions();
-            UpdateResetCaption();
-        };
-        Control(service, 0);
-
-        Label("Thread", 1);
-        var sessionRow = new StackPanel { Orientation = Orientation.Horizontal };
-        sessionRow.Children.Add(sessionBox);
-        var refresh = new PillButtonControl("↻") { Margin = new Thickness(8, 0, 0, 0) };
-        refresh.Clicked += ReloadSessions;
-        sessionRow.Children.Add(refresh);
-        Control(sessionRow, 1);
-
-        Label("Message", 2);
-        var message = new TextBox
-        {
-            Width = 230,
-            Text = L10n.Tr("Continue"),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 12,
-            Foreground = Brushes.White,
-            Background = IslandColors.Brush(IslandColors.White(0.05)),
-            BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
-            BorderThickness = new Thickness(0.5),
-            Padding = new Thickness(8, 5, 8, 5),
-            CaretBrush = Brushes.White,
-        };
-        Control(message, 2);
-
-        Label("When", 3);
-        var timingRow = new StackPanel { Orientation = Orientation.Horizontal };
-        var mode = Trigger.TriggerMode.AfterReset;
-        var hoursBox = new TextBox
-        {
-            Width = 44,
-            Text = "5",
-            FontFamily = IslandFonts.Mono,
-            FontSize = 12,
-            Foreground = Brushes.White,
-            Background = IslandColors.Brush(IslandColors.White(0.05)),
-            BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
-            BorderThickness = new Thickness(0.5),
-            Padding = new Thickness(6, 5, 6, 5),
-            TextAlignment = TextAlignment.Center,
-            CaretBrush = Brushes.White,
-            Margin = new Thickness(8, 0, 0, 0),
-            Visibility = Visibility.Collapsed,
-        };
-        var timing = new Segmented(
-            new[] { L10n.Tr("After reset"), L10n.Tr("Every Nh") }, 0);
-        timing.SelectionChanged += index =>
-        {
-            mode = index == 0 ? Trigger.TriggerMode.AfterReset : Trigger.TriggerMode.EveryHours;
-            hoursBox.Visibility = mode == Trigger.TriggerMode.EveryHours
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-        };
-        timingRow.Children.Add(timing);
-        timingRow.Children.Add(hoursBox);
-        Control(timingRow, 3);
-
-        Grid.SetRow(resetCaption, 4);
-        Grid.SetColumn(resetCaption, 1);
-        grid.Children.Add(resetCaption);
-
-        var create = new Border
-        {
-            Child = new TextBlock
-            {
-                Text = L10n.Tr("Add a trigger"),
-                FontFamily = IslandFonts.Ui,
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
-            },
-            Background = IslandColors.Brush(System.Windows.Media.Color.FromRgb(0x2E, 0x7C, 0xF6)),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(16, 6, 16, 6),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Cursor = System.Windows.Input.Cursors.Hand,
-        };
-        create.MouseLeftButtonUp += (_, args) =>
-        {
-            args.Handled = true;
-            if (sessionBox.SelectedIndex < 0 || sessionBox.SelectedIndex >= sessions.Count) return;
-            var chosen = sessions[sessionBox.SelectedIndex];
-            var hours = int.TryParse(hoursBox.Text, out var parsed) ? Math.Max(1, parsed) : 5;
-            TriggerStore.Shared.Add(new Trigger.Trigger
-            {
-                Tool = chosen.Tool,
-                SessionId = chosen.SessionId,
-                Label = chosen.Label,
-                Cwd = chosen.Cwd,
-                Message = message.Text.Length > 0 ? message.Text : L10n.Tr("Continue"),
-                Mode = mode,
-                EveryHours = hours,
-            });
-            // Creating a rule here is an explicit act — trust its project so
-            // the rule can actually fire; the Trusted projects list keeps it
-            // revocable.
-            if (chosen.Cwd.Length > 0) TriggerSafetyStore.Shared.SetAllowed(chosen.Cwd, true);
-            Select(Tab.Triggers);
-        };
-        Grid.SetRow(create, 5);
-        Grid.SetColumn(create, 1);
-        grid.Children.Add(create);
-
-        ReloadSessions();
-        UpdateResetCaption();
-
-        return new Border
-        {
-            Child = grid,
-            CornerRadius = new CornerRadius(10),
-            Background = IslandColors.Brush(IslandColors.White(0.03)),
-            Margin = new Thickness(0, 0, 0, 8),
-        };
     }
 
     // MARK: - Status

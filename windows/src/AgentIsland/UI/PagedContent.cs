@@ -155,7 +155,6 @@ public sealed class PagedContent : Grid
                 IslandScreen.Usage => new UsagePage(),
                 IslandScreen.Cost => new CostPage(),
                 IslandScreen.Overview => new OverviewPage(),
-                IslandScreen.Triggers => new TriggerPage(),
                 _ => new PlaceholderPage(screen),
             };
             _pages.Add((screen, view));

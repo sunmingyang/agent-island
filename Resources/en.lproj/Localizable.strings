@@ -432,4 +432,8 @@
 "Claude and Codex monitor live sessions; signed-in Gemini and Grok add quota-only views" = "Claude and Codex monitor live sessions; signed-in Gemini and Grok add quota-only views";
 "A guided tour of everything the island does" = "A guided tour of everything the island does";
 "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you";
+"Claude, Codex, Grok, and Gemini carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude, Codex, Grok, and Gemini carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you";
+"Reports that look back" = "Reports that look back";
+"Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran" = "Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran";
+"April" = "April";
 "Choose one or two providers for the top bar. Claude and Codex keep full monitoring; signed-in Gemini and Grok add quota-only badges and detail rows. Hover for model or product breakdowns, or click through to the official pages" = "Choose one or two providers for the top bar. Claude and Codex keep full monitoring; signed-in Gemini and Grok add quota-only badges and detail rows. Hover for model or product breakdowns, or click through to the official pages";

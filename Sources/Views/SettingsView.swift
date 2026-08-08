@@ -50,7 +50,7 @@ struct SettingsView: View {
             let tab = SettingsTab(rawValue: activeTabRaw) ?? .providers
             // A window last parked on the retired Triggers tab lands on
             // Providers instead of an orphaned tab with no button.
-            return tab == .triggers ? .providers : tab
+            return tab
         }
         nonmutating set { activeTabRaw = newValue.rawValue }
     }
@@ -88,7 +88,6 @@ struct SettingsView: View {
                             case .display:      displayTab
                             case .alerts:       alertsTab
                             case .general:      generalTab
-                            case .triggers:     TriggerSettingsView()
                             case .statusGuide:  StatusGuideView()
                             case .releaseNotes: releaseNotesTab
                             case .about:        aboutTab
@@ -147,7 +146,7 @@ struct SettingsView: View {
             .padding(.horizontal, 14)
             .padding(.bottom, 14)
 
-            ForEach(SettingsTab.allCases.filter { $0 != .triggers }, id: \.self) { tab in
+            ForEach(SettingsTab.allCases, id: \.self) { tab in
                 sidebarItem(tab)
             }
 
@@ -219,7 +218,7 @@ struct SettingsView: View {
         // page leads because it is what the app is about; alerts stand
         // alone instead of hiding at the bottom of General; General keeps
         // only the app-level odds and ends.
-        case providers, display, alerts, general, statusGuide, releaseNotes, about, triggers
+        case providers, display, alerts, general, statusGuide, releaseNotes, about
 
         var label: String {
             switch self {
@@ -230,7 +229,6 @@ struct SettingsView: View {
             case .statusGuide:  "Status"
             case .releaseNotes: "Notes"
             case .about:        "About"
-            case .triggers:     "Triggers"
             }
         }
 
@@ -244,7 +242,6 @@ struct SettingsView: View {
             case .statusGuide:  "eye"
             case .releaseNotes: "sparkles"
             case .about:        "info.circle"
-            case .triggers:     "clock.arrow.circlepath"
             }
         }
     }
