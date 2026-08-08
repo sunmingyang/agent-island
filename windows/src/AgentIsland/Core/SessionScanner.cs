@@ -373,17 +373,23 @@ public static class SessionScanner
         if (!File.Exists(path)) return new List<ScannedSession>();
         var modified = Mtime(path);
 
+        List<CursorConversation>? cached = null;
         lock (CursorGate)
         {
-            if (modified == _cursorStamp && _cursorCache.Count > 0)
-            {
-                return RestateCursor(_cursorCache, now);
-            }
+            if (modified == _cursorStamp) cached = _cursorCache;
+        }
+        if (cached is not null)
+        {
+            // Status is NEVER cached — only the parsed conversation is. A
+            // finished turn becomes "your turn" purely by the clock moving
+            // past the quiet gap, and the db stops changing the moment the
+            // assistant stops writing, so a cached status would freeze at
+            // "working" and the alarm would never fire.
+            return cached.ConvertAll(c => CursorSession(c, now, lastWorking));
         }
 
-        var rows = CursorConversations.NewestBubblePerConversation(path);
-        var output = new List<ScannedSession>();
-        foreach (var (composerId, json) in rows)
+        var parsed = new List<CursorConversation>();
+        foreach (var (composerId, json) in CursorConversations.NewestBubblePerConversation(path))
         {
             var turn = SessionTurnState.Cursor(new[] { json });
             // No usable bubble timestamp means we cannot say WHEN this
@@ -391,50 +397,55 @@ public static class SessionScanner
             // bug behind a permanently spinning logo: Cursor rewrites that
             // file continuously while it is merely open.
             if (turn.ActivityDate is not { } stamp) continue;
-            if ((now - stamp) > AttentionWindow) continue;
-            var key = "cursor:" + composerId;
-            output.Add(new ScannedSession(
-                TriggerTool.Cursor,
+            parsed.Add(new CursorConversation(
                 composerId,
-                string.Empty,
                 CursorConversations.Title(json) ?? composerId[..Math.Min(8, composerId.Length)],
-                stamp,
-                CursorStatus(turn, stamp, now, key, lastWorking),
-                key,
+                turn.IsDone,
                 turn.Key,
-                SessionLaunchTarget.Cli));
+                stamp));
         }
+        parsed.Sort((a, b) => b.Stamp.CompareTo(a.Stamp));
 
-        output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         lock (CursorGate)
         {
             _cursorStamp = modified;
-            _cursorCache = output;
+            _cursorCache = parsed;
         }
-        return output;
+        return parsed.ConvertAll(c => CursorSession(c, now, lastWorking));
     }
 
     private static readonly object CursorGate = new();
     private static DateTimeOffset _cursorStamp = DateTimeOffset.MinValue;
-    private static List<ScannedSession> _cursorCache = new();
+    private static List<CursorConversation> _cursorCache = new();
+
+    /// One parsed conversation. Deliberately holds no status: status is a
+    /// function of the CURRENT clock and is recomputed on every scan.
+    private readonly record struct CursorConversation(
+        string Id, string Label, bool IsDone, string? TurnKey, DateTimeOffset Stamp);
+
+    private static ScannedSession CursorSession(
+        CursorConversation conversation,
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+    {
+        var key = "cursor:" + conversation.Id;
+        var turn = new SessionTurnStatus(conversation.IsDone, conversation.TurnKey, conversation.Stamp);
+        return new ScannedSession(
+            TriggerTool.Cursor,
+            conversation.Id,
+            string.Empty,
+            conversation.Label,
+            conversation.Stamp,
+            CursorStatus(turn, conversation.Stamp, now, key, lastWorking),
+            key,
+            conversation.TurnKey,
+            SessionLaunchTarget.Cli);
+    }
 
     private static string CursorGlobalDbPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Cursor", "User", "globalStorage", "state.vscdb");
 
-    /// Cached sessions carry a stale clock; age them against the current
-    /// time so a cached "working" becomes idle without re-reading the db.
-    private static List<ScannedSession> RestateCursor(List<ScannedSession> cached, DateTimeOffset now)
-    {
-        var output = new List<ScannedSession>(cached.Count);
-        foreach (var session in cached)
-        {
-            output.Add((now - session.Modified) > AttentionWindow
-                ? session with { Status = ActivityState.Idle }
-                : session);
-        }
-        return output;
-    }
 
     /// Assistant-last plus a quiet gap means the turn finished; assistant-last
     /// while still streaming reads as working. A user bubble last means the

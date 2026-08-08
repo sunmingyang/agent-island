@@ -67,6 +67,7 @@ final class AgentReminderStore: ObservableObject {
     private static let customSoundPathKey = "AgentIsland.agentReminderCustomSoundPath"
     private static let showSessionDetailsKey = "AgentIsland.agentReminderShowSessionDetails"
     private static let frontmostSoundOnlyKey = "AgentIsland.agentReminderFrontmostSoundOnly"
+    private static let alarmWhenFrontmostKey = "AgentIsland.agentReminderAlarmWhenFrontmost"
     private var previewSound: NSSound?
     /// Retains the in-flight #9 chime — NSSound stops when released.
     private var frontmostChime: NSSound?
@@ -117,7 +118,18 @@ final class AgentReminderStore: ObservableObject {
         didSet { UserDefaults.standard.set(frontmostSoundOnly, forKey: Self.frontmostSoundOnlyKey) }
     }
 
+    /// Whether a finished turn still raises its alarm while the session's own
+    /// app is frontmost. Off by default: watching the turn finish IS the
+    /// notification, and a popup over the window you are already reading was
+    /// the original complaint (#30). Some people want it anyway — a long turn
+    /// in a background pane of the same app is easy to miss — so it is a
+    /// switch rather than a rule (owner call, 2026-08-08).
+    @Published var alarmWhenFrontmost: Bool {
+        didSet { UserDefaults.standard.set(alarmWhenFrontmost, forKey: Self.alarmWhenFrontmostKey) }
+    }
+
     private init() {
+        alarmWhenFrontmost = UserDefaults.standard.bool(forKey: Self.alarmWhenFrontmostKey)
         enabled = UserDefaults.standard.object(forKey: Self.enabledKey) == nil
             ? true
             : UserDefaults.standard.bool(forKey: Self.enabledKey)

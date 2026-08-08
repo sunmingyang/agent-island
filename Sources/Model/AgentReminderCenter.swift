@@ -164,7 +164,8 @@ final class AgentReminderCenter: NSObject, UNUserNotificationCenterDelegate {
         // hours later (owner report, 2026-08-05) — acknowledged, not queued.
         // #9 opt-in: one chime at that moment, because frontmost doesn't
         // always mean noticed — still no popup, still baselined.
-        if AgentHostAppResolver.isHostAppFrontmost(
+        if !AgentReminderStore.shared.alarmWhenFrontmost,
+           AgentHostAppResolver.isHostAppFrontmost(
             provider: provider, cwd: thread.cwd, launchTarget: thread.launchTarget
         ) {
             if AgentReminderStore.shared.frontmostSoundOnly {

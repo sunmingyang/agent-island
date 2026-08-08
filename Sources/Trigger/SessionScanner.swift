@@ -310,12 +310,16 @@ enum SessionScanner {
         let modified = mtime(path)
 
         cursorLock.lock()
-        if modified == cursorCacheStamp, !cursorCache.isEmpty {
-            let cached = cursorCache
-            cursorLock.unlock()
-            return cached.map { restate($0, now: now, lastWorking: lastWorking) }
-        }
+        let cached = (modified == cursorCacheStamp) ? cursorCache : nil
         cursorLock.unlock()
+        if let cached {
+            // Status is NEVER cached — only the parsed conversation is. A
+            // finished turn becomes "your turn" purely by the clock moving
+            // past the quiet gap, and the db stops changing the moment the
+            // assistant stops writing, so a cached status would freeze at
+            // "working" and the alarm would never fire (owner repro).
+            return cached.map { session(from: $0, now: now, lastWorking: lastWorking) }
+        }
 
         var db: OpaquePointer?
         guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db else {
@@ -324,7 +328,7 @@ enum SessionScanner {
         }
         defer { sqlite3_close(db) }
 
-        var out: [ScannedSession] = []
+        var parsed: [CursorConversation] = []
         for composerID in cursorComposerIDs(db) {
             guard let bubble = cursorNewestBubble(db, composerID: composerID) else { continue }
             let turn = SessionTurnState.cursor([bubble.json])
@@ -333,46 +337,54 @@ enum SessionScanner {
             // bug behind a permanently spinning logo: Cursor rewrites that
             // file continuously while it is merely open, so every stale
             // conversation looked like it had just been touched.
-            guard let stamp = turn.activityDate,
-                  now.timeIntervalSince(stamp) <= attentionWindow else { continue }
-            let key = "cursor:" + composerID
-            let status = cursorStatus(turn: turn, stamp: stamp, now: now, key: key, lastWorking: lastWorking)
-            out.append(ScannedSession(
-                tool: .cursor,
-                sessionId: composerID,
-                cwd: "",
+            guard let stamp = turn.activityDate else { continue }
+            parsed.append(CursorConversation(
+                id: composerID,
                 label: bubble.title ?? String(composerID.prefix(8)),
-                modified: stamp,
-                status: status,
-                transcriptPath: key,
+                isDone: turn.isDone,
                 turnKey: turn.key,
-                launchTarget: .cli
+                stamp: stamp
             ))
         }
+        parsed.sort { $0.stamp > $1.stamp }
 
-        out.sort { $0.modified > $1.modified }
         cursorLock.lock()
         cursorCacheStamp = modified
-        cursorCache = out
+        cursorCache = parsed
         cursorLock.unlock()
-        return out
+        return parsed.map { session(from: $0, now: now, lastWorking: lastWorking) }
     }
 
-    /// Cached sessions carry a stale clock; re-derive the state against the
-    /// current time so a cached "working" ages into idle without a re-read.
-    private static func restate(
-        _ session: ScannedSession, now: Date, lastWorking: [String: Date]
+    /// One parsed conversation. Deliberately holds no status: the status is
+    /// a function of the CURRENT clock and is recomputed on every scan.
+    struct CursorConversation {
+        let id: String
+        let label: String
+        let isDone: Bool
+        let turnKey: String?
+        let stamp: Date
+    }
+
+    private static func session(
+        from conversation: CursorConversation, now: Date, lastWorking: [String: Date]
     ) -> ScannedSession {
-        let age = now.timeIntervalSince(session.modified)
-        guard age <= attentionWindow else {
-            return ScannedSession(
-                tool: session.tool, sessionId: session.sessionId, cwd: session.cwd,
-                label: session.label, modified: session.modified, status: .idle,
-                transcriptPath: session.transcriptPath, turnKey: session.turnKey,
-                launchTarget: session.launchTarget
-            )
-        }
-        return session
+        let key = "cursor:" + conversation.id
+        let turn = SessionTurnStatus(
+            isDone: conversation.isDone, key: conversation.turnKey, activityDate: conversation.stamp
+        )
+        return ScannedSession(
+            tool: .cursor,
+            sessionId: conversation.id,
+            cwd: "",
+            label: conversation.label,
+            modified: conversation.stamp,
+            status: cursorStatus(
+                turn: turn, stamp: conversation.stamp, now: now, key: key, lastWorking: lastWorking
+            ),
+            transcriptPath: key,
+            turnKey: conversation.turnKey,
+            launchTarget: .cli
+        )
     }
 
     /// Assistant-last plus a quiet gap means the turn finished; assistant-last
@@ -401,7 +413,7 @@ enum SessionScanner {
 
     private static let cursorLock = NSLock()
     private static var cursorCacheStamp: Date = .distantPast
-    private static var cursorCache: [ScannedSession] = []
+    private static var cursorCache: [CursorConversation] = []
 
     private static func cursorComposerIDs(_ db: OpaquePointer) -> [String] {
         var statement: OpaquePointer?

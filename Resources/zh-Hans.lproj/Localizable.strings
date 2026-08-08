@@ -21,6 +21,9 @@
 "Total" = "总计";
 "Approaching-limit alerts" = "接近限额提醒";
 "Alerts" = "提醒";
+"Alarm even when in front" = "应用在前台时也弹窗";
+"Alarm on a finished turn even while that session's own app is frontmost" = "即使你正在使用该会话所属的应用，回合结束时也弹出提醒";
+
 "no local cost" = "本地无成本数据";
 
 "%@ mode — sessions monitored here, quota lives in Google AI Studio" = "%@ 模式——会话状态照常监控，额度请在 Google AI Studio 查看";
