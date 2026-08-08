@@ -356,7 +356,8 @@ enum SessionScanner {
                 label: bubble.title ?? String(composerID.prefix(8)),
                 isDone: turn.isDone,
                 turnKey: turn.key,
-                stamp: stamp
+                stamp: stamp,
+                generating: cursorIsGenerating(db, composerID: composerID)
             ))
         }
         parsed.sort { $0.stamp > $1.stamp }
@@ -387,6 +388,8 @@ enum SessionScanner {
         let isDone: Bool
         let turnKey: String?
         let stamp: Date
+        /// Cursor's own verdict; nil when the row was unreadable.
+        let generating: Bool?
     }
 
     private static func session(
@@ -405,7 +408,8 @@ enum SessionScanner {
             modified: conversation.stamp,
             status: cursorStatus(
                 turn: turn, stamp: conversation.stamp, now: now,
-                key: key, stable: stable, lastWorking: lastWorking
+                key: key, stable: stable, generating: conversation.generating,
+                lastWorking: lastWorking
             ),
             transcriptPath: key,
             turnKey: conversation.turnKey,
@@ -427,21 +431,24 @@ enum SessionScanner {
     /// stream on an interim bubble.
     private static func cursorStatus(
         turn: SessionTurnStatus, stamp: Date, now: Date,
-        key: String, stable: Bool, lastWorking: [String: Date]
+        key: String, stable: Bool, generating: Bool?, lastWorking: [String: Date]
     ) -> ActivityMonitor.State {
         let age = now.timeIntervalSince(stamp)
         if turn.isDone {
-            // Newest bubble is the assistant's. Two conditions must BOTH hold
-            // before we call the turn finished, or a mid-reply pause fires a
-            // false alarm:
-            //   1. `stable` — this exact bubble id was already the newest one
-            //      scan ago (no new bubble arrived since).
-            //   2. the bubble is at least `cursorSettle` old — event-driven
-            //      rescans can land <1s apart, and bubbles within one reply
-            //      arrive up to 8.3s apart, so "unchanged for a moment" is not
-            //      enough; the bubble must have sat still for a real beat.
-            // Together they give ~1-3s latency on a genuinely finished turn
-            // while never firing between two bubbles of the same reply.
+            // Cursor publishes its own verdict on composerData: status
+            // "completed" with an empty generatingBubbleIds means the reply
+            // is done. When we can read it, trust it — the alarm fires on the
+            // very next scan (sub-second, since FSEvents watches the store),
+            // with no settle timer at all.
+            if let generating {
+                guard !generating else { return .working }
+                return age < needsYouCap ? .needsYou : .idle
+            }
+            // Unreadable row: fall back to timing. Both conditions must hold
+            // or a mid-reply pause fires a false alarm — `stable` (no new
+            // bubble since last scan) AND the bubble having sat still for a
+            // real beat, because event-driven rescans can land <1s apart
+            // while bubbles within one reply arrive up to 8.3s apart.
             guard stable, age >= cursorSettle else { return .working }
             return age < needsYouCap ? .needsYou : .idle
         }
@@ -472,6 +479,33 @@ enum SessionScanner {
     /// composerId → the newest bubble id seen last scan. Used to tell a
     /// still-streaming reply (bubble changed) from a finished one (unchanged).
     private static var cursorLastTurn: [String: String] = [:]
+
+    /// Cursor's own generation state, straight from composerData:
+    ///   status == "completed" and generatingBubbleIds empty  → the reply is
+    ///   finished; anything else (status "none"/"generating", or a non-empty
+    ///   generatingBubbleIds) → still producing.
+    /// This is authoritative — far better than inferring completion from how
+    /// long the newest bubble has sat still, which is what the settle timer
+    /// was doing. Returns nil when the row cannot be read, so the caller
+    /// falls back to the timing heuristic rather than guessing "done".
+    private static func cursorIsGenerating(_ db: OpaquePointer, composerID: String) -> Bool? {
+        var statement: OpaquePointer?
+        let sql = "SELECT value FROM cursorDiskKV WHERE key = ? LIMIT 1"
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(statement) }
+        let key = "composerData:" + composerID
+        sqlite3_bind_text(statement, 1, key, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let raw = sqlite3_column_text(statement, 0),
+              let data = String(cString: raw).data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        if let generating = object["generatingBubbleIds"] as? [Any], !generating.isEmpty {
+            return true
+        }
+        guard let status = object["status"] as? String else { return nil }
+        return status != "completed"
+    }
 
     private static func cursorComposerIDs(_ db: OpaquePointer) -> [String] {
         var statement: OpaquePointer?

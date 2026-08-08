@@ -21,6 +21,10 @@ enum TurnAlarmNavigator {
                 thread: thread,
                 fallbackBundleID: nil
             ) { return }
+            // No grok CLI on PATH: the click used to do nothing at all.
+            // Fronting the desktop app is the honest floor — the same thing
+            // Claude falls back to when its CLI is missing.
+            bringForward(appNamed: "Grok")
         case .gemini:
             // Verified against gemini --help (2026-08-08): --resume takes
             // "latest" or an index, never a session id. Same cwd argument
@@ -31,8 +35,11 @@ enum TurnAlarmNavigator {
                 thread: thread,
                 fallbackBundleID: nil
             ) { return }
+            bringForward(appNamed: "Gemini")
         case .cursor:
-            activate(bundleIdentifier: "com.todesktop.230313mzl4w4u92")
+            // Cursor is app-only: no CLI, and no documented route that opens
+            // one conversation, so fronting the editor is the whole gesture.
+            bringForward(bundleIdentifier: "com.todesktop.230313mzl4w4u92")
         }
     }
 
@@ -62,7 +69,7 @@ enum TurnAlarmNavigator {
                     } else if error != nil {
                         codexCLIFallback(thread: thread)
                     } else {
-                        activate(bundleIdentifier: codexBundleID)
+                        bringForward(bundleIdentifier: codexBundleID)
                     }
                 }
             }
@@ -80,7 +87,7 @@ enum TurnAlarmNavigator {
         ) {
             return
         }
-        activate(bundleIdentifier: codexBundleID)
+        bringForward(bundleIdentifier: codexBundleID)
     }
 
     /// The app bundle a scheme URL should be delivered to. Prefer the running
@@ -151,12 +158,12 @@ enum TurnAlarmNavigator {
                         if let app {
                             app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
                         } else {
-                            activate(bundleIdentifier: claudeBundleID)
+                            bringForward(bundleIdentifier: claudeBundleID)
                         }
                     }
                 }
             } else {
-                activate(bundleIdentifier: claudeBundleID)
+                bringForward(bundleIdentifier: claudeBundleID)
             }
             // Put the session's title on the clipboard and say so — until the
             // deep link is unlocked, finding the conversation is one paste in
@@ -177,7 +184,7 @@ enum TurnAlarmNavigator {
         ) {
             return
         }
-        activate(bundleIdentifier: claudeBundleID)
+        bringForward(bundleIdentifier: claudeBundleID)
     }
 
     /// Claude Desktop's session store keeps, per conversation, the internal
@@ -213,6 +220,38 @@ enum TurnAlarmNavigator {
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
+    /// Brings another app to the front from an .accessory app whose key
+    /// window is closing in the same gesture. `NSRunningApplication.activate`
+    /// alone loses that race on macOS 14+: our window closes a beat later and
+    /// AppKit hands focus back to OUR next window — which is why clicking a
+    /// Cursor alarm surfaced Agent Island's Settings instead (owner repro).
+    /// `openApplication` is an asynchronous request to the workspace that
+    /// survives our window teardown, and hiding ourselves right after removes
+    /// us from the running order so focus cannot snap back.
+    static func bringForward(bundleIdentifier: String) {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            activate(bundleIdentifier: bundleIdentifier)
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, _ in
+            DispatchQueue.main.async { NSApp.hide(nil) }
+        }
+    }
+
+    /// Same, addressed by display name for apps whose bundle id we do not
+    /// hardcode. No match means the app is not installed — nothing to do.
+    static func bringForward(appNamed name: String) {
+        let candidates = ["/Applications/\(name).app", "\(NSHomeDirectory())/Applications/\(name).app"]
+        guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration) { _, _ in
+            DispatchQueue.main.async { NSApp.hide(nil) }
+        }
     }
 
     private static func activate(bundleIdentifier: String) {
