@@ -13,6 +13,7 @@ extension SessionScanner {
         )
         out += scanGrok(now: now, lastWorking: lastWorking)
         out += scanGemini(now: now, lastWorking: lastWorking)
+        out += scanCursor(now: now, lastWorking: lastWorking)
         out.sort { $0.modified > $1.modified }
         return out
     }

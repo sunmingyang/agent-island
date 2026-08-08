@@ -42,6 +42,7 @@ public static class SessionScanner
         output.AddRange(ScanCodex(now, lastWorking, limit: 30, dedupeProjects: true));
         output.AddRange(ScanGrok(now, lastWorking));
         output.AddRange(ScanGemini(now, lastWorking));
+        output.AddRange(ScanCursor(now, lastWorking));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         // Dedupe by session: the Claude Desktop store commonly holds the SAME
         // cliSessionId under two project folders (23 of 41 on the reporting
@@ -65,6 +66,7 @@ public static class SessionScanner
         output.AddRange(ScanCodex(now, lastWorking, limit: MonitoringCodexLimit, dedupeProjects: false));
         output.AddRange(ScanGrok(now, lastWorking));
         output.AddRange(ScanGemini(now, lastWorking));
+        output.AddRange(ScanCursor(now, lastWorking));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         return output;
     }
@@ -345,6 +347,72 @@ public static class SessionScanner
     /// turn boundary, so status is recency-only (MtimeOnly — working while
     /// the file moves, idle after, never a "your turn" alarm). The session id
     /// lives in the first line's header; the filename stem is the fallback.
+    /// Cursor's conversation-search.db is a batch cache and can not drive
+    /// live status; what does move in real time is each workspace's
+    /// state.vscdb (+ -wal journal) under
+    /// %APPDATA%\Cursor\User\workspaceStorage. That is an honest recency
+    /// signal — working / idle, no turn boundary — so like Gemini it rides
+    /// MtimeOnly and never claims "your turn".
+    public static List<ScannedSession> ScanCursor(
+        DateTimeOffset now,
+        IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
+    {
+        var output = new List<ScannedSession>();
+        var root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Cursor", "User", "workspaceStorage");
+        foreach (var dir in SafeEnumerateDirectories(root))
+        {
+            var db = Path.Combine(dir, "state.vscdb");
+            if (!File.Exists(db)) continue;
+            var wal = db + "-wal";
+            // Live writes land in the -wal journal; the main db only
+            // advances on checkpoint. Whichever moved last is the clock.
+            var modified = Mtime(db);
+            var walTime = Mtime(wal);
+            if (walTime > modified) modified = walTime;
+            var cwd = CursorWorkspaceFolder(dir) ?? string.Empty;
+            var sid = Path.GetFileName(dir);
+            var state = SessionState(
+                File.Exists(wal) ? wal : db,
+                now, lastWorking, modified, SessionTurnState.MtimeOnly);
+            output.Add(new ScannedSession(
+                TriggerTool.Cursor,
+                sid,
+                cwd,
+                Fallback(cwd, sid),
+                state.Modified,
+                state.Status,
+                db,
+                state.TurnKey,
+                SessionLaunchTarget.Cli));
+        }
+        return output;
+    }
+
+    /// workspace.json carries the folder URI ("file:///C:/…"); missing on
+    /// special windows (empty-window), where the hash directory name is all
+    /// we have.
+    private static string? CursorWorkspaceFolder(string dir)
+    {
+        try
+        {
+            var path = Path.Combine(dir, "workspace.json");
+            if (!File.Exists(path)) return null;
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("folder", out var folder)) return null;
+            var uri = folder.GetString();
+            if (string.IsNullOrEmpty(uri)) return null;
+            return Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
+                ? parsed.LocalPath
+                : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public static List<ScannedSession> ScanGemini(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking)

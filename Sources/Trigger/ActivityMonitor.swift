@@ -188,12 +188,15 @@ final class ActivityMonitor: ObservableObject {
         }
     }
 
-    /// Session-status pairs actually scanned today. Cursor is absent on
-    /// purpose: its conversation-search.db is a batch search cache, not a
-    /// live stream — surfacing it as "status" would show stale state as
-    /// fresh (honesty rule; real source = workspaceStorage, future work).
+    /// All five ride the scan now. Cursor graduated from "absent on
+    /// purpose" once the real signal was found: per-workspace state.vscdb
+    /// (+ -wal) mtime moves continuously while a window is open, unlike the
+    /// batch-written conversation-search.db that disqualified it earlier.
+    /// Its turn detector is `mtimeOnly`, so it can show working/idle but
+    /// never a false "your turn".
     private static let monitoredProviders: [(TriggerTool, AlertEngine.Provider)] = [
         (.claude, .claude), (.codex, .codex), (.grok, .grok), (.gemini, .gemini),
+        (.cursor, .cursor),
     ]
 
     private static func usage(for provider: AlertEngine.Provider) -> AppUsage {

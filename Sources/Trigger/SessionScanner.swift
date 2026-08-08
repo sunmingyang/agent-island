@@ -32,6 +32,7 @@ enum SessionScanner {
         out += scanCodex(now: now, lastWorking: lastWorking)
         out += scanGrok(now: now, lastWorking: lastWorking)
         out += scanGemini(now: now, lastWorking: lastWorking)
+        out += scanCursor(now: now, lastWorking: lastWorking)
         out.sort { $0.modified > $1.modified }
         // Dedupe by session: the Claude desktop store commonly holds the SAME
         // cliSessionId under two project folders (23 of 41 on the reporting
@@ -283,6 +284,63 @@ enum SessionScanner {
         guard let object = try? JSONSerialization.jsonObject(with: data.prefix(upTo: newline)) as? [String: Any]
         else { return nil }
         return object["sessionId"] as? String
+    }
+
+    // MARK: - Cursor: workspaceStorage state.vscdb activity
+
+    /// Cursor's conversation-search.db is a batch cache (three rows sharing
+    /// one mtime on the survey machine), so it can NOT drive live status.
+    /// What does move in real time is each workspace's `state.vscdb` (and
+    /// its -wal journal), written continuously while a Cursor window is
+    /// open. That gives an honest recency signal — working / idle — with no
+    /// turn boundary, so like Gemini it rides `mtimeOnly` and never raises
+    /// a "your turn" alarm on an unverified format.
+    static func scanCursor(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
+        let fm = FileManager.default
+        let root = NSHomeDirectory() + "/Library/Application Support/Cursor/User/workspaceStorage"
+        guard let dirs = try? fm.contentsOfDirectory(atPath: root) else { return [] }
+        var out: [ScannedSession] = []
+        for dir in dirs {
+            let base = root + "/" + dir
+            let db = base + "/state.vscdb"
+            guard fm.fileExists(atPath: db) else { continue }
+            let wal = db + "-wal"
+            // The -wal journal is where live writes land; the main db file
+            // only advances on checkpoint. Whichever moved last is the
+            // activity clock.
+            let modified = max(mtime(db), mtime(wal))
+            let cwd = cursorWorkspaceFolder(base) ?? ""
+            let state = sessionState(
+                for: fm.fileExists(atPath: wal) ? wal : db,
+                now: now, lastWorking: lastWorking,
+                externalActivityDate: modified,
+                turnState: SessionTurnState.mtimeOnly
+            )
+            out.append(ScannedSession(
+                tool: .cursor,
+                sessionId: dir,
+                cwd: cwd,
+                label: fallback(cwd, dir),
+                modified: state.modified,
+                status: state.status,
+                transcriptPath: db,
+                turnKey: state.turnKey,
+                launchTarget: .cli
+            ))
+        }
+        return out
+    }
+
+    /// workspace.json carries the folder URI ("file:///Users/…"); missing on
+    /// special windows (empty-window), where the hash directory name is all
+    /// we have.
+    private static func cursorWorkspaceFolder(_ dir: String) -> String? {
+        guard let data = FileManager.default.contents(atPath: dir + "/workspace.json"),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let folder = object["folder"] as? String,
+              let url = URL(string: folder)
+        else { return nil }
+        return url.path
     }
 
     // MARK: - Helpers

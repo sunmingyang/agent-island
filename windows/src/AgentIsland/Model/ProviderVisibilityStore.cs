@@ -188,11 +188,15 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
             DisplayProvider.Codex => HasDir(home, ".codex"),
             // The guests are probed by LOGIN, never by directory: a bare
             // ~\.gemini or ~\.grok from an aborted install has nothing to
-            // show, and an api-key / vertex-ai Gemini login has no quota
-            // endpoint we can speak to — it must read as unsupported
-            // (GeminiUsageStore.UnsupportedAuthType), never as a slot
-            // candidate implying live data.
-            DisplayProvider.Gemini => GeminiCredentials.Detect() is GeminiAuthDetection.OauthPersonal,
+            // show. An api-key / vertex-ai Gemini login IS a real user —
+            // session monitoring reads the same local chat files — only the
+            // Code Assist quota endpoint is out of reach, and Google ships
+            // no usage endpoint for API keys at all (their tracker:
+            // gemini-cli discussion #3096). So it counts as detected, and
+            // the settings row points at AI Studio for numbers instead of
+            // dead-ending on "not supported" (owner review, 2026-08-08).
+            DisplayProvider.Gemini => GeminiCredentials.Detect()
+                is GeminiAuthDetection.OauthPersonal or GeminiAuthDetection.UnsupportedAuth,
             DisplayProvider.Grok => GrokAuthFile.Exists(),
             // Cursor's editor state db is also where its session token lives,
             // so no db means no login worth a slot.

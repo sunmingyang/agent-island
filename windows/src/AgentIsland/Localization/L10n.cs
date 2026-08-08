@@ -349,6 +349,7 @@ public static class L10n
         ["Not detected — sign in with the grok CLI"] = "未检测到 grok CLI 登录",
         ["Not detected — sign in inside Cursor"] = "未检测到 — 请在 Cursor 里登录",
         ["Not available — {0} authentication isn't supported yet"] = "不可用 — 暂不支持 {0} 认证方式",
+        ["{0} mode — sessions monitored here, quota lives in Google AI Studio"] = "{0} 模式——会话状态照常监控，额度请在 Google AI Studio 查看",
         ["pro {0}%"] = "Pro {0}%",
         ["flash {0}%"] = "Flash {0}%",
         ["week {0}%"] = "本周 {0}%",
@@ -392,6 +393,7 @@ public static class L10n
     /// "Agent Island" spelled as two words).
     private static readonly Dictionary<string, string> EnglishTable = new()
     {
+        ["{0} mode — sessions monitored here, quota lives in Google AI Studio"] = "{0} mode — sessions monitored here, quota lives in Google AI Studio",
         ["stalled"] = "paused",
         ["rate limited"] = "usage check paused",
         ["auth required"] = "login required",

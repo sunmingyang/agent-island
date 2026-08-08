@@ -27,15 +27,19 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// Providers whose session status is actually scanned. Cursor is absent
-    /// on purpose: its conversation-search.db is a batch search cache, not a
-    /// live stream — several rows commonly share one mtime — so publishing it
-    /// as status would present stale state as fresh.
+    /// All five ride the scan. Cursor graduated once the real signal was
+    /// found: each workspace's state.vscdb (and its -wal journal) is written
+    /// continuously while a Cursor window is open — unlike the batch-written
+    /// conversation-search.db that disqualified it earlier. Its turn
+    /// detector is MtimeOnly, so it shows working/idle but can never raise a
+    /// false "your turn".
     private static readonly TriggerTool[] MonitoredProviders =
     {
         TriggerTool.Claude,
         TriggerTool.Codex,
         TriggerTool.Grok,
         TriggerTool.Gemini,
+        TriggerTool.Cursor,
     };
 
     // Per-provider maps rather than per-provider fields: with fields, every

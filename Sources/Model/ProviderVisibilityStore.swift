@@ -93,7 +93,13 @@ final class ProviderVisibilityStore: ObservableObject {
                 self.geminiDetected = true
                 self.geminiAuthUnsupported = nil
             case .unsupportedAuth(let type):
-                self.geminiDetected = false
+                // API-key / Vertex logins are REAL Gemini users — session
+                // monitoring works for them (the CLI writes the same local
+                // chat files), only the Code Assist quota endpoint is out of
+                // reach. Detected, selectable, with the mode surfaced so the
+                // UI can point at AI Studio for numbers instead of dead-ending
+                // on "not supported" (owner review, 2026-08-08).
+                self.geminiDetected = true
                 self.geminiAuthUnsupported = type
             case .notInstalled:
                 self.geminiDetected = false

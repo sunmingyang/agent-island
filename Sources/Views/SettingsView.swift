@@ -931,7 +931,8 @@ struct SettingsView: View {
             })
 
             providerCard(.gemini, status: geminiSubtitle,
-                         chip: visibility.geminiDetected ? geminiStore.tierBadge : nil)
+                         chip: visibility.geminiAuthUnsupported.map { $0.uppercased() }
+                             ?? (visibility.geminiDetected ? geminiStore.tierBadge : nil))
             providerCard(.grok, status: grokSubtitle,
                          chip: visibility.grokDetected ? grokStore.authModeBadge : nil)
             providerCard(.cursor, status: cursorSubtitle,
@@ -1175,7 +1176,10 @@ struct SettingsView: View {
     /// email and read as a glitch); identity lives in the usage-strip hover.
     private var geminiSubtitle: String {
         if let authType = visibility.geminiAuthUnsupported {
-            return L10n.tr("Not available — %@ authentication isn't supported yet", authType)
+            // Not a dead end: sessions are monitored locally either way; only
+            // the quota numbers live server-side where this auth mode has no
+            // readable endpoint.
+            return L10n.tr("%@ mode — sessions monitored here, quota lives in Google AI Studio", authType)
         }
         guard visibility.geminiDetected else {
             return L10n.tr("Not detected — sign in with the gemini CLI")

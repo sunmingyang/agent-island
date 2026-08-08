@@ -21,6 +21,8 @@
 "Total" = "总计";
 "Approaching-limit alerts" = "接近限额提醒";
 "Alerts" = "提醒";
+"%@ mode — sessions monitored here, quota lives in Google AI Studio" = "%@ 模式——会话状态照常监控，额度请在 Google AI Studio 查看";
+
 "From two agents to five: Gemini, Grok, and Cursor arrive together, session status stretches across the island, settings start over, and Codex accounts switch in one click" = "从两家到五家：Gemini、Grok、Cursor 同批上岛，会话状态铺满全岛，设置面板推倒重来，Codex 账号一键切换";
 "Three new agents arrive" = "三家新 Agent 上岛";
 "Gemini, Grok, and Cursor land beside Claude and Codex in one release — quotas, plans, and billing cycles, all read locally" = "Gemini、Grok、Cursor 与 Claude、Codex 同屏并肩——额度、档位、账期，一次到齐，全部本地读取";

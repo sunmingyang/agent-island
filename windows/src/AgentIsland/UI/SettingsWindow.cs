@@ -1224,7 +1224,8 @@ public sealed class SettingsWindow : Window
             DisplayProvider.Codex => UsageStore.Shared.Codex.Plan?.ToUpperInvariant(),
             // A badge for a provider with no login on this machine would be a
             // leftover from a cached snapshot, not a fact about this machine.
-            DisplayProvider.Gemini => visibility.GeminiDetected ? GeminiUsageStore.Shared.TierBadge : null,
+            DisplayProvider.Gemini => GeminiUsageStore.Shared.UnsupportedAuthType?.ToUpperInvariant()
+                ?? (visibility.GeminiDetected ? GeminiUsageStore.Shared.TierBadge : null),
             DisplayProvider.Grok => visibility.GrokDetected ? GrokUsageStore.Shared.AuthModeBadge : null,
             DisplayProvider.Cursor => visibility.CursorDetected ? CursorUsageStore.Shared.PlanBadge : null,
             _ => null,
@@ -1275,7 +1276,10 @@ public sealed class SettingsWindow : Window
         // saying "not detected" would send people hunting for a broken CLI.
         if (store.UnsupportedAuthType is { } authType)
         {
-            return L10n.TrFormat("Not available — {0} authentication isn't supported yet", authType);
+            // Not a dead end: sessions are monitored locally either way; only
+            // the quota numbers live server-side where this auth mode has no
+            // readable endpoint.
+            return L10n.TrFormat("{0} mode — sessions monitored here, quota lives in Google AI Studio", authType);
         }
         if (!ProviderVisibilityStore.Shared.GeminiDetected)
         {
