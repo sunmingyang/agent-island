@@ -1,5 +1,7 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using AgentIsland.Core;
 
 namespace AgentIsland.Cost;
 
@@ -47,7 +49,7 @@ public static class CursorLogReader
     private static extern int ColumnBytes(IntPtr stmt, int column);
 
     [DllImport("winsqlite3.dll", EntryPoint = "sqlite3_finalize")]
-    private static extern int Finalize(IntPtr stmt);
+    private static extern int FinalizeStatement(IntPtr stmt);
 
     private static string DatabasePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -107,7 +109,7 @@ public static class CursorLogReader
         }
         finally
         {
-            if (statement != IntPtr.Zero) { try { Finalize(statement); } catch (Exception) { } }
+            if (statement != IntPtr.Zero) { try { FinalizeStatement(statement); } catch (Exception) { } }
             if (db != IntPtr.Zero) { try { Close(db); } catch (Exception) { } }
         }
 
