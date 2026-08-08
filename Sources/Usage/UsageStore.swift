@@ -135,6 +135,9 @@ final class UsageStore: ObservableObject {
         // Grok and Gemini ride this exact cadence (poll/wake/unlock/network/
         // manual) instead of owning timers; their stores no-op when
         // undetected or kicked again within their attempt floors.
+        // Re-probe guest logins first: signing into a CLI after launch used
+        // to leave the provider stuck at "not detected" until a relaunch.
+        ProviderVisibilityStore.shared.redetectGuests()
         GrokUsageStore.shared.kickRefresh()
         GeminiUsageStore.shared.kickRefresh()
         CursorUsageStore.shared.kickRefresh()

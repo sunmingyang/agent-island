@@ -336,9 +336,15 @@ enum TurnAlarmNavigator {
         if isUsableDirectory(cwd) {
             parts.append("cd \(shellQuote(cwd)) || exit 1")
         }
-        // nvm/bun/npm-global installs live outside the exported PATH;
-        // CLILocator already probes those homes for the trigger engine.
-        let binary = CLILocator.path(for: executable == "codex" ? .codex : .claude) ?? executable
+        // nvm/bun/npm-global installs live outside the exported PATH, so
+        // resolve through CLILocator. This used to map every non-"codex" name
+        // to .claude, which meant clicking a Gemini or Grok alarm launched
+        // CLAUDE in the terminal (owner repro, 2026-08-08). Resolve by the
+        // actual executable name; an unknown one falls back to PATH lookup.
+        let tool = TriggerTool.allCases.first {
+            AlertEngine.Provider(rawValue: $0.rawValue)?.cliName == executable
+        }
+        let binary = tool.flatMap { CLILocator.path(for: $0) } ?? executable
         parts.append("exec \(shellJoin([binary] + arguments))")
         return parts.joined(separator: "; ")
     }

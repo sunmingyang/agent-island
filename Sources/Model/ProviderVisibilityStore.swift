@@ -43,7 +43,7 @@ final class ProviderVisibilityStore: ObservableObject {
     /// Cursor counts as installed when the editor's state db exists — that
     /// db is also where its session token lives, so no db means no login.
     @Published private(set) var cursorDetected: Bool
-    let geminiAuthUnsupported: String?
+    @Published private(set) var geminiAuthUnsupported: String?
 
     private init() {
         // Demo shares the real user's defaults — pin the recording rig to
@@ -80,36 +80,56 @@ final class ProviderVisibilityStore: ObservableObject {
         }
         self.claudeDetected = hasDir(".claude") || hasDir(".config/claude")
         self.codexDetected = hasDir(".codex")
-        self.grokDetected = AppEnvironment.demoGuestFixturesEnabled
-            || (!AppEnvironment.isDemo && GrokAuthFile.exists())
-        self.cursorDetected = AppEnvironment.demoGuestFixturesEnabled
-            || (!AppEnvironment.isDemo && CursorCredentials.exists())
-        if AppEnvironment.isDemo {
-            self.geminiDetected = AppEnvironment.demoGuestFixturesEnabled
-            self.geminiAuthUnsupported = nil
-        } else {
-            switch GeminiCredentials.detect() {
-            case .oauthPersonal:
-                self.geminiDetected = true
-                self.geminiAuthUnsupported = nil
-            case .unsupportedAuth(let type):
-                // API-key / Vertex logins are REAL Gemini users — session
-                // monitoring works for them (the CLI writes the same local
-                // chat files), only the Code Assist quota endpoint is out of
-                // reach. Detected, selectable, with the mode surfaced so the
-                // UI can point at AI Studio for numbers instead of dead-ending
-                // on "not supported" (owner review, 2026-08-08).
-                self.geminiDetected = true
-                self.geminiAuthUnsupported = type
-            case .notInstalled:
-                self.geminiDetected = false
-                self.geminiAuthUnsupported = nil
-            }
-        }
+        self.grokDetected = false
+        self.cursorDetected = false
+        self.geminiDetected = false
+        self.geminiAuthUnsupported = nil
+        redetectGuests()
 
         if !AppEnvironment.isDemo, UserDefaults.standard.data(forKey: Self.enabledKey) == nil {
             persist()
         }
+    }
+
+    /// Re-probe the guests' on-disk login state.
+    ///
+    /// Detection used to run ONCE in init, so signing into a provider after
+    /// launch left the app insisting it was not installed until a relaunch —
+    /// the owner logged into the Gemini CLI twenty minutes after starting the
+    /// app and the row stayed "not detected" (repro, 2026-08-08). The refresh
+    /// cycle calls this, so a fresh login shows up within one poll.
+    func redetectGuests() {
+        guard !AppEnvironment.isDemo else {
+            let onForDemo = AppEnvironment.demoGuestFixturesEnabled
+            if grokDetected != onForDemo { grokDetected = onForDemo }
+            if cursorDetected != onForDemo { cursorDetected = onForDemo }
+            if geminiDetected != onForDemo { geminiDetected = onForDemo }
+            if geminiAuthUnsupported != nil { geminiAuthUnsupported = nil }
+            return
+        }
+        let grok = GrokAuthFile.exists()
+        if grokDetected != grok { grokDetected = grok }
+        let cursor = CursorCredentials.exists()
+        if cursorDetected != cursor { cursorDetected = cursor }
+
+        let gemini: Bool
+        let unsupported: String?
+        switch GeminiCredentials.detect() {
+        case .oauthPersonal:
+            gemini = true
+            unsupported = nil
+        case .unsupportedAuth(let type):
+            // API-key / Vertex logins are REAL Gemini users — session
+            // monitoring works for them (the CLI writes the same local chat
+            // files), only the Code Assist quota endpoint is out of reach.
+            gemini = true
+            unsupported = type
+        case .notInstalled:
+            gemini = false
+            unsupported = nil
+        }
+        if geminiDetected != gemini { geminiDetected = gemini }
+        if geminiAuthUnsupported != unsupported { geminiAuthUnsupported = unsupported }
     }
 
     // MARK: - Toggling
