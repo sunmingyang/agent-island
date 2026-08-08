@@ -73,10 +73,14 @@ struct CostTile: View {
 
             Group {
                 switch stylePref.style {
-                case .dollar: dollarHero
-                case .multi:  multiplierHero
+                // Providers the app can't price (Cursor: tokens but no model;
+                // Gemini: no ledger) show "—" for the dollar/value/trend heroes
+                // — never a coined $0 (publish-gate honesty rule). Only the
+                // tokens hero is meaningful for them.
+                case .dollar: if providesDollars { dollarHero } else { unpricedHero }
+                case .multi:  if providesDollars { multiplierHero } else { unpricedHero }
                 case .tokens: tokensHero
-                case .spark:  sparkHero
+                case .spark:  if providesDollars { sparkHero } else { unpricedHero }
                 }
             }
             .id(stylePref.style)
@@ -96,15 +100,28 @@ struct CostTile: View {
     private var spokenValue: String {
         switch stylePref.style {
         case .dollar:
-            return "$\(formattedDollarsCompact)"
+            return providesDollars ? "$\(formattedDollarsCompact)" : L10n.tr("No local cost data")
         case .multi:
+            guard providesDollars else { return L10n.tr("No local cost data") }
             let plan = formatBarDollars(planAmount)
             let you = formatBarDollars(window.dollars)
             return L10n.tr("%@ %@ versus you %@", planLabel ?? L10n.tr("Plan"), plan, you)
         case .tokens:
             return L10n.tr("%@%@ tokens", tokensValue, tokensUnit)
         case .spark:
-            return L10n.tr("$%@ cumulative", formattedDollarsCompact)
+            return providesDollars ? L10n.tr("$%@ cumulative", formattedDollarsCompact) : L10n.tr("No local cost data")
+        }
+    }
+
+    /// Whether this provider's spend resolves to a dollar figure: Claude/Codex
+    /// from the embedded table, Grok from its self-reported cost. Cursor logs
+    /// tokens with no model (no price) and Gemini has no ledger — their dollar
+    /// heroes read "—", never a coined $0. Mirrors CostView's face split and
+    /// the Windows CostPage.FaceOf / ReportFormat.ProvidesDollars.
+    private var providesDollars: Bool {
+        switch provider {
+        case .claude, .codex, .grok: return true
+        case .cursor, .gemini:       return false
         }
     }
 
@@ -205,6 +222,23 @@ struct CostTile: View {
         }
     }
 
+    /// What a provider the app cannot price shows where a dollar figure
+    /// would go. An em dash, not a coined $0: Cursor logs tokens with no
+    /// model to price them against, and Gemini ships no local ledger at all
+    /// (publish-gate honesty rule — never invent money). The tokens hero
+    /// still carries real information for these providers.
+    private var unpricedHero: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text("—")
+                .font(Typography.bigNumber)
+                .foregroundStyle(.white.opacity(0.32))
+            Text(L10n.tr("no local cost"))
+                .font(Typography.unit)
+                .foregroundStyle(.white.opacity(0.32))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var tokensHero: some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(tokensValue)
@@ -249,6 +283,9 @@ struct CostTile: View {
             switch provider {
             case .claude: return usageStore.claude.plan?.lowercased()
             case .codex:  return usageStore.codex.plan?.lowercased()
+            // Guests have no published flat-rate plan to anchor a
+            // spend-vs-subscription comparison against.
+            case .gemini, .grok, .cursor: return nil
             }
         }()
         guard let plan else { return nil }
@@ -269,6 +306,7 @@ struct CostTile: View {
             switch provider {
             case .claude: return usageStore.claude.plan?.lowercased()
             case .codex:  return usageStore.codex.plan?.lowercased()
+            case .gemini, .grok, .cursor: return nil
             }
         }()
         guard let plan else { return nil }

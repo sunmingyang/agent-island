@@ -4,6 +4,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using AgentIsland.Model;
 using AgentIsland.UI.Charts;
 using AgentIsland.UI.Theme;
 
@@ -42,7 +43,7 @@ public static class ReportCards
         var body = FlexColumn(
             (Header("WEEKLY", data.RangeText), 0),
             (Hero(Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, zh), 14),
-            (FaceoffStage(data.ClaudeShare, zh), 12),
+            (FaceoffStage(data.Providers, zh), 12),
             (WeekBars(data, zh), 14),
             (ModelTable(data.TopModels, zh), 14));
         return Card(body, RankFooter(data.Rank, zh), rounded);
@@ -54,7 +55,7 @@ public static class ReportCards
         var body = FlexColumn(
             (Header("MONTHLY", data.MonthText), 0),
             (Hero(Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, zh), 14),
-            (FaceoffStage(data.ClaudeShare, zh), 16),
+            (FaceoffStage(data.Providers, zh), 16),
             (ModelTable(data.TopModels, zh), 18));
         return Card(body, RankFooter(data.Rank, zh), rounded);
     }
@@ -265,33 +266,157 @@ public static class ReportCards
         return stack;
     }
 
-    // MARK: - Faction duel (macOS ReportDuel, locked 2026-07-17)
+    // MARK: - Top-2 duel (macOS ReportDuel, generalized 2026-08-08)
 
-    /// Official provider marks anchor the two ends of a split beam; the
-    /// clash spark sits exactly at the usage-share split, and the chibi duel
-    /// artwork stands over it. Three poses, picked from the share alone:
-    /// Claude ≥52% wins (crowned, stomping), Codex ≥52% wins (pre-mirrored
-    /// so the winner charges from his own end), 48–52% back-to-back draw.
+    /// Provider marks anchor the two ends of a split beam; the clash spark
+    /// sits at the usage-share split, and the chibi duel artwork stands over
+    /// it. With five providers this is a TOP-2 duel — the two highest-token
+    /// providers face off, identity (mark, accent, name) coming from
+    /// ProviderIdentity for BOTH sides. Sides are pinned by canonical slot
+    /// order so the three pose PNGs — which only exist for Claude vs Codex —
+    /// still land correctly; any other pairing shows the beam and marks
+    /// alone. One provider → the solo treatment (no phantom opponent).
     private const double DuelArtHeight = 82;
     private const double DuelMarkSide = 18;
+    private const double DuelSoloMarkSide = 28;
     private const double DuelMarkGap = 10;
     private const double DuelBeamHeight = 6;
 
-    private static UIElement FaceoffStage(double claudeShare, bool zh)
+    private static UIElement FaceoffStage(IReadOnlyList<ProviderPeriodSlice> providers, bool zh)
     {
         var contentWidth = CardWidth - 56; // 28pt card padding each side
         var beamX0 = DuelMarkSide + DuelMarkGap;
         var beamWidth = contentWidth - 2 * beamX0;
-        var share = Math.Min(1, Math.Max(0, claudeShare));
-        // The spark rides the TRUE split; only the artwork clamps inward so
-        // a 90/10 blowout doesn't shove it off the card.
-        var sparkX = beamX0 + beamWidth * Math.Min(0.97, Math.Max(0.03, share));
-        var artX = beamX0 + beamWidth * Math.Min(0.74, Math.Max(0.26, share));
         var beamY = DuelArtHeight + 10;
 
+        var stack = new StackPanel();
         var canvas = new Canvas { Width = contentWidth, Height = DuelArtHeight + 20 };
+        stack.Children.Add(canvas);
 
-        var pose = share >= 0.52 ? "duel-claude-wins" : share <= 0.48 ? "duel-codex-wins" : "duel-draw";
+        var ran = providers.Where(p => p.Tokens > 0).OrderByDescending(p => p.Tokens).ToList();
+        if (ran.Count == 0)
+        {
+            // No activity in the period: the stage keeps its reserved height,
+            // with nothing to duel.
+            return stack;
+        }
+        if (ran.Count == 1)
+        {
+            SoloStage(stack, canvas, ran[0], contentWidth, beamX0, beamWidth, beamY);
+            return stack;
+        }
+
+        // Left is the lower slot-order of the top-2 (Claude before Codex,
+        // etc.); the pose art assumes Claude-left / Codex-right, and the
+        // spark/beam split reads the same regardless of which side is larger.
+        var left = ran[0].Provider.SlotOrder() <= ran[1].Provider.SlotOrder() ? ran[0] : ran[1];
+        var right = left.Provider == ran[0].Provider ? ran[1] : ran[0];
+        var pairTotal = (double)(left.Tokens + right.Tokens);
+        var leftShare = pairTotal > 0 ? left.Tokens / pairTotal : 0.5;
+
+        // The spark rides the TRUE split; only the artwork clamps inward so
+        // a 90/10 blowout doesn't shove it off the card.
+        var sparkX = beamX0 + beamWidth * Math.Min(0.97, Math.Max(0.03, leftShare));
+        var artX = beamX0 + beamWidth * Math.Min(0.74, Math.Max(0.26, leftShare));
+
+        // The chibi poses exist only for the Claude/Codex pair; every other
+        // pairing shows the beam + marks alone.
+        if (left.Provider == DisplayProvider.Claude && right.Provider == DisplayProvider.Codex)
+        {
+            var pose = leftShare >= 0.52 ? "duel-claude-wins"
+                : leftShare <= 0.48 ? "duel-codex-wins" : "duel-draw";
+            TryAddDuelArt(canvas, pose, artX);
+        }
+
+        var leftAccent = ProviderIdentity.Accent(left.Provider);
+        var rightAccent = ProviderIdentity.Accent(right.Provider);
+
+        var leftMark = ProviderMark(left.Provider);
+        Canvas.SetLeft(leftMark, 0);
+        Canvas.SetTop(leftMark, beamY - DuelMarkSide / 2);
+        canvas.Children.Add(leftMark);
+
+        var rightMark = ProviderMark(right.Provider);
+        Canvas.SetLeft(rightMark, contentWidth - DuelMarkSide);
+        Canvas.SetTop(rightMark, beamY - DuelMarkSide / 2);
+        canvas.Children.Add(rightMark);
+
+        // Two capsule beams meeting at the split, each brightening toward
+        // its provider's end. No glow — the spark carries the light.
+        var leftBeamWidth = Math.Max(3, beamWidth * leftShare - 0.75);
+        var leftBeam = new Border
+        {
+            Width = leftBeamWidth,
+            Height = DuelBeamHeight,
+            CornerRadius = new CornerRadius(3),
+            Background = new LinearGradientBrush(BeamShoulder(left.Provider), leftAccent, 0),
+        };
+        Canvas.SetLeft(leftBeam, beamX0);
+        Canvas.SetTop(leftBeam, beamY - DuelBeamHeight / 2);
+        canvas.Children.Add(leftBeam);
+
+        var rightBeam = new Border
+        {
+            Width = Math.Max(3, beamWidth - leftBeamWidth - 1.5),
+            Height = DuelBeamHeight,
+            CornerRadius = new CornerRadius(3),
+            Background = new LinearGradientBrush(rightAccent, BeamShoulder(right.Provider), 0),
+        };
+        Canvas.SetLeft(rightBeam, beamX0 + leftBeamWidth + 1.5);
+        Canvas.SetTop(rightBeam, beamY - DuelBeamHeight / 2);
+        canvas.Children.Add(rightBeam);
+
+        canvas.Children.Add(ClashSpark(sparkX, beamY, leftAccent, rightAccent));
+
+        // Share legend under the bar's ends: ● Claude 67% … ● Codex 33%.
+        var legend = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 8, 0, 0) };
+        var leftSide = ShareTag(ProviderIdentity.DisplayName(left.Provider), leftShare, leftAccent);
+        DockPanel.SetDock(leftSide, Dock.Left);
+        legend.Children.Add(leftSide);
+        var rightSide = ShareTag(ProviderIdentity.DisplayName(right.Provider), 1 - leftShare, rightAccent);
+        DockPanel.SetDock(rightSide, Dock.Right);
+        legend.Children.Add(rightSide);
+        stack.Children.Add(legend);
+        return stack;
+    }
+
+    /// One provider ran: a single centered mark over a full beam, no spark,
+    /// no phantom opponent — the card must not imply a duel that didn't
+    /// happen.
+    private static void SoloStage(
+        StackPanel stack, Canvas canvas, ProviderPeriodSlice solo,
+        double contentWidth, double beamX0, double beamWidth, double beamY)
+    {
+        var accent = ProviderIdentity.Accent(solo.Provider);
+
+        var mark = ProviderMark(solo.Provider, DuelSoloMarkSide);
+        Canvas.SetLeft(mark, contentWidth / 2 - DuelSoloMarkSide / 2);
+        Canvas.SetTop(mark, DuelArtHeight / 2 - DuelSoloMarkSide / 2 + 1);
+        canvas.Children.Add(mark);
+
+        var beam = new Border
+        {
+            Width = beamWidth,
+            Height = DuelBeamHeight,
+            CornerRadius = new CornerRadius(3),
+            Background = new LinearGradientBrush(BeamShoulder(solo.Provider), accent, 0),
+        };
+        Canvas.SetLeft(beam, beamX0);
+        Canvas.SetTop(beam, beamY - DuelBeamHeight / 2);
+        canvas.Children.Add(beam);
+
+        var legend = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        legend.Children.Add(ShareTag(ProviderIdentity.DisplayName(solo.Provider), 1, accent));
+        stack.Children.Add(legend);
+    }
+
+    private static void TryAddDuelArt(Canvas canvas, string pose, double artX)
+    {
         try
         {
             var bitmap = new BitmapImage(new Uri($"pack://application:,,,/Assets/Report/{pose}.png"));
@@ -312,64 +437,26 @@ public static class ReportCards
         {
             // Art missing from the bundle: the stage keeps its height.
         }
-
-        var claudeMark = ProviderMark(BrandGeometry.ClaudePath, IslandColors.Claude);
-        Canvas.SetLeft(claudeMark, 0);
-        Canvas.SetTop(claudeMark, beamY - DuelMarkSide / 2);
-        canvas.Children.Add(claudeMark);
-
-        var codexMark = ProviderMark(BrandGeometry.OpenAiPath, IslandColors.Codex);
-        Canvas.SetLeft(codexMark, contentWidth - DuelMarkSide);
-        Canvas.SetTop(codexMark, beamY - DuelMarkSide / 2);
-        canvas.Children.Add(codexMark);
-
-        // Two capsule beams meeting at the split, each brightening toward
-        // its provider's end. No glow — the spark carries the light.
-        var claudeBeamWidth = Math.Max(3, beamWidth * share - 0.75);
-        var claudeBeam = new Border
-        {
-            Width = claudeBeamWidth,
-            Height = DuelBeamHeight,
-            CornerRadius = new CornerRadius(3),
-            Background = new LinearGradientBrush(
-                Color.FromRgb(0xE0, 0x8A, 0x63), IslandColors.Claude, 0),
-        };
-        Canvas.SetLeft(claudeBeam, beamX0);
-        Canvas.SetTop(claudeBeam, beamY - DuelBeamHeight / 2);
-        canvas.Children.Add(claudeBeam);
-
-        var codexBeam = new Border
-        {
-            Width = Math.Max(3, beamWidth - claudeBeamWidth - 1.5),
-            Height = DuelBeamHeight,
-            CornerRadius = new CornerRadius(3),
-            Background = new LinearGradientBrush(
-                IslandColors.Codex, Color.FromRgb(0x7F, 0xBC, 0xF5), 0),
-        };
-        Canvas.SetLeft(codexBeam, beamX0 + claudeBeamWidth + 1.5);
-        Canvas.SetTop(codexBeam, beamY - DuelBeamHeight / 2);
-        canvas.Children.Add(codexBeam);
-
-        canvas.Children.Add(ClashSpark(sparkX, beamY));
-
-        var stack = new StackPanel();
-        stack.Children.Add(canvas);
-
-        // Share legend under the bar's ends: ● Claude 67% … ● Codex 33%.
-        var legend = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 8, 0, 0) };
-        var claudeSide = ShareTag("Claude", claudeShare, IslandColors.Claude);
-        DockPanel.SetDock(claudeSide, Dock.Left);
-        legend.Children.Add(claudeSide);
-        var codexSide = ShareTag("Codex", 1 - claudeShare, IslandColors.Codex);
-        DockPanel.SetDock(codexSide, Dock.Right);
-        legend.Children.Add(codexSide);
-        stack.Children.Add(legend);
-        return stack;
     }
 
-    /// White core + four-point star, warm shoulder to the Claude side and
-    /// cool to the Codex side — the "swords meet here" moment.
-    private static UIElement ClashSpark(double x, double y)
+    /// A brighter shoulder for a beam's outer end. Claude and Codex keep the
+    /// hand-picked warm/cool shoulders of the original two-way card; other
+    /// providers get a generic lift toward white off their accent.
+    private static Color BeamShoulder(DisplayProvider provider) => provider switch
+    {
+        DisplayProvider.Claude => Color.FromRgb(0xE0, 0x8A, 0x63),
+        DisplayProvider.Codex => Color.FromRgb(0x7F, 0xBC, 0xF5),
+        _ => Lighten(ProviderIdentity.Accent(provider), 0.28),
+    };
+
+    private static Color Lighten(Color c, double t) => Color.FromRgb(
+        (byte)(c.R + (255 - c.R) * t),
+        (byte)(c.G + (255 - c.G) * t),
+        (byte)(c.B + (255 - c.B) * t));
+
+    /// White core + four-point star, warm shoulder to the left provider's
+    /// side and cool to the right — the "swords meet here" moment.
+    private static UIElement ClashSpark(double x, double y, Color leftColor, Color rightColor)
     {
         var spark = new Grid { Width = 20, Height = 20 };
         // Side lights first, under the star.
@@ -377,7 +464,7 @@ public static class ReportCards
         {
             Width = 9,
             Height = 9,
-            Fill = IslandColors.Brush(IslandColors.Alpha(IslandColors.Claude, 0.55)),
+            Fill = IslandColors.Brush(IslandColors.Alpha(leftColor, 0.55)),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(-10, 0, 0, 0),
@@ -386,7 +473,7 @@ public static class ReportCards
         {
             Width = 9,
             Height = 9,
-            Fill = IslandColors.Brush(IslandColors.Alpha(IslandColors.Codex, 0.55)),
+            Fill = IslandColors.Brush(IslandColors.Alpha(rightColor, 0.55)),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(10, 0, 0, 0),
@@ -460,14 +547,25 @@ public static class ReportCards
         return row;
     }
 
-    private static UIElement ProviderMark(string path, Color color) => new System.Windows.Shapes.Path
+    private static UIElement ProviderMark(DisplayProvider provider, double side = DuelMarkSide)
     {
-        Data = Geometry.Parse("F1 " + path),
-        Fill = IslandColors.Brush(color),
-        Width = DuelMarkSide,
-        Height = DuelMarkSide,
-        Stretch = Stretch.Uniform,
-    };
+        var color = ProviderIdentity.Accent(provider);
+        var path = BrandGeometry.PathData(provider);
+        if (path is null)
+        {
+            // No vector extracted yet (Gemini/Grok/Cursor): macOS falls back
+            // to a filled disc in the accent — mirror that missing-asset ring.
+            return new Ellipse { Width = side, Height = side, Fill = IslandColors.Brush(color) };
+        }
+        return new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse("F1 " + path),
+            Fill = IslandColors.Brush(color),
+            Width = side,
+            Height = side,
+            Stretch = Stretch.Uniform,
+        };
+    }
 
     // MARK: - Weekly bars
 
@@ -630,7 +728,13 @@ public static class ReportCards
             Grid.SetColumn(tokens, 1);
             table.Children.Add(tokens);
 
-            var dollars = Cell($"${ReportFormat.Money(model.Dollars)}",
+            // A dollar figure only where the provider can be priced; Cursor/
+            // Gemini rows read "—", never a coined $0 (publish-gate honesty,
+            // mirroring macOS ReportModelTable).
+            var dollars = Cell(
+                ReportFormat.ProvidesDollars(model.Provider)
+                    ? $"${ReportFormat.Money(model.Dollars)}"
+                    : "—",
                 IslandColors.Alpha(Color.FromRgb(0x8C, 0xD9, 0x9E), 0.9));
             Grid.SetRow(dollars, rowIndex);
             Grid.SetColumn(dollars, 2);

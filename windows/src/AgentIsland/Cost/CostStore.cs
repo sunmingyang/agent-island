@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows.Threading;
 using AgentIsland.Core;
+using AgentIsland.Model;
 using AgentIsland.Usage;
 
 namespace AgentIsland.Cost;
@@ -12,8 +13,7 @@ public sealed class CostStore : INotifyPropertyChanged
 {
     public static CostStore Shared { get; } = new();
 
-    private ProviderCostSummary _claude = ProviderCostSummary.Empty;
-    private ProviderCostSummary _codex = ProviderCostSummary.Empty;
+    private readonly Dictionary<DisplayProvider, ProviderCostSummary> _summaries = new();
     private DateTimeOffset? _lastUpdated;
     private bool _scanning;
     private DateTimeOffset _scanStartedAt;
@@ -21,11 +21,33 @@ public sealed class CostStore : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private CostStore() { }
+    private CostStore()
+    {
+        foreach (var provider in DisplayProviders.All)
+        {
+            _summaries[provider] = ProviderCostSummary.Empty;
+        }
+    }
 
-    public ProviderCostSummary Claude { get => _claude; private set { _claude = value; Raise(nameof(Claude)); } }
-    public ProviderCostSummary Codex { get => _codex; private set { _codex = value; Raise(nameof(Codex)); } }
+    /// One provider's rollup, keyed by DisplayProvider. Empty until its first
+    /// scan commits, so a caller never sees null and a provider with no local
+    /// ledger (Gemini today) reads as honest zeros rather than a fabricated $0.
+    public ProviderCostSummary Summary(DisplayProvider provider) =>
+        _summaries.TryGetValue(provider, out var summary) ? summary : ProviderCostSummary.Empty;
+
+    public ProviderCostSummary Claude => Summary(DisplayProvider.Claude);
+    public ProviderCostSummary Codex => Summary(DisplayProvider.Codex);
     public DateTimeOffset? LastUpdated { get => _lastUpdated; private set { _lastUpdated = value; Raise(nameof(LastUpdated)); } }
+
+    private void SetSummary(DisplayProvider provider, ProviderCostSummary summary)
+    {
+        _summaries[provider] = summary;
+        // Keep the two named accessors' change notifications so existing
+        // subscribers (OverviewPage, report cards) refresh exactly as before;
+        // guest tiles ride the LastUpdated notification the commit also raises.
+        if (provider == DisplayProvider.Claude) Raise(nameof(Claude));
+        else if (provider == DisplayProvider.Codex) Raise(nameof(Codex));
+    }
 
     public void StartAutoRefresh()
     {
@@ -63,14 +85,24 @@ public sealed class CostStore : INotifyPropertyChanged
         var dispatcher = Dispatcher.CurrentDispatcher;
         var now = DateTimeOffset.Now;
         var lookback = CostSummarizer.YearHistoryDays(now);
+        // Five readers, one gate. Grok self-reports dollars, Claude/Codex are
+        // table-priced, Cursor yields token counts (no model → no price), and
+        // Gemini is an honest empty stub — each summarized off the UI thread
+        // and committed together so a slow scan never blocks a fast one twice.
         var claudeTask = Task.Run(() => CostSummarizer.Summarize(ClaudeLogReader.Scan(lookback), now));
         var codexTask = Task.Run(() => CostSummarizer.Summarize(CodexLogReader.Scan(lookback), now));
-        _ = Task.WhenAll(claudeTask, codexTask).ContinueWith(_ =>
+        var geminiTask = Task.Run(() => CostSummarizer.Summarize(GeminiLogReader.Scan(lookback), now));
+        var grokTask = Task.Run(() => CostSummarizer.Summarize(GrokLogReader.Scan(lookback), now));
+        var cursorTask = Task.Run(() => CostSummarizer.Summarize(CursorLogReader.Scan(lookback), now));
+        _ = Task.WhenAll(claudeTask, codexTask, geminiTask, grokTask, cursorTask).ContinueWith(_ =>
         {
             dispatcher.BeginInvoke(() =>
             {
-                if (claudeTask.IsCompletedSuccessfully) Claude = claudeTask.Result;
-                if (codexTask.IsCompletedSuccessfully) Codex = codexTask.Result;
+                if (claudeTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Claude, claudeTask.Result);
+                if (codexTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Codex, codexTask.Result);
+                if (geminiTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Gemini, geminiTask.Result);
+                if (grokTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Grok, grokTask.Result);
+                if (cursorTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Cursor, cursorTask.Result);
                 LastUpdated = DateTimeOffset.Now;
                 _scanning = false;
             });
@@ -82,8 +114,10 @@ public sealed class CostStore : INotifyPropertyChanged
     private void InjectDemoData()
     {
         var now = DateTimeOffset.Now;
-        Claude = DemoSummary(now, 146.61, 211_240_000, 21_120_000, 1_510.80, 2_170_000_000, 217_100_000, seed: 7);
-        Codex = DemoSummary(now, 136.50, 164_120_000, 32_820_000, 1_342.60, 1_610_000_000, 322_860_000, seed: 21);
+        SetSummary(DisplayProvider.Claude,
+            DemoSummary(now, 146.61, 211_240_000, 21_120_000, 1_510.80, 2_170_000_000, 217_100_000, seed: 7));
+        SetSummary(DisplayProvider.Codex,
+            DemoSummary(now, 136.50, 164_120_000, 32_820_000, 1_342.60, 1_610_000_000, 322_860_000, seed: 21));
         LastUpdated = now;
     }
 

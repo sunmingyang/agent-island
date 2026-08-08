@@ -2,9 +2,9 @@ import Foundation
 import Combine
 
 /// Singleton equivalent of `UsageStore` for the cost screen. Reads local
-/// session logs (Claude Code + Codex CLI), aggregates today + month-to-date
-/// spend plus overview token history per provider, and publishes the result
-/// for SwiftUI consumers.
+/// session logs (Claude Code, Codex CLI, Grok, Cursor, Gemini), aggregates
+/// today + month-to-date spend plus overview token history per provider, and
+/// publishes the result for SwiftUI consumers.
 ///
 /// Per-provider loading flags drive parallel scans that commit independently
 /// — Codex (small) appears within ~50ms while Claude (often 20k+ events)
@@ -15,22 +15,42 @@ import Combine
 final class CostStore: ObservableObject {
     static let shared = CostStore()
 
-    @Published var claude: ProviderCost = .empty
-    @Published var codex: ProviderCost = .empty
-    @Published var claudeLoading = false
-    @Published var codexLoading = false
+    /// Per-provider cost summary, keyed by display identity. Absent keys read
+    /// as `.empty` through `cost(for:)`, so a provider with no local ledger
+    /// (Gemini today) never fabricates a row.
+    @Published private(set) var costs: [DisplayProvider: ProviderCost] = [:]
+    /// Per-provider scan-in-flight flags. Absent keys read as `false`.
+    @Published private(set) var loadingByProvider: [DisplayProvider: Bool] = [:]
     @Published var lastUpdated: Date?
 
-    var loading: Bool { claudeLoading || codexLoading }
+    // MARK: - Accessors
 
-    private static let cacheKey = "AgentIsland.costCache.v7"
+    func cost(for provider: DisplayProvider) -> ProviderCost {
+        costs[provider] ?? .empty
+    }
+
+    func isLoading(_ provider: DisplayProvider) -> Bool {
+        loadingByProvider[provider] ?? false
+    }
+
+    /// Legacy fixed-provider accessors kept so existing call sites (overview,
+    /// weekly/monthly report cards, report pager) compile unchanged.
+    var claude: ProviderCost { cost(for: .claude) }
+    var codex: ProviderCost { cost(for: .codex) }
+    var claudeLoading: Bool { isLoading(.claude) }
+    var codexLoading: Bool { isLoading(.codex) }
+
+    var loading: Bool { loadingByProvider.values.contains(true) }
+
+    private static let cacheKey = "AgentIsland.costCache.v8"
     private static let cacheEncoder = JSONEncoder()
     private static let cacheDecoder = JSONDecoder()
+    /// A gate older than this is presumed WEDGED (see `scanProvider`).
+    private static let wedgeAge: TimeInterval = 600
     private var pollTimer: Timer?
     private var intervalCancellable: AnyCancellable?
-    /// Wedge detection for the per-provider scan gates (see `refresh`).
-    private var claudeScanStartedAt: Date?
-    private var codexScanStartedAt: Date?
+    /// Wedge detection for the per-provider scan gates (see `scanProvider`).
+    private var scanStartedAt: [DisplayProvider: Date] = [:]
 
     private var pollInterval: TimeInterval {
         TimeInterval(RefreshIntervalStore.shared.seconds)
@@ -52,49 +72,45 @@ final class CostStore: ObservableObject {
             loadDemoData()
             return
         }
-        // Per-provider gate so a slow Claude scan doesn't block a fast
-        // Codex one (and vice versa) on the next tick. A gate older than
-        // 10 minutes is presumed WEDGED (a scan that will never commit) and
-        // falls through to a fresh scan — one stuck task must not freeze
-        // cost data for the rest of the process lifetime (2026-07-17
-        // incident: parse cache and panel numbers frozen for six hours
-        // behind exactly this latch).
-        let wedgeAge: TimeInterval = 600
-        let claudeWedged = claudeScanStartedAt.map { Date().timeIntervalSince($0) > wedgeAge } ?? false
-        let codexWedged = codexScanStartedAt.map { Date().timeIntervalSince($0) > wedgeAge } ?? false
-        if !claudeLoading || claudeWedged {
-            claudeLoading = true
-            claudeScanStartedAt = Date()
-            Task.detached(priority: .userInitiated) { [weak self] in
-                let events = ClaudeLogReader.scan(lookbackDays: CostSummary.yearHistoryDays())
-                let cost = CostSummary.summarize(events: events)
-                await self?.commitClaude(cost)
-            }
-        }
-        if !codexLoading || codexWedged {
-            codexLoading = true
-            codexScanStartedAt = Date()
-            Task.detached(priority: .userInitiated) { [weak self] in
-                let events = CodexLogReader.scan(lookbackDays: CostSummary.yearHistoryDays())
-                let cost = CostSummary.summarize(events: events)
-                await self?.commitCodex(cost)
-            }
+        // Every provider scans on its own gate — a slow Claude scan never
+        // blocks a fast Codex one, and each commits the moment its own log
+        // walk finishes. Gemini/Grok/Cursor ride the same machinery even
+        // though most contribute little (Gemini none today).
+        scanProvider(.claude) { ClaudeLogReader.scan(lookbackDays: $0) }
+        scanProvider(.codex) { CodexLogReader.scan(lookbackDays: $0) }
+        scanProvider(.grok) { GrokLogReader.scan(lookbackDays: $0) }
+        scanProvider(.cursor) { CursorLogReader.scan(lookbackDays: $0) }
+        scanProvider(.gemini) { GeminiLogReader.scan(lookbackDays: $0) }
+    }
+
+    /// Per-provider gate so a slow scan doesn't block a fast one on the next
+    /// tick. A gate older than 10 minutes is presumed WEDGED (a scan that
+    /// will never commit) and falls through to a fresh scan — one stuck task
+    /// must not freeze cost data for the rest of the process lifetime
+    /// (2026-07-17 incident: parse cache and panel numbers frozen for six
+    /// hours behind exactly this latch).
+    private func scanProvider(
+        _ provider: DisplayProvider,
+        _ scan: @escaping @Sendable (Int) -> [TokenEvent]
+    ) {
+        let wedged = scanStartedAt[provider]
+            .map { Date().timeIntervalSince($0) > Self.wedgeAge } ?? false
+        guard !isLoading(provider) || wedged else { return }
+        loadingByProvider[provider] = true
+        scanStartedAt[provider] = Date()
+        let days = CostSummary.yearHistoryDays()
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let events = scan(days)
+            let cost = CostSummary.summarize(events: events)
+            await self?.commit(provider, cost)
         }
     }
 
-    private func commitClaude(_ cost: ProviderCost) {
-        self.claude = cost
-        self.claudeLoading = false
-        self.claudeScanStartedAt = nil
-        self.lastUpdated = Date()
-        persist()
-    }
-
-    private func commitCodex(_ cost: ProviderCost) {
-        self.codex = cost
-        self.codexLoading = false
-        self.codexScanStartedAt = nil
-        self.lastUpdated = Date()
+    private func commit(_ provider: DisplayProvider, _ cost: ProviderCost) {
+        costs[provider] = cost
+        loadingByProvider[provider] = false
+        scanStartedAt[provider] = nil
+        lastUpdated = Date()
         persist()
     }
 
@@ -137,7 +153,7 @@ final class CostStore: ObservableObject {
         // Monthly is the real April aggregate (already bursty/stepped).
         // Demo billable tokens are ~10% of total — the typical ratio when
         // cache reads dominate Claude Code workflows.
-        self.claude = ProviderCost(
+        costs[.claude] = ProviderCost(
             today: CostWindow(
                 dollars: 146.61, tokens: 211_240_000, billableTokens: 21_124_000,
                 series: [0, 0, 0, 0, 0, 0, 0.8, 4.5, 18.2, 38.7, 58.3, 71.4, 73.8, 76.5, 87.2, 102.8, 117.4, 128.6, 135.2, 140.7, 144.5, 146.0, 146.4, 146.61],
@@ -170,7 +186,7 @@ final class CostStore: ObservableObject {
         // explodes 6pm-11pm. Single big surge contrasts Claude's two-peak day.
         // Monthly is a smooth accelerating curve (linearly-rising daily
         // deltas, $12 → $77/day) — visually opposite to Claude's stepped jumps.
-        self.codex = ProviderCost(
+        costs[.codex] = ProviderCost(
             today: CostWindow(
                 dollars: 136.50, tokens: 164_120_000, billableTokens: 32_824_000,
                 series: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2.4, 6.8, 11.5, 17.2, 22.8, 28.4, 38.5, 51.7, 67.4, 84.6, 102.3, 118.8, 130.4, 136.50],
@@ -237,64 +253,52 @@ final class CostStore: ObservableObject {
 
     // MARK: - Cache
 
-    /// Full snapshot of both providers encoded as JSON in a single key.
-    /// `unknownModels` arrays default to empty when decoding a snapshot that
-    /// pre-dates the field, so the cache survives the schema change without
-    /// a key bump or a forced rescan.
+    /// One provider's persisted slice. Only the fields the panel reads on a
+    /// cold start are kept — per-model rows are recomputed on first scan.
+    /// `unknownModels` defaults to empty so a snapshot that pre-dates the
+    /// field still decodes.
+    private struct ProviderCacheEntry: Codable {
+        var todayDollars: Double
+        var monthDollars: Double
+        var todayTokens: Int
+        var monthTokens: Int
+        var todayBillable: Int = 0
+        var monthBillable: Int = 0
+        var todaySeries: [Double]
+        var monthSeries: [Double]
+        var todayUnknown: [String] = []
+        var monthUnknown: [String] = []
+        var dailyTokens: [DailyTokenBucket]
+    }
+
+    /// Full snapshot keyed by provider raw value. Replaces the fixed
+    /// claude/codex field layout so a fourth or fifth provider persists
+    /// without another key bump. Unknown keys drop on decode.
     private struct CacheSnapshot: Codable {
-        var claudeToday: Double
-        var claudeMonth: Double
-        var codexToday: Double
-        var codexMonth: Double
-        var claudeTodayTokens: Int
-        var claudeMonthTokens: Int
-        var codexTodayTokens: Int
-        var codexMonthTokens: Int
-        var claudeTodayBillable: Int = 0
-        var claudeMonthBillable: Int = 0
-        var codexTodayBillable: Int = 0
-        var codexMonthBillable: Int = 0
-        var claudeTodaySeries: [Double]
-        var claudeMonthSeries: [Double]
-        var codexTodaySeries: [Double]
-        var codexMonthSeries: [Double]
-        var claudeTodayUnknown: [String] = []
-        var claudeMonthUnknown: [String] = []
-        var codexTodayUnknown: [String] = []
-        var codexMonthUnknown: [String] = []
-        var claudeDailyTokens: [DailyTokenBucket]
-        var codexDailyTokens: [DailyTokenBucket]
+        var providers: [String: ProviderCacheEntry]
         var lastUpdated: Date?
     }
 
-    /// Encodes the full snapshot as a single Data value — 1 write vs. the
-    /// previous 12-key dict, halving UserDefaults churn per refresh cycle.
+    /// Encodes the full snapshot as a single Data value — one write per
+    /// refresh cycle rather than a key per provider field.
     private func persist() {
-        let snap = CacheSnapshot(
-            claudeToday: claude.today.dollars,
-            claudeMonth: claude.month.dollars,
-            codexToday: codex.today.dollars,
-            codexMonth: codex.month.dollars,
-            claudeTodayTokens: claude.today.tokens,
-            claudeMonthTokens: claude.month.tokens,
-            codexTodayTokens: codex.today.tokens,
-            codexMonthTokens: codex.month.tokens,
-            claudeTodayBillable: claude.today.billableTokens,
-            claudeMonthBillable: claude.month.billableTokens,
-            codexTodayBillable: codex.today.billableTokens,
-            codexMonthBillable: codex.month.billableTokens,
-            claudeTodaySeries: claude.today.series,
-            claudeMonthSeries: claude.month.series,
-            codexTodaySeries: codex.today.series,
-            codexMonthSeries: codex.month.series,
-            claudeTodayUnknown: claude.today.unknownModels,
-            claudeMonthUnknown: claude.month.unknownModels,
-            codexTodayUnknown: codex.today.unknownModels,
-            codexMonthUnknown: codex.month.unknownModels,
-            claudeDailyTokens: claude.dailyTokens,
-            codexDailyTokens: codex.dailyTokens,
-            lastUpdated: lastUpdated
-        )
+        var entries: [String: ProviderCacheEntry] = [:]
+        for (provider, cost) in costs {
+            entries[provider.rawValue] = ProviderCacheEntry(
+                todayDollars: cost.today.dollars,
+                monthDollars: cost.month.dollars,
+                todayTokens: cost.today.tokens,
+                monthTokens: cost.month.tokens,
+                todayBillable: cost.today.billableTokens,
+                monthBillable: cost.month.billableTokens,
+                todaySeries: cost.today.series,
+                monthSeries: cost.month.series,
+                todayUnknown: cost.today.unknownModels,
+                monthUnknown: cost.month.unknownModels,
+                dailyTokens: cost.dailyTokens
+            )
+        }
+        let snap = CacheSnapshot(providers: entries, lastUpdated: lastUpdated)
         if let data = try? Self.cacheEncoder.encode(snap) {
             UserDefaults.standard.set(data, forKey: Self.cacheKey)
         }
@@ -305,30 +309,21 @@ final class CostStore: ObservableObject {
               let snap = try? Self.cacheDecoder.decode(CacheSnapshot.self, from: data)
         else { return }
 
-        self.claude = ProviderCost(
-            today: CostWindow(dollars: snap.claudeToday, tokens: snap.claudeTodayTokens,
-                              billableTokens: snap.claudeTodayBillable,
-                              series: snap.claudeTodaySeries, label: "Today", error: nil,
-                              unknownModels: snap.claudeTodayUnknown),
-            month: CostWindow(dollars: snap.claudeMonth, tokens: snap.claudeMonthTokens,
-                              billableTokens: snap.claudeMonthBillable,
-                              series: snap.claudeMonthSeries,
-                              label: CostBucketing.currentMonthLabel(), error: nil,
-                              unknownModels: snap.claudeMonthUnknown),
-            dailyTokens: snap.claudeDailyTokens
-        )
-        self.codex = ProviderCost(
-            today: CostWindow(dollars: snap.codexToday, tokens: snap.codexTodayTokens,
-                              billableTokens: snap.codexTodayBillable,
-                              series: snap.codexTodaySeries, label: "Today", error: nil,
-                              unknownModels: snap.codexTodayUnknown),
-            month: CostWindow(dollars: snap.codexMonth, tokens: snap.codexMonthTokens,
-                              billableTokens: snap.codexMonthBillable,
-                              series: snap.codexMonthSeries,
-                              label: CostBucketing.currentMonthLabel(), error: nil,
-                              unknownModels: snap.codexMonthUnknown),
-            dailyTokens: snap.codexDailyTokens
-        )
+        for (raw, entry) in snap.providers {
+            guard let provider = DisplayProvider(rawValue: raw) else { continue }
+            costs[provider] = ProviderCost(
+                today: CostWindow(dollars: entry.todayDollars, tokens: entry.todayTokens,
+                                  billableTokens: entry.todayBillable,
+                                  series: entry.todaySeries, label: "Today", error: nil,
+                                  unknownModels: entry.todayUnknown),
+                month: CostWindow(dollars: entry.monthDollars, tokens: entry.monthTokens,
+                                  billableTokens: entry.monthBillable,
+                                  series: entry.monthSeries,
+                                  label: CostBucketing.currentMonthLabel(), error: nil,
+                                  unknownModels: entry.monthUnknown),
+                dailyTokens: entry.dailyTokens
+            )
+        }
         self.lastUpdated = snap.lastUpdated
     }
 }

@@ -1,13 +1,21 @@
 using System.Globalization;
 using System.Windows.Media;
 using AgentIsland.Cost;
-using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI.Report;
 
-/// One pie slice / legend row of the model breakdown.
+/// One pie slice / legend row of the model breakdown. Carries its owning
+/// provider so the card can price it ("$X") or show "—" (Cursor/Gemini), the
+/// same per-row honesty split macOS ModelShare keeps.
 public sealed record ModelShare(
-    string Name, long Tokens, double Dollars, double Percent, Color Color, bool IsOthers = false);
+    string Name, long Tokens, double Dollars, double Percent, Color Color,
+    Model.DisplayProvider Provider, bool IsOthers = false);
+
+/// One provider's token roll-up for a report period — the atom the top-2
+/// duel and the cross-provider totals are built from. Replaces the hardcoded
+/// Claude/Codex share so a Grok-only or Cursor+Gemini period still renders a
+/// meaningful card.
+public sealed record ProviderPeriodSlice(Model.DisplayProvider Provider, long Tokens);
 
 /// The shareable weekly report — assembled from LOCAL data only (CostStore's
 /// log scan). Users copy or save it as a PNG and post it themselves; nothing
@@ -17,8 +25,8 @@ public sealed record WeeklyReportData(
     string RangeText,
     long TotalTokens,
     double TotalDollars,
-    double ClaudeShare,
-    IReadOnlyList<long> DailyTokens,   // oldest → today, exactly 7
+    IReadOnlyList<ProviderPeriodSlice> Providers,   // token desc, only providers that ran
+    IReadOnlyList<long> DailyTokens,   // oldest → today, exactly 7, summed across all providers
     IReadOnlyList<string> DayLetters,
     IReadOnlyList<ModelShare> TopModels,
     RankInfo? Rank)
@@ -31,13 +39,26 @@ public sealed record WeeklyReportData(
 
         static long BucketTotal(IReadOnlyList<DailyTokenBucket> buckets, DateTime day) =>
             buckets.FirstOrDefault(b => b.DayStart.Date == day)?.Tokens ?? 0;
-        var claudeDaily = days.Select(d => BucketTotal(cost.Claude.DailyHistory, d)).ToArray();
-        var codexDaily = days.Select(d => BucketTotal(cost.Codex.DailyHistory, d)).ToArray();
-        var daily = claudeDaily.Zip(codexDaily, (a, b) => a + b).ToArray();
 
-        var claudeWeek = claudeDaily.Sum();
-        var total = claudeWeek + codexDaily.Sum();
-        var dollars = cost.Claude.WeeklyModels.Concat(cost.Codex.WeeklyModels).Sum(m => m.Dollars);
+        long WeekTokens(Model.DisplayProvider provider) =>
+            days.Sum(d => BucketTotal(cost.Summary(provider).DailyHistory, d));
+
+        // Every provider that ran, ranked by tokens — the top-2 face off, the
+        // rest still contribute to the totals and the model ring.
+        var providers = Model.DisplayProviders.All
+            .Select(provider => new ProviderPeriodSlice(provider, WeekTokens(provider)))
+            .Where(slice => slice.Tokens > 0)
+            .OrderByDescending(slice => slice.Tokens)
+            .ToList();
+
+        var daily = days
+            .Select(d => Model.DisplayProviders.All.Sum(p => BucketTotal(cost.Summary(p).DailyHistory, d)))
+            .ToArray();
+        var total = providers.Sum(slice => slice.Tokens);
+        // Tokens-but-no-dollars providers (Cursor) carry $0 rows, so they add
+        // nothing to the dollar total on their own; the "≈" hero copy keeps it
+        // an estimate.
+        var dollars = Model.DisplayProviders.All.Sum(p => cost.Summary(p).WeeklyModels.Sum(m => m.Dollars));
 
         // The card follows the app language — a card destined for WeChat
         // groups must read Chinese when the UI is Chinese.
@@ -57,12 +78,11 @@ public sealed record WeeklyReportData(
             range,
             total,
             dollars,
-            total > 0 ? (double)claudeWeek / total : 0,
+            providers,
             daily,
             letters,
-            // v3 weekly pie: TOP 3 + Others.
-            ReportFormat.BuildTopModels(
-                cost.Claude.WeeklyModels.Concat(cost.Codex.WeeklyModels), top: 3),
+            // v3 weekly ring: TOP 3 across every provider that ran.
+            ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.WeeklyModels), top: 3),
             ReportFormat.Rank(cost));
     }
 }
@@ -73,7 +93,7 @@ public sealed record MonthlyReportData(
     string MonthText,
     long TotalTokens,
     double TotalDollars,
-    double ClaudeShare,
+    IReadOnlyList<ProviderPeriodSlice> Providers,   // token desc, only providers that ran
     IReadOnlyList<ModelShare> TopModels,
     RankInfo? Rank)
 {
@@ -83,17 +103,22 @@ public sealed record MonthlyReportData(
         var today = DateTime.Today;
         var zh = ReportFormat.IsChinese;
 
-        var totalTokens = cost.Claude.MonthTokens + cost.Codex.MonthTokens;
-        var totalDollars = cost.Claude.MonthDollars + cost.Codex.MonthDollars;
-        var claudeShare = totalTokens > 0 ? (double)cost.Claude.MonthTokens / totalTokens : 0;
+        var providers = Model.DisplayProviders.All
+            .Select(provider => new ProviderPeriodSlice(provider, cost.Summary(provider).MonthTokens))
+            .Where(slice => slice.Tokens > 0)
+            .OrderByDescending(slice => slice.Tokens)
+            .ToList();
+        var totalTokens = providers.Sum(slice => slice.Tokens);
+        // Cursor's MonthDollars is 0 (no model → no price), so it contributes
+        // tokens above but nothing to the dollar total.
+        var totalDollars = Model.DisplayProviders.All.Sum(p => cost.Summary(p).MonthDollars);
 
         return new MonthlyReportData(
             zh ? $"{today:yyyy年M月}" : today.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
             totalTokens,
             totalDollars,
-            claudeShare,
-            ReportFormat.BuildTopModels(
-                cost.Claude.MonthModels.Concat(cost.Codex.MonthModels), top: 5),
+            providers,
+            ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.MonthModels), top: 5),
             ReportFormat.Rank(cost));
     }
 }
@@ -106,43 +131,63 @@ public static class ReportFormat
 {
     public static bool IsChinese => Localization.L10n.IsChinese;
 
-    // Ranked categorical palette — provider-shaded hues made neighboring
-    // pie slices indistinguishable; the provider still reads from the
-    // model name itself.
-    private static readonly Color[] Palette =
+    /// Every model that ran in the period, tagged with the provider it came
+    /// from, across ALL five providers. Providers with no local ledger
+    /// (Gemini) yield nothing; tokens-only Cursor yields rows the token-ranked
+    /// BuildTopModels keeps and the card prices as "—".
+    public static IEnumerable<(Model.DisplayProvider Provider, ModelSpend Spend)> ProviderModels(
+        CostStore cost, Func<ProviderCostSummary, IReadOnlyList<ModelSpend>> select)
     {
-        Color.FromRgb(90, 168, 240),   // blue
-        Color.FromRgb(204, 120, 92),   // coral
-        Color.FromRgb(232, 194, 104),  // amber
-        Color.FromRgb(91, 200, 175),   // teal
-        Color.FromRgb(167, 139, 250),  // violet
-    };
+        foreach (var provider in Model.DisplayProviders.All)
+        {
+            foreach (var spend in select(cost.Summary(provider)))
+            {
+                yield return (provider, spend);
+            }
+        }
+    }
 
-    /// Rank models by DOLLARS: the card's story is "what my period was
-    /// worth", and token-ranking buried expensive models. Wire tokens
-    /// (cache included) — same accounting as the hero total. TOP-N only,
-    /// no "Others" row: the donut's uncovered arc reads as the long tail
-    /// on its own (macOS v3).
-    public static IReadOnlyList<ModelShare> BuildTopModels(IEnumerable<ModelSpend> spend, int top)
+    /// Rank models by TOKEN share — the one metric every provider defines
+    /// (macOS 2026-08-08 owner call). Dollar-ranking (the old two-provider
+    /// behavior) filtered a tokens-only period — Cursor ships tokens with no
+    /// price, Gemini nothing — down to an empty donut, and left the donut's
+    /// proportions on a different axis than the token hero. Wire tokens (cache
+    /// included), same accounting as the hero total, so the ring matches the
+    /// headline. TOP-N only, no "Others" row: the donut's uncovered arc reads
+    /// as the long tail on its own (macOS v3). Each slice takes its provider's
+    /// brand accent; the dollar figure still rides each row where the provider
+    /// can be priced, and reads "—" where it cannot.
+    public static IReadOnlyList<ModelShare> BuildTopModels(
+        IEnumerable<(Model.DisplayProvider Provider, ModelSpend Spend)> spend, int top)
     {
         var all = spend.ToList();
-        var dollarUniverse = Math.Max(0.01, all.Sum(m => m.Dollars));
+        var tokenUniverse = Math.Max(1, all.Sum(m => m.Spend.Tokens));
         return all
-            .Select(m => (m.Model, m.Tokens, m.Dollars, Percent: m.Dollars / dollarUniverse))
+            .Select(m => (m.Provider, m.Spend, Percent: m.Spend.Tokens / (double)tokenUniverse))
             .OrderByDescending(m => m.Percent)
             .Where(m => m.Percent >= 0.005)
             .Take(top)
-            .Select((m, i) => new ModelShare(m.Model, m.Tokens, m.Dollars, m.Percent,
-                Palette[Math.Min(i, Palette.Length - 1)]))
+            .Select(m => new ModelShare(
+                m.Spend.Model, m.Spend.Tokens, m.Spend.Dollars, m.Percent,
+                Model.ProviderIdentity.Accent(m.Provider), m.Provider))
             .ToList();
     }
 
+    /// Whether a provider can state a dollar figure: Claude/Codex are
+    /// table-priced and Grok self-reports; Cursor logs tokens with no model
+    /// (no price) and Gemini ships no ledger. Mirrors CostPage.FaceOf so the
+    /// overview shows "—" for Cursor, never a coined $0.
+    public static bool ProvidesDollars(Model.DisplayProvider provider) =>
+        provider is not (Model.DisplayProvider.Cursor or Model.DisplayProvider.Gemini);
+
     /// Lifetime total + earned tier for the rank footer; null until the
     /// first tier (100M lifetime) is crossed. Lifetime is the full local
-    /// history CostStore holds, matching the macOS accounting.
+    /// history CostStore holds across every provider, matching the macOS
+    /// accounting.
     public static RankInfo? Rank(CostStore cost)
     {
-        var lifetime = cost.Claude.DailyHistory.Concat(cost.Codex.DailyHistory).Sum(b => b.Tokens);
+        var lifetime = Model.DisplayProviders.All
+            .Sum(p => cost.Summary(p).DailyHistory.Sum(b => b.Tokens));
         if (Model.MilestoneLadder.TokenTier(lifetime) is not { } tier) return null;
         return new RankInfo(lifetime, tier.Emoji, Localization.L10n.Tr(tier.NameKey));
     }

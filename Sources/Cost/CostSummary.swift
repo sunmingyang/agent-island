@@ -71,7 +71,12 @@ enum CostSummary {
         let earliestStart = min(monthStart, weekStart, historyStart)
         for event in events {
             guard event.timestamp >= earliestStart else { continue }
-            let cost = Pricing.cost(for: event)
+            // `event.dollars` — NOT `Pricing.cost(for:)` — so a provider that
+            // ships its own figure (Grok's costUsdTicks, carried in
+            // selfReportedCostUSD) is honored. Grok's model ids aren't in the
+            // Pricing table, so pricing them from it would zero every Grok
+            // dollar; the self-reported number overrides.
+            let cost = event.dollars
             // Two parallel running totals: `tokens` is the wire-level sum
             // (ccusage parity); `billable` is input + output only, matching
             // Anthropic's claude.ai stats panel which excludes cache tokens.
@@ -82,7 +87,12 @@ enum CostSummary {
             // "<synthetic>" is Claude Code's placeholder for injected banner/
             // error lines, not a model — it must never count as unpriced
             // spend (it once surfaced as a baffling "1 unpriced" warning).
-            let isUnpriced = tokens > 0 && event.model != "<synthetic>" && !Pricing.isKnown(event.model)
+            // A self-reported event (Grok) is priced by definition — it must
+            // not surface as "unpriced" just because its model has no table
+            // entry, or the reset glyph would flag a total that is in fact
+            // exact.
+            let isUnpriced = tokens > 0 && event.model != "<synthetic>"
+                && event.selfReportedCostUSD == nil && !Pricing.isKnown(event.model)
 
             if event.timestamp >= historyStart {
                 let eventDay = cal.startOfDay(for: event.timestamp)
@@ -235,7 +245,8 @@ enum CostSummary {
 
         for event in events {
             guard event.timestamp >= interval.start, event.timestamp < interval.end else { continue }
-            let cost = Pricing.cost(for: event)
+            // Self-reported cost (Grok) overrides the table — see `summarize`.
+            let cost = event.dollars
             let billable = event.inputTokens + event.outputTokens
             let tokens = billable + event.cacheCreationTokens + event.cacheReadTokens
 

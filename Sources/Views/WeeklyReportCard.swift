@@ -17,16 +17,16 @@ struct WeeklyReportData {
         let id = UUID()
         let name: String
         let tokens: Int       // wire or billable per TokenCountMode
-        let dollars: Double   // API value this week
-        let percent: Double   // 0...1 of the combined week's dollars
-        let isClaude: Bool
+        let dollars: Double   // API value this week (0 for providers with no price)
+        let percent: Double   // 0...1 of the period's token universe
+        let provider: DisplayProvider
         let color: Color
     }
 
     let rangeText: String
     let totalTokens: Int
     let totalDollars: Double
-    let claudeShare: Double   // 0...1 of weekly tokens
+    let matchup: ReportMatchup   // TOP-2 duel / solo / none for the period
     let dailyTokens: [Int]    // oldest → today, exactly 7
     let dayLetters: [String]
     let topModels: [ModelShare]
@@ -48,10 +48,9 @@ struct WeeklyReportData {
         // 125亿 row on a 114亿 card). Anchoring every series to the
         // snapshot's own day keeps the whole card on one window.
         let today = cal.startOfDay(for: Date())
-        let scanAnchor = max(
-            cost.claude.dailyTokens.last?.dayStart ?? .distantPast,
-            cost.codex.dailyTokens.last?.dayStart ?? .distantPast
-        )
+        let scanAnchor = DisplayProvider.allCases
+            .compactMap { cost.cost(for: $0).dailyTokens.last?.dayStart }
+            .max() ?? .distantPast
         let anchor = scanAnchor > .distantPast ? min(scanAnchor, today) : today
         let days: [Date] = (0..<7).reversed().compactMap {
             cal.date(byAdding: .day, value: -$0, to: anchor)
@@ -61,24 +60,27 @@ struct WeeklyReportData {
             guard let b = buckets.first(where: { cal.isDate($0.dayStart, inSameDayAs: day) }) else { return 0 }
             return mode == .all ? b.tokens : b.billableTokens
         }
-        let claudeDaily = days.map { bucketTotal(cost.claude.dailyTokens, $0) }
-        let codexDaily = days.map { bucketTotal(cost.codex.dailyTokens, $0) }
-        let daily = zip(claudeDaily, codexDaily).map(+)
+        // Per-provider daily series, summed into the card's day bars and each
+        // provider's own weekly total (which drives the duel matchup).
+        var perProviderDaily: [DisplayProvider: [Int]] = [:]
+        for provider in DisplayProvider.allCases {
+            let buckets = cost.cost(for: provider).dailyTokens
+            perProviderDaily[provider] = days.map { bucketTotal(buckets, $0) }
+        }
+        let daily = days.indices.map { i in
+            perProviderDaily.values.reduce(0) { $0 + $1[i] }
+        }
+        let weekByProvider = perProviderDaily.mapValues { $0.reduce(0, +) }
+        let total = weekByProvider.values.reduce(0, +)
 
-        let claudeWeek = claudeDaily.reduce(0, +)
-        let codexWeek = codexDaily.reduce(0, +)
-        let total = claudeWeek + codexWeek
-
-        let dollars = (cost.claude.weekByModel + cost.codex.weekByModel)
-            .reduce(0.0) { $0 + $1.dollars }
+        let dollars = DisplayProvider.allCases.reduce(0.0) { sum, p in
+            sum + cost.cost(for: p).weekByModel.reduce(0.0) { $0 + $1.dollars }
+        }
 
         let zh = L10n.locale.identifier.hasPrefix("zh")
-        let models = Self.rankedModels(
-            claudeRows: cost.claude.weekByModel,
-            codexRows: cost.codex.weekByModel,
-            limit: 3,
-            mode: mode
-        )
+        var weekRows: [DisplayProvider: [ModelUsageRow]] = [:]
+        for p in DisplayProvider.allCases { weekRows[p] = cost.cost(for: p).weekByModel }
+        let models = Self.rankedModels(rowsByProvider: weekRows, mode: mode)
 
         let df = DateFormatter()
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
@@ -97,15 +99,16 @@ struct WeeklyReportData {
         }
 
         // Lifetime rank — recognition rides the card itself.
-        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
-            .reduce(0) { $0 + $1.tokens }
+        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
+            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
+        }
         let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
 
         return WeeklyReportData(
             rangeText: range,
             totalTokens: total,
             totalDollars: dollars,
-            claudeShare: total > 0 ? Double(claudeWeek) / Double(total) : 0,
+            matchup: .from(totals: weekByProvider),
             dailyTokens: daily,
             dayLetters: letters,
             topModels: models,
@@ -123,9 +126,7 @@ struct WeeklyReportData {
     /// Lifetime rank stays on the store's published history — the rank is
     /// lifetime, not per-page.
     @MainActor
-    static func forInterval(_ interval: DateInterval,
-                            claudeSlice: CostSummary.ReportSlice,
-                            codexSlice: CostSummary.ReportSlice) -> WeeklyReportData {
+    static func forInterval(_ interval: DateInterval, slices: PeriodSlices) -> WeeklyReportData {
         let cost = CostStore.shared
         let cal = Calendar.current
         let mode = TokenCountModeStore.shared.mode
@@ -139,21 +140,20 @@ struct WeeklyReportData {
         func bucketValue(_ b: DailyTokenBucket) -> Int {
             mode == .all ? b.tokens : b.billableTokens
         }
-        let claudeDaily = claudeSlice.dailyTokens.map(bucketValue)
-        let codexDaily = codexSlice.dailyTokens.map(bucketValue)
-        let daily = zip(claudeDaily, codexDaily).map(+)
+        var perProviderDaily: [DisplayProvider: [Int]] = [:]
+        for p in DisplayProvider.allCases {
+            perProviderDaily[p] = slices[p].dailyTokens.map(bucketValue)
+        }
+        let daily = (0..<days.count).map { i in
+            perProviderDaily.values.reduce(0) { $0 + (i < $1.count ? $1[i] : 0) }
+        }
+        let weekByProvider = perProviderDaily.mapValues { $0.reduce(0, +) }
+        let total = weekByProvider.values.reduce(0, +)
+        let dollars = DisplayProvider.allCases.reduce(0.0) { $0 + slices[$1].dollars }
 
-        let claudeWeek = claudeDaily.reduce(0, +)
-        let codexWeek = codexDaily.reduce(0, +)
-        let total = claudeWeek + codexWeek
-        let dollars = claudeSlice.dollars + codexSlice.dollars
-
-        let models = Self.rankedModels(
-            claudeRows: claudeSlice.byModel,
-            codexRows: codexSlice.byModel,
-            limit: 3,
-            mode: mode
-        )
+        var weekRows: [DisplayProvider: [ModelUsageRow]] = [:]
+        for p in DisplayProvider.allCases { weekRows[p] = slices[p].byModel }
+        let models = Self.rankedModels(rowsByProvider: weekRows, mode: mode)
 
         let df = DateFormatter()
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
@@ -172,15 +172,16 @@ struct WeeklyReportData {
             letters = days.map { letterFmt.string(from: $0) }
         }
 
-        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
-            .reduce(0) { $0 + $1.tokens }
+        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
+            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
+        }
         let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
 
         return WeeklyReportData(
             rangeText: range,
             totalTokens: total,
             totalDollars: dollars,
-            claudeShare: total > 0 ? Double(claudeWeek) / Double(total) : 0,
+            matchup: .from(totals: weekByProvider),
             dailyTokens: daily,
             dayLetters: letters,
             topModels: models,
@@ -190,45 +191,76 @@ struct WeeklyReportData {
         )
     }
 
-    /// Rank models by DOLLARS, not billable tokens: the card's story is
-    /// "what my week was worth", and token-ranking buried expensive models.
-    /// EVERY model that carried real usage — the card is the full ledger,
-    /// not a highlight reel (owner call, 2026-08-08: 这东西是要看全部数据的).
-    /// `limit` caps the palette rotation, never the row count. Colors are a
-    /// RANKED categorical palette — provider-shaded hues made neighboring
-    /// segments indistinguishable (owner, 2026-07-14).
+    /// Back-compat overload for the weekly report window controller (a file
+    /// outside this task's ownership), which still passes the Claude+Codex
+    /// pair. It builds a two-provider `PeriodSlices` and forwards — so past
+    /// weekly pages show those two until that controller is switched to the
+    /// five-provider `slices:` path. Every other entry point already passes
+    /// the full five.
+    @MainActor
+    static func forInterval(_ interval: DateInterval,
+                            claudeSlice: CostSummary.ReportSlice,
+                            codexSlice: CostSummary.ReportSlice) -> WeeklyReportData {
+        forInterval(interval, slices: PeriodSlices(byProvider: [
+            .claude: claudeSlice, .codex: codexSlice,
+        ]))
+    }
+
+    /// EVERY model that carried real usage across ALL FIVE providers — the card
+    /// is the full ledger, not a highlight reel (owner call, 2026-08-08: 这东西
+    /// 是要看全部数据的). A Grok-and-Gemini-only week still fills the ring.
+    ///
+    /// Segment SIZE and sorting are by TOKEN share, the one metric every
+    /// provider defines: Cursor ships tokens with no price, Gemini nothing —
+    /// dollar-ranking (the old two-provider behavior) would filter a
+    /// Cursor-only week to an empty donut. The dollar figure still rides each
+    /// row where the provider can price it.
+    ///
+    /// Colors are the PROVIDER's brand hue (the 2026-08-08 five-provider spec
+    /// supersedes the 2026-07-14 categorical palette). Same-provider neighbors
+    /// get a mild opacity step so two Claude models don't merge into one arc
+    /// while the terracotta family stays legible.
     static func rankedModels(
-        claudeRows: [ModelUsageRow],
-        codexRows: [ModelUsageRow],
-        limit: Int,
+        rowsByProvider: [DisplayProvider: [ModelUsageRow]],
         mode: TokenCountMode = .all
     ) -> [ModelShare] {
-        let dollarUniverse = max(0.01, (claudeRows + codexRows).reduce(0.0) { $0 + $1.dollars })
-        let claude = claudeRows.map {
-            ModelShare(name: $0.displayName, tokens: mode == .all ? $0.wireTokens : $0.tokens, dollars: $0.dollars,
-                       percent: $0.dollars / dollarUniverse, isClaude: true,
-                       color: IslandColor.claude)
-        }
-        let codex = codexRows.map {
-            ModelShare(name: $0.displayName, tokens: mode == .all ? $0.wireTokens : $0.tokens, dollars: $0.dollars,
-                       percent: $0.dollars / dollarUniverse, isClaude: false,
-                       color: IslandColor.codex)
-        }
-        let palette: [Color] = [
-            Color(red: 90/255, green: 168/255, blue: 240/255),   // blue
-            Color(red: 204/255, green: 120/255, blue: 92/255),   // coral
-            Color(red: 232/255, green: 194/255, blue: 104/255),  // amber
-            Color(red: 91/255, green: 200/255, blue: 175/255),   // teal
-            Color(red: 167/255, green: 139/255, blue: 250/255),  // violet
-        ]
-        return (claude + codex)
-            .sorted { $0.percent > $1.percent }
-            .filter { $0.percent >= 0.005 }
-            .enumerated().map { i, m in
-                ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
-                           percent: m.percent, isClaude: m.isClaude,
-                           color: palette[min(i, palette.count - 1)])
+        let tokenOf: (ModelUsageRow) -> Int = { mode == .all ? $0.wireTokens : $0.tokens }
+        let flat: [(provider: DisplayProvider, row: ModelUsageRow)] =
+            rowsByProvider.flatMap { provider, rows in rows.map { (provider, $0) } }
+        let universe = max(1, flat.reduce(0) { $0 + tokenOf($1.row) })
+
+        let ranked = flat
+            .map { entry -> (provider: DisplayProvider, name: String, tokens: Int, dollars: Double, percent: Double) in
+                let tokens = tokenOf(entry.row)
+                return (entry.provider, entry.row.displayName, tokens, entry.row.dollars,
+                        Double(tokens) / Double(universe))
             }
+            .filter { $0.percent >= 0.005 }
+            .sorted { $0.percent > $1.percent }
+
+        var seenPerProvider: [DisplayProvider: Int] = [:]
+        return ranked.map { m in
+            let step = seenPerProvider[m.provider, default: 0]
+            seenPerProvider[m.provider] = step + 1
+            let dim = max(0.5, 1.0 - Double(step) * 0.2)
+            return ModelShare(name: m.name, tokens: m.tokens, dollars: m.dollars,
+                              percent: m.percent, provider: m.provider,
+                              color: m.provider.brandColor.opacity(dim))
+        }
+    }
+}
+
+private extension DisplayProvider {
+    /// Whether the app can attach a dollar figure to this provider's models.
+    /// Mirrors CostView's per-provider face split: Claude/Codex priced from the
+    /// embedded table, Grok self-reports its cost; Cursor is tokens-only (no
+    /// model → no price) and Gemini has no local ledger. The honesty rule: a
+    /// cost the app can't compute reads "—", never a guessed $0.
+    var reportShowsDollars: Bool {
+        switch self {
+        case .claude, .codex, .grok: return true
+        case .cursor, .gemini: return false
+        }
     }
 }
 
@@ -253,7 +285,7 @@ struct WeeklyReportCard: View {
                 Spacer(minLength: 14)
                 hero
                 Spacer(minLength: 12)
-                ReportDuel(claudeShare: data.claudeShare)
+                ReportDuel(matchup: data.matchup)
                 Spacer(minLength: 14)
                 weekBars
                 Spacer(minLength: 14)
@@ -455,7 +487,9 @@ struct ReportModelTable: View {
                             .font(.system(size: 10.5, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(.white.opacity(0.5))
-                        Text("$\(WeeklyReportCard.money(row.dollars))")
+                        // A dollar figure only where the provider can be priced;
+                        // Cursor/Gemini rows read "—", never a guessed $0.
+                        Text(row.provider.reportShowsDollars ? "$\(WeeklyReportCard.money(row.dollars))" : "—")
                             .font(.system(size: 10.5, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(Color(red: 0.55, green: 0.85, blue: 0.62).opacity(0.9))

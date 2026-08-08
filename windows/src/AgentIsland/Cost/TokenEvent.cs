@@ -10,7 +10,8 @@ public sealed record TokenEvent(
     long InputTokens,
     long OutputTokens,
     long CacheCreationTokens,
-    long CacheReadTokens)
+    long CacheReadTokens,
+    double? SelfReportedCostUSD = null)
 {
     /// ccusage parity: everything that crossed the wire.
     public long WireTokens => InputTokens + OutputTokens + CacheCreationTokens + CacheReadTokens;
@@ -18,5 +19,10 @@ public sealed record TokenEvent(
     /// Matches Anthropic's claude.ai stats panel, which excludes cache.
     public long BillableTokens => InputTokens + OutputTokens;
 
-    public double Dollars => Pricing.Cost(this);
+    /// Dollar cost for this event. A provider that ships its own figure
+    /// (Grok's costUsdTicks) sets <see cref="SelfReportedCostUSD"/>, and when
+    /// present it OVERRIDES the Pricing-table computation — the provider's own
+    /// number wins. Table-priced providers (Claude, Codex, Cursor) leave it
+    /// null and fall back to the embedded rate snapshot.
+    public double Dollars => SelfReportedCostUSD ?? Pricing.Cost(this);
 }

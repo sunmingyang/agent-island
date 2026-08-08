@@ -12,7 +12,7 @@ struct MonthlyReportData {
     let monthText: String          // "2026年7月" / "July 2026"
     let totalTokens: Int           // calendar month to date, wire
     let totalDollars: Double
-    let claudeShare: Double
+    let matchup: ReportMatchup     // TOP-2 duel / solo / none for the month
     let topModels: [WeeklyReportData.ModelShare]
     let lifetimeText: String
     let tierEmoji: String?
@@ -25,34 +25,33 @@ struct MonthlyReportData {
         let today = Calendar.current.startOfDay(for: Date())
         let zh = L10n.locale.identifier.hasPrefix("zh")
 
-        let totalTokens = mode == .all
-            ? cost.claude.month.tokens + cost.codex.month.tokens
-            : cost.claude.month.billableTokens + cost.codex.month.billableTokens
-        let totalDollars = cost.claude.month.dollars + cost.codex.month.dollars
-        let claudeShare = totalTokens > 0
-            ? Double(mode == .all ? cost.claude.month.tokens : cost.claude.month.billableTokens)
-                / Double(totalTokens) : 0
+        func monthTokens(_ p: DisplayProvider) -> Int {
+            let w = cost.cost(for: p).month
+            return mode == .all ? w.tokens : w.billableTokens
+        }
+        var monthByProvider: [DisplayProvider: Int] = [:]
+        for p in DisplayProvider.allCases { monthByProvider[p] = monthTokens(p) }
+        let totalTokens = monthByProvider.values.reduce(0, +)
+        let totalDollars = DisplayProvider.allCases.reduce(0.0) { $0 + cost.cost(for: $1).month.dollars }
 
-        let models = WeeklyReportData.rankedModels(
-            claudeRows: cost.claude.monthByModel,
-            codexRows: cost.codex.monthByModel,
-            limit: 5,
-            mode: mode
-        )
+        var monthRows: [DisplayProvider: [ModelUsageRow]] = [:]
+        for p in DisplayProvider.allCases { monthRows[p] = cost.cost(for: p).monthByModel }
+        let models = WeeklyReportData.rankedModels(rowsByProvider: monthRows, mode: mode)
 
         let df = DateFormatter()
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "yyyy年M月" : "MMMM yyyy"
 
-        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
-            .reduce(0) { $0 + $1.tokens }
+        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
+            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
+        }
         let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
 
         return MonthlyReportData(
             monthText: df.string(from: today),
             totalTokens: totalTokens,
             totalDollars: totalDollars,
-            claudeShare: claudeShare,
+            matchup: .from(totals: monthByProvider),
             topModels: models,
             lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
             tierEmoji: tier?.emoji,
@@ -65,9 +64,7 @@ struct MonthlyReportData {
     /// month window, sourced from one full-scan slice. Lifetime rank stays
     /// on the store's published history.
     @MainActor
-    static func forInterval(_ interval: DateInterval,
-                            claudeSlice: CostSummary.ReportSlice,
-                            codexSlice: CostSummary.ReportSlice) -> MonthlyReportData {
+    static func forInterval(_ interval: DateInterval, slices: PeriodSlices) -> MonthlyReportData {
         let cost = CostStore.shared
         let mode = TokenCountModeStore.shared.mode
         let zh = L10n.locale.identifier.hasPrefix("zh")
@@ -75,37 +72,46 @@ struct MonthlyReportData {
         func total(_ buckets: [DailyTokenBucket]) -> Int {
             buckets.reduce(0) { $0 + (mode == .all ? $1.tokens : $1.billableTokens) }
         }
-        let claudeTokens = total(claudeSlice.dailyTokens)
-        let codexTokens = total(codexSlice.dailyTokens)
-        let totalTokens = claudeTokens + codexTokens
-        let totalDollars = claudeSlice.dollars + codexSlice.dollars
-        let claudeShare = totalTokens > 0 ? Double(claudeTokens) / Double(totalTokens) : 0
+        var monthByProvider: [DisplayProvider: Int] = [:]
+        for p in DisplayProvider.allCases { monthByProvider[p] = total(slices[p].dailyTokens) }
+        let totalTokens = monthByProvider.values.reduce(0, +)
+        let totalDollars = DisplayProvider.allCases.reduce(0.0) { $0 + slices[$1].dollars }
 
-        let models = WeeklyReportData.rankedModels(
-            claudeRows: claudeSlice.byModel,
-            codexRows: codexSlice.byModel,
-            limit: 5,
-            mode: mode
-        )
+        var monthRows: [DisplayProvider: [ModelUsageRow]] = [:]
+        for p in DisplayProvider.allCases { monthRows[p] = slices[p].byModel }
+        let models = WeeklyReportData.rankedModels(rowsByProvider: monthRows, mode: mode)
 
         let df = DateFormatter()
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "yyyy年M月" : "MMMM yyyy"
 
-        let lifetime = (cost.claude.dailyTokens + cost.codex.dailyTokens)
-            .reduce(0) { $0 + $1.tokens }
+        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
+            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
+        }
         let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
 
         return MonthlyReportData(
             monthText: df.string(from: interval.start),
             totalTokens: totalTokens,
             totalDollars: totalDollars,
-            claudeShare: claudeShare,
+            matchup: .from(totals: monthByProvider),
             topModels: models,
             lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
             tierEmoji: tier?.emoji,
             tierName: tier?.nameKey
         )
+    }
+
+    /// Back-compat overload paralleling `WeeklyReportData.forInterval`. No
+    /// current caller uses it (this file's sheet uses the `slices:` form), but
+    /// it keeps the two `forInterval` shapes symmetric for any external caller.
+    @MainActor
+    static func forInterval(_ interval: DateInterval,
+                            claudeSlice: CostSummary.ReportSlice,
+                            codexSlice: CostSummary.ReportSlice) -> MonthlyReportData {
+        forInterval(interval, slices: PeriodSlices(byProvider: [
+            .claude: claudeSlice, .codex: codexSlice,
+        ]))
     }
 }
 
@@ -124,7 +130,7 @@ struct MonthlyReportCard: View {
                 Spacer(minLength: 18)
                 hero
                 Spacer(minLength: 18)
-                ReportDuel(claudeShare: data.claudeShare)
+                ReportDuel(matchup: data.matchup)
                 Spacer(minLength: 22)
                 ReportModelTable(models: data.topModels)
                 Spacer(minLength: 22)
@@ -501,9 +507,7 @@ private struct MonthlyReportSheet: View {
         Task {
             let slices = await ReportPeriods.slices(for: interval)
             guard anchorDate == start else { return }
-            anchoredData = MonthlyReportData.forInterval(
-                interval, claudeSlice: slices.claude, codexSlice: slices.codex
-            )
+            anchoredData = MonthlyReportData.forInterval(interval, slices: slices)
             pageLoading = false
             MonthlyReportRenderer.invalidateCache()
             MonthlyReportRenderer.warmCache(data: displayData, key: renderKey)
@@ -534,9 +538,7 @@ private struct MonthlyReportSheet: View {
             let slices = await ReportPeriods.slices(for: interval)
             // The user may have flipped again while the scan ran.
             guard pageOffset == target else { return }
-            pagedData = MonthlyReportData.forInterval(
-                interval, claudeSlice: slices.claude, codexSlice: slices.codex
-            )
+            pagedData = MonthlyReportData.forInterval(interval, slices: slices)
             pageLoading = false
             MonthlyReportRenderer.invalidateCache()
             MonthlyReportRenderer.warmCache(data: displayData, key: renderKey)

@@ -6,7 +6,7 @@ import SwiftUI
 /// current period; the left bound is the earliest day with any scanned
 /// token activity.
 enum ReportPeriods {
-    /// Earliest day with any recorded token activity across both providers.
+    /// Earliest day with any recorded token activity across ALL providers.
     /// nil when no history has been scanned yet (paging stays disabled).
     /// Also nil in demo mode: past pages assemble from a REAL log scan, and
     /// demo exists precisely to keep real usage off screen recordings —
@@ -15,7 +15,8 @@ enum ReportPeriods {
     static func earliestDataDay() -> Date? {
         guard !AppEnvironment.isDemo else { return nil }
         let cost = CostStore.shared
-        return (cost.claude.dailyTokens + cost.codex.dailyTokens)
+        return DisplayProvider.allCases
+            .flatMap { cost.cost(for: $0).dailyTokens }
             .filter { $0.tokens > 0 }
             .map(\.dayStart)
             .min()
@@ -31,10 +32,9 @@ enum ReportPeriods {
         cal.timeZone = .current
         let cost = CostStore.shared
         let today = cal.startOfDay(for: Date())
-        let scanAnchor = max(
-            cost.claude.dailyTokens.last?.dayStart ?? .distantPast,
-            cost.codex.dailyTokens.last?.dayStart ?? .distantPast
-        )
+        let scanAnchor = DisplayProvider.allCases
+            .compactMap { cost.cost(for: $0).dailyTokens.last?.dayStart }
+            .max() ?? .distantPast
         let anchor = scanAnchor > .distantPast ? min(scanAnchor, today) : today
         let endDay = cal.startOfDay(for: cal.date(byAdding: .day, value: -7 * offset, to: anchor) ?? anchor)
         let startDay = cal.date(byAdding: .day, value: -6, to: endDay) ?? endDay
@@ -67,23 +67,44 @@ enum ReportPeriods {
     /// Full-year rescan → per-provider slices for `interval`, off the main
     /// thread. The readers memoize per file, so the steady-state cost is a
     /// cache walk + dedup pass, not a re-parse — cheap enough to run per
-    /// page flip. Never touches CostStore.
-    static func slices(
-        for interval: DateInterval
-    ) async -> (claude: CostSummary.ReportSlice, codex: CostSummary.ReportSlice) {
+    /// page flip. Never touches CostStore. Scans ALL five providers so a
+    /// Grok-or-Cursor-only past period still fills the report card.
+    static func slices(for interval: DateInterval) async -> PeriodSlices {
         let lookback = CostSummary.yearHistoryDays()
         return await Task.detached(priority: .userInitiated) {
-            let claude = CostSummary.reportSlice(
-                events: ClaudeLogReader.scan(lookbackDays: lookback),
-                interval: interval
-            )
-            let codex = CostSummary.reportSlice(
-                events: CodexLogReader.scan(lookbackDays: lookback),
-                interval: interval
-            )
-            return (claude, codex)
+            func slice(_ events: [TokenEvent]) -> CostSummary.ReportSlice {
+                CostSummary.reportSlice(events: events, interval: interval)
+            }
+            return PeriodSlices(byProvider: [
+                .claude: slice(ClaudeLogReader.scan(lookbackDays: lookback)),
+                .codex: slice(CodexLogReader.scan(lookbackDays: lookback)),
+                .grok: slice(GrokLogReader.scan(lookbackDays: lookback)),
+                .cursor: slice(CursorLogReader.scan(lookbackDays: lookback)),
+                .gemini: slice(GeminiLogReader.scan(lookbackDays: lookback)),
+            ])
         }.value
     }
+}
+
+/// Per-provider report slices for one period, keyed by display identity — the
+/// generalization of the old `(claude:, codex:)` tuple. A struct rather than a
+/// bare dictionary so a missing provider degrades to an empty slice (never a
+/// nil unwrap) and the legacy `.claude` / `.codex` call sites keep reading
+/// naturally.
+struct PeriodSlices {
+    let byProvider: [DisplayProvider: CostSummary.ReportSlice]
+
+    static let emptySlice = CostSummary.ReportSlice(dailyTokens: [], dollars: 0, byModel: [])
+
+    subscript(_ provider: DisplayProvider) -> CostSummary.ReportSlice {
+        byProvider[provider] ?? Self.emptySlice
+    }
+
+    /// Legacy fixed-provider accessors so the weekly report window controller
+    /// (a separate file) compiles unchanged while it still passes the two-slice
+    /// pair; new callers use `forInterval(_:slices:)` for the full five.
+    var claude: CostSummary.ReportSlice { self[.claude] }
+    var codex: CostSummary.ReportSlice { self[.codex] }
 }
 
 /// ← / → pill for the report sheets' period pager row.

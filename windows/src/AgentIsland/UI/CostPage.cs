@@ -14,15 +14,30 @@ namespace AgentIsland.UI;
 /// sparkline for the day, and month + token context lines. The hero swaps
 /// between USD / TOKENS / TREND per the cost style preference.
 ///
-/// Cost is reconstructed from LOCAL token logs, which only Claude Code and
-/// Codex write. A guest holding a slot therefore gets its nameplate in that
-/// half rather than a fabricated $0 — and a guests-only island, which used to
-/// render this page entirely blank, now says whose island it is.
+/// Cost is reconstructed from LOCAL token logs. Claude Code and Codex are
+/// table-priced and Grok self-reports dollars, so those three show a full
+/// dollar tile; Cursor logs tokens but no model, so its tile shows tokens with
+/// "—" for dollars; Gemini ships no local ledger, so its slot keeps the quiet
+/// nameplate rather than a fabricated $0 — the same nameplate that fills the
+/// freed half of a solo split.
 public sealed class CostPage : Border
 {
-    private readonly CostBlock _claude = new(ProviderIdentity.Accent(DisplayProvider.Claude));
-    private readonly CostBlock _codex = new(ProviderIdentity.Accent(DisplayProvider.Codex));
+    private readonly Dictionary<DisplayProvider, CostBlock> _blocks = new();
     private readonly Dictionary<DisplayProvider, UIElement> _badges = new();
+
+    /// How a provider's slot presents cost. Claude/Codex are table-priced and
+    /// Grok self-reports dollars, so all three show a full dollar tile; Cursor
+    /// has token counts but no model and therefore no price, so its tile reads
+    /// "—" where a dollar would go; Gemini ships no local ledger at all, so it
+    /// gets the quiet nameplate the guests always had, never a fabricated $0.
+    private enum CostFace { Dollars, TokensOnly, Cold }
+
+    private static CostFace FaceOf(DisplayProvider provider) => provider switch
+    {
+        DisplayProvider.Gemini => CostFace.Cold,
+        DisplayProvider.Cursor => CostFace.TokensOnly,
+        _ => CostFace.Dollars,
+    };
 
     public CostPage()
     {
@@ -33,8 +48,6 @@ public sealed class CostPage : Border
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        Grid.SetColumn(_claude, 0);
-        grid.Children.Add(_claude);
         var hairline = new Border
         {
             Width = 1,
@@ -51,13 +64,26 @@ public sealed class CostPage : Border
         };
         Grid.SetColumn(hairline, 1);
         grid.Children.Add(hairline);
-        Grid.SetColumn(_codex, 2);
-        grid.Children.Add(_codex);
 
-        // Every provider owns a nameplate up front; a slot change only
-        // re-columns and re-shows one, so nothing here is rebuilt mid-flight.
+        // Every provider owns its widgets up front; a slot change only
+        // re-columns and re-shows them, so nothing here is rebuilt mid-flight
+        // (a rebuilt WPF element loses its animation state and can flash empty).
+        // Cost tile for each provider that has one, keyed by identity; a
+        // nameplate for all five (the freed half of a solo split, and Gemini's
+        // cold state).
         foreach (var provider in DisplayProviders.All)
         {
+            if (FaceOf(provider) != CostFace.Cold)
+            {
+                var block = new CostBlock(
+                    ProviderIdentity.Accent(provider),
+                    showsDollars: FaceOf(provider) == CostFace.Dollars)
+                {
+                    Visibility = Visibility.Collapsed,
+                };
+                _blocks[provider] = block;
+                grid.Children.Add(block);
+            }
             var badge = new SoloProviderBadge(provider) { Visibility = Visibility.Collapsed };
             _badges[provider] = badge;
             grid.Children.Add(badge);
@@ -70,18 +96,12 @@ public sealed class CostPage : Border
         }
 
         void Place(DisplayProvider provider, int column) =>
-            Show(provider switch
-            {
-                DisplayProvider.Claude => _claude,
-                DisplayProvider.Codex => _codex,
-                _ => _badges[provider],
-            }, column);
+            Show(FaceOf(provider) == CostFace.Cold ? _badges[provider] : _blocks[provider], column);
 
         void ApplyVisibility()
         {
             var slots = ProviderVisibilityStore.Shared.SlotProviders;
-            _claude.Visibility = Visibility.Collapsed;
-            _codex.Visibility = Visibility.Collapsed;
+            foreach (var block in _blocks.Values) block.Visibility = Visibility.Collapsed;
             foreach (var badge in _badges.Values) badge.Visibility = Visibility.Collapsed;
 
             if (slots.Count >= 2)
@@ -93,11 +113,11 @@ public sealed class CostPage : Border
             {
                 // Solo split: the live column keeps the flank its island logo
                 // holds, and the same provider's nameplate fills the freed
-                // half (macOS soloBadge). A guest solo has no cost column at
-                // all, so its nameplate simply takes the logo flank.
+                // half (macOS soloBadge). A cold-state provider (Gemini) has
+                // no cost column, so its nameplate simply takes the logo flank.
                 var solo = slots[0];
                 var leading = solo.SoloLogoFlankIsLeading();
-                if (solo.HasFullMonitoring())
+                if (FaceOf(solo) != CostFace.Cold)
                 {
                     Place(solo, leading ? 0 : 2);
                     Show(_badges[solo], leading ? 2 : 0);
@@ -133,23 +153,32 @@ public sealed class CostPage : Border
 
     private void Update()
     {
-        _claude.Update(CostStore.Shared.Claude);
-        _codex.Update(CostStore.Shared.Codex);
+        foreach (var (provider, block) in _blocks)
+        {
+            block.Update(CostStore.Shared.Summary(provider));
+        }
     }
 }
 
 /// One provider's cost column.
 public sealed class CostBlock : StackPanel
 {
+    /// Stands in for a dollar figure a tokens-only provider (Cursor) cannot
+    /// price. Matches the em dash the rest of the UI uses for "no value"
+    /// (ResetCardChip, TurnAlarmWindow).
+    private const string NoDollar = "—";
+
     private readonly TextBlock _hero;
     private readonly TextBlock _heroCaption;
     private readonly Sparkline _sparkline;
     private readonly TextBlock _monthLine;
     private readonly TextBlock _tokenLine;
     private readonly CountUp _countUp;
+    private readonly bool _showsDollars;
 
-    public CostBlock(Color tint)
+    public CostBlock(Color tint, bool showsDollars = true)
     {
+        _showsDollars = showsDollars;
         Orientation = Orientation.Vertical;
         Margin = new Thickness(12, 0, 12, 0);
 
@@ -213,6 +242,26 @@ public sealed class CostBlock : StackPanel
 
     public void Update(ProviderCostSummary summary)
     {
+        // Tokens-only provider (Cursor): no model → no price, so the tile
+        // leads with the token count and every dollar slot reads "—". This
+        // ignores the cost-style preference because the dollar/trend styles
+        // have nothing to show here, and a "$0.00" would be a fabricated
+        // number the publish gate forbids. The cumulative series is dollars
+        // (all zero without a price), so the sparkline sits flat and honest.
+        if (!_showsDollars)
+        {
+            _countUp.Animate(summary.TodayTokens, "tokens",
+                v => Core.Formatting.CompactTokens((long)Math.Round(v)));
+            ApplyGlow(0);
+            _heroCaption.Text = Localization.L10n.Tr("tokens today");
+            _sparkline.SetSeries(summary.TodayCumulativeDollars);
+            _monthLine.Text = Localization.L10n.TrFormat("{0} this month", NoDollar);
+            _tokenLine.Text = Localization.L10n.TrFormat(
+                "{0} tokens · {1} billable",
+                Core.Formatting.CompactTokens(summary.TodayTokens),
+                Core.Formatting.CompactTokens(summary.TodayBillableTokens));
+            return;
+        }
         switch (CostStylePreferenceStore.Shared.Style)
         {
             case CostStyle.Tokens:
