@@ -213,7 +213,7 @@ flowchart LR
     B --> C[Top bar and alerts]
     B --> D[Local cost and report views]
     E[Provider-owned usage endpoints] --> D
-    F[Compatible Gemini or Grok CLI login] --> G[Quota-only badges and detail rows]
+    F[Compatible Gemini / Grok / Cursor login] --> G[Live session state and full usage rows]
     E --> G
 ```
 
@@ -229,7 +229,7 @@ Long agent runs should not require keeping every terminal in view. Agent Island 
 
 It is built for developers who:
 
-- run Claude Code and Codex sessions in parallel while optionally keeping Gemini/Grok quota in the same compact island;
+- run several agents in parallel — Claude Code, Codex, Grok, Gemini — and keep every quota in the same compact island;
 - leave long tasks working in the background;
 - want status, alerts, usage views, and shareable report cards without sending session data to another service;
 - care what their desk looks like — the island's light, layout, and cards are tuned like a product, not a debug overlay.
@@ -242,11 +242,11 @@ How it compares with its neighbors:
 | Form | Menu-bar app | Notch app | Menu-bar app | CLI | Terminal dashboard | Menu-bar app | Menu-bar app |
 | Platforms | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+ (CLI also on Linux) | Anywhere Node runs | Anywhere Python runs | macOS | macOS |
 | Agents | Claude Code · Codex · Grok · Gemini (live sessions) · Cursor (usage) | Claude Code, Codex, Gemini CLI, Cursor, and more | 59 providers (limits) | Claude Code (+ Codex) | Claude Code | Claude Code | Codex (+ Claude usage) |
-| Live session status | ✓ Claude/Codex only | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
+| Live session status | ✓ Claude · Codex · Grok · Gemini | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
 | Your-turn alarm window + sound + queue | ✓ | Done notice, click to jump | — | — | — | — | — |
 | Out-of-quota alarm | ✓ | — | — | — | Terminal warnings | 70/90% threshold notifications | — |
 | In-notch permission approvals | — | ✓ | — | — | — | — | — |
-| Usage, cost & resets | Claude/Codex full · Gemini/Grok quota-only in the 1.8.1 preview | Usage windows | ✓ (59 providers, reset countdowns, spend) | ✓ (local cost reports) | ✓ (real-time + predictions) | ✓ (5h/weekly gauges + countdowns) | ✓ (incl. reset credits) |
+| Usage, cost & resets | ✓ all five (windows · cost · reset countdowns) | Usage windows | ✓ (59 providers, reset countdowns, spend) | ✓ (local cost reports) | ✓ (real-time + predictions) | ✓ (5h/weekly gauges + countdowns) | ✓ (incl. reset credits) |
 | Weekly/monthly report cards & ranks | ✓ | — | — | — | — | — | — |
 
 <sub>Based on each product's public materials as of July 2026 — corrections welcome via issue.</sub>

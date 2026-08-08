@@ -213,7 +213,7 @@ flowchart LR
     B --> C[顶部条与提醒]
     B --> D[本地成本与报告页面]
     E[服务方自有用量端点] --> D
-    F[兼容的 Gemini 或 Grok CLI 登录] --> G[实时会话状态与完整用量行]
+    F[兼容的 Gemini / Grok / Cursor 登录] --> G[实时会话状态与完整用量行]
     E --> G
 ```
 
@@ -228,7 +228,7 @@ flowchart LR
 运行耗时较长的 Claude Code 和 Codex 任务时，不应该一直把每个终端留在眼前。Agent Island 为这些会话提供持续可见的实时状态，在任务需要处理时提示你，并在下一步轮到你时把你叫回来——覆盖 Claude Code、Codex、Gemini、Grok 与 Cursor
 它适合这些开发者：
 
-- 同时运行多个 Claude Code 和 Codex 会话，并按需把 Gemini/Grok 额度放进同一个顶部条；
+- 并行运行多个 Agent——Claude Code、Codex、Grok、Gemini——并把每一家的额度收进同一座小岛；
 - 让长任务在后台运行；
 - 希望查看状态、提醒、用量和可分享的战绩卡，又不想把会话数据交给另一个服务；
 - 在乎桌面的样子——岛的光效、布局和卡片是按产品调的，不是调试悬浮窗。
@@ -241,7 +241,7 @@ flowchart LR
 | 形态 | 菜单栏应用 | 刘海应用 | 菜单栏应用 | 命令行工具 | 终端仪表盘 | 菜单栏应用 | 菜单栏应用 |
 | 平台 | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+（CLI 版另支持 Linux） | 任何能跑 Node 的环境 | 任何能跑 Python 的环境 | macOS | macOS |
 | 支持的 Agent | Claude Code · Codex· Grok · Gemini（实时会话）· Cursor（用量） | Claude Code、Codex、Gemini CLI、Cursor 等十余家 | 59 家 provider（限额） | Claude Code（+ Codex） | Claude Code | Claude Code | Codex（+ Claude 用量） |
-| 实时会话状态 | ✓ 仅 Claude/Codex | ✓ | —（服务商故障徽章） | — | — | — | —（被动用量表） |
+| 实时会话状态 | ✓ Claude · Codex · Grok · Gemini | ✓ | —（服务商故障徽章） | — | — | — | —（被动用量表） |
 | 轮到你闹钟（弹窗+声音+队列） | ✓ | 完成提示，点击跳回 | — | — | — | — | — |
 | 额度耗尽闹钟 | ✓ | — | — | — | 终端预警 | 70%/90% 阈值通知 | — |
 | 刘海内权限审批 | — | ✓ | — | — | — | — | — |
