@@ -96,9 +96,17 @@ enum GeminiQuotaParser {
     static func tierLabel(forTierID tierID: String?) -> String? {
         switch tierID {
         case "standard-tier", "g1-pro-tier": return "Paid"
+        case "enterprise-tier": return "Enterprise"
         case "free-tier": return "Free"
         case "legacy-tier": return "Legacy"
-        default: return nil
+        default:
+            // Unknown paid tiers (Google keeps minting names — ultra, AI Pro
+            // bundles) still deserve a badge: prettify the raw id rather than
+            // hiding a subscription the user pays for. "some-new-tier" →
+            // "Some New".
+            guard let tierID, tierID.hasSuffix("-tier") else { return nil }
+            let words = tierID.dropLast(5).split(separator: "-").map { $0.capitalized }
+            return words.isEmpty ? nil : words.joined(separator: " ")
         }
     }
 

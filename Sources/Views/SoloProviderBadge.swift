@@ -48,7 +48,13 @@ struct SoloProviderBadge: View {
     }
 
     private var image: NSImage? {
-        provider == .claude ? Self.claudeImage : Self.codexImage
+        switch provider {
+        case .claude: return Self.claudeImage
+        case .codex: return Self.codexImage
+        case .gemini: return ProviderLogos.gemini
+        case .grok: return ProviderLogos.grok
+        case .cursor: return ProviderLogos.cursor
+        }
     }
 }
 

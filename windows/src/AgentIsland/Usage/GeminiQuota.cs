@@ -147,10 +147,25 @@ public static class GeminiQuotaParser
     public static string? TierLabel(string? tierId) => tierId switch
     {
         "standard-tier" or "g1-pro-tier" => "Paid",
+        "enterprise-tier" => "Enterprise",
         "free-tier" => "Free",
         "legacy-tier" => "Legacy",
+        // Unknown paid tiers (Google keeps minting names) still deserve a
+        // badge: prettify the raw id instead of hiding a paid subscription.
+        // "some-new-tier" -> "Some New".
+        _ when tierId is not null && tierId.EndsWith("-tier", StringComparison.Ordinal) =>
+            PrettyTier(tierId),
         _ => null,
     };
+
+    private static string? PrettyTier(string tierId)
+    {
+        var words = tierId[..^5]
+            .Split('-', StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => char.ToUpperInvariant(w[0]) + w[1..])
+            .ToArray();
+        return words.Length == 0 ? null : string.Join(' ', words);
+    }
 
     private static double? Number(JsonElement root, string property)
     {

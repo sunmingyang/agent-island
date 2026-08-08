@@ -19,12 +19,20 @@ struct StatePreviewLogo: View {
     private static let codexImage = Bundle.main.url(forResource: "openai_logo", withExtension: "pdf").flatMap { NSImage(contentsOf: $0) }
     private static let alarmRed = Color(red: 0.96, green: 0.34, blue: 0.29)
 
-    private var image: NSImage? { provider == .claude ? Self.claudeImage : Self.codexImage }
+    private var image: NSImage? {
+        switch provider {
+        case .claude: return Self.claudeImage
+        case .codex: return Self.codexImage
+        case .gemini: return ProviderLogos.gemini
+        case .grok: return ProviderLogos.grok
+        case .cursor: return ProviderLogos.cursor
+        }
+    }
     private var tint: Color {
         switch state {
         case .stalled, .rateLimited, .authRequired: return Self.alarmRed
         case .idle, .working, .needsYou:
-            return provider == .claude ? IslandColor.claude : IslandColor.codex
+            return provider.accent
         }
     }
 
@@ -99,7 +107,7 @@ struct StatePreviewLogo: View {
         if state == .working {
             let duration = 3.8
             withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
-                spin = (provider == .claude ? 1 : -1) * 360
+                spin = (provider == .claude || provider == .gemini || provider == .cursor ? 1 : -1) * 360
             }
         }
     }

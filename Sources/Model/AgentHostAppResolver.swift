@@ -39,7 +39,9 @@ enum AgentHostAppResolver {
             }
         }
         guard let cwd, !cwd.isEmpty else { return false }
-        let cliName = provider.cliName ?? "codex"
+        // Cursor has no CLI: scanning for a stand-in process name would
+        // suppress alarms whenever any codex process runs. No CLI, no match.
+        guard let cliName = provider.cliName else { return false }
         let target = normalize(cwd)
         for pid in cliPids(named: cliName) {
             guard let processCwd = workingDirectory(of: pid),

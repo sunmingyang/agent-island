@@ -56,7 +56,15 @@ public sealed class AlertEngine : INotifyPropertyChanged
         {
             return AlertSeverity.None;
         }
-        var usage = tool == TriggerTool.Claude ? UsageStore.Shared.Claude : UsageStore.Shared.Codex;
+        // Guests have no AppUsage in the main store; borrowing Codex's
+        // numbers here once produced phantom threshold alerts for them.
+        var usage = tool switch
+        {
+            TriggerTool.Claude => UsageStore.Shared.Claude,
+            TriggerTool.Codex => UsageStore.Shared.Codex,
+            _ => null,
+        };
+        if (usage is null) return AlertSeverity.None;
         return Grade(usage.FiveHour.UsedPercent * 100);
     }
 

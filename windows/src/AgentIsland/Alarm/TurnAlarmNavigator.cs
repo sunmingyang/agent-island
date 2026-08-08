@@ -30,6 +30,32 @@ public static class TurnAlarmNavigator
         if (sessionId.Length == 0) return System.Threading.Tasks.Task.FromResult(false);
         var cwd = thread.Cwd;
 
+        if (provider == TriggerTool.Grok)
+        {
+            // Verified against grok --help (2026-08-08): no per-id resume,
+            // only -c/--continue = the most recent session for the current
+            // working directory — which, launched from the thread's own cwd,
+            // is the thread that just finished.
+            return System.Threading.Tasks.Task.Run(() =>
+                Trigger.CLILocator.Locate("grok") is { } grok
+                    && RunResumeInTerminal(grok, "--continue", cwd, "Grok continue"));
+        }
+        if (provider == TriggerTool.Gemini)
+        {
+            // Verified against gemini --help (2026-08-08): --resume takes
+            // "latest" or an index, never a session id. Same cwd trick as
+            // grok: latest-in-this-directory is the finished thread.
+            return System.Threading.Tasks.Task.Run(() =>
+                Trigger.CLILocator.Locate("gemini") is { } gemini
+                    && RunResumeInTerminal(gemini, "--resume latest", cwd, "Gemini resume"));
+        }
+        if (provider == TriggerTool.Cursor)
+        {
+            // No CLI, no per-session route — fronting the editor is the whole
+            // gesture. Falls through gracefully when Cursor is not running.
+            return System.Threading.Tasks.Task.Run(() => FocusAppWindow("Cursor"));
+        }
+
         if (provider == TriggerTool.Claude)
         {
             // Desktop sessions: bring Claude Desktop forward, nothing more —

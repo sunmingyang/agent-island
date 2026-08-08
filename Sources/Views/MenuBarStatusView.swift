@@ -37,7 +37,9 @@ struct MenuBarStatusLabel: View {
     }
 
     private var strongestState: ActivityMonitor.State {
-        monitor.claude.rawValue >= monitor.codex.rawValue ? monitor.claude : monitor.codex
+        ProviderVisibilityStore.shared.slotProviders
+            .map { monitor.state(for: $0.alertProvider) }
+            .max { $0.rawValue < $1.rawValue } ?? .idle
     }
 }
 
@@ -48,8 +50,12 @@ struct MenuBarStatusView: View {
     var body: some View {
         Text("Agent Island")
         Divider()
-        Text(L10n.tr("Claude: %@", monitor.claude.label))
-        Text(L10n.tr("Codex: %@", monitor.codex.label))
+        // One line per SELECTED provider — the menu mirrors the island's
+        // slots instead of a hardcoded duo (a Grok+Gemini machine used to
+        // read "Claude: idle / Codex: idle" here, both meaningless).
+        ForEach(ProviderVisibilityStore.shared.slotProviders, id: \.self) { provider in
+            Text("\(provider.alertProvider.displayName): \(monitor.state(for: provider.alertProvider).label)")
+        }
         Divider()
         Button(L10n.tr("Refresh usage")) {
             usage.refresh()

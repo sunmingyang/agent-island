@@ -80,7 +80,7 @@ final class TurnAlarmWindowController: NSWindowController, NSWindowDelegate {
     private func display(_ alarm: QueuedAlarm) {
         let provider = alarm.provider
         let thread = alarm.thread
-        let name = provider == .claude ? "Claude" : "Codex"
+        let name = provider.displayName
         current = alarm
         isExpanded = false
         didAcknowledgeCurrentAlarm = false

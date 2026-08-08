@@ -1,16 +1,6 @@
 import SwiftUI
 import AppKit
 
-extension DisplayProvider {
-    var alertProvider: AlertEngine.Provider? {
-        switch self {
-        case .claude: return .claude
-        case .codex: return .codex
-        case .gemini, .grok, .cursor: return nil
-        }
-    }
-}
-
 struct GlowLayer: View {
     let isExpanded: Bool
     let hovering: Bool
@@ -142,8 +132,8 @@ struct LogoOverlay: View {
     }
 
     private var st: ActivityMonitor.State {
-        guard isVisible, let alertProvider = provider.alertProvider else { return .idle }
-        return monitor.state(for: alertProvider)
+        guard isVisible else { return .idle }
+        return monitor.state(for: provider.alertProvider)
     }
 
     private var scale: CGFloat {

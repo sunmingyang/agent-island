@@ -101,6 +101,7 @@ public sealed class UsageExhaustionAlarm
         // shows in the tiles and still drives the threshold warnings; Claude
         // keeps the alarm (its 5h window lives).
         _ = codex;
+        _ = codexVisible;
         var all = new (TriggerTool Provider, QuotaWindowKind Window, WindowUsage Usage)[]
         {
             (TriggerTool.Claude, QuotaWindowKind.FiveHour, claude.FiveHour),
@@ -109,7 +110,11 @@ public sealed class UsageExhaustionAlarm
         // Providers switched off in Settings never alarm — same contract as
         // the island's red attention glow.
         var windows = System.Array.FindAll(all, w =>
-            w.Provider == TriggerTool.Claude ? claudeVisible : codexVisible);
+            // The window list is Claude-only since 2026-07 (Codex moved to
+            // weekly budgeting and its exhaustion alarm was retired), so
+            // visibility is Claude's alone — the old codexVisible arm was
+            // unreachable.
+            w.Provider == TriggerTool.Claude && claudeVisible);
 
         // Warmup: on the first real sample, record anything already exhausted
         // as already-alarmed so we don't pop for a state that predates launch.

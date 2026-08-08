@@ -11,19 +11,23 @@ enum TurnAlarmNavigator {
         case .claude:
             openClaude(thread: thread)
         case .grok:
-            // Grok has no desktop deep link; land the user in a terminal
-            // resume of the exact thread (grok CLI shares codex's
-            // `resume <id>` verb).
+            // Verified against grok --help (2026-08-08): no per-id resume,
+            // only `-c/--continue` = "the most recent session for the
+            // current working directory". The command runs in the thread's
+            // cwd, where the just-finished session IS the most recent one.
             if let thread, openCLIResume(
                 executable: "grok",
-                arguments: ["--resume", thread.sessionId],
+                arguments: ["--continue"],
                 thread: thread,
                 fallbackBundleID: nil
             ) { return }
         case .gemini:
+            // Verified against gemini --help (2026-08-08): --resume takes
+            // "latest" or an index, never a session id. Same cwd argument
+            // as grok: latest-in-this-directory is the finished thread.
             if let thread, openCLIResume(
                 executable: "gemini",
-                arguments: ["--resume", thread.sessionId],
+                arguments: ["--resume", "latest"],
                 thread: thread,
                 fallbackBundleID: nil
             ) { return }

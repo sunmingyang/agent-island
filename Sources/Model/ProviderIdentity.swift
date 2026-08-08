@@ -6,6 +6,15 @@ import SwiftUI
 /// Gemini as Codex (wrong name in the alarm, wrong logo, wrong accent).
 /// Every consumer now reads the same switch, so a sixth provider is one
 /// case away and the compiler walks the call sites.
+extension DisplayProvider {
+    /// Bridge into the alarm/status domain. Both enums carry the same five
+    /// members; the raw-value hop keeps them decoupled without a 5-arm
+    /// switch to maintain twice.
+    var alertProvider: AlertEngine.Provider {
+        AlertEngine.Provider(rawValue: rawValue) ?? .claude
+    }
+}
+
 extension AlertEngine.Provider {
     var displayName: String {
         switch self {

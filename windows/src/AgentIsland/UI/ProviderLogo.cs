@@ -189,7 +189,7 @@ public sealed class ProviderLogo : Grid
     private void StartSpin()
     {
         // The marks counter-rotate: Claude clockwise, Codex the other way.
-        var to = _tool == TriggerTool.Claude ? 360d : -360d;
+        var to = _tool is TriggerTool.Claude or TriggerTool.Gemini or TriggerTool.Cursor ? 360d : -360d;
         var spin = new DoubleAnimation(0, to, IslandAnimations.SpinDuration)
         {
             RepeatBehavior = RepeatBehavior.Forever,

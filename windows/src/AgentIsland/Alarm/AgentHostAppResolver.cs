@@ -19,7 +19,7 @@ public static class AgentHostAppResolver
     /// Executable basenames that can be the CLI process itself. The npm
     /// shims run the CLIs under node (or bun); matching by cwd does the real
     /// discrimination, these names just keep the PEB reads cheap.
-    private static readonly string[] CliNames = { "claude", "codex", "node", "bun" };
+    private static readonly string[] CliNames = { "claude", "codex", "gemini", "grok", "node", "bun" };
 
     public static bool IsHostAppFrontmost(string? cwd)
     {
