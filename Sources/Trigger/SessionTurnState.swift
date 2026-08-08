@@ -122,6 +122,47 @@ enum SessionTurnState {
         return nil
     }
 
+    /// Antigravity transcript records carry `source`: USER_EXPLICIT (the
+    /// human), SYSTEM, or MODEL (the agent). MODEL speaking last is the same
+    /// boundary Claude's stop_reason gives us. There IS a `status` field on
+    /// every record but its value set is undocumented and no open-source
+    /// parser reads it, so it is not trusted here — the caller's quiet gap
+    /// separates "still streaming" from "finished" until a real install
+    /// proves what status contains.
+    static func antigravity(_ lines: [String]) -> SessionTurnStatus {
+        for line in lines.reversed() {
+            guard let object = json(line),
+                  let source = object["source"] as? String else { continue }
+            let stamp = object["created_at"].flatMap(antigravityDate)
+            switch source {
+            case "MODEL":
+                return SessionTurnStatus(
+                    isDone: true,
+                    key: (object["step_index"] as? Int).map { "ag:\($0)" },
+                    activityDate: stamp
+                )
+            case "USER_EXPLICIT":
+                return SessionTurnStatus(
+                    isDone: false,
+                    key: (object["step_index"] as? Int).map { "ag:\($0)" },
+                    activityDate: stamp
+                )
+            default:
+                continue
+            }
+        }
+        return SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
+    }
+
+    private static func antigravityDate(_ raw: Any) -> Date? {
+        if let text = raw as? String { return parseISO8601(text) }
+        if let seconds = raw as? Double {
+            return Date(timeIntervalSince1970: seconds > 100_000_000_000 ? seconds / 1000 : seconds)
+        }
+        if let seconds = raw as? Int { return antigravityDate(Double(seconds)) }
+        return nil
+    }
+
     /// For sessions whose transcript has no explicit turn boundary yet
     /// (Gemini's $set checkpoint stream): never claims "done", so the
     /// engine derives working/idle purely from file recency and can never

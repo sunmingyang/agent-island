@@ -3,7 +3,7 @@ import Foundation
 enum TriggerTool: String, Codable, CaseIterable {
     case claude
     case codex
-    case gemini
+    case antigravity
     case grok
     case cursor
 
@@ -11,7 +11,7 @@ enum TriggerTool: String, Codable, CaseIterable {
         switch self {
         case .claude: return "Claude"
         case .codex: return "Codex"
-        case .gemini: return "Gemini"
+        case .antigravity: return "Gemini"
         case .grok: return "Grok"
         case .cursor: return "Cursor"
         }
@@ -28,7 +28,7 @@ enum CLILocator {
         switch tool {
         case .claude: return locate("claude")
         case .codex: return locate("codex")
-        case .gemini: return locate("gemini")
+        case .antigravity: return locate("agy") ?? locate("antigravity-cli")
         case .grok: return locate("grok")
         case .cursor: return nil
         }

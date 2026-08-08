@@ -25,8 +25,8 @@ enum TurnAlarmNavigator {
             // Fronting the desktop app is the honest floor — the same thing
             // Claude falls back to when its CLI is missing.
             bringForward(appNamed: "Grok")
-        case .gemini:
-            // Verified against gemini --help (2026-08-08): --resume takes
+        case .antigravity:
+            // Verified against antigravity --help (2026-08-08): --resume takes
             // "latest" or an index, never a session id. Same cwd argument
             // as grok: latest-in-this-directory is the finished thread.
             if let thread, openCLIResume(

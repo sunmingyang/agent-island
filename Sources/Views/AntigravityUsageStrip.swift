@@ -1,8 +1,8 @@
 import SwiftUI
 import AppKit
 
-struct GeminiUsageStrip: View {
-    @ObservedObject private var store = GeminiUsageStore.shared
+struct AntigravityUsageStrip: View {
+    @ObservedObject private var store = AntigravityUsageStore.shared
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
     @State private var hovered = false
 
@@ -11,7 +11,7 @@ struct GeminiUsageStrip: View {
     var body: some View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
-                ProviderMark(provider: .gemini, size: 13, tint: IslandColor.gemini)
+                ProviderMark(provider: .antigravity, size: 13, tint: IslandColor.antigravity)
                 Text("Gemini")
                     .font(Typography.providerTitle)
                     .foregroundStyle(.white.opacity(0.88))
@@ -110,14 +110,14 @@ struct GeminiUsageStrip: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(.white.opacity(0.07))
                 Capsule()
-                    .fill(IslandColor.gemini.opacity(0.85))
+                    .fill(IslandColor.antigravity.opacity(0.85))
                     .frame(width: max(0, geo.size.width * min(1, max(0, fraction))))
             }
         }
         .frame(width: 132, height: 5)
     }
 
-    private func caption(for bucket: GeminiModelBucket) -> String {
+    private func caption(for bucket: AntigravityModelBucket) -> String {
         if let status = store.statusCaption { return status }
         guard let resetAt = bucket.resetAt,
               resetAt.timeIntervalSinceNow > 0 else { return "" }

@@ -69,47 +69,47 @@ private func makeTempGeminiHome(
 
 private func testAuthTypeAcceptsAllThreeSpellings() throws {
     let top = Data(#"{"authType":"oauth-personal"}"#.utf8)
-    try expect(GeminiCredentials.authType(fromSettings: top) == "oauth-personal",
+    try expect(AntigravityCredentials.authType(fromSettings: top) == "oauth-personal",
                "top-level authType must parse")
     let classic = Data(#"{"selectedAuthType":"gemini-api-key"}"#.utf8)
-    try expect(GeminiCredentials.authType(fromSettings: classic) == "gemini-api-key",
+    try expect(AntigravityCredentials.authType(fromSettings: classic) == "gemini-api-key",
                "classic selectedAuthType must parse")
     let nested = Data(#"{"security":{"auth":{"selectedType":"vertex-ai"}}}"#.utf8)
-    try expect(GeminiCredentials.authType(fromSettings: nested) == "vertex-ai",
+    try expect(AntigravityCredentials.authType(fromSettings: nested) == "vertex-ai",
                "nested security.auth.selectedType must parse")
-    try expect(GeminiCredentials.authType(fromSettings: Data("{}".utf8)) == nil,
+    try expect(AntigravityCredentials.authType(fromSettings: Data("{}".utf8)) == nil,
                "silent settings must read as nil (defaults to oauth-personal)")
-    try expect(GeminiCredentials.authType(fromSettings: Data("not json".utf8)) == nil,
+    try expect(AntigravityCredentials.authType(fromSettings: Data("not json".utf8)) == nil,
                "garbage settings must read as nil")
 }
 
 private func testDetectionStates() throws {
     let missing = FileManager.default.temporaryDirectory
         .appendingPathComponent("gemini-tests-missing-\(UUID().uuidString)", isDirectory: true)
-    try expect(GeminiCredentials.detect(home: missing) == .notInstalled,
-               "no ~/.gemini must read as notInstalled")
+    try expect(AntigravityCredentials.detect(home: missing) == .notInstalled,
+               "no ~/.antigravity must read as notInstalled")
 
     let bare = try makeTempGeminiHome(credsExpiryMs: nil)
     defer { try? FileManager.default.removeItem(at: bare) }
-    try expect(GeminiCredentials.detect(home: bare) == .notInstalled,
-               "a bare ~/.gemini without creds must stay undetected")
+    try expect(AntigravityCredentials.detect(home: bare) == .notInstalled,
+               "a bare ~/.antigravity without creds must stay undetected")
 
     let apiKey = try makeTempGeminiHome(
         credsExpiryMs: nil,
         settingsJSON: #"{"selectedAuthType":"gemini-api-key"}"#
     )
     defer { try? FileManager.default.removeItem(at: apiKey) }
-    try expect(GeminiCredentials.detect(home: apiKey) == .unsupportedAuth("gemini-api-key"),
+    try expect(AntigravityCredentials.detect(home: apiKey) == .unsupportedAuth("gemini-api-key"),
                "api-key settings must read as unsupportedAuth even without creds")
 
     let oauth = try makeTempGeminiHome(settingsJSON: #"{"selectedAuthType":"oauth-personal"}"#)
     defer { try? FileManager.default.removeItem(at: oauth) }
-    try expect(GeminiCredentials.detect(home: oauth) == .oauthPersonal,
+    try expect(AntigravityCredentials.detect(home: oauth) == .oauthPersonal,
                "oauth-personal settings + creds must detect")
 
     let silent = try makeTempGeminiHome()
     defer { try? FileManager.default.removeItem(at: silent) }
-    try expect(GeminiCredentials.detect(home: silent) == .oauthPersonal,
+    try expect(AntigravityCredentials.detect(home: silent) == .oauthPersonal,
                "missing settings must default to the oauth-personal path")
 }
 
@@ -119,7 +119,7 @@ private func testLoadCredsParsesFieldsAndEmail() throws {
     let home = try makeTempGeminiHome(credsExpiryMs: 1_785_888_020_774)
     defer { try? FileManager.default.removeItem(at: home) }
 
-    let creds = GeminiCredentials.loadCreds(from: GeminiCredentials.credsURL(home: home))
+    let creds = AntigravityCredentials.loadCreds(from: AntigravityCredentials.credsURL(home: home))
     try expect(creds != nil, "fixture oauth_creds.json must load")
     try expect(creds?.accessToken == "old-access-token", "access_token must parse")
     try expect(creds?.refreshToken == "old-refresh-token", "refresh_token must parse")
@@ -134,33 +134,33 @@ private func testLoadCredsParsesFieldsAndEmail() throws {
 
 private func testNeedsRefreshHonorsSkew() throws {
     let now = Date(timeIntervalSince1970: 1_000_000)
-    func creds(expiringIn seconds: TimeInterval?) -> GeminiOAuthCreds {
-        GeminiOAuthCreds(
+    func creds(expiringIn seconds: TimeInterval?) -> AntigravityOAuthCreds {
+        AntigravityOAuthCreds(
             accessToken: "t",
             refreshToken: "r",
             idToken: nil,
             expiryDate: seconds.map { now.addingTimeInterval($0) }
         )
     }
-    try expect(GeminiCredentials.needsRefresh(creds(expiringIn: 30), now: now),
+    try expect(AntigravityCredentials.needsRefresh(creds(expiringIn: 30), now: now),
                "a token expiring inside the skew window must refresh")
-    try expect(!GeminiCredentials.needsRefresh(creds(expiringIn: 600), now: now),
+    try expect(!AntigravityCredentials.needsRefresh(creds(expiringIn: 600), now: now),
                "a token with 10 minutes left must not refresh")
-    try expect(!GeminiCredentials.needsRefresh(creds(expiringIn: nil), now: now),
+    try expect(!AntigravityCredentials.needsRefresh(creds(expiringIn: nil), now: now),
                "no expiry means no proactive refresh")
 }
 
 private func testApplyRefreshRewritesAtomicallyAndPreservesEverythingElse() throws {
     let home = try makeTempGeminiHome(credsExpiryMs: 1_000)
     defer { try? FileManager.default.removeItem(at: home) }
-    let url = GeminiCredentials.credsURL(home: home)
+    let url = AntigravityCredentials.credsURL(home: home)
     let now = Date()
     let response = Data("""
     { "access_token": "new-access-token", "expires_in": 3599,
       "scope": "openid", "token_type": "Bearer" }
     """.utf8)
 
-    let updated = GeminiCredentials.applyRefreshResponse(response, to: url, now: now)
+    let updated = AntigravityCredentials.applyRefreshResponse(response, to: url, now: now)
     try expect(updated != nil, "refresh writeback must succeed")
     try expect(updated?.accessToken == "new-access-token", "returned creds must carry the new token")
     try expect(updated?.refreshToken == "old-refresh-token",
@@ -192,10 +192,10 @@ private func testApplyRefreshRewritesAtomicallyAndPreservesEverythingElse() thro
 private func testFailedRefreshLeavesFileUntouched() throws {
     let home = try makeTempGeminiHome(credsExpiryMs: 1_000)
     defer { try? FileManager.default.removeItem(at: home) }
-    let url = GeminiCredentials.credsURL(home: home)
+    let url = AntigravityCredentials.credsURL(home: home)
     let before = try Data(contentsOf: url)
 
-    let updated = GeminiCredentials.applyRefreshResponse(
+    let updated = AntigravityCredentials.applyRefreshResponse(
         Data(#"{ "error": "invalid_grant" }"#.utf8), to: url
     )
     try expect(updated == nil, "an error response must not report success")
@@ -272,9 +272,9 @@ private let quotaFixture = Data("""
 """.utf8)
 
 private func testQuotaDecodesBucketsAndPicksLowestRemaining() throws {
-    let buckets = GeminiQuotaParser.parseQuota(quotaFixture)
+    let buckets = AntigravityQuotaParser.parseQuota(quotaFixture)
     try expect(buckets?.count == 4, "every named bucket must decode")
-    let snapshot = GeminiQuotaSnapshot(buckets: buckets ?? [], tierID: nil, tierLabel: nil)
+    let snapshot = AntigravityQuotaSnapshot(buckets: buckets ?? [], tierID: nil, tierLabel: nil)
     try expect(snapshot.primaryPro?.modelId == "gemini-3-pro-preview",
                "the pro bucket with the lowest remaining must win the main bar")
     if let used = snapshot.primaryPro?.usedPercent {
@@ -289,14 +289,14 @@ private func testQuotaDecodesBucketsAndPicksLowestRemaining() throws {
 }
 
 private func testQuotaEmptyAndGarbage() throws {
-    let empty = GeminiQuotaParser.parseQuota(Data("{}".utf8))
+    let empty = AntigravityQuotaParser.parseQuota(Data("{}".utf8))
     try expect(empty != nil && empty?.isEmpty == true,
                "missing buckets must decode as an empty list, not a failure")
-    let explicit = GeminiQuotaParser.parseQuota(Data(#"{"buckets":[]}"#.utf8))
+    let explicit = AntigravityQuotaParser.parseQuota(Data(#"{"buckets":[]}"#.utf8))
     try expect(explicit?.isEmpty == true, "an explicit empty buckets array must decode")
-    try expect(GeminiQuotaParser.parseQuota(Data("not json".utf8)) == nil,
+    try expect(AntigravityQuotaParser.parseQuota(Data("not json".utf8)) == nil,
                "non-JSON must be a parse failure")
-    let snapshot = GeminiQuotaSnapshot(buckets: [], tierID: nil, tierLabel: nil)
+    let snapshot = AntigravityQuotaSnapshot(buckets: [], tierID: nil, tierLabel: nil)
     try expect(snapshot.primaryPro == nil && snapshot.secondaryFlash == nil,
                "an empty snapshot must expose no bars")
 }
@@ -307,13 +307,13 @@ private func testLoadCodeAssistParsing() throws {
       "paidTier": { "id": "standard-tier", "name": "Google AI Pro" },
       "cloudaicompanionProject": "gen-lang-client-0123" }
     """.utf8)
-    let profile = GeminiQuotaParser.parseLoadCodeAssist(paid)
+    let profile = AntigravityQuotaParser.parseLoadCodeAssist(paid)
     try expect(profile?.tierID == "standard-tier", "currentTier.id must parse")
     try expect(profile?.tierLabel == "Google AI Pro", "paidTier.name must win the label")
     try expect(profile?.projectID == "gen-lang-client-0123", "companion project must parse")
 
     let free = Data(#"{ "currentTier": { "id": "free-tier" } }"#.utf8)
-    let freeProfile = GeminiQuotaParser.parseLoadCodeAssist(free)
+    let freeProfile = AntigravityQuotaParser.parseLoadCodeAssist(free)
     try expect(freeProfile?.tierLabel == "Free", "free-tier must map to Free")
     try expect(freeProfile?.projectID == nil, "missing project must read as nil")
 }
@@ -323,15 +323,15 @@ private func testMigrationSignalDetection() throws {
     { "error": { "code": 403, "status": "PERMISSION_DENIED",
       "message": "UNSUPPORTED_CLIENT: this client is no longer supported" } }
     """.utf8)
-    try expect(GeminiQuotaParser.isMigrationSignal(unsupported),
+    try expect(AntigravityQuotaParser.isMigrationSignal(unsupported),
                "UNSUPPORTED_CLIENT must read as the migration verdict")
     let ineligible = Data(#"{ "error": { "message": "IneligibleTierError" } }"#.utf8)
-    try expect(GeminiQuotaParser.isMigrationSignal(ineligible),
+    try expect(AntigravityQuotaParser.isMigrationSignal(ineligible),
                "IneligibleTierError must read as the migration verdict")
     let antigravity = Data(#"{ "error": { "message": "Please migrate to Antigravity." } }"#.utf8)
-    try expect(GeminiQuotaParser.isMigrationSignal(antigravity),
+    try expect(AntigravityQuotaParser.isMigrationSignal(antigravity),
                "Antigravity migration copy must read as the verdict")
-    try expect(!GeminiQuotaParser.isMigrationSignal(quotaFixture),
+    try expect(!AntigravityQuotaParser.isMigrationSignal(quotaFixture),
                "a healthy quota payload must not trip the migration signal")
 }
 
@@ -359,9 +359,9 @@ private enum GeminiParsingTestRunner {
                 try test()
                 print("PASS \(name)")
             }
-            print("GeminiParsingTests GREEN")
+            print("AntigravityParsingTests GREEN")
         } catch {
-            fputs("GeminiParsingTests RED: \(error)\n", stderr)
+            fputs("AntigravityParsingTests RED: \(error)\n", stderr)
             exit(1)
         }
     }

@@ -214,7 +214,7 @@ struct PeekPillOverlay: View {
 
     @ObservedObject private var visibility = ProviderVisibilityStore.shared
     @ObservedObject private var usageStore = UsageStore.shared
-    @ObservedObject private var geminiStore = GeminiUsageStore.shared
+    @ObservedObject private var antigravityStore = AntigravityUsageStore.shared
     @ObservedObject private var grokStore = GrokUsageStore.shared
     @ObservedObject private var cursorStore = CursorUsageStore.shared
     @ObservedObject private var alerts = AlertEngine.shared
@@ -254,20 +254,20 @@ struct PeekPillOverlay: View {
         switch provider {
         case .claude: return usageStore.claude.fiveHour
         case .codex: return usageStore.codex.fiveHour
-        case .gemini:
-            guard let bucket = geminiStore.snapshot?.primaryPro
-                    ?? geminiStore.snapshot?.buckets.first else {
+        case .antigravity:
+            guard let bucket = antigravityStore.snapshot?.primaryPro
+                    ?? antigravityStore.snapshot?.buckets.first else {
                 return WindowUsage(
                     usedPercent: 0,
                     resetAt: nil,
-                    error: geminiStore.statusCaption,
+                    error: antigravityStore.statusCaption,
                     periodSeconds: 24 * 60 * 60
                 )
             }
             return WindowUsage(
                 usedPercent: bucket.usedPercent,
                 resetAt: bucket.resetAt,
-                error: geminiStore.statusCaption,
+                error: antigravityStore.statusCaption,
                 periodSeconds: 24 * 60 * 60
             )
         case .grok:
@@ -308,7 +308,7 @@ struct PeekPillOverlay: View {
         switch provider {
         case .claude: return alerts.claudeSeverity
         case .codex: return alerts.codexSeverity
-        case .gemini, .grok, .cursor: return .none
+        case .antigravity, .grok, .cursor: return .none
         }
     }
 
@@ -323,7 +323,7 @@ struct PeekPillOverlay: View {
     private var loading: Bool {
         switch provider {
         case .claude, .codex: return usageStore.loading
-        case .gemini: return geminiStore.loading
+        case .antigravity: return antigravityStore.loading
         case .grok: return grokStore.loading
         case .cursor: return cursorStore.loading
         }
@@ -332,7 +332,7 @@ struct PeekPillOverlay: View {
     private var fallbackWindowLabel: String? {
         switch provider {
         case .claude, .codex: return nil
-        case .gemini: return "Pro"
+        case .antigravity: return "Pro"
         case .grok: return "7d"
         case .cursor: return "30d"
         }

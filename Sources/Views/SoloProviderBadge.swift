@@ -51,7 +51,7 @@ struct SoloProviderBadge: View {
         switch provider {
         case .claude: return Self.claudeImage
         case .codex: return Self.codexImage
-        case .gemini: return ProviderLogos.gemini
+        case .antigravity: return ProviderLogos.antigravity
         case .grok: return ProviderLogos.grok
         case .cursor: return ProviderLogos.cursor
         }

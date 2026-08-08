@@ -19,7 +19,7 @@ private func expect(_ condition: @autoclosure () -> Bool, _ message: String) thr
 private func testSanitizeAndRoundTrip() throws {
     let dirty = ["grok", "claude", "claude", "future-provider", "gemini"]
     let sanitized = ProviderSelection.sanitize(dirty)
-    try expect(sanitized == [.claude, .gemini], "sanitize must dedupe, order, and cap at two")
+    try expect(sanitized == [.claude, .antigravity], "sanitize must dedupe, order, and cap at two")
 
     let encoded = try JSONEncoder().encode(sanitized.map(\.rawValue))
     let decoded = try JSONDecoder().decode([String].self, from: encoded)
@@ -29,7 +29,7 @@ private func testSanitizeAndRoundTrip() throws {
 
 private func testMaximumTwoRefusesWithoutEviction() throws {
     let current: [DisplayProvider] = [.claude, .codex]
-    let outcome = ProviderSelection.toggling(current, .gemini)
+    let outcome = ProviderSelection.toggling(current, .antigravity)
     try expect(outcome == .refusedLimit, "enabling a third provider must be refused")
     try expect(current == [.claude, .codex], "refusal must not evict an existing provider")
 }
@@ -52,7 +52,7 @@ private func testLegacyMigrationAndCapabilities() throws {
                "solo Codex must migrate unchanged")
     try expect(DisplayProvider.claude.hasFullMonitoring && DisplayProvider.codex.hasFullMonitoring,
                "Claude and Codex must retain full monitoring")
-    try expect(!DisplayProvider.gemini.hasFullMonitoring && !DisplayProvider.grok.hasFullMonitoring,
+    try expect(!DisplayProvider.antigravity.hasFullMonitoring && !DisplayProvider.grok.hasFullMonitoring,
                "Gemini and Grok must stay quota-only")
 }
 

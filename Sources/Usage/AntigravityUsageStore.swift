@@ -6,10 +6,10 @@ import Foundation
 /// same 120s attempt floor, with a UserDefaults snapshot cache so relaunch
 /// doesn't blank the strip.
 @MainActor
-final class GeminiUsageStore: ObservableObject {
-    static let shared = GeminiUsageStore()
+final class AntigravityUsageStore: ObservableObject {
+    static let shared = AntigravityUsageStore()
 
-    @Published private(set) var snapshot: GeminiQuotaSnapshot?
+    @Published private(set) var snapshot: AntigravityQuotaSnapshot?
     /// Non-nil while the latest fetch ended in anything but data. Values in
     /// `snapshot` are the preserved last-good numbers in that case.
     @Published private(set) var statusCaption: String?
@@ -18,15 +18,15 @@ final class GeminiUsageStore: ObservableObject {
     @Published private(set) var loading = false
 
     /// Detection is launch-static, same as the other providers.
-    let detection: GeminiAuthDetection
+    let detection: AntigravityAuthDetection
 
     private var lastAttempt: Date?
-    private static let cacheKey = "GeminiUsageStore.lastSnapshot.v1"
+    private static let cacheKey = "AntigravityUsageStore.lastSnapshot.v1"
     private static let cacheMaxAge: TimeInterval = 24 * 60 * 60
     private static let minAttemptGap: TimeInterval = 120
 
     private struct CachedSnapshot: Codable {
-        var snapshot: GeminiQuotaSnapshot
+        var snapshot: AntigravityQuotaSnapshot
         var updatedAt: Date
     }
 
@@ -35,14 +35,14 @@ final class GeminiUsageStore: ObservableObject {
             if AppEnvironment.demoGuestFixturesEnabled {
                 let now = Date()
                 detection = .oauthPersonal
-                snapshot = GeminiQuotaSnapshot(
+                snapshot = AntigravityQuotaSnapshot(
                     buckets: [
-                        GeminiModelBucket(
+                        AntigravityModelBucket(
                             modelId: "gemini-3-pro-preview",
                             usedPercent: 0.43,
                             resetAt: now.addingTimeInterval(7 * 3600 + 24 * 60)
                         ),
-                        GeminiModelBucket(
+                        AntigravityModelBucket(
                             modelId: "gemini-3-flash-preview",
                             usedPercent: 0.18,
                             resetAt: now.addingTimeInterval(7 * 3600 + 24 * 60)
@@ -57,7 +57,7 @@ final class GeminiUsageStore: ObservableObject {
             }
             return
         }
-        detection = GeminiCredentials.detect()
+        detection = AntigravityCredentials.detect()
         guard detection == .oauthPersonal else { return }
         loadIdentity()
         guard let data = UserDefaults.standard.data(forKey: Self.cacheKey),
@@ -76,18 +76,18 @@ final class GeminiUsageStore: ObservableObject {
     func kickRefresh() {
         guard !AppEnvironment.isDemo,
               detection == .oauthPersonal,
-              ProviderVisibilityStore.shared.geminiPanelShown,
+              ProviderVisibilityStore.shared.antigravityPanelShown,
               !loading else { return }
         if let last = lastAttempt, Date().timeIntervalSince(last) < Self.minAttemptGap { return }
         lastAttempt = Date()
         loading = true
         Task { [weak self] in
-            let outcome = await GeminiUsageFetcher.fetch()
+            let outcome = await AntigravityUsageFetcher.fetch()
             self?.apply(outcome)
         }
     }
 
-    private func apply(_ outcome: GeminiUsageFetcher.Outcome) {
+    private func apply(_ outcome: AntigravityUsageFetcher.Outcome) {
         loading = false
         switch outcome {
         case .success(let fresh):
@@ -97,7 +97,7 @@ final class GeminiUsageStore: ObservableObject {
             loadIdentity()
             persist(fresh)
         case .reauthRequired:
-            statusCaption = L10n.tr("sign in again — run gemini")
+            statusCaption = L10n.tr("sign in again — run agy")
         case .needsCLIInstall:
             statusCaption = L10n.tr("needs a local gemini-cli install")
         case .migratedToAntigravity:
@@ -118,14 +118,14 @@ final class GeminiUsageStore: ObservableObject {
     }
 
     private func loadIdentity() {
-        guard let creds = GeminiCredentials.loadCreds(from: GeminiCredentials.credsURL()) else {
+        guard let creds = AntigravityCredentials.loadCreds(from: AntigravityCredentials.credsURL()) else {
             accountEmail = nil
             return
         }
         accountEmail = creds.email
     }
 
-    private func persist(_ fresh: GeminiQuotaSnapshot) {
+    private func persist(_ fresh: AntigravityQuotaSnapshot) {
         let cached = CachedSnapshot(snapshot: fresh, updatedAt: Date())
         guard let data = try? JSONEncoder().encode(cached) else { return }
         UserDefaults.standard.set(data, forKey: Self.cacheKey)

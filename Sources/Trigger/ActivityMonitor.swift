@@ -78,7 +78,7 @@ final class ActivityMonitor: ObservableObject {
     }
 
     func demo(_ state: State?) {
-        for provider in [AlertEngine.Provider.claude, .codex, .gemini, .grok, .cursor] {
+        for provider in [AlertEngine.Provider.claude, .codex, .antigravity, .grok, .cursor] {
             demoStates[provider] = state
         }
     }
@@ -195,7 +195,7 @@ final class ActivityMonitor: ObservableObject {
     /// Its turn detector is `mtimeOnly`, so it can show working/idle but
     /// never a false "your turn".
     private static let monitoredProviders: [(TriggerTool, AlertEngine.Provider)] = [
-        (.claude, .claude), (.codex, .codex), (.grok, .grok), (.gemini, .gemini),
+        (.claude, .claude), (.codex, .codex), (.grok, .grok), (.antigravity, .antigravity),
         (.cursor, .cursor),
     ]
 
@@ -203,7 +203,7 @@ final class ActivityMonitor: ObservableObject {
         switch provider {
         case .claude: return UsageStore.shared.claude
         case .codex: return UsageStore.shared.codex
-        case .gemini, .grok, .cursor: return .empty
+        case .antigravity, .grok, .cursor: return .empty
         }
     }
 

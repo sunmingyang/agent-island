@@ -38,12 +38,12 @@ final class ProviderVisibilityStore: ObservableObject {
     @Published private(set) var grokDetected: Bool
     /// Gemini counts as installed only on the oauth-personal path with
     /// creds on disk; api-key/vertex logins surface as a Settings caption
-    /// (`geminiAuthUnsupported`), never as a slot candidate.
-    @Published private(set) var geminiDetected: Bool
+    /// (`antigravityAuthUnsupported`), never as a slot candidate.
+    @Published private(set) var antigravityDetected: Bool
     /// Cursor counts as installed when the editor's state db exists — that
     /// db is also where its session token lives, so no db means no login.
     @Published private(set) var cursorDetected: Bool
-    @Published private(set) var geminiAuthUnsupported: String?
+    @Published private(set) var antigravityAuthUnsupported: String?
 
     private init() {
         // Demo shares the real user's defaults — pin the recording rig to
@@ -82,8 +82,8 @@ final class ProviderVisibilityStore: ObservableObject {
         self.codexDetected = hasDir(".codex")
         self.grokDetected = false
         self.cursorDetected = false
-        self.geminiDetected = false
-        self.geminiAuthUnsupported = nil
+        self.antigravityDetected = false
+        self.antigravityAuthUnsupported = nil
         redetectGuests()
 
         if !AppEnvironment.isDemo, UserDefaults.standard.data(forKey: Self.enabledKey) == nil {
@@ -103,8 +103,8 @@ final class ProviderVisibilityStore: ObservableObject {
             let onForDemo = AppEnvironment.demoGuestFixturesEnabled
             if grokDetected != onForDemo { grokDetected = onForDemo }
             if cursorDetected != onForDemo { cursorDetected = onForDemo }
-            if geminiDetected != onForDemo { geminiDetected = onForDemo }
-            if geminiAuthUnsupported != nil { geminiAuthUnsupported = nil }
+            if antigravityDetected != onForDemo { antigravityDetected = onForDemo }
+            if antigravityAuthUnsupported != nil { antigravityAuthUnsupported = nil }
             return
         }
         let grok = GrokAuthFile.exists()
@@ -112,24 +112,24 @@ final class ProviderVisibilityStore: ObservableObject {
         let cursor = CursorCredentials.exists()
         if cursorDetected != cursor { cursorDetected = cursor }
 
-        let gemini: Bool
+        let antigravity: Bool
         let unsupported: String?
-        switch GeminiCredentials.detect() {
+        switch AntigravityCredentials.detect() {
         case .oauthPersonal:
-            gemini = true
+            antigravity = true
             unsupported = nil
         case .unsupportedAuth(let type):
             // API-key / Vertex logins are REAL Gemini users — session
             // monitoring works for them (the CLI writes the same local chat
             // files), only the Code Assist quota endpoint is out of reach.
-            gemini = true
+            antigravity = true
             unsupported = type
         case .notInstalled:
-            gemini = false
+            antigravity = false
             unsupported = nil
         }
-        if geminiDetected != gemini { geminiDetected = gemini }
-        if geminiAuthUnsupported != unsupported { geminiAuthUnsupported = unsupported }
+        if antigravityDetected != antigravity { antigravityDetected = antigravity }
+        if antigravityAuthUnsupported != unsupported { antigravityAuthUnsupported = unsupported }
     }
 
     // MARK: - Toggling
@@ -159,7 +159,7 @@ final class ProviderVisibilityStore: ObservableObject {
         switch provider {
         case .claude: UserDefaults.standard.set(true, forKey: Self.claudeTouchedKey)
         case .codex:  UserDefaults.standard.set(true, forKey: Self.codexTouchedKey)
-        case .gemini, .grok, .cursor: break
+        case .antigravity, .grok, .cursor: break
         }
     }
 
@@ -191,8 +191,8 @@ final class ProviderVisibilityStore: ObservableObject {
         case .codex:
             if UserDefaults.standard.bool(forKey: Self.codexTouchedKey) { return true }
             return codexDetected || !(enabled.contains(.claude) && claudeDetected)
-        case .gemini:
-            return geminiDetected
+        case .antigravity:
+            return antigravityDetected
         case .grok:
             return grokDetected
         case .cursor:
@@ -222,14 +222,14 @@ final class ProviderVisibilityStore: ObservableObject {
     /// other surface — an unselected guest shows nothing and fetches
     /// nothing, no matter what login sits on disk.
     var grokPanelShown: Bool { shown(.grok) }
-    var geminiPanelShown: Bool { shown(.gemini) }
+    var antigravityPanelShown: Bool { shown(.antigravity) }
     var cursorPanelShown: Bool { shown(.cursor) }
 
     /// Number of quota-only rows appended to the usage page. Selection-
     /// driven, so the panel re-sizes when a guest slot is toggled
     /// (IslandModel subscribes to `$enabled`).
     var guestPanelCount: Int {
-        (geminiPanelShown ? 1 : 0) + (grokPanelShown ? 1 : 0) + (cursorPanelShown ? 1 : 0)
+        (antigravityPanelShown ? 1 : 0) + (grokPanelShown ? 1 : 0) + (cursorPanelShown ? 1 : 0)
     }
 
     /// Single accessor for call sites that have an `AlertEngine.Provider`
@@ -238,7 +238,7 @@ final class ProviderVisibilityStore: ObservableObject {
         switch provider {
         case .claude: return claudeShown
         case .codex:  return codexShown
-        case .gemini: return geminiPanelShown
+        case .antigravity: return antigravityPanelShown
         case .grok:   return grokPanelShown
         case .cursor: return cursorPanelShown
         }

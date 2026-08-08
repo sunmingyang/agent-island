@@ -11,7 +11,10 @@ enum IslandColor {
     /// #5AA8F0 — OpenAI sky blue. Codex logo + ring/bar fills.
     static let codex = Color(red: 90/255, green: 168/255, blue: 240/255)
 
-    static let gemini = Color(red: 126/255, green: 147/255, blue: 255/255)
+    /// Antigravity's mark is monochrome on Google's dark chrome; a cool
+    /// near-white keeps it distinct from Grok's silver and Cursor's warm
+    /// white while sitting calmly beside terracotta and sky blue.
+    static let antigravity = Color(red: 168/255, green: 199/255, blue: 250/255)
 
     /// #D8DEE4 — xAI monochrome. Grok strip fill + settings dot; a cool
     /// near-white so it sits beside terracotta and sky blue without

@@ -2,7 +2,7 @@ import Foundation
 
 /// One `retrieveUserQuota` bucket, normalized to the app's used-percent
 /// vocabulary (the endpoint reports `remainingFraction`).
-struct GeminiModelBucket: Codable, Equatable {
+struct AntigravityModelBucket: Codable, Equatable {
     var modelId: String
     /// 0...1 consumed.
     var usedPercent: Double
@@ -18,8 +18,8 @@ struct GeminiModelBucket: Codable, Equatable {
 /// What the island renders for Gemini: the Pro-family bucket closest to its
 /// limit as the main bar, Flash as the secondary, plus identity garnish.
 /// Codable so the last good values survive a relaunch via the cache.
-struct GeminiQuotaSnapshot: Codable, Equatable {
-    var buckets: [GeminiModelBucket]
+struct AntigravityQuotaSnapshot: Codable, Equatable {
+    var buckets: [AntigravityModelBucket]
     /// Raw tier id from loadCodeAssist ("free-tier", "standard-tier"…).
     var tierID: String?
     /// Display label — paidTier.name when Google provides one, else a
@@ -27,12 +27,12 @@ struct GeminiQuotaSnapshot: Codable, Equatable {
     var tierLabel: String?
 
     /// Pro family, lowest remaining (= highest used) wins the main bar.
-    var primaryPro: GeminiModelBucket? {
+    var primaryPro: AntigravityModelBucket? {
         buckets.filter(\.isPro).max { $0.usedPercent < $1.usedPercent }
     }
 
     /// Flash family, same lowest-remaining rule, for the secondary caption.
-    var secondaryFlash: GeminiModelBucket? {
+    var secondaryFlash: AntigravityModelBucket? {
         buckets.filter(\.isFlash).max { $0.usedPercent < $1.usedPercent }
     }
 }
@@ -40,7 +40,7 @@ struct GeminiQuotaSnapshot: Codable, Equatable {
 /// Decoders for the two `cloudcode-pa.googleapis.com/v1internal` payloads.
 /// JSONSerialization-shaped like the other fetchers — absence is data here
 /// too (an account can legitimately report zero buckets).
-enum GeminiQuotaParser {
+enum AntigravityQuotaParser {
     struct CodeAssistProfile: Equatable {
         var tierID: String?
         var tierLabel: String?
@@ -67,7 +67,7 @@ enum GeminiQuotaParser {
     /// `POST v1internal:retrieveUserQuota` — buckets[{modelId,
     /// remainingFraction, resetTime}]. An empty/missing buckets array is a
     /// valid answer (fresh account), distinct from a decode failure.
-    static func parseQuota(_ data: Data) -> [GeminiModelBucket]? {
+    static func parseQuota(_ data: Data) -> [AntigravityModelBucket]? {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
@@ -75,7 +75,7 @@ enum GeminiQuotaParser {
         return rows.compactMap { row in
             guard let modelId = nonEmpty(row["modelId"]) else { return nil }
             let remaining = number(row["remainingFraction"]) ?? 1
-            return GeminiModelBucket(
+            return AntigravityModelBucket(
                 modelId: modelId,
                 usedPercent: min(1, max(0, 1 - remaining)),
                 resetAt: timestamp(row["resetTime"])

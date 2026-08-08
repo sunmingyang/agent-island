@@ -259,7 +259,7 @@ private extension DisplayProvider {
     var reportShowsDollars: Bool {
         switch self {
         case .claude, .codex, .grok: return true
-        case .cursor, .gemini: return false
+        case .cursor, .antigravity: return false
         }
     }
 }

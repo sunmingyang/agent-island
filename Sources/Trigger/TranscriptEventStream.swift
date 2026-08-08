@@ -37,7 +37,12 @@ final class TranscriptEventStream {
             // their roots gives them the same sub-second reaction Claude and
             // Codex get (owner: make the guests react in real time).
             home + "/.grok/sessions",
-            home + "/.gemini/tmp",
+            // Google renamed this twice (1.x antigravity, 2.x
+            // antigravity-ide) and the CLI keeps its own root, so all three
+            // are watched; missing ones are filtered out below.
+            home + "/.gemini/antigravity",
+            home + "/.gemini/antigravity-ide",
+            home + "/.gemini/antigravity-cli",
             home + "/Library/Application Support/Cursor/User/globalStorage",
         ].filter { FileManager.default.fileExists(atPath: $0) }
         guard !roots.isEmpty else { return }

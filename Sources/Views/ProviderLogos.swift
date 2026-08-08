@@ -11,7 +11,7 @@ enum ProviderLogos {
     // (Cursor: cursor.com mark via PR #36's path; Grok: grok.com slash
     // mark; Gemini: the four-point star). Same nominative-use footing as
     // the Claude/OpenAI marks above.
-    static let gemini = load("gemini_logo")
+    static let antigravity = load("antigravity_logo")
     static let grok = load("grok_logo")
     static let cursor = load("cursor_logo")
 
@@ -27,7 +27,7 @@ extension DisplayProvider {
         switch self {
         case .claude: return IslandColor.claude
         case .codex: return IslandColor.codex
-        case .gemini: return IslandColor.gemini
+        case .antigravity: return IslandColor.antigravity
         case .grok: return IslandColor.grok
         case .cursor: return IslandColor.cursor
         }
@@ -46,8 +46,8 @@ struct ProviderMark: View {
                 imageMark(ProviderLogos.claude)
             case .codex:
                 imageMark(ProviderLogos.openAI)
-            case .gemini:
-                imageMark(ProviderLogos.gemini)
+            case .antigravity:
+                imageMark(ProviderLogos.antigravity)
             case .grok:
                 imageMark(ProviderLogos.grok)
             case .cursor:

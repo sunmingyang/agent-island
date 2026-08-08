@@ -43,7 +43,7 @@ mkdir -p "$MACOS_DIR" "$RES_DIR" "$FRAMEWORKS_DIR"
 
 cp ./Resources/claude_logo.pdf "$RES_DIR/claude_logo.pdf"
 cp ./Resources/openai_logo.pdf "$RES_DIR/openai_logo.pdf"
-cp ./Resources/gemini_logo.pdf "$RES_DIR/gemini_logo.pdf"
+cp ./Resources/antigravity_logo.pdf "$RES_DIR/antigravity_logo.pdf"
 cp ./Resources/grok_logo.pdf "$RES_DIR/grok_logo.pdf"
 cp ./Resources/cursor_logo.pdf "$RES_DIR/cursor_logo.pdf"
 cp ./Resources/duel-claude-wins.png "$RES_DIR/duel-claude-wins.png"

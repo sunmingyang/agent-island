@@ -17,7 +17,7 @@ struct UsageView: View {
 
     private var style: ChartStyle { pref.style }
 
-    @ObservedObject private var geminiStore = GeminiUsageStore.shared
+    @ObservedObject private var antigravityStore = AntigravityUsageStore.shared
     @ObservedObject private var grokStore = GrokUsageStore.shared
     @ObservedObject private var cursorStore = CursorUsageStore.shared
 
@@ -64,7 +64,7 @@ struct UsageView: View {
         case .codex:
             ChartsBlock(color: IslandColor.codex, usage: store.codex,
                         style: style, seed: seed)
-        case .gemini, .grok, .cursor:
+        case .antigravity, .grok, .cursor:
             ChartsBlock(color: provider.brandColor, usage: guestUsage(provider),
                         style: style, seed: seed)
         }
@@ -76,7 +76,7 @@ struct UsageView: View {
             switch provider {
             case .claude: SoloProviderBadge(provider: .claude)
             case .codex: SoloProviderBadge(provider: .codex)
-            case .gemini, .grok, .cursor:
+            case .antigravity, .grok, .cursor:
                 VStack(spacing: 8) {
                     ProviderMark(provider: provider, size: 30, tint: provider.brandColor.opacity(0.85))
                     Text(provider.displayName)
@@ -97,21 +97,21 @@ struct UsageView: View {
     private func guestUsage(_ provider: DisplayProvider) -> AppUsage {
         let missing = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data", periodSeconds: nil)
         switch provider {
-        case .gemini:
-            let pro = geminiStore.snapshot?.primaryPro
-            let flash = geminiStore.snapshot?.secondaryFlash
+        case .antigravity:
+            let pro = antigravityStore.snapshot?.primaryPro
+            let flash = antigravityStore.snapshot?.secondaryFlash
             return AppUsage(
                 fiveHour: WindowUsage(
                     usedPercent: pro?.usedPercent ?? 0,
                     resetAt: pro?.resetAt,
-                    error: geminiStore.statusCaption,
+                    error: antigravityStore.statusCaption,
                     periodSeconds: 24 * 60 * 60
                 ),
                 weekly: flash.map {
                     WindowUsage(usedPercent: $0.usedPercent, resetAt: $0.resetAt,
                                 error: nil, periodSeconds: 24 * 60 * 60)
                 } ?? missing,
-                plan: geminiStore.tierBadge?.lowercased()
+                plan: antigravityStore.tierBadge?.lowercased()
             )
         case .grok:
             let snapshot = grokStore.snapshot

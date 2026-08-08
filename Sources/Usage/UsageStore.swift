@@ -139,7 +139,7 @@ final class UsageStore: ObservableObject {
         // to leave the provider stuck at "not detected" until a relaunch.
         ProviderVisibilityStore.shared.redetectGuests()
         GrokUsageStore.shared.kickRefresh()
-        GeminiUsageStore.shared.kickRefresh()
+        AntigravityUsageStore.shared.kickRefresh()
         CursorUsageStore.shared.kickRefresh()
         refreshTask?.cancel()
         refreshTask = Task {

@@ -36,7 +36,7 @@ enum SessionScanner {
         var out = scanClaude(now: now, lastWorking: lastWorking)
         out += scanCodex(now: now, lastWorking: lastWorking)
         out += scanGrok(now: now, lastWorking: lastWorking)
-        out += scanGemini(now: now, lastWorking: lastWorking)
+        out += scanAntigravity(now: now, lastWorking: lastWorking)
         out += scanCursor(now: now, lastWorking: lastWorking)
         out.sort { $0.modified > $1.modified }
         // Dedupe by session: the Claude desktop store commonly holds the SAME
@@ -243,34 +243,41 @@ enum SessionScanner {
         return out
     }
 
-    // MARK: - Gemini: ~/.gemini/tmp/<project>/chats/session-*.jsonl
+    // MARK: - Antigravity
 
-    /// Gemini's chat files are a $set checkpoint stream with no verified
-    /// turn boundary yet, so status is recency-only (`mtimeOnly` — working
-    /// while the file moves, idle after; never a "your turn" alarm). The
-    /// session id lives in the first line's header.
-    static func scanGemini(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
+    /// Antigravity keeps a readable transcript per conversation at
+    /// `<root>/brain/<conversation-id>/.system_generated/logs/transcript_full.jsonl`
+    /// — the desktop IDE and the `agy` CLI write the same shape into their
+    /// own roots. Always `transcript_full`, never `transcript` (the latter is
+    /// truncated).
+    ///
+    /// Records are `{step_index, source, type, status, created_at, content, …}`
+    /// where `source` is USER_EXPLICIT / SYSTEM / MODEL. A MODEL record last
+    /// means the agent spoke last — the same boundary Claude's stop_reason
+    /// gives us. The `status` field's value set is not documented, so it is
+    /// deliberately NOT trusted yet; recency plus the quiet gap carries the
+    /// verdict until a real install proves what it contains.
+    static func scanAntigravity(now: Date, lastWorking: [String: Date]) -> [ScannedSession] {
         let fm = FileManager.default
-        let root = NSHomeDirectory() + "/.gemini/tmp"
-        guard let projects = try? fm.contentsOfDirectory(atPath: root) else { return [] }
         var out: [ScannedSession] = []
-        for project in projects {
-            let chats = root + "/" + project + "/chats"
-            guard let files = try? fm.contentsOfDirectory(atPath: chats) else { continue }
-            for name in files where name.hasSuffix(".jsonl") {
-                let path = chats + "/" + name
-                let sid = geminiSessionId(path)
-                    ?? (name as NSString).deletingPathExtension
+        for root in antigravityRoots() {
+            let brain = root + "/brain"
+            guard let conversations = try? fm.contentsOfDirectory(atPath: brain) else { continue }
+            for conversation in conversations {
+                let path = brain + "/" + conversation
+                    + "/.system_generated/logs/transcript_full.jsonl"
+                guard fm.fileExists(atPath: path) else { continue }
                 let state = sessionState(
                     for: path, now: now, lastWorking: lastWorking,
                     quietMeansDone: true,
-                    turnState: SessionTurnState.mtimeOnly
+                    turnState: SessionTurnState.antigravity
                 )
                 out.append(ScannedSession(
-                    tool: .gemini,
-                    sessionId: sid,
-                    cwd: project,
-                    label: fallback(project, sid),
+                    tool: .antigravity,
+                    sessionId: conversation,
+                    cwd: antigravityWorkspace(root: root, conversation: conversation) ?? "",
+                    label: antigravityTitle(root: root, conversation: conversation)
+                        ?? String(conversation.prefix(8)),
                     modified: state.modified,
                     status: state.status,
                     transcriptPath: path,
@@ -282,7 +289,49 @@ enum SessionScanner {
         return out
     }
 
-    private static func geminiSessionId(_ path: String) -> String? {
+    /// Google has renamed this directory twice already (1.x `antigravity`,
+    /// 2.x `antigravity-ide`, plus the separate `antigravity-cli` root), so
+    /// every known variant is probed rather than one hardcoded guess.
+    static func antigravityRoots() -> [String] {
+        let home = NSHomeDirectory()
+        return ["antigravity", "antigravity-ide", "antigravity-cli"]
+            .map { home + "/.gemini/" + $0 }
+            .filter { FileManager.default.fileExists(atPath: $0) }
+    }
+
+    /// `brain/<id>/task.md` opens with a markdown heading that is the task
+    /// name — the closest thing to a conversation title without decoding the
+    /// protobuf blobs.
+    private static func antigravityTitle(root: String, conversation: String) -> String? {
+        let path = root + "/brain/" + conversation + "/task.md"
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        let data = handle.readData(ofLength: 4096)
+        let text = String(decoding: data, as: UTF8.self)
+        for line in text.split(separator: "\n", maxSplits: 8) {
+            let clean = line.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+            if !clean.isEmpty { return String(clean.prefix(48)) }
+        }
+        return nil
+    }
+
+    /// `history.jsonl` maps conversationId to its workspace.
+    private static func antigravityWorkspace(root: String, conversation: String) -> String? {
+        guard let text = try? String(contentsOfFile: root + "/history.jsonl", encoding: .utf8) else {
+            return nil
+        }
+        for line in text.split(separator: "\n") {
+            guard let object = json(String(line)),
+                  object["conversationId"] as? String == conversation,
+                  let workspace = object["workspace"] as? String,
+                  !workspace.isEmpty
+            else { continue }
+            return workspace
+        }
+        return nil
+    }
+
+    private static func antigravitySessionId(_ path: String) -> String? {
         guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? handle.close() }
         let data = handle.readData(ofLength: 4096)

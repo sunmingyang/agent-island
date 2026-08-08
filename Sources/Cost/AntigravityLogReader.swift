@@ -3,23 +3,23 @@ import Foundation
 /// Gemini cost reader — an honest STUB.
 ///
 /// Gemini ships NO local token ledger as of 2026-08. The CLI keeps a
-/// per-project working directory at `~/.gemini/tmp/<project>/` holding a
+/// per-project working directory at `~/.gemini/antigravity-ide/<project>/` holding a
 /// `chats/` folder of `$set` checkpoint streams plus a `logs.json` file, but
 /// none of those records carry per-message token accounting — on the survey
 /// machine `chats/` is empty and `logs.json` is `[]`. There is nothing here to
 /// cost, so `scan` returns no events today.
 ///
 /// Gemini's usage percentages come from the live Code Assist endpoint
-/// (`GeminiUsageFetcher`), which reports QUOTA buckets — not tokens and not
+/// (`AntigravityUsageFetcher`), which reports QUOTA buckets — not tokens and not
 /// dollars. That path is display-only and unrelated to this reader; this file
 /// never invents a cost or a token count to stand in for it.
 ///
 /// The seam is `parse(_:cutoff:)`: `scan` already walks the same tree a real
 /// build would, and the one function a future contributor fills in is marked
-/// with `TODO(gemini-tokens)` — the day a per-message usage shape appears, wire
+/// with `TODO(antigravity-tokens)` — the day a per-message usage shape appears, wire
 /// it there and every downstream summary picks Gemini up automatically.
-enum GeminiLogReader {
-    /// Walk `~/.gemini/tmp/<project>/{chats/*.jsonl, logs.json}` and return
+enum AntigravityLogReader {
+    /// Walk `~/.gemini/antigravity-ide/<project>/{chats/*.jsonl, logs.json}` and return
     /// every usage-bearing turn from the last `lookbackDays` days. Pure file
     /// IO; no network. Safe to call from a background thread. Returns an empty
     /// list today (no local Gemini token ledger exists) and never throws on the
@@ -53,7 +53,7 @@ enum GeminiLogReader {
 
     private static func tmpRoot() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".gemini", isDirectory: true)
+            .appendingPathComponent(".antigravity", isDirectory: true)
             .appendingPathComponent("tmp", isDirectory: true)
     }
 
@@ -63,13 +63,13 @@ enum GeminiLogReader {
     private static func parse(_ url: URL, cutoff: Date) -> [TokenEvent] {
         guard let data = try? Data(contentsOf: url), !data.isEmpty else { return [] }
 
-        // TODO(gemini-tokens): decode per-message usage from `data`. The
+        // TODO(antigravity-tokens): decode per-message usage from `data`. The
         // expected shape mirrors every other reader — for each assistant turn
         // recover (timestamp, model, inputTokens, outputTokens, cacheReadTokens)
         // and, guarding `timestamp >= cutoff`, append:
         //
         //   out.append(TokenEvent(
-        //       provider: .gemini,
+        //       provider: .antigravity,
         //       timestamp: <turn time>,
         //       model: <model id, or "" when the record omits one>,
         //       inputTokens: <in>, outputTokens: <out>,

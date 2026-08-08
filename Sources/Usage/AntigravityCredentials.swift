@@ -3,8 +3,8 @@ import Foundation
 /// How the Gemini CLI is signed in on this machine. Only the personal-OAuth
 /// path (`oauth-personal`) exposes the Code Assist quota API this app reads;
 /// api-key / vertex-ai logins have no quota endpoint we can speak to.
-enum GeminiAuthDetection: Equatable {
-    /// No usable ~/.gemini footprint — zero-intrusion, show nothing.
+enum AntigravityAuthDetection: Equatable {
+    /// No usable ~/.antigravity footprint — zero-intrusion, show nothing.
     case notInstalled
     /// settings.json declares a non-OAuth auth type (api-key, vertex-ai…).
     case unsupportedAuth(String)
@@ -12,9 +12,9 @@ enum GeminiAuthDetection: Equatable {
     case oauthPersonal
 }
 
-/// Parsed `~/.gemini/oauth_creds.json`. `expiry_date` is epoch milliseconds
+/// Parsed `~/.gemini/antigravity-ide/oauth_creds.json`. `expiry_date` is epoch milliseconds
 /// (the CLI writes `Date.now() + expires_in * 1000`).
-struct GeminiOAuthCreds: Equatable {
+struct AntigravityOAuthCreds: Equatable {
     let accessToken: String
     let refreshToken: String?
     let idToken: String?
@@ -28,9 +28,9 @@ struct GeminiOAuthCreds: Equatable {
 /// reads the same file), writes are atomic (tmp file created 0600 in the
 /// same directory, then rename(2)), and every field this app doesn't
 /// understand is preserved.
-enum GeminiCredentials {
+enum AntigravityCredentials {
     static func homeDirectory() -> URL {
-        let home = NSString("~/.gemini").expandingTildeInPath
+        let home = NSString("~/.antigravity").expandingTildeInPath
         return URL(fileURLWithPath: home, isDirectory: true)
     }
 
@@ -58,7 +58,7 @@ enum GeminiCredentials {
         return nonEmpty(auth["selectedType"])
     }
 
-    static func detect(home: URL = homeDirectory()) -> GeminiAuthDetection {
+    static func detect(home: URL = homeDirectory()) -> AntigravityAuthDetection {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: home.path, isDirectory: &isDir),
               isDir.boolValue else { return .notInstalled }
@@ -67,18 +67,18 @@ enum GeminiCredentials {
            type != "oauth-personal" {
             return .unsupportedAuth(type)
         }
-        // A bare ~/.gemini from an aborted install has nothing to show.
+        // A bare ~/.antigravity from an aborted install has nothing to show.
         guard FileManager.default.fileExists(atPath: credsURL(home: home).path) else {
             return .notInstalled
         }
         return .oauthPersonal
     }
 
-    static func loadCreds(from url: URL) -> GeminiOAuthCreds? {
+    static func loadCreds(from url: URL) -> AntigravityOAuthCreds? {
         guard let data = try? Data(contentsOf: url),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let accessToken = nonEmpty(root["access_token"]) else { return nil }
-        return GeminiOAuthCreds(
+        return AntigravityOAuthCreds(
             accessToken: accessToken,
             refreshToken: nonEmpty(root["refresh_token"]),
             idToken: nonEmpty(root["id_token"]),
@@ -87,7 +87,7 @@ enum GeminiCredentials {
     }
 
     /// Refresh a minute early so an in-flight request never races the clock.
-    static func needsRefresh(_ creds: GeminiOAuthCreds,
+    static func needsRefresh(_ creds: AntigravityOAuthCreds,
                              now: Date = Date(),
                              skew: TimeInterval = 60) -> Bool {
         guard let expiryDate = creds.expiryDate else { return false }
@@ -101,7 +101,7 @@ enum GeminiCredentials {
     @discardableResult
     static func applyRefreshResponse(_ data: Data,
                                      to url: URL,
-                                     now: Date = Date()) -> GeminiOAuthCreds? {
+                                     now: Date = Date()) -> AntigravityOAuthCreds? {
         guard let response = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let accessToken = nonEmpty(response["access_token"]) else { return nil }
 
@@ -135,7 +135,7 @@ enum GeminiCredentials {
             try? FileManager.default.removeItem(at: tmp)
             return nil
         }
-        return GeminiOAuthCreds(
+        return AntigravityOAuthCreds(
             accessToken: accessToken,
             refreshToken: nonEmpty(root["refresh_token"]),
             idToken: nonEmpty(root["id_token"]),
@@ -234,7 +234,7 @@ enum GeminiClientExtractor {
         return extract(fromOAuth2JS: content)
     }
 
-    /// Walk up from the resolved `gemini` binary looking for the CLI package
+    /// Walk up from the resolved `agy` binary looking for the CLI package
     /// in its three shipped layouts (direct core install, npm-style nested
     /// package, Homebrew libexec), then fall back to the fixed Homebrew
     /// package roots for setups where the binary itself isn't findable.
@@ -269,14 +269,14 @@ enum GeminiClientExtractor {
         }
         if let pathEnv = env["PATH"] {
             for dir in pathEnv.split(separator: ":") where !dir.isEmpty {
-                let candidate = "\(dir)/gemini"
+                let candidate = "\(dir)/agy"
                 if isExecutableFile(candidate) { return URL(fileURLWithPath: candidate) }
             }
         }
         let home = NSString("~").expandingTildeInPath
         let candidates = [
-            "\(home)/.local/bin/gemini",
-            "/opt/homebrew/bin/gemini",
+            "\(home)/.local/bin/agy",
+            "/opt/homebrew/bin/agy",
             "/usr/local/bin/gemini",
             "/usr/bin/gemini",
         ]

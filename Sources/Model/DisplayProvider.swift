@@ -8,7 +8,7 @@ import Foundation
 enum DisplayProvider: String, CaseIterable, Codable {
     case claude
     case codex
-    case gemini
+    case antigravity
     case grok
     case cursor
 
@@ -16,7 +16,7 @@ enum DisplayProvider: String, CaseIterable, Codable {
         switch self {
         case .claude: return "Claude"
         case .codex:  return "Codex"
-        case .gemini: return "Gemini"
+        case .antigravity: return "Gemini"
         case .grok:   return "Grok"
         case .cursor: return "Cursor"
         }
@@ -27,7 +27,7 @@ enum DisplayProvider: String, CaseIterable, Codable {
     var hasFullMonitoring: Bool {
         switch self {
         case .claude, .codex: return true
-        case .gemini, .grok, .cursor: return false
+        case .antigravity, .grok, .cursor: return false
         }
     }
 
@@ -37,7 +37,7 @@ enum DisplayProvider: String, CaseIterable, Codable {
     /// stable assignments so the layout never flips between launches.
     var soloLogoFlankIsLeading: Bool {
         switch self {
-        case .claude, .gemini, .cursor: return true
+        case .claude, .antigravity, .cursor: return true
         case .codex, .grok:             return false
         }
     }
@@ -61,7 +61,12 @@ enum ProviderSelection {
         var seen: Set<DisplayProvider> = []
         var out: [DisplayProvider] = []
         for value in raw {
-            guard let provider = DisplayProvider(rawValue: value),
+            // Google shut Gemini Code Assist for individuals on 2026-06-18 and
+            // pointed those users at Antigravity, so the slot moved with them.
+            // Without this hop a stored "gemini" would fail to decode and the
+            // user would silently lose the choice they made.
+            let name = value == "gemini" ? DisplayProvider.antigravity.rawValue : value
+            guard let provider = DisplayProvider(rawValue: name),
                   !seen.contains(provider) else { continue }
             seen.insert(provider)
             out.append(provider)

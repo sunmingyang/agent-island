@@ -27,7 +27,7 @@ struct SettingsView: View {
     @ObservedObject private var usage = UsageStore.shared
     @ObservedObject private var grokStore = GrokUsageStore.shared
     @ObservedObject private var cursorStore = CursorUsageStore.shared
-    @ObservedObject private var geminiStore = GeminiUsageStore.shared
+    @ObservedObject private var antigravityStore = AntigravityUsageStore.shared
     @ObservedObject private var cost = CostStore.shared
     @ObservedObject private var updater = UpdaterController.shared
 
@@ -927,9 +927,9 @@ struct SettingsView: View {
                 })
             })
 
-            providerCard(.gemini, status: geminiSubtitle,
-                         chip: visibility.geminiAuthUnsupported.map { $0.uppercased() }
-                             ?? (visibility.geminiDetected ? geminiStore.tierBadge : nil))
+            providerCard(.antigravity, status: antigravitySubtitle,
+                         chip: visibility.antigravityAuthUnsupported.map { $0.uppercased() }
+                             ?? (visibility.antigravityDetected ? antigravityStore.tierBadge : nil))
             providerCard(.grok, status: grokSubtitle,
                          chip: visibility.grokDetected ? grokStore.authModeBadge : nil)
             providerCard(.cursor, status: cursorSubtitle,
@@ -1159,7 +1159,7 @@ struct SettingsView: View {
         // selection, so an unselected provider never fetched).
         if visibility.isEnabled(provider) {
             switch provider {
-            case .gemini: GeminiUsageStore.shared.kickRefresh()
+            case .antigravity: AntigravityUsageStore.shared.kickRefresh()
             case .grok: GrokUsageStore.shared.kickRefresh()
             case .cursor: CursorUsageStore.shared.kickRefresh()
             case .claude, .codex: break
@@ -1171,20 +1171,20 @@ struct SettingsView: View {
     /// then the quota numbers. The account email stays out of the default-
     /// visible line (owner report, 2026-08-08 — the row led with a bare
     /// email and read as a glitch); identity lives in the usage-strip hover.
-    private var geminiSubtitle: String {
-        if let authType = visibility.geminiAuthUnsupported {
+    private var antigravitySubtitle: String {
+        if let authType = visibility.antigravityAuthUnsupported {
             // Not a dead end: sessions are monitored locally either way; only
             // the quota numbers live server-side where this auth mode has no
             // readable endpoint.
             return L10n.tr("%@ mode — sessions monitored here, quota lives in Google AI Studio", authType)
         }
-        guard visibility.geminiDetected else {
-            return L10n.tr("Not detected — sign in with the gemini CLI")
+        guard visibility.antigravityDetected else {
+            return L10n.tr("Not detected — sign in with the antigravity CLI")
         }
-        var parts: [String] = [guestSyncCaption(geminiStore.lastUpdated)]
-        if let caption = geminiStore.statusCaption {
+        var parts: [String] = [guestSyncCaption(antigravityStore.lastUpdated)]
+        if let caption = antigravityStore.statusCaption {
             parts.append("⚠ \(caption)")
-        } else if let snapshot = geminiStore.snapshot {
+        } else if let snapshot = antigravityStore.snapshot {
             if let pro = snapshot.primaryPro {
                 parts.append(L10n.tr("pro %d%%", Int((pro.usedPercent * 100).rounded())))
             }

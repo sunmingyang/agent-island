@@ -8,9 +8,9 @@ trap 'rm -rf "$tmpdir"' EXIT
 
 swiftc \
     Sources/Usage/GrokBilling.swift \
-    Sources/Usage/GeminiCredentials.swift \
-    Sources/Usage/GeminiQuota.swift \
-    Tests/GeminiParsingTests.swift \
+    Sources/Usage/AntigravityCredentials.swift \
+    Sources/Usage/AntigravityQuota.swift \
+    Tests/AntigravityParsingTests.swift \
     -o "$tmpdir/gemini-parsing-tests"
 
 "$tmpdir/gemini-parsing-tests"

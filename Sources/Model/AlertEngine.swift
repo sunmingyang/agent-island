@@ -28,7 +28,7 @@ final class AlertEngine: ObservableObject {
     enum Provider: String, Hashable {
         case claude
         case codex
-        case gemini
+        case antigravity
         case grok
         case cursor
     }

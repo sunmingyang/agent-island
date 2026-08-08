@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 ./scripts/test-reminder-delivery-key.sh
 ./scripts/test-report-slice.sh
 ./scripts/test-grok-parsing.sh
-./scripts/test-gemini-parsing.sh
+./scripts/test-antigravity-parsing.sh
 ./scripts/test-cursor-parsing.sh
 ./scripts/test-provider-selection.sh
 ./scripts/test-reminder-store.sh

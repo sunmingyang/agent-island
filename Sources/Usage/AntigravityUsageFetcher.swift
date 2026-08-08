@@ -1,12 +1,12 @@
 import Foundation
 
 /// Fetches the Gemini CLI's Code Assist quota buckets, authenticating with
-/// `~/.gemini/oauth_creds.json` and refreshing through Google's token
+/// `~/.gemini/antigravity-ide/oauth_creds.json` and refreshing through Google's token
 /// endpoint when the access token is expired or rejected. Display-only —
 /// no transcript monitoring, no alarms live here.
-enum GeminiUsageFetcher {
+enum AntigravityUsageFetcher {
     enum Outcome {
-        case success(GeminiQuotaSnapshot)
+        case success(AntigravityQuotaSnapshot)
         /// Refresh path exhausted — the user has to run `gemini` and re-auth.
         case reauthRequired
         /// A refresh was required but no client id/secret could be extracted
@@ -29,18 +29,18 @@ enum GeminiUsageFetcher {
     private static let tokenURL = "https://oauth2.googleapis.com/token"
 
     static func fetch() async -> Outcome {
-        switch GeminiCredentials.detect() {
+        switch AntigravityCredentials.detect() {
         case .notInstalled: return .notInstalled
         case .unsupportedAuth(let type): return .unsupportedAuth(type)
         case .oauthPersonal: break
         }
-        let credsURL = GeminiCredentials.credsURL()
-        guard var creds = GeminiCredentials.loadCreds(from: credsURL) else {
+        let credsURL = AntigravityCredentials.credsURL()
+        guard var creds = AntigravityCredentials.loadCreds(from: credsURL) else {
             return .notInstalled
         }
 
         // Proactive refresh near expiry (Google access tokens live ~1h).
-        if GeminiCredentials.needsRefresh(creds), creds.refreshToken != nil {
+        if AntigravityCredentials.needsRefresh(creds), creds.refreshToken != nil {
             switch await refresh(creds: creds, credsURL: credsURL) {
             case .refreshed(let fresh): creds = fresh
             case .noClientCredentials: return .needsCLIInstall
@@ -75,7 +75,7 @@ enum GeminiUsageFetcher {
     // MARK: - Quota
 
     private enum SnapshotResult {
-        case success(GeminiQuotaSnapshot)
+        case success(AntigravityQuotaSnapshot)
         case migrated
         case unauthorized
         case failed(String)
@@ -88,15 +88,15 @@ enum GeminiUsageFetcher {
             body: ["metadata": ["ideType": "GEMINI_CLI", "pluginType": "GEMINI"]]
         )
 
-        var profile: GeminiQuotaParser.CodeAssistProfile?
+        var profile: AntigravityQuotaParser.CodeAssistProfile?
         switch profileOutcome {
         case .http(401, _), .http(403, _):
             return .unauthorized
         case .http(let status, let data):
-            if GeminiQuotaParser.isMigrationSignal(data) { return .migrated }
+            if AntigravityQuotaParser.isMigrationSignal(data) { return .migrated }
             // The tier/project call is garnish for the quota call — a non-200
             // here still lets the bucket fetch try with an empty project.
-            if status == 200 { profile = GeminiQuotaParser.parseLoadCodeAssist(data) }
+            if status == 200 { profile = AntigravityQuotaParser.parseLoadCodeAssist(data) }
         case .transport(let message):
             return .failed(message)
         }
@@ -107,12 +107,12 @@ enum GeminiUsageFetcher {
         case .http(401, _), .http(403, _):
             return .unauthorized
         case .http(let status, let data):
-            if GeminiQuotaParser.isMigrationSignal(data) { return .migrated }
+            if AntigravityQuotaParser.isMigrationSignal(data) { return .migrated }
             guard status == 200 else { return .failed("http \(status)") }
-            guard let buckets = GeminiQuotaParser.parseQuota(data) else {
+            guard let buckets = AntigravityQuotaParser.parseQuota(data) else {
                 return .failed("parse error")
             }
-            return .success(GeminiQuotaSnapshot(
+            return .success(AntigravityQuotaSnapshot(
                 buckets: buckets,
                 tierID: profile?.tierID,
                 tierLabel: profile?.tierLabel
@@ -151,14 +151,14 @@ enum GeminiUsageFetcher {
     // MARK: - Token refresh
 
     private enum RefreshResult {
-        case refreshed(GeminiOAuthCreds)
+        case refreshed(AntigravityOAuthCreds)
         case noClientCredentials
         case failed
     }
 
     /// Exchange the refresh token at Google's token endpoint. Success is
     /// defined as "the writeback landed" — the CLI reads the same file.
-    private static func refresh(creds: GeminiOAuthCreds, credsURL: URL) async -> RefreshResult {
+    private static func refresh(creds: AntigravityOAuthCreds, credsURL: URL) async -> RefreshResult {
         guard let refreshToken = creds.refreshToken else { return .failed }
         guard let client = GeminiClientExtractor.resolve() else { return .noClientCredentials }
         guard let endpoint = URL(string: tokenURL) else { return .failed }
@@ -177,7 +177,7 @@ enum GeminiUsageFetcher {
 
         guard let (data, response) = try? await URLSession.shared.data(for: req),
               (response as? HTTPURLResponse)?.statusCode == 200,
-              let updated = GeminiCredentials.applyRefreshResponse(data, to: credsURL) else {
+              let updated = AntigravityCredentials.applyRefreshResponse(data, to: credsURL) else {
             return .failed
         }
         return .refreshed(updated)

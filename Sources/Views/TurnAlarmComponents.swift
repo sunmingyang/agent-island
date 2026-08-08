@@ -55,7 +55,7 @@ struct TurnAlarmProviderMark: View {
         switch provider {
         case .claude: return ProviderLogos.claude
         case .codex: return ProviderLogos.openAI
-        case .gemini: return ProviderLogos.gemini
+        case .antigravity: return ProviderLogos.antigravity
         case .grok: return ProviderLogos.grok
         case .cursor: return ProviderLogos.cursor
         }

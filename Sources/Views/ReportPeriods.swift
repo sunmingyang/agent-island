@@ -80,7 +80,7 @@ enum ReportPeriods {
                 .codex: slice(CodexLogReader.scan(lookbackDays: lookback)),
                 .grok: slice(GrokLogReader.scan(lookbackDays: lookback)),
                 .cursor: slice(CursorLogReader.scan(lookbackDays: lookback)),
-                .gemini: slice(GeminiLogReader.scan(lookbackDays: lookback)),
+                .antigravity: slice(AntigravityLogReader.scan(lookbackDays: lookback)),
             ])
         }.value
     }

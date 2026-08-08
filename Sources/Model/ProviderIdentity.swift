@@ -28,7 +28,7 @@ extension AlertEngine.Provider {
         switch self {
         case .claude: return "Claude Code"
         case .codex: return "Codex"
-        case .gemini: return "Gemini"
+        case .antigravity: return "Gemini"
         case .grok: return "Grok"
         case .cursor: return "Cursor"
         }
@@ -38,7 +38,7 @@ extension AlertEngine.Provider {
         switch self {
         case .claude: return IslandColor.claude
         case .codex: return IslandColor.codex
-        case .gemini: return IslandColor.gemini
+        case .antigravity: return IslandColor.antigravity
         case .grok: return IslandColor.grok
         case .cursor: return IslandColor.cursor
         }
@@ -49,7 +49,7 @@ extension AlertEngine.Provider {
         switch self {
         case .claude: return "claude"
         case .codex: return "codex"
-        case .gemini: return "gemini"
+        case .antigravity: return "agy"
         case .grok: return "grok"
         case .cursor: return nil
         }

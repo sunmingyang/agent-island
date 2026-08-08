@@ -63,7 +63,7 @@ struct PanelHeader: View {
         switch provider {
         case .claude: return usageStore.claude.plan?.uppercased()
         case .codex:  return usageStore.codex.plan?.uppercased()
-        case .gemini: return GeminiUsageStore.shared.tierBadge
+        case .antigravity: return AntigravityUsageStore.shared.tierBadge
         case .grok:   return GrokUsageStore.shared.authModeBadge
         case .cursor: return CursorUsageStore.shared.planBadge
         }

@@ -23,7 +23,7 @@ struct StatePreviewLogo: View {
         switch provider {
         case .claude: return Self.claudeImage
         case .codex: return Self.codexImage
-        case .gemini: return ProviderLogos.gemini
+        case .antigravity: return ProviderLogos.antigravity
         case .grok: return ProviderLogos.grok
         case .cursor: return ProviderLogos.cursor
         }
@@ -107,7 +107,7 @@ struct StatePreviewLogo: View {
         if state == .working {
             let duration = 3.8
             withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
-                spin = (provider == .claude || provider == .gemini || provider == .cursor ? 1 : -1) * 360
+                spin = (provider == .claude || provider == .antigravity || provider == .cursor ? 1 : -1) * 360
             }
         }
     }

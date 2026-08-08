@@ -92,7 +92,7 @@ struct CostView: View {
         switch provider {
         case .claude: return .claude
         case .codex:  return .codex
-        case .gemini: return .gemini
+        case .antigravity: return .antigravity
         case .grok:   return .grok
         case .cursor: return .cursor
         }

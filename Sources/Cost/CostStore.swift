@@ -80,7 +80,7 @@ final class CostStore: ObservableObject {
         scanProvider(.codex) { CodexLogReader.scan(lookbackDays: $0) }
         scanProvider(.grok) { GrokLogReader.scan(lookbackDays: $0) }
         scanProvider(.cursor) { CursorLogReader.scan(lookbackDays: $0) }
-        scanProvider(.gemini) { GeminiLogReader.scan(lookbackDays: $0) }
+        scanProvider(.antigravity) { AntigravityLogReader.scan(lookbackDays: $0) }
     }
 
     /// Per-provider gate so a slow scan doesn't block a fast one on the next

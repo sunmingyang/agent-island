@@ -121,7 +121,7 @@ struct CostTile: View {
     private var providesDollars: Bool {
         switch provider {
         case .claude, .codex, .grok: return true
-        case .cursor, .gemini:       return false
+        case .cursor, .antigravity:       return false
         }
     }
 
@@ -285,7 +285,7 @@ struct CostTile: View {
             case .codex:  return usageStore.codex.plan?.lowercased()
             // Guests have no published flat-rate plan to anchor a
             // spend-vs-subscription comparison against.
-            case .gemini, .grok, .cursor: return nil
+            case .antigravity, .grok, .cursor: return nil
             }
         }()
         guard let plan else { return nil }
@@ -306,7 +306,7 @@ struct CostTile: View {
             switch provider {
             case .claude: return usageStore.claude.plan?.lowercased()
             case .codex:  return usageStore.codex.plan?.lowercased()
-            case .gemini, .grok, .cursor: return nil
+            case .antigravity, .grok, .cursor: return nil
             }
         }()
         guard let plan else { return nil }
