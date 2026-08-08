@@ -6,6 +6,10 @@ tag was cut.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [2.1.1] - 2026-08-08
+
 ### Added
 - macOS: Cursor joins the island — billing-cycle usage and plan read from the local Cursor install, alongside Claude, Codex, Gemini, and Grok. Five providers, two configurable top-bar slots; every selected provider keeps a full data row.
 - macOS: session monitoring goes island-wide — live working / stalled / your-turn state for Grok (from its native turn events) and Gemini (recency-based), joining Claude and Codex. Turn alarms and the island logo now speak each provider's own identity.
