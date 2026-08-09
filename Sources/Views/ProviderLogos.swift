@@ -11,12 +11,15 @@ enum ProviderLogos {
     // (Cursor: cursor.com mark via PR #36's path; Grok: grok.com slash
     // mark; Gemini: the four-point star). Same nominative-use footing as
     // the Claude/OpenAI marks above.
-    static let antigravity = load("antigravity_logo")
+    /// The only full-colour mark in the set: Antigravity ships Google's
+    /// blue-green-yellow-red gradient, and flattening it to a silhouette
+    /// threw away the brand (owner review, 2026-08-08). Rendered as-is.
+    static let antigravity = load("antigravity_logo", ext: "png")
     static let grok = load("grok_logo")
     static let cursor = load("cursor_logo")
 
-    private static func load(_ name: String) -> NSImage? {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "pdf"),
+    private static func load(_ name: String, ext: String = "pdf") -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: ext),
               let image = NSImage(contentsOf: url) else { return nil }
         return image
     }
@@ -47,7 +50,7 @@ struct ProviderMark: View {
             case .codex:
                 imageMark(ProviderLogos.openAI)
             case .antigravity:
-                imageMark(ProviderLogos.antigravity)
+                colorMark(ProviderLogos.antigravity)
             case .grok:
                 imageMark(ProviderLogos.grok)
             case .cursor:
@@ -56,6 +59,24 @@ struct ProviderMark: View {
         }
         .foregroundStyle(tint)
         .accessibilityHidden(true)
+    }
+
+    /// Same geometry as `imageMark` but keeps the artwork's own colours —
+    /// `.template` would repaint it in the provider tint and erase the
+    /// gradient that IS the brand.
+    @ViewBuilder
+    private func colorMark(_ image: NSImage?) -> some View {
+        if let image {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+        } else {
+            Circle()
+                .strokeBorder(tint, lineWidth: 1.5)
+                .frame(width: size, height: size)
+        }
     }
 
     @ViewBuilder

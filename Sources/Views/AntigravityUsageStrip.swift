@@ -12,7 +12,7 @@ struct AntigravityUsageStrip: View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
                 ProviderMark(provider: .antigravity, size: 13, tint: IslandColor.antigravity)
-                Text("Gemini")
+                Text("Antigravity")
                     .font(Typography.providerTitle)
                     .foregroundStyle(.white.opacity(0.88))
                 if let tier = store.tierBadge {

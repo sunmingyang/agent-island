@@ -28,7 +28,7 @@ extension AlertEngine.Provider {
         switch self {
         case .claude: return "Claude Code"
         case .codex: return "Codex"
-        case .antigravity: return "Gemini"
+        case .antigravity: return "Antigravity"
         case .grok: return "Grok"
         case .cursor: return "Cursor"
         }

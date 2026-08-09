@@ -11,7 +11,7 @@ enum TriggerTool: String, Codable, CaseIterable {
         switch self {
         case .claude: return "Claude"
         case .codex: return "Codex"
-        case .antigravity: return "Gemini"
+        case .antigravity: return "Antigravity"
         case .grok: return "Grok"
         case .cursor: return "Cursor"
         }

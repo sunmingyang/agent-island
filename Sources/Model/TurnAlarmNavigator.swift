@@ -35,7 +35,7 @@ enum TurnAlarmNavigator {
                 thread: thread,
                 fallbackBundleID: nil
             ) { return }
-            bringForward(appNamed: "Gemini")
+            bringForward(appNamed: "Antigravity")
         case .cursor:
             // Cursor is app-only: no CLI, and no documented route that opens
             // one conversation, so fronting the editor is the whole gesture.
