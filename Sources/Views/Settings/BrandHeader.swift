@@ -75,9 +75,9 @@ struct BrandHeader: View {
             // Fallback if the resource is missing in the bundle: a plain
             // cobalt-glowing dot so the header layout doesn't collapse.
             Circle()
-                .fill(IslandColor.brandTeal)
+                .fill(IslandColor.chrome)
                 .frame(width: 10, height: 10)
-                .shadow(color: IslandColor.brandTeal.opacity(0.85), radius: 5)
+                .shadow(color: IslandColor.chrome.opacity(0.85), radius: 5)
                 .frame(width: 26, height: 26)
         }
     }

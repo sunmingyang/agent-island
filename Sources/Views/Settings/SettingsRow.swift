@@ -30,7 +30,7 @@ struct SettingsRow<Trailing: View>: View {
 
     /// Rows without a provider dot borrow the brand accent for their hover
     /// rule; provider rows keep their own color.
-    private var accent: Color { dot ?? IslandColor.brandTeal }
+    private var accent: Color { dot ?? IslandColor.chrome }
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {

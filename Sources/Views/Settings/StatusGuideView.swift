@@ -210,7 +210,7 @@ private struct SoundChoiceRow: View {
             if isSelected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(IslandColor.brandTeal)
+                    .foregroundStyle(IslandColor.chrome)
             }
         }
         .padding(.horizontal, 12)

@@ -36,9 +36,15 @@ enum IslandColor {
     /// #3DD68C — live status dot. Sits next to cobalt without clashing.
     static let liveTeal = Color(red: 61/255, green: 214/255, blue: 140/255)
 
-    /// #20C0B0 — the Agent Island logo teal (site logo/favicon color).
-    /// Brand-owned surfaces only (e.g. the reset-card face), never
-    /// provider data.
+    /// The app's own chrome voice after the 2026-08-09 de-branding: Agent
+    /// Island carries NO accent color of its own anymore. Selection,
+    /// emphasis, toggles, chips — all speak white-on-black material; color
+    /// on screen belongs to the providers' own marks and effects. Call
+    /// sites keep their own opacities.
+    static let chrome = Color.white
+
+    /// #20C0B0 — survives ONLY as the "Teal" glow option in
+    /// GlowColorStore, a user-facing choice. Never chrome, never data.
     static let brandTeal = Color(red: 32/255, green: 192/255, blue: 176/255)
 
     /// #8A63FF — glow-color option "Violet". Ambient glow only, never data.
@@ -52,13 +58,6 @@ enum IslandColor {
     /// the black silhouette without competing with the cobalt halo. Used
     /// for the static glow + peek pill accent at warning severity.
     static let alertAmber = Color(red: 245/255, green: 165/255, blue: 36/255)
-
-    /// The SELECTION accent for settings chrome. Deliberately NOT the
-    /// brand teal: teal now carries DATA everywhere (previews, meters,
-    /// numbers), so selection needed its own voice or the two collided
-    /// (owner call, 2026-08-08). A warm gold reads as "you chose this"
-    /// against a field of teal readings.
-    static let selectGold = Color(red: 240/255, green: 190/255, blue: 110/255)
 
     /// #E5484D — approaching-limit critical tint. Saturated enough to read
     /// as "stop, you're cooked" without going full red-alert pure.

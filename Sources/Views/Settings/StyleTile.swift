@@ -31,7 +31,7 @@ struct StyleTile<Preview: View>: View {
                 Text(displayLabel)
                     .font(SettingsType.data.weight(isOn ? .semibold : .regular))
                     .foregroundStyle(isOn
-                        ? IslandColor.selectGold.opacity(0.95)
+                        ? IslandColor.chrome.opacity(0.95)
                         : .white.opacity(hovered ? 0.8 : 0.55))
             }
             .frame(maxWidth: .infinity)
@@ -41,17 +41,17 @@ struct StyleTile<Preview: View>: View {
             .background {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(isOn
-                          ? IslandColor.selectGold.opacity(0.12)
+                          ? IslandColor.chrome.opacity(0.12)
                           : .white.opacity(hovered ? 0.05 : 0.025))
                     .overlay {
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
                             .strokeBorder(isOn
-                                ? IslandColor.selectGold.opacity(0.6)
+                                ? IslandColor.chrome.opacity(0.6)
                                 : .white.opacity(hovered ? 0.10 : 0), lineWidth: 1)
                     }
             }
             .modifier(SettlePulse(trigger: landed))
-            .landingRing(trigger: landed, color: IslandColor.selectGold, cornerRadius: 9)
+            .landingRing(trigger: landed, color: IslandColor.chrome, cornerRadius: 9)
         }
         .buttonStyle(.plain)
         .scaleEffect(hovered && !isOn ? 1.02 : 1)

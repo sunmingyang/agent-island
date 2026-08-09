@@ -30,7 +30,7 @@ struct CostStylePicker: View {
     private func preview(for style: CostStyle) -> some View {
         // Previews speak ONE voice — brand teal — because the picker is
         // about SHAPE, not whose data (owner call, 2026-08-08).
-        let claude = IslandColor.brandTeal
+        let claude = IslandColor.chrome
         switch style {
         case .dollar:
             HStack(alignment: .firstTextBaseline, spacing: 1) {

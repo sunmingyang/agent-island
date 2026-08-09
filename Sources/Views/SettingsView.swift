@@ -260,7 +260,7 @@ struct SettingsView: View {
                 Image(systemName: tab.icon)
                     .font(.system(size: 11.5, weight: .semibold))
                     .frame(width: 16)
-                    .foregroundStyle(isOn ? IslandColor.selectGold : .white.opacity(0.48))
+                    .foregroundStyle(isOn ? IslandColor.chrome : .white.opacity(0.48))
                     // Cadence C9: the icon gives one small confirming pop on
                     // landing, then settles.
                     .scaleEffect(isOn ? 1.12 : 1)
@@ -284,7 +284,7 @@ struct SettingsView: View {
                     }
                     if isOn {
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(IslandColor.selectGold.opacity(0.13))
+                            .fill(IslandColor.chrome.opacity(0.13))
                             .matchedGeometryEffect(id: "sidebarSelection", in: sidebarSelection)
                     }
                 }
@@ -878,11 +878,11 @@ struct SettingsView: View {
                     }
                     Text("\(visibility.enabled.count) / 2")
                         .font(SettingsType.data)
-                        .foregroundStyle(IslandColor.brandTeal.opacity(0.92))
+                        .foregroundStyle(IslandColor.chrome.opacity(0.92))
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Capsule().fill(IslandColor.brandTeal.opacity(0.10)))
+                .background(Capsule().fill(IslandColor.chrome.opacity(0.10)))
             }
             .padding(.bottom, 2)
 
@@ -1080,7 +1080,7 @@ struct SettingsView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(usage.codexAutoSwitched == nil
                                  ? .white.opacity(0.85)
-                                 : IslandColor.selectGold.opacity(0.9))
+                                 : IslandColor.chrome.opacity(0.9))
                 .padding(.horizontal, 7)
                 .padding(.vertical, 6)
                 .background {

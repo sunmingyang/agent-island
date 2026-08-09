@@ -340,7 +340,7 @@ struct WeeklyReportCard: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
-                        .foregroundStyle(IslandColor.brandTeal)
+                        .foregroundStyle(IslandColor.chrome)
                 }
             }
         }
@@ -356,16 +356,16 @@ struct WeeklyReportCard: View {
                     Text(isPeak ? Self.compactString(tokens, zh: zh) : " ")
                         .font(.system(size: 9, weight: .heavy, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(IslandColor.brandTeal)
+                        .foregroundStyle(IslandColor.chrome)
                         .opacity(isPeak ? 1 : 0)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(isPeak
-                              ? AnyShapeStyle(IslandColor.brandTeal)
+                              ? AnyShapeStyle(IslandColor.chrome)
                               : AnyShapeStyle(Color.white.opacity(tokens > 0 ? 0.16 : 0.07)))
                         .frame(height: max(5, 58 * CGFloat(tokens) / CGFloat(peak)))
                     Text(data.dayLetters.indices.contains(i) ? data.dayLetters[i] : "")
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(isPeak ? IslandColor.brandTeal : .white.opacity(0.32))
+                        .foregroundStyle(isPeak ? IslandColor.chrome : .white.opacity(0.32))
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -434,7 +434,7 @@ struct ReportCardHeader: View {
             (Text("AGENT ISLAND ")
                 .foregroundColor(.white.opacity(0.88))
              + Text(kind)
-                .foregroundColor(IslandColor.brandTeal))
+                .foregroundColor(IslandColor.chrome))
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(3.0)
             Spacer()

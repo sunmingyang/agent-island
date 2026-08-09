@@ -56,7 +56,7 @@ struct StatePreviewLogo: View {
                         Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.5)
                         Image(systemName: "bell.fill")
                             .font(.system(size: 5.5, weight: .bold))
-                            .foregroundStyle(IslandColor.brandTeal)
+                            .foregroundStyle(IslandColor.chrome)
                     }
                     .frame(width: 11, height: 11)
                     .offset(x: 3, y: 2)

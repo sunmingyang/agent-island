@@ -24,7 +24,7 @@ struct SettingsButton: View {
                 .background {
                     Circle()
                         .fill(.white.opacity(hovered ? 0.08 : 0))
-                        .shadow(color: IslandColor.brandTeal.opacity(hovered ? 0.30 : 0), radius: 6)
+                        .shadow(color: IslandColor.chrome.opacity(hovered ? 0.30 : 0), radius: 6)
                 }
         }
         .buttonStyle(.plain)

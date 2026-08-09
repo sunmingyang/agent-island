@@ -31,11 +31,11 @@ struct SettingsToggle: View {
             // Track: teal wash when on, faint well when off; hover lifts
             // the rim either way.
             Capsule()
-                .fill(isOn ? IslandColor.brandTeal.opacity(0.34) : .white.opacity(0.07))
+                .fill(isOn ? IslandColor.chrome.opacity(0.34) : .white.opacity(0.07))
                 .overlay {
                     Capsule().strokeBorder(
                         isOn
-                            ? IslandColor.brandTeal.opacity(hovered ? 0.55 : 0.35)
+                            ? IslandColor.chrome.opacity(hovered ? 0.55 : 0.35)
                             : .white.opacity(hovered ? 0.22 : 0.13),
                         lineWidth: 1
                     )
@@ -49,11 +49,11 @@ struct SettingsToggle: View {
                 .frame(width: pressed ? knobSize + knobStretch : knobSize,
                        height: knobSize)
                 .shadow(color: .black.opacity(0.35), radius: 1.5, y: 0.5)
-                .shadow(color: isOn ? IslandColor.brandTeal.opacity(0.7) : .clear, radius: 5)
+                .shadow(color: isOn ? IslandColor.chrome.opacity(0.32) : .clear, radius: 5)
                 .overlay {
                     // Landing halo — flares once per ON commit.
                     Circle()
-                        .strokeBorder(IslandColor.brandTeal, lineWidth: 1.2)
+                        .strokeBorder(IslandColor.chrome, lineWidth: 1.2)
                         .modifier(HaloBreath(trigger: halo))
                 }
                 .padding(.horizontal, (trackHeight - knobSize) / 2)

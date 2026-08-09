@@ -331,10 +331,10 @@ struct PagedCardView: View {
                     Text(versionChip)
                         .font(.system(size: 10.5, weight: .bold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(IslandColor.brandTeal)
+                        .foregroundStyle(IslandColor.chrome)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(IslandColor.brandTeal.opacity(0.12)))
+                        .background(Capsule().fill(IslandColor.chrome.opacity(0.12)))
                 }
                 Spacer(minLength: 30)
             }
@@ -376,7 +376,7 @@ struct PagedCardView: View {
                         // Tappable; the active dot stretches into a pill
                         // (small joy, Cadence school).
                         Capsule()
-                            .fill(i == page ? IslandColor.brandTeal : Color.white.opacity(0.16))
+                            .fill(i == page ? IslandColor.chrome : Color.white.opacity(0.16))
                             .frame(width: i == page ? 16 : 6, height: 6)
                             .contentShape(Rectangle().inset(by: -4))
                             .onTapGesture {
@@ -418,7 +418,7 @@ struct PagedCardView: View {
                         .frame(height: 34)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(IslandColor.brandTeal)
+                                .fill(IslandColor.chrome)
                         )
                 }
                 .buttonStyle(TactileButtonStyle())
@@ -528,14 +528,14 @@ private struct IconRow: View {
             ForEach(Array(symbols.enumerated()), id: \.offset) { i, symbol in
                 Image(systemName: symbol)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(IslandColor.brandTeal)
+                    .foregroundStyle(IslandColor.chrome)
                     .frame(width: 30, height: 30)
                     .background(
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(IslandColor.brandTeal.opacity(0.10))
+                            .fill(IslandColor.chrome.opacity(0.10))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .strokeBorder(IslandColor.brandTeal.opacity(0.22), lineWidth: 1)
+                                    .strokeBorder(IslandColor.chrome.opacity(0.22), lineWidth: 1)
                             )
                     )
                     // Staggered rise-in — the Cadence chip-flight cadence,
@@ -596,7 +596,7 @@ private struct PageIllustration: View {
                     ZStack {
                         LinearGradient(
                             colors: [
-                                IslandColor.brandTeal.opacity(0.16),
+                                IslandColor.chrome.opacity(0.16),
                                 IslandColor.cobalt.opacity(0.10),
                                 Color.white.opacity(0.02),
                             ],
@@ -604,7 +604,7 @@ private struct PageIllustration: View {
                         )
                         Image(systemName: page.symbol)
                             .font(.system(size: 46, weight: .medium))
-                            .foregroundStyle(IslandColor.brandTeal.opacity(0.85))
+                            .foregroundStyle(IslandColor.chrome.opacity(0.85))
                     }
                 }
             }

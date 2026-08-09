@@ -336,7 +336,7 @@ private struct WeeklyReportSheet: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(anchorDate == nil
                         ? .white.opacity(0.6)
-                        : IslandColor.brandTeal.opacity(0.95))
+                        : IslandColor.chrome.opacity(0.95))
                     .frame(width: 26, height: 26)
                     .background(Circle().fill(.white.opacity(0.10)))
                     .contentShape(Circle())

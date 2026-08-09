@@ -61,7 +61,7 @@ struct SettlePulse: ViewModifier {
 /// The confirmation lives at the point of change, not in a caption.
 struct LandingRing: ViewModifier {
     var trigger: Int
-    var color: Color = IslandColor.brandTeal
+    var color: Color = IslandColor.chrome
     var cornerRadius: CGFloat = 10
 
     @State private var flare = false
@@ -83,7 +83,7 @@ struct LandingRing: ViewModifier {
 }
 
 extension View {
-    func landingRing(trigger: Int, color: Color = IslandColor.brandTeal,
+    func landingRing(trigger: Int, color: Color = IslandColor.chrome,
                      cornerRadius: CGFloat = 10) -> some View {
         modifier(LandingRing(trigger: trigger, color: color, cornerRadius: cornerRadius))
     }
