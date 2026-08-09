@@ -180,10 +180,12 @@ public sealed class ReportWindow : Window
             if (_pageOffset != 0 || _anchorDate is not null || _loading) return;
             _display = CurrentData();
             RebuildCard();
+            AlignCurrentWeek();
         };
         Cost.CostStore.Shared.PropertyChanged += _costChanged;
         Closed += (_, _) => Cost.CostStore.Shared.PropertyChanged -= _costChanged;
         if (!Core.AppEnvironment.IsDemo) Cost.CostStore.Shared.Refresh();
+        AlignCurrentWeek();
 
         // Warm the 3x export render off the click path — it costs a beat,
         // and doing it lazily made the first Copy feel broken.
@@ -252,9 +254,29 @@ public sealed class ReportWindow : Window
             _loading = false;
             _display = CurrentData();
             RebuildCard();
+            AlignCurrentWeek();
             return;
         }
         LoadPage(target);
+    }
+
+    /// The live weekly card's model table and dollars come from the store's
+    /// WALL-CLOCK last-7-days window, while its bars anchor to the freshest
+    /// SCANNED day — on a machine whose logs stopped days ago the hero says
+    /// 2693万 while the donut sits empty. Rebuild the current page from one
+    /// anchored interval slice so every series shares one window by
+    /// construction. (Same latent shear exists in the macOS current() —
+    /// invisible there only while the machine is used daily.)
+    private async void AlignCurrentWeek()
+    {
+        if (_kind != Kind.Weekly || Core.AppEnvironment.IsDemo) return;
+        var (start, end) = ReportPeriods.WeekInterval(0);
+        // Nothing to align when the anchored week IS the wall-clock week.
+        if (end > DateTime.Today) return;
+        var slices = await ReportPeriods.SlicesAsync(start, end);
+        if (_pageOffset != 0 || _anchorDate is not null || _loading) return;
+        _display = WeeklyReportData.ForInterval(start, end, slices);
+        RebuildCard();
     }
 
     private async void LoadPage(int target)
@@ -521,6 +543,10 @@ internal sealed class PagerCircle : Border
             VerticalAlignment = VerticalAlignment.Center,
         };
         Child = _glyph;
+        // Swallow the DOWN: the report window starts a DragMove on any
+        // unclaimed press, which captures the mouse and eats the UP — the
+        // pager read as dead (the close disc dodges this the same way).
+        MouseLeftButtonDown += (_, args) => args.Handled = true;
         MouseLeftButtonUp += (_, args) =>
         {
             args.Handled = true;
