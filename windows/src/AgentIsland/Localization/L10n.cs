@@ -293,6 +293,7 @@ public static class L10n
         ["What the island's two logos are telling you."] = "顶部条里的两个图标在告诉你什么",
         ["Logo states"] = "图标状态",
         ["Running"] = "正在跑",
+        ["Working"] = "正在跑",
         ["Your turn"] = "该你回复",
         ["Needs attention"] = "需要处理",
         ["The logo rotates while a session is running."] = "会话运行时，图标会持续旋转",

@@ -135,9 +135,17 @@ public sealed class SettingsWindow : Window
         var w = (int)Math.Ceiling(root.ActualWidth);
         var h = (int)Math.Ceiling(root.ActualHeight);
         if (w <= 0 || h <= 0) return;
+        // The window's own Background lives on the Window, not the content
+        // tree — composite it first or the sweep PNG reads white-on-white.
+        var visual = new System.Windows.Media.DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(Background, null, new Rect(0, 0, w, h));
+            dc.DrawRectangle(new System.Windows.Media.VisualBrush(root), null, new Rect(0, 0, w, h));
+        }
         var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
             w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-        bitmap.Render(root);
+        bitmap.Render(visual);
         var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
         encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
         using var stream = System.IO.File.Create(path);
@@ -1143,7 +1151,6 @@ public sealed class SettingsWindow : Window
     private UIElement BuildProviders()
     {
         var stack = TabStack();
-        stack.Children.Add(SectionLabel("Providers"));
         stack.Children.Add(BuildSlotHeader());
 
         // The "Open threads via" pickers are retired (macOS 1.6.1): threads
@@ -2087,7 +2094,7 @@ public sealed class SettingsWindow : Window
         // bell-in-a-box. Stalled drives the pulse demo; the real authRequired
         // is a steady red since P22.
         stack.Children.Add(SectionLabel("Logo states"));
-        stack.Children.Add(LegendRow(ActivityState.Working, "Running",
+        stack.Children.Add(LegendRow(ActivityState.Working, "Working",
             "The logo rotates while a session is running."));
         stack.Children.Add(BellLegendRow("Your turn",
             "A thread finished — Agent Island opens an alarm window so you can reply."));
