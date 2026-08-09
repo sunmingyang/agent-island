@@ -131,11 +131,9 @@ struct SettingsView: View {
             Color.clear.frame(height: 30)
 
             HStack(spacing: 8) {
-                // The bare transparent five-blade mark — the small-optimized
-                // variant keeps it legible here without a tile (owner review,
-                // 2026-08-09: no box). Hovering clicks the pinwheel one blade
-                // over (72°, GPU rotation, one-shot).
-                SidebarBrandMark()
+                // The bare transparent five-blade mark — no tile, no hover
+                // motion (owner review ×2, 2026-08-09).
+                BrandMark(side: 24)
                 Text("Agent Island")
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.92))
