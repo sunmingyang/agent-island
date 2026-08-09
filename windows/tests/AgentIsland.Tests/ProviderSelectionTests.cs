@@ -96,7 +96,7 @@ public static class ProviderSelectionTests
         var current = new List<DisplayProvider> { DisplayProvider.Antigravity, DisplayProvider.Cursor };
         Expect(ProviderSelection.TryToggle(current, DisplayProvider.Cursor, out var next),
             "turning one off while full must succeed");
-        Expect(Spell(next) == "gemini", $"wrong result at the cap: {Spell(next)}");
+        Expect(Spell(next) == "antigravity", $"wrong result at the cap: {Spell(next)}");
     }
 
     private static void TestMigration()
