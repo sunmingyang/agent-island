@@ -26,16 +26,47 @@ final class AgentReminderStore: ObservableObject {
         var label: String { rawValue }
     }
 
+    /// Apple's own ringtone library — the "苹果闹钟" sound the owner asked
+    /// the alarm to match (2026-08-09). Every Mac ships these inside
+    /// ToneLibrary.framework for FaceTime; they are referenced in place at
+    /// runtime and never bundled — they are Apple's audio, and they are
+    /// already on the disk. If a future macOS moves the directory the tier
+    /// simply disappears from the picker and the classic presets remain.
+    enum AppleRingtones {
+        static let directory =
+            "/System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/Ringtones"
+
+        /// Curated alarm-grade picks, Radar first — the iPhone default
+        /// alarm. The library holds 78 tones; a full dump would bury the
+        /// picker, so this is the set that actually reads as an alarm.
+        static let curated = [
+            "Radar", "Alarm", "Apex", "Beacon", "Chimes", "Signal",
+            "Circuit", "Sencha", "Slow Rise", "Stargaze", "Reflection", "Waves",
+        ]
+
+        static let available: [String] = curated.filter {
+            FileManager.default.fileExists(atPath: url(for: $0).path)
+        }
+
+        static func url(for name: String) -> URL {
+            URL(fileURLWithPath: directory).appendingPathComponent(name + ".m4r")
+        }
+    }
+
     enum AlarmSoundChoice: Hashable {
+        case ringtone(String)
         case preset(AlarmSoundPreset)
         case custom
 
         static var all: [AlarmSoundChoice] {
-            AlarmSoundPreset.allCases.map { .preset($0) } + [.custom]
+            AppleRingtones.available.map { .ringtone($0) }
+                + AlarmSoundPreset.allCases.map { .preset($0) }
+                + [.custom]
         }
 
         var storageValue: String {
             switch self {
+            case .ringtone(let name): return "Ringtone:" + name
             case .preset(let preset): return preset.rawValue
             case .custom: return "Custom"
             }
@@ -43,6 +74,7 @@ final class AgentReminderStore: ObservableObject {
 
         var label: String {
             switch self {
+            case .ringtone(let name): return name
             case .preset(let preset): return preset.label
             case .custom: return "Custom sound"
             }
@@ -51,6 +83,15 @@ final class AgentReminderStore: ObservableObject {
         init?(storageValue: String) {
             if storageValue == "Custom" {
                 self = .custom
+            } else if storageValue.hasPrefix("Ringtone:") {
+                let name = String(storageValue.dropFirst("Ringtone:".count))
+                // A tone this system doesn't have (synced defaults, OS
+                // change) must not resolve — the caller falls back to the
+                // default rather than a silent alarm.
+                guard FileManager.default.fileExists(atPath: AppleRingtones.url(for: name).path) else {
+                    return nil
+                }
+                self = .ringtone(name)
             } else if let preset = AlarmSoundPreset(rawValue: storageValue) {
                 self = .preset(preset)
             } else {
@@ -150,6 +191,10 @@ final class AgentReminderStore: ObservableObject {
             soundChoice = storedChoice
         } else if storedCustomSoundPath != nil {
             soundChoice = .custom
+        } else if let ringtone = AppleRingtones.available.first {
+            // Radar, the iPhone default alarm — the owner wants the alarm
+            // to sound like Apple's, and this is the one everyone knows.
+            soundChoice = .ringtone(ringtone)
         } else {
             soundChoice = .preset(initialPreset)
         }
@@ -159,6 +204,8 @@ final class AgentReminderStore: ObservableObject {
 
     var soundLabel: String {
         switch soundChoice {
+        case .ringtone(let name):
+            return name
         case .preset(let preset):
             return L10n.tr(preset.label)
         case .custom:
@@ -176,6 +223,9 @@ final class AgentReminderStore: ObservableObject {
 
     func selectSoundChoice(_ choice: AlarmSoundChoice) {
         switch choice {
+        case .ringtone:
+            soundChoice = choice
+            previewSoundChoice(choice)
         case .preset(let preset):
             selectPreset(preset)
             previewSoundChoice(.preset(preset))
@@ -231,6 +281,10 @@ final class AgentReminderStore: ObservableObject {
 
     private func makeSound(for choice: AlarmSoundChoice) -> NSSound? {
         switch choice {
+        case .ringtone(let name):
+            let url = AppleRingtones.url(for: name)
+            guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return NSSound(contentsOf: url, byReference: true)
         case .preset(let preset):
             return NSSound(named: preset.soundName)
         case .custom:

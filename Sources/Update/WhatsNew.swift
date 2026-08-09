@@ -49,9 +49,9 @@ struct PagedCardPage: Identifiable {
     var hero: Hero?
 }
 
-/// 2.1.1 release pages — overview first, then one page per theme. Copy is
-/// deliberately terse (owner call: 精简,别什么都往上写). The unshipped
-/// 1.7.2 and 1.8.1 batches fold into this card.
+/// 2.1.2 release pages — overview first, then one page per theme. Copy is
+/// deliberately terse (owner call: 精简,别什么都往上写). Everything shipped
+/// since the 2.1.1 card folds into this one.
 enum WhatsNewContent {
     static let pages: [PagedCardPage] = [
         // Titles are STRUCTURAL summaries — "更X的Y" noun phrases, never
@@ -59,52 +59,34 @@ enum WhatsNewContent {
         // "更新自己会说话"是错的).
         PagedCardPage(
             symbol: "sparkles",
-            imageName: "whatsnew-211-overview",
+            imageName: nil,
             title: "At a glance",
-            body: "From two agents to five: Gemini, Grok, and Cursor arrive together, session status stretches across the island, settings start over, and Codex accounts switch in one click",
+            body: "The fifth seat changes hands: Antigravity replaces Gemini — Google's gradient, a real weekly quota, resume to the exact conversation — and every alarm now lands back in the terminal you actually use",
             hero: .version
         ),
         PagedCardPage(
-            symbol: "cube",
-            imageName: "whatsnew-211-cursor",
-            title: "Three new agents arrive",
-            body: "Gemini, Grok, and Cursor land beside Claude and Codex in one release — quotas, plans, and billing cycles, all read locally"
+            symbol: "arrow.triangle.2.circlepath.circle",
+            imageName: nil,
+            title: "Antigravity arrives",
+            body: "Google retired Gemini Code Assist for individuals, so Antigravity takes the slot: live session state, weekly quota read from its own local service, and one click back to the exact conversation"
         ),
         PagedCardPage(
-            symbol: "square.grid.2x2",
-            imageName: "whatsnew-211-picker",
-            title: "Five agents, two slots",
-            body: "Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar; every selected provider keeps its full data row"
+            symbol: "apple.terminal",
+            imageName: nil,
+            title: "Back to your terminal",
+            body: "An alarm click lands in the session's live window — Terminal, Ghostty, iTerm, or an IDE pane. Fresh windows open in the terminal you actually use, learned by watching rather than by asking"
         ),
         PagedCardPage(
-            symbol: "wave.3.right.circle",
-            imageName: "whatsnew-211-session-status",
-            title: "Session status, island-wide",
-            body: "Working, stalled, your turn — live session state spans Claude, Codex, Grok, and Gemini, driven by each agent's own records"
+            symbol: "bell.badge",
+            imageName: nil,
+            title: "Apple alarm tones",
+            body: "Radar, Beacon, Slow Rise — the alarm rings with Apple's own tones, played straight from the system's ringtone library. Radar is the new default"
         ),
         PagedCardPage(
-            symbol: "person.2.badge.key",
-            imageName: "whatsnew-211-accounts",
-            title: "Codex account switching",
-            body: "Park each login under a name and swap from the menu; opt in to auto-switch when a quota runs dry, driven by real usage numbers"
-        ),
-        PagedCardPage(
-            symbol: "slider.horizontal.3",
-            imageName: "whatsnew-211-settings",
-            title: "Settings, started over",
-            body: "Sidebar navigation, teal for data and gold for selection, and micro-motion in every control — press, glide, land"
-        ),
-        PagedCardPage(
-            symbol: "calendar.badge.clock",
-            imageName: "whatsnew-211-reports",
-            title: "Reports that look back",
-            body: "Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran"
-        ),
-        PagedCardPage(
-            symbol: "person.badge.key",
-            imageName: "whatsnew-211-signin",
-            title: "Sign-in that lands right",
-            body: "Claude login now mirrors the official CLI exactly, with a code fallback when the browser round-trip cannot finish"
+            symbol: "dollarsign.circle",
+            imageName: nil,
+            title: "Cost across all five",
+            body: "Grok reports its own dollars, Cursor counts its tokens — cost and reports now cover every agent, read locally, and say so honestly where a provider publishes less"
         ),
         // The closing spread (owner spec, 2026-07-18): poster art, a
         // welcome-back line, and the Get-started button beneath it.
@@ -133,13 +115,13 @@ enum GuideContent {
             symbol: "circle.hexagongrid.circle",
             imageName: "guide-status",
             title: "Monitor",
-            body: "Claude, Codex, Grok, and Gemini carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you"
+            body: "Claude, Codex, Grok, and Antigravity carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you"
         ),
         PagedCardPage(
             symbol: "gauge.with.needle",
             imageName: "guide-usage",
             title: "Usage",
-            body: "Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page"
+            body: "Claude, Codex, Antigravity, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page"
         ),
         PagedCardPage(
             symbol: "calendar",

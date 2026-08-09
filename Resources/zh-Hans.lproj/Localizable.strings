@@ -524,11 +524,11 @@
 "Five agents on one island — each read from the records it already writes on your Mac" = "五家 Agent 同在一座岛——各自读它们本来就写在你 Mac 上的记录";
 "A guided tour of everything the island does" = "带你看懂小岛的全部能力";
 "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude 与 Codex 提供实时会话状态：旋转代表工作中，铃铛代表轮到你，常红代表需要处理";
-"Claude, Codex, Grok, and Gemini carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude、Codex、Grok、Antigravity 显示实时状态；Cursor 只显示额度。\n旋转表示工作中，铃铛表示轮到你，常红表示需要处理";
+"Claude, Codex, Grok, and Antigravity carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude、Codex、Grok、Antigravity 显示实时状态；Cursor 只显示额度。\n旋转表示工作中，铃铛表示轮到你，常红表示需要处理";
 "Reports that look back" = "能回看的报告";
 "Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran" = "用箭头翻回更早的周报或月报；每一页都按对应的本地时间窗口重新计算，并列出跑过的全部模型";
 "April" = "4月";
-"Claude, Codex, Gemini, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page" = "Claude、Codex、Antigravity、Grok、Cursor 任选两家常驻顶部；\n悬停服务行查看模型或产品明细，点击打开官方页面";
+"Claude, Codex, Antigravity, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page" = "Claude、Codex、Antigravity、Grok、Cursor 任选两家常驻顶部；\n悬停服务行查看模型或产品明细，点击打开官方页面";
 
 /* What's New (1.7.2) */
 "What's new in this update" = "本次更新带来了什么";
@@ -546,7 +546,7 @@
 
 /* 1.7.2 preview batch 2 */
 "Pie" = "饼图";
-"Guide" = "教程";
+"Guide" = "指南";
 "Release notes" = "版本说明";
 "What's new in this version" = "本版更新说明";
 "View" = "查看";
@@ -562,8 +562,8 @@
 
 /* 1.7.2 paged cards */
 "What's new in this update" = "本次更新带来了什么";
-"How Agent Island works" = "Agent Island 使用教程";
-"Product guide" = "产品教程";
+"How Agent Island works" = "Agent Island 使用指南";
+"Product guide" = "产品指南";
 "A five-page tour of everything the island does." = "五页看懂小岛的全部能力";
 "Back" = "上一页";
 "Next" = "下一页";
@@ -644,3 +644,12 @@
 "Installed — run agy to sign in" = "已安装 — 运行 agy 登录";
 "Not detected — sign in with the antigravity CLI" = "未检测到 — 用 antigravity CLI 登录";
 "sessions monitored — quota reading not wired yet" = "会话已监控 — 配额读取尚未接通";
+"The fifth seat changes hands: Antigravity replaces Gemini — Google's gradient, a real weekly quota, resume to the exact conversation — and every alarm now lands back in the terminal you actually use" = "第五席易主：Antigravity 接替 Gemini——谷歌渐变、真实周额度、精确续跑；\n每个弹窗都能跳回你正在用的那个终端";
+"Antigravity arrives" = "Antigravity 登岛";
+"Google retired Gemini Code Assist for individuals, so Antigravity takes the slot: live session state, weekly quota read from its own local service, and one click back to the exact conversation" = "Google 关停个人版 Gemini Code Assist，Antigravity 顶上：\n实时会话状态、本地服务直读周额度、一键回到原对话";
+"Back to your terminal" = "回到你的终端";
+"An alarm click lands in the session's live window — Terminal, Ghostty, iTerm, or an IDE pane. Fresh windows open in the terminal you actually use, learned by watching rather than by asking" = "点弹窗直达会话所在的窗口——Terminal、Ghostty、iTerm 或 IDE 面板；\n需要新开时，也开在你惯用的终端里，靠观测学会，无需设置";
+"Apple alarm tones" = "苹果闹钟铃声";
+"Radar, Beacon, Slow Rise — the alarm rings with Apple's own tones, played straight from the system's ringtone library. Radar is the new default" = "Radar、Beacon、Slow Rise——弹窗铃声来自系统自带的苹果铃声库，默认 Radar";
+"Cost across all five" = "五家成本全覆盖";
+"Grok reports its own dollars, Cursor counts its tokens — cost and reports now cover every agent, read locally, and say so honestly where a provider publishes less" = "Grok 自报美元、Cursor 提供 token 计数——成本与报表覆盖五家，全部本地读取；\n上游没有的数据，如实标注";
