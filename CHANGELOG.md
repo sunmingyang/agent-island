@@ -8,6 +8,31 @@ tag was cut.
 
 _Nothing yet._
 
+## [2.1.2] - 2026-08-09
+
+### Added
+- Cursor becomes a full citizen: live session state and your-turn alarms driven by Cursor's own completion signal instead of a timing guess, on top of the billing-cycle usage and plan it already reported. Both platforms.
+- Real-time file watching for Grok, Antigravity, and Cursor — their sessions update on write rather than waiting for the next scan tick.
+- Grok, Antigravity, and Cursor join the cost ledger and both report cards.
+- Alarm sounds gain an Apple ringtone tier; Radar is the new default.
+- The five-blade mark ships across the app icon, the DMG, and the Windows `.ico`.
+
+### Changed
+- **Antigravity replaces Gemini as the fifth provider.** Google retired Gemini Code Assist for individual accounts on 2026-06-18 and pointed those users at Antigravity; only Standard/Enterprise organisation licences survived, so the slot follows the users. Stored selections carrying `gemini` migrate to `antigravity` on read — nobody silently loses the island they chose. CLI is `agy`; the display name and Google's own gradient come with it.
+- Antigravity quota comes from the **local language server** only (the cloud endpoints are a verified dead end): port discovery walks the `agy`/`antigravity` processes' listening sockets, loopback-scoped HTTPS, CSRF lifted from the IDE command line only after a 401. Resume uses `agy --conversation <id>` for an exact-thread append.
+- Windows reaches 2.1.2 parity: the same five providers, the same live session state, released from the same tag as macOS.
+- Report cards: the rank block is retired, the monthly table caps to the top three models like the weekly one, and `claude-opus-5` is priced (it was silently counted at $0).
+- Claude in-app sign-in requests the exact six scopes the CLI uses, fixing an `Invalid request format` failure.
+
+### Fixed
+- The island could vanish and stay gone. Three separate disappearance paths are closed — a missed unlock notification, a full-screen Space transition, and a hover race that killed the window — with a self-healing check behind them.
+- Cursor no longer spins forever without raising your turn; its turn status no longer freezes on a stale cache snapshot (the scan cache key ignored the SQLite WAL).
+- Antigravity stopped firing mid-run: its tool steps report `source: MODEL` like the model itself, so a turn only counts as finished on a planner response with content and no pending tool calls.
+- Guest logins are re-detected after sign-in, and every alarm click now lands on a real surface.
+
+### Removed
+- **Auto-resume is deleted outright.** Visibility and execution authority stay separate: Agent Island reports that a turn ended and takes you back to the session, but never continues a run on your behalf.
+
 ## [2.1.1] - 2026-08-08
 
 ### Added

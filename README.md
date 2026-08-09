@@ -4,7 +4,7 @@
 
 # Agent Island
 
-**A status companion for your AI coding agents — Claude Code, Codex, Gemini, Grok, and Cursor.**
+**A status companion for your AI coding agents — Claude Code, Codex, Antigravity, Grok, and Cursor.**
 
 See what every run is doing. Step away, and Agent Island calls you back when it is your turn. Local-first, no Agent Island account, no product telemetry.
 
@@ -49,12 +49,12 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 
 Choose your platform and install the current release directly:
 
-> `v2.1.1` is live on macOS — five providers, island-wide session status, and the rewritten settings panel. **The Windows build syncs to 2.1.1 shortly**; its download below is the v1.7.1 build until then.
+> `v2.1.2` is live on macOS — five providers, island-wide session status, and the rewritten settings panel. **The Windows build syncs to 2.1.2 shortly**; its download below is the v1.7.1 build until then.
 
 | Platform | Recommended download | Requirement |
 |---|---|---|
-| macOS | [AgentIsland-2.1.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.1/AgentIsland-2.1.1.dmg) | macOS 13+, Apple silicon or Intel |
-| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 — syncs to 2.1.1 shortly |
+| macOS | [AgentIsland-2.1.2.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2.dmg) | macOS 13+, Apple silicon or Intel |
+| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 — syncs to 2.1.2 shortly |
 
 On macOS, drag Agent Island into Applications. The app is ad-hoc signed rather than notarized, so the first launch requires right-clicking the app in Finder and choosing **Open**.
 
@@ -115,7 +115,7 @@ Windows build and test instructions are tracked in [issue #10](https://github.co
 
 ### Status monitoring
 
-Agent Island mirrors local session activity from Claude Code, Claude Desktop, Codex, Grok, and Gemini in a compact top bar. You can scan the state without bringing each session to the foreground — the two states below sit one hover apart:
+Agent Island mirrors local session activity from Claude Code, Claude Desktop, Codex, Grok, Antigravity, and Cursor in a compact top bar. You can scan the state without bringing each session to the foreground — the two states below sit one hover apart:
 
 <img src="Assets/agent-island-bar-working.png" alt="Agent Island showing an active Claude session in the macOS top bar" width="760">
 
@@ -129,7 +129,7 @@ Agent Island mirrors local session activity from Claude Code, Claude Desktop, Co
 
 ### Usage
 
-Choose up to two compact-island slots from Claude, Codex, Gemini, Grok, and Cursor. Live session state (working / stalled / your turn) covers Claude, Codex, Grok, and Gemini; every selected provider keeps a full usage row with model or product breakdowns on hover and a click-through to its official page. Compatible local sign-in is required; no detected login means no slot or row.
+Choose up to two compact-island slots from Claude, Codex, Antigravity, Grok, and Cursor. Live session state (working / stalled / your turn) covers all five; every selected provider keeps a full usage row with model or product breakdowns on hover and a click-through to its official page. Compatible local sign-in is required; no detected login means no slot or row.
 
 Cost, calendar, and report summaries are calculated locally from session records. Provider quota and reset data comes from provider-owned endpoints through the local credential store.
 
@@ -165,7 +165,7 @@ When a background turn finishes, Agent Island can show an alarm window, send a s
 
 ### Personalization
 
-The island is yours to tune from a settings panel rebuilt in 2.1.1 — sidebar navigation, teal-for-data / gold-for-selection color language, and micro-motion on every control. Usage tiles come in five chart styles with a used-or-remaining quota toggle and cycling cost styles. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves color for real warnings. Screens without a notch get a 100–150% interface scale.
+The island is yours to tune from a settings panel rebuilt in 2.1.2 — sidebar navigation, teal-for-data / gold-for-selection color language, and micro-motion on every control. Usage tiles come in five chart styles with a used-or-remaining quota toggle and cycling cost styles. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves color for real warnings. Screens without a notch get a 100–150% interface scale.
 
 <img src="Assets/agent-island-settings-visual.png" alt="Settings: visual mode and glow color choices" width="420">
 
@@ -215,11 +215,11 @@ flowchart LR
     B --> C[Top bar and alerts]
     B --> D[Local cost and report views]
     E[Provider-owned usage endpoints] --> D
-    F[Compatible Gemini / Grok / Cursor login] --> G[Live session state and full usage rows]
+    F[Compatible Antigravity / Grok / Cursor login] --> G[Live session state and full usage rows]
     E --> G
 ```
 
-- **Session state** comes only from transcript and activity files that Claude Code, Claude Desktop, and Codex already write to disk. Local file events and turn markers drive the working and needs-you states; Gemini and Grok do not provide session state.
+- **Session state** comes only from the transcript and activity files that Claude Code, Claude Desktop, Codex, Grok, Antigravity, and Cursor already write to disk. Local file events and turn markers drive the working and needs-you states across all five providers; each one is read from its own records rather than a shared guess.
 - **Usage and reset data** comes from provider-owned usage endpoints through the local credential store, for every provider with a compatible local sign-in.
 - **Cost, model, and report summaries** are calculated locally from local session records.
 
@@ -227,11 +227,11 @@ Read the implementation overview: [How Agent Island detects Claude Code and Code
 
 ## Why Agent Island
 
-Long agent runs should not require keeping every terminal in view. Agent Island gives those sessions a persistent live-status surface, tells you when a run needs attention, and brings you back when the next action is yours — across Claude Code, Codex, Gemini, Grok, and Cursor.
+Long agent runs should not require keeping every terminal in view. Agent Island gives those sessions a persistent live-status surface, tells you when a run needs attention, and brings you back when the next action is yours — across Claude Code, Codex, Antigravity, Grok, and Cursor.
 
 It is built for developers who:
 
-- run several agents in parallel — Claude Code, Codex, Grok, Gemini — and keep every quota in the same compact island;
+- run several agents in parallel — Claude Code, Codex, Grok, Antigravity, Cursor — and keep every quota in the same compact island;
 - leave long tasks working in the background;
 - want status, alerts, usage views, and shareable report cards without sending session data to another service;
 - care what their desk looks like — the island's light, layout, and cards are tuned like a product, not a debug overlay.
@@ -243,8 +243,8 @@ How it compares with its neighbors:
 | Price & source | Free · MIT | One-time purchase · closed | Free · MIT | Free · MIT | Free · MIT | Free · MIT | Free · MIT |
 | Form | Menu-bar app | Notch app | Menu-bar app | CLI | Terminal dashboard | Menu-bar app | Menu-bar app |
 | Platforms | macOS 13+ · Windows 10/11 | macOS 14+ | macOS 14+ (CLI also on Linux) | Anywhere Node runs | Anywhere Python runs | macOS | macOS |
-| Agents | Claude Code · Codex · Grok · Gemini (live sessions) · Cursor (usage) | Claude Code, Codex, Gemini CLI, Cursor, and more | 59 providers (limits) | Claude Code (+ Codex) | Claude Code | Claude Code | Codex (+ Claude usage) |
-| Live session status | ✓ Claude · Codex · Grok · Gemini | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
+| Agents | Claude Code · Codex · Grok · Antigravity · Cursor (all live sessions) | Claude Code, Codex, Gemini CLI, Cursor, and more | 59 providers (limits) | Claude Code (+ Codex) | Claude Code | Claude Code | Codex (+ Claude usage) |
+| Live session status | ✓ Claude · Codex · Grok · Antigravity · Cursor | ✓ | — (provider incident badges) | — | — | — | — (passive usage meter) |
 | Your-turn alarm window + sound + queue | ✓ | Done notice, click to jump | — | — | — | — | — |
 | Out-of-quota alarm | ✓ | — | — | — | Terminal warnings | 70/90% threshold notifications | — |
 | In-notch permission approvals | — | ✓ | — | — | — | — | — |
