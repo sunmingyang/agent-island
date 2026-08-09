@@ -493,8 +493,6 @@ public static class L10n
         ["{0} rule(s) — manage them on the island's Triggers page."] = "{0} rule(s) — manage them on the island's Triggers page",
         ["Include local token cost/value as a swipe page in the island."] = "Include local token cost/value as a swipe page in the island",
         ["What the island's two logos are telling you."] = "What the island's two logos are telling you",
-        ["Running"] = "running",
-        ["Your turn"] = "your turn",
         ["The logo rotates while a session is running."] = "The logo rotates while a session is running",
         ["A thread finished — Agent Island opens an alarm window so you can reply."] = "A session finished — Agent Island opens an alarm window so you can reply",
         ["Limits, login, network, or provider errors make the logo pulse red."] = "Limits, login, network, or provider errors make the logo pulse red",

@@ -114,10 +114,13 @@ public sealed class SettingsWindow : Window
             settle.Tick += (_, _) =>
             {
                 settle.Stop();
+                var stem = $"settings-{index}-{tab}".ToLowerInvariant();
                 try
                 {
-                    RenderWindow(System.IO.Path.Combine(
-                        dir, $"settings-{index}-{tab}".ToLowerInvariant() + ".png"));
+                    RenderWindow(System.IO.Path.Combine(dir, stem + ".png"));
+                    // Full content height too — the window view crops at the
+                    // viewport, and the fold is where sins hide.
+                    RenderFullContent(System.IO.Path.Combine(dir, stem + "-full.png"));
                 }
                 catch
                 {
@@ -127,6 +130,32 @@ public sealed class SettingsWindow : Window
             settle.Start();
         }
         Next();
+    }
+
+    /// The scroll viewer's content at its FULL laid-out height (the same
+    /// framing AGENTISLAND_DEBUG_SETTINGS_PNG uses), so below-the-fold rows
+    /// are part of the sweep.
+    private void RenderFullContent(string path)
+    {
+        if (_scroll.Content is not FrameworkElement content) return;
+        var w = (int)Math.Ceiling(content.ActualWidth);
+        var h = (int)Math.Ceiling(content.ActualHeight);
+        if (w <= 0 || h <= 0) return;
+        var visual = new System.Windows.Media.DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(
+                IslandColors.Brush(IslandColors.AlarmBackground), null, new Rect(0, 0, w, h));
+            dc.DrawRectangle(
+                new System.Windows.Media.VisualBrush(content), null, new Rect(0, 0, w, h));
+        }
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = System.IO.File.Create(path);
+        encoder.Save(stream);
     }
 
     private void RenderWindow(string path)
