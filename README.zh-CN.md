@@ -29,11 +29,8 @@
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - 实时状态与额度伴侣 | Product Hunt" width="250" height="54">
 </a>
 
-<img src="docs/media/launch.gif" alt="Agent Island 1.7.1 发布影片：实时会话状态、额度窗口与报告卡" width="900">
-
-<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.7.1-launch-en.mp4">▶&nbsp;高清版</a></sub>
-
-<!-- 8-12 秒产品 Demo（running -> your turn -> open session）做好后替换上面的发布影片。 -->
+<!-- 1.7.1 发布影片已下架：它早于五家服务的岛和当前品牌。
+     新的 Demo 循环（running -> your turn -> open session）拍好后放这里。 -->
 
 <p>
   <a href="#快速开始"><strong>快速开始</strong></a> ·
@@ -49,12 +46,12 @@
 
 选择你的平台，直接安装当前版本：
 
-> `v2.1.1` 已在 macOS 上线——五家服务、全岛会话状态、重写的设置面板。**Windows 端马上同步 2.1.1**；同步前下表中的 Windows 包仍是 v1.7.1。
+> `v2.1.2` **两个平台从同一个 tag 发布**——macOS 与 Windows 是同样的五家服务、同样的实时会话状态、同样的报告卡。
 
 | 平台 | 推荐下载 | 系统要求 |
 |---|---|---|
-| macOS | [AgentIsland-2.1.1.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.1/AgentIsland-2.1.1.dmg) | macOS 13+，Apple silicon 或 Intel |
-| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64——马上同步 2.1.1 |
+| macOS | [AgentIsland-2.1.2.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2.dmg) | macOS 13+，Apple silicon 或 Intel |
+| Windows | [AgentIsland-2.1.2-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2-win-x64.zip) | Windows 10/11 x64 |
 
 macOS：把 Agent Island 拖入 Applications。应用目前是 ad-hoc 签名而非 notarize，首次启动需要在 Finder 中右键应用并选择 **打开**。
 
@@ -143,7 +140,7 @@ Codex 多账号的机器可以把每个登录存成命名档案，在服务菜�
 
 ### 周报与月报卡片
 
-在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算、阵营对决（火花停在真实占比分割点，占比高的一方戴上王冠）、7 天柱状图 + 模型环形图、跑过的每个模型都会列出，底部以岛民段位收尾。两种卡片都支持从日历任选起始日期。复制或分享都由用户明确触发，Agent Island 不会代替你发布。
+在本机渲染的可分享卡片：本期 Token 总量与 ≈ API 费用换算（本地价目表估算，不是账单）、阵营对决（火花停在真实占比分割点）、7 天柱状图，以及收在前三名的模型环形图。两种卡片都能往回翻看过去的周与月，也支持从日历任选起始日期。复制或保存都由用户明确触发，Agent Island 不会代替你发布。
 
 <table>
   <tr>
@@ -165,7 +162,7 @@ Codex 多账号的机器可以把每个登录存成命名档案，在服务菜�
 
 ### 个性化
 
-岛由你调，设置面板在 2.1.1 全部重写——侧栏导航、青色承载数据、金色标记选中、每个控件都有微动效。用量瓦片有五种图表样式，额度可切换已用/剩余视角，成本样式可循环切换。环境光可选**流光**——光晕与环绕流光，颜色任选青、钴蓝、紫、银白——或全暗的**清爽**，把颜色留给真正的警示。无刘海屏幕还有 100–150% 界面缩放。
+岛由你调，设置面板在 2.1.2 全部重写——侧栏导航、黑白灰的界面语言（颜色留给各家服务自己的标志）、每个控件都有微动效。用量瓦片有四种图表样式，额度可切换已用/剩余视角；成本页有自己的样式，也可以整个关掉。环境光可选**流光**——光晕与环绕流光，颜色任选青、钴蓝、紫、银白——或全暗的**清爽**，把颜色留给真正的警示。无刘海屏幕还有 100–150% 界面缩放。
 
 <img src="Assets/agent-island-settings-visual-zh.png" alt="设置：视觉模式与光效颜色选择" width="420">
 
@@ -176,17 +173,16 @@ Agent Island 在两个平台上都是原生桌面应用，并提供英文和简�
 - **macOS 13+**：SwiftUI 通用应用，支持 Apple silicon 和 Intel，提供宽版与紧凑顶部条布局。
 - **Windows 10/11 x64**：原生 WPF 应用，提供顶部条、可拖动悬浮组件和托盘入口。
 
-<!-- WINDOWS_SCREENSHOTS_PLACEHOLDER
-完成真实录制和发布行为验收后，才在这里加入 Windows 截图：
-1. running / waiting 顶部条或悬浮组件；
-2. your-turn alert；
-3. 用量或报告页面。
--->
+从 2.1.2 起，两个平台从同一个 tag 发布，五家服务、实时会话状态、提醒、成本账本、报告卡完全一致。刻意保留的差异只有一个：Windows 多一个**悬浮条位置**设置，因为 Windows 显示器没有刘海可停靠。
 
-<!-- PLATFORM_CAPABILITY_MATRIX_PLACEHOLDER
-当前版本完成 macOS / Windows 双平台逐项验收后，再加入能力对照表。
-不要只根据 Release note 或 CI 推断双平台完全一致。
--->
+<table>
+  <tr>
+    <td align="center"><img src="Assets/windows-island-usage.png" alt="Windows 上的灵动岛，显示 Claude 与 Codex 的实时额度窗口" width="420"><br><sub>Windows · 岛与实时用量</sub></td>
+    <td align="center"><img src="Assets/windows-settings-providers.png" alt="Windows 设置页列出全部五家服务" width="420"><br><sub>Windows · 设置里的五家服务</sub></td>
+  </tr>
+</table>
+
+<sub>Windows 截图取自 2.1.2 正式构建，使用演示数据</sub>
 
 ## 社区
 
@@ -248,7 +244,7 @@ flowchart LR
 | 额度耗尽闹钟 | ✓ | — | — | — | 终端预警 | 70%/90% 阈值通知 | — |
 | 刘海内权限审批 | — | ✓ | — | — | — | — | — |
 | 用量、成本与重置 | 五家完整（用量窗口 · 成本 · 重置倒计时） | 用量窗口 | ✓（59 家限额+重置倒计时+开销） | ✓（本地成本报表） | ✓（实时+预测） | ✓（5 小时/周仪表+倒计时） | ✓（含 reset credits） |
-| 周报/月报卡与段位 | ✓ | — | — | — | — | — | — |
+| 周报/月报卡 | ✓ | — | — | — | — | — | — |
 
 <sub>基于各产品 2026 年 7 月的公开资料整理，欢迎提 issue 指正。</sub>
 

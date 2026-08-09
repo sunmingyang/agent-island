@@ -29,11 +29,9 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
   <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1175477&theme=light" alt="Agent Island - live status and quota companion | Product Hunt" width="250" height="54">
 </a>
 
-<img src="docs/media/launch.gif" alt="Agent Island 1.7.1 launch film: live session status, usage windows, and report cards" width="900">
-
-<sub><a href="https://github.com/tristan666666/agent-island/blob/main/docs/media/agentisland-1.7.1-launch-en.mp4">▶&nbsp;HD version</a></sub>
-
-<!-- Swap the launch film above for the 8-12 second product demo loop (running -> your turn -> open session) once it exists. -->
+<!-- The 1.7.1 launch film was pulled here — it predates the five-provider
+     island and the current brand. Drop the new demo loop (running -> your
+     turn -> open session) in this slot once it is shot. -->
 
 <p>
   <a href="#quick-start"><strong>Quick Start</strong></a> ·
@@ -49,12 +47,12 @@ See what every run is doing. Step away, and Agent Island calls you back when it 
 
 Choose your platform and install the current release directly:
 
-> `v2.1.2` is live on macOS — five providers, island-wide session status, and the rewritten settings panel. **The Windows build syncs to 2.1.2 shortly**; its download below is the v1.7.1 build until then.
+> `v2.1.2` ships **both platforms from the same tag** — the same five providers, the same live session state, the same report cards on macOS and Windows.
 
 | Platform | Recommended download | Requirement |
 |---|---|---|
 | macOS | [AgentIsland-2.1.2.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2.dmg) | macOS 13+, Apple silicon or Intel |
-| Windows | [AgentIsland-1.7.1-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v1.7.1/AgentIsland-1.7.1-win-x64.zip) | Windows 10/11 x64 — syncs to 2.1.2 shortly |
+| Windows | [AgentIsland-2.1.2-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2-win-x64.zip) | Windows 10/11 x64 |
 
 On macOS, drag Agent Island into Applications. The app is ad-hoc signed rather than notarized, so the first launch requires right-clicking the app in Finder and choosing **Open**.
 
@@ -143,7 +141,7 @@ Machines with a single subscription get the solo layout automatically — the pr
 
 ### Weekly & monthly report cards
 
-Shareable cards rendered locally: total tokens with an ≈ API value line, a faction duel whose clash sits exactly at your usage split (the leading side wins the crown), 7-day bars with a model donut, every model that ran listed, and your island rank as the closing line. Both cards accept any start date from a calendar picker. Copying or sharing a card is an explicit user action; Agent Island does not publish it for you.
+Shareable cards rendered locally: total tokens with an ≈ API value line (an estimate from a local price table, not a bill), a faction duel whose clash sits exactly at your usage split, 7-day bars, and a model donut closing on the top three. Both cards page back through past weeks and months, and accept any start date from a calendar picker. Copying or saving a card is an explicit user action; Agent Island does not publish it for you.
 
 <table>
   <tr>
@@ -165,7 +163,7 @@ When a background turn finishes, Agent Island can show an alarm window, send a s
 
 ### Personalization
 
-The island is yours to tune from a settings panel rebuilt in 2.1.2 — sidebar navigation, teal-for-data / gold-for-selection color language, and micro-motion on every control. Usage tiles come in five chart styles with a used-or-remaining quota toggle and cycling cost styles. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves color for real warnings. Screens without a notch get a 100–150% interface scale.
+The island is yours to tune from a settings panel rebuilt in 2.1.2 — sidebar navigation, white-on-black chrome that leaves colour to the providers' own marks, and micro-motion on every control. Usage tiles come in four chart styles with a used-or-remaining quota toggle; the cost page has its own styles and can be switched off entirely. The ambient light runs **Vivid** — halo and orbit sweep in your pick of teal, cobalt, violet, or silver — or fully-dark **Calm**, which saves colour for real warnings. Screens without a notch get a 100–150% interface scale.
 
 <img src="Assets/agent-island-settings-visual.png" alt="Settings: visual mode and glow color choices" width="420">
 
@@ -176,17 +174,16 @@ Agent Island is a native desktop app on both supported platforms, with English a
 - **macOS 13+**: SwiftUI universal app for Apple silicon and Intel, with wide and compact top-bar layouts.
 - **Windows 10/11 x64**: native WPF app with a top bar, draggable floating widget, and tray presence.
 
-<!-- WINDOWS_SCREENSHOTS_PLACEHOLDER
-Add verified Windows screenshots here only after capture and release-behavior review:
-1. running / waiting top bar or floating widget;
-2. your-turn alert;
-3. usage or report view.
--->
+As of 2.1.2 both platforms ship from one tag with the same five providers, live session state, alarms, cost ledger, and report cards. The deliberate difference: Windows adds a **floating-bar position** setting, because no Windows display has a notch to dock to.
 
-<!-- PLATFORM_CAPABILITY_MATRIX_PLACEHOLDER
-Add the macOS / Windows capability matrix only after the current release has been verified on both platforms.
-Do not infer parity from release notes or CI alone.
--->
+<table>
+  <tr>
+    <td align="center"><img src="Assets/windows-island-usage.png" alt="Agent Island's island on Windows showing live Claude and Codex usage windows" width="420"><br><sub>Windows · the island with live usage</sub></td>
+    <td align="center"><img src="Assets/windows-settings-providers.png" alt="Agent Island settings on Windows listing all five providers" width="420"><br><sub>Windows · five providers in Settings</sub></td>
+  </tr>
+</table>
+
+<sub>Windows shots rendered from the shipping 2.1.2 build with demo data.</sub>
 
 ## Community
 
@@ -249,7 +246,7 @@ How it compares with its neighbors:
 | Out-of-quota alarm | ✓ | — | — | — | Terminal warnings | 70/90% threshold notifications | — |
 | In-notch permission approvals | — | ✓ | — | — | — | — | — |
 | Usage, cost & resets | ✓ all five (windows · cost · reset countdowns) | Usage windows | ✓ (59 providers, reset countdowns, spend) | ✓ (local cost reports) | ✓ (real-time + predictions) | ✓ (5h/weekly gauges + countdowns) | ✓ (incl. reset credits) |
-| Weekly/monthly report cards & ranks | ✓ | — | — | — | — | — | — |
+| Weekly/monthly report cards | ✓ | — | — | — | — | — | — |
 
 <sub>Based on each product's public materials as of July 2026 — corrections welcome via issue.</sub>
 
