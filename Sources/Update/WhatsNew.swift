@@ -40,7 +40,7 @@ struct PagedCardPage: Identifiable {
 
     let id = UUID()
     let symbol: String
-    /// Optional bundled illustration (PNG). Drop `whatsnew-172-*.png` /
+    /// Optional bundled illustration (PNG). Drop `whatsnew-*.png` /
     /// `guide-*.png` into Resources and the branded placeholder yields to
     /// the real art — no code change needed when the posters land.
     let imageName: String?
@@ -66,25 +66,25 @@ enum WhatsNewContent {
         ),
         PagedCardPage(
             symbol: "arrow.triangle.2.circlepath.circle",
-            imageName: nil,
+            imageName: "whatsnew-antigravity",
             title: "Antigravity arrives",
             body: "Google retired Gemini Code Assist for individuals, so Antigravity takes the slot: live session state, weekly quota read from its own local service, and one click back to the exact conversation"
         ),
         PagedCardPage(
             symbol: "apple.terminal",
-            imageName: nil,
+            imageName: "whatsnew-terminal",
             title: "Back to your terminal",
             body: "An alarm click lands in the session's live window — Terminal, Ghostty, iTerm, or an IDE pane. Fresh windows open in the terminal you actually use, learned by watching rather than by asking"
         ),
         PagedCardPage(
             symbol: "bell.badge",
-            imageName: nil,
+            imageName: "whatsnew-tones",
             title: "Apple alarm tones",
             body: "Radar, Beacon, Slow Rise — the alarm rings with Apple's own tones, played straight from the system's ringtone library. Radar is the new default"
         ),
         PagedCardPage(
             symbol: "dollarsign.circle",
-            imageName: nil,
+            imageName: "whatsnew-cost",
             title: "Cost across all five",
             body: "Grok reports its own dollars, Cursor counts its tokens — cost and reports now cover every agent, read locally, and say so honestly where a provider publishes less"
         ),
@@ -92,7 +92,7 @@ enum WhatsNewContent {
         // welcome-back line, and the Get-started button beneath it.
         PagedCardPage(
             symbol: "sparkles",
-            imageName: "whatsnew-211-start",
+            imageName: "whatsnew-start",
             title: "Get started",
             body: "Welcome back to Agent Island"
         ),

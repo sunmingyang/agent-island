@@ -12,8 +12,12 @@ struct BrandMarkTile: View {
     /// kept a plain parameter so this view stays stateless.
     var spin: Double = 0
 
+    /// The small-size-optimized variant (bolder blades, lightened
+    /// graphite) — generated for exactly this tile; the full mark stays the
+    /// fallback so a missing resource degrades to the real logo.
     private static let mark: NSImage? =
-        Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
+        (Bundle.main.url(forResource: "agentisland_logo_small", withExtension: "png")
+            ?? Bundle.main.url(forResource: "agentisland_logo", withExtension: "png"))
             .flatMap { NSImage(contentsOf: $0) }
 
     var body: some View {
