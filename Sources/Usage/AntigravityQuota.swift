@@ -50,8 +50,7 @@ struct AntigravityQuotaBucket: Codable, Equatable {
     }
 }
 
-/// What the island renders for Antigravity: whichever pool is closest to its
-/// limit leads, the next one trails. Codable so the last good values survive
+/// What the island renders for Antigravity. Codable so the last good values survive
 /// a relaunch — and, more importantly, survive Antigravity not running, which
 /// is the only time its quota is unreadable at all.
 struct AntigravityQuotaSnapshot: Codable, Equatable {
@@ -64,15 +63,17 @@ struct AntigravityQuotaSnapshot: Codable, Equatable {
     /// given rather than paraphrased — the rules are theirs, not ours.
     var note: String?
 
-    /// Pools share nothing, so there is no total to sum. The one closest to
-    /// running out is the one worth leading with.
+    /// The one pool this app surfaces: Gemini's. Antigravity also meters a
+    /// Claude/GPT pool, and it is real data — but Claude and GPT are other
+    /// providers' tiles in this app, so showing their pool under Antigravity
+    /// read as cross-wiring (owner call, 2026-08-09: 只搞 Gemini). The raw
+    /// buckets stay in the snapshot; only display narrows. An account with
+    /// no Gemini-named pool falls back to whatever exists rather than
+    /// showing nothing.
     var primary: AntigravityQuotaBucket? {
-        buckets.max { $0.usedPercent < $1.usedPercent }
-    }
-
-    var secondary: AntigravityQuotaBucket? {
-        let rest = buckets.sorted { $0.usedPercent > $1.usedPercent }.dropFirst()
-        return rest.first
+        buckets.first { $0.bucketId.lowercased().hasPrefix("gemini") }
+            ?? buckets.first { $0.groupLabel.lowercased().contains("gemini") }
+            ?? buckets.first
     }
 }
 

@@ -1189,11 +1189,10 @@ struct SettingsView: View {
         if let caption = antigravityStore.statusCaption {
             parts.append("⚠ \(caption)")
         } else if let bucket = antigravityStore.snapshot?.primary {
-            // One number, phrased exactly like Grok's row: the pool closest
-            // to its limit. Naming both pools here ("Gemini 4% · Claude·GPT
-            // 0%") read as a glitch — Claude and GPT are provider names one
-            // row over (owner review, 2026-08-09). The per-pool split lives
-            // in the usage panel.
+            // One number, phrased exactly like Grok's row: the Gemini pool.
+            // The Claude/GPT pool Antigravity also meters stays hidden
+            // everywhere — those models are other providers' tiles in this
+            // app (owner call, 2026-08-09).
             parts.append(L10n.tr("week %d%%", Int((bucket.usedPercent * 100).rounded())))
         }
         return parts.joined(separator: " · ")

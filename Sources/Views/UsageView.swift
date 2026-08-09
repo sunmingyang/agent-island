@@ -98,25 +98,18 @@ struct UsageView: View {
         let missing = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data", periodSeconds: nil)
         switch provider {
         case .antigravity:
-            // Two real pools — Gemini models and Claude/GPT models — so
-            // Antigravity fills both tiles rather than faking a second one.
-            // Each window comes off its own bucket; they are weekly, not the
-            // 24h this once hardcoded.
-            let leading = antigravityStore.snapshot?.primary
-            let trailing = antigravityStore.snapshot?.secondary
+            // Gemini pool only, one wide tile — the 3p (Claude/GPT) pool is
+            // real but belongs to other providers' tiles (owner call,
+            // 2026-08-09). Weekly window, not the 24h this once hardcoded.
+            let pool = antigravityStore.snapshot?.primary
             return AppUsage(
                 fiveHour: WindowUsage(
-                    usedPercent: leading?.usedPercent ?? 0,
-                    resetAt: leading?.resetAt,
+                    usedPercent: pool?.usedPercent ?? 0,
+                    resetAt: pool?.resetAt,
                     error: antigravityStore.statusCaption,
-                    periodSeconds: leading?.periodSeconds ?? AntigravityQuotaBucket.weekSeconds,
-                    poolLabel: leading?.shortLabel
+                    periodSeconds: pool?.periodSeconds ?? AntigravityQuotaBucket.weekSeconds
                 ),
-                weekly: trailing.map {
-                    WindowUsage(usedPercent: $0.usedPercent, resetAt: $0.resetAt,
-                                error: nil, periodSeconds: $0.periodSeconds,
-                                poolLabel: $0.shortLabel)
-                } ?? missing,
+                weekly: missing,
                 plan: antigravityStore.tierBadge?.lowercased()
             )
         case .grok:
@@ -202,14 +195,13 @@ struct ChartsBlock: View {
                 // A single-window provider's tile is `wide` and centers its
                 // own content (see ChartTile's frame alignment).
                 ChartTile(style: style, color: color,
-                          labelKey: usage.fiveHour.poolLabel ?? Self.windowLabelKey(usage.fiveHour),
+                          labelKey: Self.windowLabelKey(usage.fiveHour),
                           window: usage.fiveHour, seed: seed,
                           wide: usage.secondaryMissing)
                 // A provider that reports only one window gets one tile — no
                 // permanent "no data" ghost for a window gone upstream.
                 if !usage.secondaryMissing {
-                    ChartTile(style: style, color: color,
-                              labelKey: usage.weekly.poolLabel ?? "week",
+                    ChartTile(style: style, color: color, labelKey: "week",
                               window: usage.weekly, seed: seed + 1)
                 }
             }

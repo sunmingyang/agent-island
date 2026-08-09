@@ -141,8 +141,27 @@ private func testQuotaSummaryParsesRealPayload() throws {
         buckets: parsed.buckets, tierID: nil, tierLabel: nil, note: parsed.note
     )
     try expect(snapshot.primary?.bucketId == "gemini-weekly",
-               "the pool closest to its limit leads — pools are independent, so there is nothing to sum")
-    try expect(snapshot.secondary?.bucketId == "3p-weekly", "the other pool trails")
+               "the surfaced pool is Gemini's")
+    // The 3p pool being MORE consumed must not steal the spot: Claude and
+    // GPT are other providers' tiles in this app, so Antigravity surfaces
+    // its Gemini pool regardless (owner call, 2026-08-09).
+    let swapped = AntigravityQuotaSnapshot(
+        buckets: [
+            AntigravityQuotaBucket(bucketId: "3p-weekly", groupLabel: "Claude and GPT models",
+                                   window: "weekly", usedPercent: 0.9, resetAt: nil),
+            AntigravityQuotaBucket(bucketId: "gemini-weekly", groupLabel: "Gemini Models",
+                                   window: "weekly", usedPercent: 0.1, resetAt: nil),
+        ], tierID: nil, tierLabel: nil, note: nil
+    )
+    try expect(swapped.primary?.bucketId == "gemini-weekly",
+               "a fuller 3p pool must not displace Gemini from the display")
+    let no3p = AntigravityQuotaSnapshot(
+        buckets: [AntigravityQuotaBucket(bucketId: "exotic-weekly", groupLabel: "Mystery",
+                                         window: "weekly", usedPercent: 0.5, resetAt: nil)],
+        tierID: nil, tierLabel: nil, note: nil
+    )
+    try expect(no3p.primary?.bucketId == "exotic-weekly",
+               "an account with no Gemini pool still shows something rather than a blank")
     try expect(snapshot.note?.isEmpty == false, "Google's own explanation is carried through verbatim")
 }
 

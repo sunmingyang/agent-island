@@ -48,13 +48,6 @@ struct AntigravityUsageStrip: View {
 
             Spacer(minLength: 8)
 
-            if let other = store.snapshot?.secondary {
-                let value = quotaMode.displayValue(usedPercent: other.usedPercent)
-                Text("\(other.shortLabel) \(Int(value.rounded()))%")
-                    .font(Typography.label)
-                    .foregroundStyle(.white.opacity(0.50))
-                    .lineLimit(1)
-            }
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
@@ -130,8 +123,7 @@ struct AntigravityUsageStrip: View {
         if let email = store.accountEmail { lines.append(email) }
         if let status = store.statusCaption { lines.append("⚠ \(status)") }
         if let note = store.snapshot?.note { lines.append(note) }
-        let buckets = store.snapshot?.buckets.sorted { $0.bucketId < $1.bucketId } ?? []
-        for bucket in buckets {
+        for bucket in [store.snapshot?.primary].compactMap({ $0 }) {
             let value = Int(quotaMode.displayValue(usedPercent: bucket.usedPercent).rounded())
             var line = "\(bucket.groupLabel): \(value)%"
             if let resetAt = bucket.resetAt {
