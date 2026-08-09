@@ -33,11 +33,18 @@ public sealed record WeeklyReportData(
     public static WeeklyReportData Current()
     {
         var cost = CostStore.Shared;
-        var today = DateTime.Today;
-        var days = Enumerable.Range(0, 7).Reverse().Select(offset => today.AddDays(-offset)).ToArray();
+        // Anchor the 7-day window to the freshest SCANNED day, not the wall
+        // clock (macOS): right after launch the store can still hold
+        // yesterday's snapshot, and a wall-clock window shears against the
+        // scan-anchored model rows.
+        var anchor = ReportPeriods.ScanAnchor();
+        var days = Enumerable.Range(0, 7).Reverse().Select(offset => anchor.AddDays(-offset)).ToArray();
+        var mode = Model.TokenCountModeStore.Shared.Mode;
 
-        static long BucketTotal(IReadOnlyList<DailyTokenBucket> buckets, DateTime day) =>
-            buckets.FirstOrDefault(b => b.DayStart.Date == day)?.Tokens ?? 0;
+        long BucketTotal(IReadOnlyList<DailyTokenBucket> buckets, DateTime day) =>
+            buckets.FirstOrDefault(b => b.DayStart.Date == day) is { } bucket
+                ? (mode == Model.TokenCountMode.All ? bucket.Tokens : bucket.BillableTokens)
+                : 0;
 
         long WeekTokens(Model.DisplayProvider provider) =>
             days.Sum(d => BucketTotal(cost.Summary(provider).DailyHistory, d));
@@ -61,17 +68,7 @@ public sealed record WeeklyReportData(
 
         // The card follows the app language — a card destined for WeChat
         // groups must read Chinese when the UI is Chinese.
-        var zh = ReportFormat.IsChinese;
-        var range = zh
-            ? $"{days[0]:M月d日} – {today:M月d日}"
-            : $"{days[0].ToString("MMM d", CultureInfo.InvariantCulture)} – {today.ToString("MMM d", CultureInfo.InvariantCulture)}";
-
-        var zhDays = new[] { "日", "一", "二", "三", "四", "五", "六" };
-        var letters = days
-            .Select(d => zh
-                ? zhDays[(int)d.DayOfWeek]
-                : d.ToString("ddd", CultureInfo.InvariantCulture)[..1])
-            .ToArray();
+        var range = FormatRange(days[0], anchor);
 
         return new WeeklyReportData(
             range,
@@ -79,10 +76,74 @@ public sealed record WeeklyReportData(
             dollars,
             providers,
             daily,
-            letters,
+            LettersFor(days),
             // TOP 3 across every provider that ran (owner call,
             // 2026-08-09: 只要写前三的模型就够了).
             ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.WeeklyModels), top: 3));
+    }
+
+    /// Assembles a PAST page of the report pager from interval slices
+    /// (offset ≠ 0 — the current page keeps Current()). Mirrors Current()
+    /// in shape; daily bars, totals, and per-model rows come from one
+    /// full-scan slice instead of the live store windows, so the whole card
+    /// sits on a single consistent window by construction.
+    public static WeeklyReportData ForInterval(
+        DateTime start, DateTime endExclusive,
+        IReadOnlyDictionary<Model.DisplayProvider, ReportSlice> slices)
+    {
+        var mode = Model.TokenCountModeStore.Shared.Mode;
+        var firstDay = start.Date;
+        var days = Enumerable.Range(0, 7).Select(offset => firstDay.AddDays(offset)).ToArray();
+
+        long BucketValue(DailyTokenBucket bucket) =>
+            mode == Model.TokenCountMode.All ? bucket.Tokens : bucket.BillableTokens;
+
+        ReportSlice SliceOf(Model.DisplayProvider provider) =>
+            slices.TryGetValue(provider, out var slice) ? slice : ReportSlice.Empty;
+
+        var daily = Enumerable.Range(0, days.Length)
+            .Select(i => Model.DisplayProviders.All.Sum(p =>
+            {
+                var buckets = SliceOf(p).DailyTokens;
+                return i < buckets.Count ? BucketValue(buckets[i]) : 0;
+            }))
+            .ToArray();
+
+        var providers = Model.DisplayProviders.All
+            .Select(provider => new ProviderPeriodSlice(
+                provider, SliceOf(provider).DailyTokens.Sum(BucketValue)))
+            .Where(slice => slice.Tokens > 0)
+            .OrderByDescending(slice => slice.Tokens)
+            .ToList();
+        var total = providers.Sum(slice => slice.Tokens);
+        var dollars = Model.DisplayProviders.All.Sum(p => SliceOf(p).Dollars);
+
+        var lastDay = days[^1];
+        return new WeeklyReportData(
+            FormatRange(firstDay, lastDay),
+            total,
+            dollars,
+            providers,
+            daily,
+            LettersFor(days),
+            ReportFormat.BuildTopModels(
+                Model.DisplayProviders.All.SelectMany(p => SliceOf(p).ByModel.Select(spend => (p, spend))),
+                top: 3));
+    }
+
+    internal static string FormatRange(DateTime first, DateTime last) => ReportFormat.IsChinese
+        ? $"{first:M月d日} – {last:M月d日}"
+        : $"{first.ToString("MMM d", CultureInfo.InvariantCulture)} – {last.ToString("MMM d", CultureInfo.InvariantCulture)}";
+
+    internal static IReadOnlyList<string> LettersFor(IReadOnlyList<DateTime> days)
+    {
+        var zh = ReportFormat.IsChinese;
+        var zhDays = new[] { "日", "一", "二", "三", "四", "五", "六" };
+        return days
+            .Select(d => zh
+                ? zhDays[(int)d.DayOfWeek]
+                : d.ToString("ddd", CultureInfo.InvariantCulture)[..1])
+            .ToArray();
     }
 }
 
@@ -101,8 +162,11 @@ public sealed record MonthlyReportData(
         var today = DateTime.Today;
         var zh = ReportFormat.IsChinese;
 
+        var mode = Model.TokenCountModeStore.Shared.Mode;
         var providers = Model.DisplayProviders.All
-            .Select(provider => new ProviderPeriodSlice(provider, cost.Summary(provider).MonthTokens))
+            .Select(provider => new ProviderPeriodSlice(provider, mode == Model.TokenCountMode.All
+                ? cost.Summary(provider).MonthTokens
+                : cost.Summary(provider).MonthBillableTokens))
             .Where(slice => slice.Tokens > 0)
             .OrderByDescending(slice => slice.Tokens)
             .ToList();
@@ -117,6 +181,41 @@ public sealed record MonthlyReportData(
             totalDollars,
             providers,
             ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.MonthModels), top: 3));
+    }
+
+    /// A PAST calendar month (or an anchored 30-day window) from interval
+    /// slices — same accounting as the live month window, sourced from one
+    /// full-scan slice.
+    public static MonthlyReportData ForInterval(
+        DateTime start,
+        IReadOnlyDictionary<Model.DisplayProvider, ReportSlice> slices)
+    {
+        var zh = ReportFormat.IsChinese;
+        var mode = Model.TokenCountModeStore.Shared.Mode;
+
+        long BucketValue(DailyTokenBucket bucket) =>
+            mode == Model.TokenCountMode.All ? bucket.Tokens : bucket.BillableTokens;
+
+        ReportSlice SliceOf(Model.DisplayProvider provider) =>
+            slices.TryGetValue(provider, out var slice) ? slice : ReportSlice.Empty;
+
+        var providers = Model.DisplayProviders.All
+            .Select(provider => new ProviderPeriodSlice(
+                provider, SliceOf(provider).DailyTokens.Sum(BucketValue)))
+            .Where(slice => slice.Tokens > 0)
+            .OrderByDescending(slice => slice.Tokens)
+            .ToList();
+        var totalTokens = providers.Sum(slice => slice.Tokens);
+        var totalDollars = Model.DisplayProviders.All.Sum(p => SliceOf(p).Dollars);
+
+        return new MonthlyReportData(
+            zh ? $"{start:yyyy年M月}" : start.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            totalTokens,
+            totalDollars,
+            providers,
+            ReportFormat.BuildTopModels(
+                Model.DisplayProviders.All.SelectMany(p => SliceOf(p).ByModel.Select(spend => (p, spend))),
+                top: 3));
     }
 }
 
@@ -154,15 +253,19 @@ public static class ReportFormat
     public static IReadOnlyList<ModelShare> BuildTopModels(
         IEnumerable<(Model.DisplayProvider Provider, ModelSpend Spend)> spend, int top)
     {
+        // Token counting follows the user's mode, same as the hero total
+        // (macOS rankedModels) — one accounting for the whole card.
+        var mode = Model.TokenCountModeStore.Shared.Mode;
+        long TokenOf(ModelSpend s) => mode == Model.TokenCountMode.All ? s.Tokens : s.BillableTokens;
         var all = spend.ToList();
-        var tokenUniverse = Math.Max(1, all.Sum(m => m.Spend.Tokens));
+        var tokenUniverse = Math.Max(1, all.Sum(m => TokenOf(m.Spend)));
         return all
-            .Select(m => (m.Provider, m.Spend, Percent: m.Spend.Tokens / (double)tokenUniverse))
+            .Select(m => (m.Provider, m.Spend, Tokens: TokenOf(m.Spend), Percent: TokenOf(m.Spend) / (double)tokenUniverse))
             .OrderByDescending(m => m.Percent)
             .Where(m => m.Percent >= 0.005)
             .Take(top)
             .Select(m => new ModelShare(
-                m.Spend.Model, m.Spend.Tokens, m.Spend.Dollars, m.Percent,
+                m.Spend.Model, m.Tokens, m.Spend.Dollars, m.Percent,
                 Model.ProviderIdentity.Accent(m.Provider), m.Provider))
             .ToList();
     }

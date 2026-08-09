@@ -132,9 +132,30 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
         };
     }
 
-    /// CLI footprint on this machine, probed once at launch.
+    /// CLI footprint on this machine. Claude/Codex are probed once at
+    /// launch; guests re-probe on the refresh cadence (see RedetectGuests).
     public bool IsDetected(DisplayProvider provider) =>
         _detected.TryGetValue(provider, out var detected) && detected;
+
+    /// Re-probe the zero-intrusion guests (macOS redetectGuests): a login
+    /// created while the app runs claims its slot on the next refresh tick,
+    /// no relaunch needed. Claude/Codex keep their launch-time probe — their
+    /// footprint dirs don't appear mid-session the way sign-ins do.
+    public void RedetectGuests()
+    {
+        if (AppEnvironment.IsDemo) return;
+        var changed = false;
+        foreach (var provider in DisplayProviders.Guests)
+        {
+            var detected = Probe(provider);
+            if (_detected.TryGetValue(provider, out var known) && known == detected) continue;
+            _detected[provider] = detected;
+            changed = true;
+        }
+        if (!changed) return;
+        _slots = ComputeSlots();
+        RaiseAll();
+    }
 
     public bool ClaudeDetected => IsDetected(DisplayProvider.Claude);
     public bool CodexDetected => IsDetected(DisplayProvider.Codex);

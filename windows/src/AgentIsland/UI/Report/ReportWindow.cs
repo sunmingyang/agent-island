@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -12,10 +13,11 @@ using AgentIsland.UI.Theme;
 namespace AgentIsland.UI.Report;
 
 /// Hosts a share card (weekly or monthly) in a borderless window: the card
-/// paints its own shadow, Esc closes, drag anywhere moves. Two actions —
-/// Copy image and Save PNG — both served from a warm 3x render so neither
-/// ever feels broken. Sharing is always the USER posting an image; nothing
-/// leaves the machine on its own.
+/// paints its own shadow, Esc closes, drag anywhere moves. A ← period →
+/// pager plus an any-date calendar anchor ride above the card (macOS
+/// report sheets); Copy image and Save PNG below, both served from a warm
+/// 3x render of exactly the page on screen. Sharing is always the USER
+/// posting an image; nothing leaves the machine on its own.
 public sealed class ReportWindow : Window
 {
     public enum Kind
@@ -29,8 +31,20 @@ public sealed class ReportWindow : Window
     private readonly Kind _kind;
     private readonly TextBlock _coach;
     private readonly Button _copy;
+    private readonly StackPanel _actions;
+    private readonly Grid _cardHost;
+    private readonly TextBlock _periodLabel;
+    private readonly PagerCircle _back;
+    private readonly PagerCircle _forward;
+    private readonly PagerCircle _calendarButton;
+    private ReportCalendarPopup? _calendar;
+    private object _display;
+    private int _pageOffset;
+    private DateTime? _anchorDate;
+    private bool _loading;
     private BitmapSource? _rendered;
     private DispatcherTimer? _coachTimer;
+    private readonly System.ComponentModel.PropertyChangedEventHandler _costChanged;
 
     public static void Show(Kind kind)
     {
@@ -49,6 +63,7 @@ public sealed class ReportWindow : Window
     private ReportWindow(Kind kind)
     {
         _kind = kind;
+        _display = CurrentData();
         Title = kind == Kind.Weekly
             ? Localization.L10n.Tr("Weekly report")
             : Localization.L10n.Tr("Share monthly report");
@@ -62,17 +77,38 @@ public sealed class ReportWindow : Window
         Topmost = true;
         System.Windows.Media.TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
 
-        // Fresh data per open — a cached tree kept serving stale numbers and
-        // the pre-switch language on macOS; build-on-show avoids both.
-        var card = BuildCard(rounded: true);
-        card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+        // ← period label → row above the card (macOS pager): the right edge
+        // is the current period, the left edge the earliest scanned day, and
+        // the calendar anchors the window to any start date.
+        _back = new PagerCircle("\uE76B");
+        _back.Clicked += () => Flip(_anchorDate is null ? _pageOffset + 1 : 1);
+        _forward = new PagerCircle("");
+        _forward.Clicked += () => Flip(_anchorDate is null ? _pageOffset - 1 : 0);
+        _periodLabel = new TextBlock
         {
-            ShadowDepth = 4,
-            Direction = 270,
-            BlurRadius = 30,
-            Color = Colors.Black,
-            Opacity = 0.30,
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.White,
+            MinWidth = 150,
+            TextAlignment = TextAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         };
+        Typography.SetNumeralAlignment(_periodLabel, System.Windows.FontNumeralAlignment.Tabular);
+        _calendarButton = new PagerCircle("");
+        _calendarButton.Clicked += OpenCalendar;
+        var pager = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 14),
+        };
+        pager.Children.Add(_back);
+        _periodLabel.Margin = new Thickness(10, 0, 10, 0);
+        pager.Children.Add(_periodLabel);
+        pager.Children.Add(_forward);
+        _calendarButton.Margin = new Thickness(10, 0, 0, 0);
+        pager.Children.Add(_calendarButton);
 
         _copy = ActionButton(Localization.L10n.Tr("Copy image"), prominent: true);
         _copy.Click += (_, _) =>
@@ -91,15 +127,15 @@ public sealed class ReportWindow : Window
         var save = ActionButton(Localization.L10n.Tr("Save PNG"), prominent: false);
         save.Click += (_, _) => SavePng();
 
-        var buttons = new StackPanel
+        _actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 14, 0, 0),
         };
-        buttons.Children.Add(_copy);
+        _actions.Children.Add(_copy);
         save.Margin = new Thickness(10, 0, 0, 0);
-        buttons.Children.Add(save);
+        _actions.Children.Add(save);
 
         // Fixed one-line slot so the window never reflows.
         _coach = new TextBlock
@@ -117,13 +153,13 @@ public sealed class ReportWindow : Window
         // The close control rides ON the card (top-right, dark disc, hover
         // red) — parked on the window's transparent margin it was invisible
         // against a light desktop.
-        var cardHost = new Grid();
-        cardHost.Children.Add(card);
-        cardHost.Children.Add(CloseDisc());
+        _cardHost = new Grid();
+        RebuildCard();
 
         var stack = new StackPanel { Margin = new Thickness(26, 22, 26, 12) };
-        stack.Children.Add(cardHost);
-        stack.Children.Add(buttons);
+        stack.Children.Add(pager);
+        stack.Children.Add(_cardHost);
+        stack.Children.Add(_actions);
         stack.Children.Add(_coach);
         Content = stack;
 
@@ -136,14 +172,134 @@ public sealed class ReportWindow : Window
             try { DragMove(); } catch { }
         };
 
+        // A fresh scan self-heals a stale launch snapshot within seconds; the
+        // store commit rebuilds the live page when it lands (macOS onAppear).
+        _costChanged = (_, args) =>
+        {
+            if (args.PropertyName != nameof(Cost.CostStore.LastUpdated)) return;
+            if (_pageOffset != 0 || _anchorDate is not null || _loading) return;
+            _display = CurrentData();
+            RebuildCard();
+        };
+        Cost.CostStore.Shared.PropertyChanged += _costChanged;
+        Closed += (_, _) => Cost.CostStore.Shared.PropertyChanged -= _costChanged;
+        if (!Core.AppEnvironment.IsDemo) Cost.CostStore.Shared.Refresh();
+
         // Warm the 3x export render off the click path — it costs a beat,
         // and doing it lazily made the first Copy feel broken.
         Dispatcher.BeginInvoke(DispatcherPriority.Background, () => _ = ExportRender());
     }
 
-    private FrameworkElement BuildCard(bool rounded) => _kind == Kind.Weekly
-        ? ReportCards.Weekly(WeeklyReportData.Current(), rounded)
-        : ReportCards.Monthly(MonthlyReportData.Current(), rounded);
+    private object CurrentData() => _kind == Kind.Weekly
+        ? WeeklyReportData.Current()
+        : MonthlyReportData.Current();
+
+    private FrameworkElement CardFor(object data, bool rounded) => _kind == Kind.Weekly
+        ? ReportCards.Weekly((WeeklyReportData)data, rounded)
+        : ReportCards.Monthly((MonthlyReportData)data, rounded);
+
+    private string PeriodText => _kind == Kind.Weekly
+        ? ((WeeklyReportData)_display).RangeText
+        : ((MonthlyReportData)_display).MonthText;
+
+    /// Rebuild the on-screen card from the current display data and refresh
+    /// every piece of pager chrome. Also resets the export cache — copy and
+    /// save must ship exactly the page on screen.
+    private void RebuildCard()
+    {
+        _rendered = null;
+        var card = CardFor(_display, rounded: true);
+        card.Effect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            ShadowDepth = 4,
+            Direction = 270,
+            BlurRadius = 30,
+            Color = Colors.Black,
+            Opacity = 0.30,
+        };
+        _cardHost.Children.Clear();
+        _cardHost.Children.Add(card);
+        _cardHost.Children.Add(CloseDisc());
+        UpdatePagerChrome();
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, () => _ = ExportRender());
+    }
+
+    private void UpdatePagerChrome()
+    {
+        _periodLabel.Text = PeriodText;
+        _periodLabel.Opacity = _loading ? 0.45 : 1;
+        var interval = _kind == Kind.Weekly
+            ? ReportPeriods.WeekInterval(_pageOffset)
+            : ReportPeriods.MonthInterval(_pageOffset);
+        _back.Enabled = !_loading && ReportPeriods.HasData(interval.Start, ReportPeriods.EarliestDataDay());
+        _forward.Enabled = (_pageOffset > 0 || _anchorDate is not null) && !_loading;
+        _calendarButton.Enabled = !_loading && !Core.AppEnvironment.IsDemo;
+        _calendarButton.Tint = _anchorDate is null ? IslandColors.White(0.6) : IslandColors.White(0.95);
+        // While a past page is still assembling, the card shows the previous
+        // period — exporting would ship the wrong week.
+        _actions.IsEnabled = !_loading;
+        _actions.Opacity = _loading ? 0.5 : 1;
+    }
+
+    private void Flip(int target)
+    {
+        // Arrow paging leaves anchored mode and resumes calendar tiling.
+        _anchorDate = null;
+        if (target < 0) return;
+        _pageOffset = target;
+        if (target == 0)
+        {
+            _loading = false;
+            _display = CurrentData();
+            RebuildCard();
+            return;
+        }
+        LoadPage(target);
+    }
+
+    private async void LoadPage(int target)
+    {
+        _loading = true;
+        UpdatePagerChrome();
+        var (start, end) = _kind == Kind.Weekly
+            ? ReportPeriods.WeekInterval(target)
+            : ReportPeriods.MonthInterval(target);
+        var slices = await ReportPeriods.SlicesAsync(start, end);
+        // The user may have flipped again while the scan ran.
+        if (_pageOffset != target || _anchorDate is not null) return;
+        _display = _kind == Kind.Weekly
+            ? WeeklyReportData.ForInterval(start, end, slices)
+            : MonthlyReportData.ForInterval(start, slices);
+        _loading = false;
+        RebuildCard();
+    }
+
+    private void OpenCalendar()
+    {
+        _calendar = new ReportCalendarPopup(ReportPeriods.EarliestDataDay(), SetAnchor)
+        {
+            PlacementTarget = _calendarButton,
+        };
+        _calendar.IsOpen = true;
+    }
+
+    /// Any-date anchor: the window becomes [picked day, +7d) weekly /
+    /// [picked day, +30d) monthly (macOS, owner ask 2026-08-08).
+    private async void SetAnchor(DateTime day)
+    {
+        var start = day.Date;
+        _anchorDate = start;
+        _loading = true;
+        UpdatePagerChrome();
+        var end = start.AddDays(_kind == Kind.Weekly ? 7 : 30);
+        var slices = await ReportPeriods.SlicesAsync(start, end);
+        if (_anchorDate != start) return;
+        _display = _kind == Kind.Weekly
+            ? WeeklyReportData.ForInterval(start, end, slices)
+            : MonthlyReportData.ForInterval(start, slices);
+        _loading = false;
+        RebuildCard();
+    }
 
     /// The card's own close control: a quiet dark disc with an ✕, top-right
     /// corner, red on hover — always visible against the card's ink.
@@ -208,19 +364,17 @@ public sealed class ReportWindow : Window
     // MARK: - Export
 
     /// The EXPORT version is the card itself, full-bleed with SQUARE outer
-    /// corners on an opaque background, rendered at 3x for crispness.
+    /// corners on an opaque background, rendered at 3x for crispness — from
+    /// exactly the page on screen.
     private BitmapSource ExportRender()
     {
         if (_rendered is not null) return _rendered;
-        _rendered = RenderCard(_kind);
+        _rendered = Render(CardFor(_display, rounded: false));
         return _rendered;
     }
 
-    public static BitmapSource RenderCard(Kind kind)
+    private static BitmapSource Render(FrameworkElement card)
     {
-        var card = kind == Kind.Weekly
-            ? ReportCards.Weekly(WeeklyReportData.Current(), rounded: false)
-            : ReportCards.Monthly(MonthlyReportData.Current(), rounded: false);
         const double scale = 3;
         card.Measure(new Size(ReportCards.CardWidth, ReportCards.CardHeight));
         card.Arrange(new Rect(0, 0, ReportCards.CardWidth, ReportCards.CardHeight));
@@ -231,6 +385,14 @@ public sealed class ReportWindow : Window
         bitmap.Render(card);
         bitmap.Freeze();
         return bitmap;
+    }
+
+    public static BitmapSource RenderCard(Kind kind)
+    {
+        var card = kind == Kind.Weekly
+            ? ReportCards.Weekly(WeeklyReportData.Current(), rounded: false)
+            : ReportCards.Monthly(MonthlyReportData.Current(), rounded: false);
+        return Render(card);
     }
 
     private bool CopyImage()
@@ -330,5 +492,69 @@ public sealed class ReportWindow : Window
         button.Template = new ControlTemplate(typeof(Button)) { VisualTree = factory };
         IslandMotion.AttachPressFeedback(button);
         return button;
+    }
+}
+
+/// The pager's 26pt circular icon button (macOS ReportPagerArrow): white
+/// glyph on a faint disc, both dimmed when disabled.
+internal sealed class PagerCircle : Border
+{
+    private readonly TextBlock _glyph;
+    private bool _enabled = true;
+    private Color? _tintOverride;
+
+    public event Action? Clicked;
+
+    public PagerCircle(string glyph)
+    {
+        Width = 26;
+        Height = 26;
+        CornerRadius = new CornerRadius(13);
+        VerticalAlignment = VerticalAlignment.Center;
+        _glyph = new TextBlock
+        {
+            Text = glyph,
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Child = _glyph;
+        MouseLeftButtonUp += (_, args) =>
+        {
+            args.Handled = true;
+            if (_enabled) Clicked?.Invoke();
+        };
+        Render();
+    }
+
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            _enabled = value;
+            Render();
+        }
+    }
+
+    /// Optional glyph tint override while enabled (the calendar button goes
+    /// brighter when a date anchor is active).
+    public Color Tint
+    {
+        set
+        {
+            _tintOverride = value;
+            Render();
+        }
+    }
+
+    private void Render()
+    {
+        Background = IslandColors.Brush(IslandColors.White(_enabled ? 0.10 : 0.04));
+        _glyph.Foreground = IslandColors.Brush(
+            _enabled ? (_tintOverride ?? IslandColors.White(0.85)) : IslandColors.White(0.22));
+        Cursor = _enabled ? Cursors.Hand : Cursors.Arrow;
     }
 }

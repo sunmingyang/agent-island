@@ -8,28 +8,30 @@ using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI;
 
-/// The on/off switch shared by every Settings row — cobalt-glow track when
-/// on, dim white-on-dark when off, 30x17 with a 13pt dot, matching the
-/// macOS SettingsToggle exactly.
+/// The on/off switch shared by every Settings row. White-on-black material
+/// only — the 2026-08-09 de-branding stripped every accent color from the
+/// app's own chrome, so the ON state speaks a white track wash + solid
+/// white knob (macOS SettingsToggle: 34x19 track, 15pt knob).
 public sealed class CobaltToggle : Border
 {
     private readonly Ellipse _dot;
     private bool _isOn;
+    private bool _hovered;
 
     public event Action<bool>? Toggled;
 
     public CobaltToggle(bool isOn)
     {
         _isOn = isOn;
-        Width = 30;
-        Height = 17;
-        CornerRadius = new CornerRadius(8.5);
+        Width = 34;
+        Height = 19;
+        CornerRadius = new CornerRadius(9.5);
         BorderThickness = new Thickness(1);
         Cursor = System.Windows.Input.Cursors.Hand;
         _dot = new Ellipse
         {
-            Width = 13,
-            Height = 13,
+            Width = 15,
+            Height = 15,
             VerticalAlignment = VerticalAlignment.Center,
         };
         Child = _dot;
@@ -40,9 +42,8 @@ public sealed class CobaltToggle : Border
             Toggled?.Invoke(_isOn);
             args.Handled = true;
         };
-        MouseEnter += (_, _) => BorderBrush = IslandColors.Brush(IslandColors.White(0.20));
-        MouseLeave += (_, _) => BorderBrush = IslandColors.Brush(IslandColors.White(0.13));
-        BorderBrush = IslandColors.Brush(IslandColors.White(0.13));
+        MouseEnter += (_, _) => { _hovered = true; Render(); };
+        MouseLeave += (_, _) => { _hovered = false; Render(); };
         Render();
     }
 
@@ -56,19 +57,15 @@ public sealed class CobaltToggle : Border
         }
     }
 
-    /// The shipped app renders a vivid filled blue track with a white knob
-    /// when on (see the original settings screenshots), dim gray when off.
-    private static readonly Color TrackBlue = Color.FromRgb(0x2E, 0x7C, 0xF6);
-
     private void Render()
     {
-        Background = _isOn
-            ? IslandColors.Brush(TrackBlue)
-            : IslandColors.Brush(IslandColors.White(0.14));
-        _dot.Fill = _isOn ? Brushes.White : IslandColors.Brush(IslandColors.White(0.75));
+        Background = IslandColors.Brush(IslandColors.White(_isOn ? 0.34 : 0.07));
+        BorderBrush = IslandColors.Brush(IslandColors.White(
+            _isOn ? (_hovered ? 0.55 : 0.35) : (_hovered ? 0.22 : 0.13)));
+        _dot.Fill = _isOn ? Brushes.White : IslandColors.Brush(IslandColors.White(0.55));
         _dot.Effect = _isOn
-            ? new DropShadowEffect { ShadowDepth = 0, BlurRadius = 4, Color = Colors.Black, Opacity = 0.35 }
-            : null;
+            ? new DropShadowEffect { ShadowDepth = 0, BlurRadius = 5, Color = Colors.White, Opacity = 0.32 }
+            : new DropShadowEffect { ShadowDepth = 0.5, BlurRadius = 1.5, Color = Colors.Black, Opacity = 0.35 };
         _dot.HorizontalAlignment = _isOn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
         _dot.Margin = new Thickness(2, 0, 2, 0);
     }
@@ -87,9 +84,11 @@ public sealed class Segmented : Border
     public Segmented(IReadOnlyList<string> labels, int selected)
     {
         _selected = selected;
-        CornerRadius = new CornerRadius(7);
-        Background = IslandColors.Brush(IslandColors.White(0.04));
-        Padding = new Thickness(2);
+        CornerRadius = new CornerRadius(14);
+        Background = IslandColors.Brush(IslandColors.White(0.05));
+        BorderBrush = IslandColors.Brush(IslandColors.White(0.05));
+        BorderThickness = new Thickness(1);
+        Padding = new Thickness(3);
         Child = _items;
         for (var i = 0; i < labels.Count; i++)
         {
@@ -99,13 +98,13 @@ public sealed class Segmented : Border
                 Text = labels[i],
                 FontFamily = IslandFonts.Mono,
                 FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = FontWeights.Medium,
             };
             var cell = new Border
             {
                 Child = text,
-                CornerRadius = new CornerRadius(5),
-                Padding = new Thickness(10, 5, 10, 5),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(11, 5, 11, 5),
                 Cursor = System.Windows.Input.Cursors.Hand,
             };
             cell.MouseLeftButtonUp += (_, args) =>
@@ -120,15 +119,20 @@ public sealed class Segmented : Border
         Select(selected);
     }
 
+    /// macOS SegmentedControl: near-white thumb, BLACK selected label,
+    /// ghost-white unselected labels on a faint capsule track.
     public void Select(int index)
     {
         _selected = Math.Clamp(index, 0, _cells.Count - 1);
         for (var i = 0; i < _cells.Count; i++)
         {
             var isOn = i == _selected;
-            _cells[i].Background = isOn ? IslandColors.Brush(IslandColors.White(0.10)) : Brushes.Transparent;
-            ((TextBlock)_cells[i].Child!).Foreground =
-                IslandColors.Brush(IslandColors.White(isOn ? 0.95 : 0.55));
+            _cells[i].Background = isOn ? IslandColors.Brush(IslandColors.White(0.92)) : Brushes.Transparent;
+            var label = (TextBlock)_cells[i].Child!;
+            label.Foreground = isOn
+                ? IslandColors.Brush(Color.FromArgb(0xD9, 0x00, 0x00, 0x00))
+                : IslandColors.Brush(IslandColors.White(0.55));
+            label.FontWeight = isOn ? FontWeights.SemiBold : FontWeights.Medium;
         }
     }
 }

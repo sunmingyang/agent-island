@@ -27,9 +27,70 @@ public sealed record ProviderCostSummary(
         Array.Empty<DailyTokenBucket>(), Array.Empty<string>());
 }
 
+/// One report period's aggregation: per-day buckets, total dollars, and
+/// per-model rows over an arbitrary half-open [start, end) interval. The
+/// report pager feeds this from its own full-year reader scan (per-file
+/// memoization makes the rescan cheap), fully independent of the fixed
+/// windows Summarize computes for the live panel.
+public sealed record ReportSlice(
+    IReadOnlyList<DailyTokenBucket> DailyTokens,   // zero-filled, oldest first
+    double Dollars,
+    IReadOnlyList<ModelSpend> ByModel)
+{
+    public static ReportSlice Empty { get; } = new(
+        Array.Empty<DailyTokenBucket>(), 0, Array.Empty<ModelSpend>());
+}
+
 /// Single-pass aggregation, calendar-local like the macOS CostSummary.
 public static class CostSummarizer
 {
+    /// Aggregate events over [start, end) with the same accounting rules as
+    /// Summarize: wire vs billable split, canonical model grouping,
+    /// self-reported cost override.
+    public static ReportSlice Slice(IReadOnlyList<TokenEvent> events, DateTimeOffset start, DateTimeOffset end)
+    {
+        var startDay = start.ToLocalTime().Date;
+        var lastDay = end.ToLocalTime().AddSeconds(-1).Date;
+        var dayCount = Math.Max(1, (int)(lastDay - startDay).TotalDays + 1);
+
+        var tokenBuckets = new long[dayCount];
+        var billableBuckets = new long[dayCount];
+        double dollars = 0;
+        var byModel = new Dictionary<string, (long Tokens, long Billable, double Dollars)>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var tokenEvent in events)
+        {
+            var local = tokenEvent.Timestamp.ToLocalTime();
+            if (local < start.ToLocalTime() || local >= end.ToLocalTime()) continue;
+            var dayOffset = (int)(local.Date - startDay).TotalDays;
+            if (dayOffset >= 0 && dayOffset < dayCount)
+            {
+                tokenBuckets[dayOffset] += tokenEvent.WireTokens;
+                billableBuckets[dayOffset] += tokenEvent.BillableTokens;
+            }
+            dollars += tokenEvent.Dollars;
+            var model = Pricing.CanonicalModelName(tokenEvent.Model);
+            byModel.TryGetValue(model, out var entry);
+            byModel[model] = (entry.Tokens + tokenEvent.WireTokens,
+                entry.Billable + tokenEvent.BillableTokens,
+                entry.Dollars + tokenEvent.Dollars);
+        }
+
+        var daily = new List<DailyTokenBucket>(dayCount);
+        for (var i = 0; i < dayCount; i++)
+        {
+            var day = new DateTimeOffset(startDay.AddDays(i), DateTimeOffset.Now.Offset);
+            daily.Add(new DailyTokenBucket(day, tokenBuckets[i], billableBuckets[i], 0));
+        }
+
+        return new ReportSlice(
+            daily,
+            dollars,
+            byModel.Select(kv => new ModelSpend(kv.Key, kv.Value.Tokens, kv.Value.Billable, kv.Value.Dollars))
+                .OrderByDescending(spend => spend.BillableTokens)
+                .ToList());
+    }
+
     public static int YearHistoryDays(DateTimeOffset now)
     {
         var jan1 = new DateTimeOffset(now.Year, 1, 1, 0, 0, 0, now.Offset);

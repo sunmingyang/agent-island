@@ -117,6 +117,11 @@ public sealed class UsageStore : INotifyPropertyChanged
         // reset detection and auto-resume — until the app was relaunched.
         if (Loading && DateTimeOffset.Now - _refreshStartedAt < TimeSpan.FromMinutes(2)) return;
 
+        // Guests re-probe every refresh cycle (macOS redetectGuests):
+        // signing into agy/grok/Cursor while the app runs claims the slot
+        // without a relaunch.
+        Model.ProviderVisibilityStore.Shared.RedetectGuests();
+
         // Demo mode for screen recordings: skip the network entirely and
         // inject hand-tuned values. Reset times are recomputed each refresh
         // so the countdowns tick down naturally on camera.

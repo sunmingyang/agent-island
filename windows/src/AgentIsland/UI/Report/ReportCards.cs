@@ -639,7 +639,9 @@ public static class ReportCards
         }
         donut.Children.Add(new TextBlock
         {
-            Text = Track($"TOP {models.Count}"),
+            // macOS v4: the hole says MODELS — a "TOP N" recount went stale
+            // the moment a period had fewer than N models.
+            Text = Localization.L10n.Tr("MODELS"),
             FontFamily = IslandFonts.Ui,
             FontSize = 10.5,
             FontWeight = FontWeights.ExtraBold,

@@ -915,17 +915,27 @@ public sealed class SettingsWindow : Window
 
         // 成本显示 — toggle first; the picker tiles appear only when the
         // cost page is on, matching the macOS conditional.
+        // macOS SegmentedControl order: items [false, true] → 已用 then 剩余.
         var quotaMode = Model.QuotaDisplayModeStore.Shared;
         var quotaSeg = new Segmented(
-            new[] { Localization.L10n.Tr("Remaining"), Localization.L10n.Tr("Used") },
-            quotaMode.ShowsRemaining ? 0 : 1);
-        quotaSeg.SelectionChanged += index => quotaMode.ShowsRemaining = index == 0;
+            new[] { Localization.L10n.Tr("Used"), Localization.L10n.Tr("Remaining") },
+            quotaMode.ShowsRemaining ? 1 : 0);
+        quotaSeg.SelectionChanged += index => quotaMode.ShowsRemaining = index == 1;
         stack.Children.Add(new SettingsRowControl(
             "Quota shows",
             null,
             quotaSeg));
 
-        stack.Children.Add(SectionLabel("Cost display"));
+        // 成本显示 — the enable toggle rides the section header itself
+        // (macOS, 1.7.2 planning): OFF removes the cost page from the panel
+        // pager and hides the style tiles entirely.
+        var costHeader = new Grid { Margin = new Thickness(10, 14, 10, 6) };
+        costHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        costHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var costLabel = SectionLabel("Cost display");
+        costLabel.Margin = new Thickness(0);
+        Grid.SetColumn(costLabel, 0);
+        costHeader.Children.Add(costLabel);
         var costPickerHost = new ContentControl { Margin = new Thickness(10, 2, 2, 8) };
         void RefreshCostPicker()
         {
@@ -940,9 +950,15 @@ public sealed class SettingsWindow : Window
                 costPickerHost.Content = null;
             }
         }
-        // macOS has no cost-page toggle — the page is simply there. Pin
-        // the old Windows-only pref to shown so nobody is stranded hidden.
-        ScreenPref.Shared.ShowCostPage = true;
+        var costToggle = new CobaltToggle(ScreenPref.Shared.ShowCostPage);
+        costToggle.Toggled += enabled =>
+        {
+            ScreenPref.Shared.ShowCostPage = enabled;
+            RefreshCostPicker();
+        };
+        Grid.SetColumn(costToggle, 1);
+        costHeader.Children.Add(costToggle);
+        stack.Children.Add(costHeader);
         RefreshCostPicker();
         stack.Children.Add(costPickerHost);
 
@@ -1165,7 +1181,9 @@ public sealed class SettingsWindow : Window
             FontFamily = IslandFonts.Mono,
             FontSize = 11,
             FontWeight = FontWeights.SemiBold,
-            Foreground = IslandColors.Brush(IslandColors.Alpha(IslandColors.LiveTeal, 0.92)),
+            // White capsule voice (macOS chrome) — the enabled marks carry
+            // the only color on this row.
+            Foreground = IslandColors.Brush(IslandColors.White(0.92)),
             VerticalAlignment = VerticalAlignment.Center,
         };
         var capsuleBody = new StackPanel { Orientation = Orientation.Horizontal };
@@ -1175,7 +1193,7 @@ public sealed class SettingsWindow : Window
         {
             Child = capsuleBody,
             CornerRadius = new CornerRadius(11),
-            Background = IslandColors.Brush(IslandColors.Alpha(IslandColors.LiveTeal, 0.10)),
+            Background = IslandColors.Brush(IslandColors.White(0.10)),
             Padding = new Thickness(10, 5, 10, 5),
             HorizontalAlignment = HorizontalAlignment.Right,
         };
@@ -1187,14 +1205,29 @@ public sealed class SettingsWindow : Window
             marks.Children.Clear();
             foreach (var provider in ProviderVisibilityStore.Shared.Enabled)
             {
-                marks.Children.Add(new System.Windows.Shapes.Ellipse
-                {
-                    Width = 8,
-                    Height = 8,
-                    Fill = IslandColors.Brush(IslandColors.Alpha(ProviderIdentity.Accent(provider), 0.9)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 7, 0),
-                });
+                // Real brand marks at 12px (macOS ProviderMark), not
+                // anonymous dots; providers without an extracted vector
+                // keep the accent disc fallback.
+                var accent = IslandColors.Brush(IslandColors.Alpha(ProviderIdentity.Accent(provider), 0.9));
+                UIElement mark = BrandGeometry.PathData(provider) is { } path
+                    ? new System.Windows.Shapes.Path
+                    {
+                        Data = Geometry.Parse("F1 " + path),
+                        Fill = accent,
+                        Width = 12,
+                        Height = 12,
+                        Stretch = Stretch.Uniform,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    }
+                    : new System.Windows.Shapes.Ellipse
+                    {
+                        Width = 9,
+                        Height = 9,
+                        Fill = accent,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    };
+                ((FrameworkElement)mark).Margin = new Thickness(0, 0, 7, 0);
+                marks.Children.Add(mark);
             }
             count.Text = $"{ProviderVisibilityStore.Shared.SelectedCount} / {ProviderSelection.MaxEnabled}";
         }
@@ -2225,7 +2258,9 @@ public sealed class SettingsWindow : Window
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
                 FontSize = 5.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = IslandColors.Brush(Color.FromRgb(0x20, 0xC0, 0xB0)),
+                // White bell (macOS chrome) — the app's own chrome carries
+                // no accent color.
+                Foreground = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             },
@@ -2234,35 +2269,12 @@ public sealed class SettingsWindow : Window
         {
             Width = 24,
             Height = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
         bellHost.Children.Add(mark);
         bellHost.Children.Add(badge);
-        var host = new Grid();
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetColumn(bellHost, 0);
-        host.Children.Add(bellHost);
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-        text.Children.Add(new TextBlock
-        {
-            Text = L10n.Tr(name),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 12,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
-        });
-        text.Children.Add(new TextBlock
-        {
-            Text = L10n.Tr(caption),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            Foreground = IslandColors.Brush(IslandColors.White(0.45)),
-            TextWrapping = TextWrapping.Wrap,
-        });
-        Grid.SetColumn(text, 1);
-        host.Children.Add(text);
-        return new Border { Child = host, Padding = new Thickness(10, 8, 10, 8) };
+        return LegendRowShell(bellHost, name, caption);
     }
 
     private static string CurrentSoundLabel()
@@ -2384,36 +2396,52 @@ public sealed class SettingsWindow : Window
     {
         // The symmetric mark: rotationally uniform, so the spinning demo
         // doesn't wobble the way the starburst would (macOS StatePreviewLogo).
-        var logo = new ProviderLogo { Tool = TriggerTool.Codex, Width = 38, Height = 32 };
+        var logo = new ProviderLogo { Tool = TriggerTool.Codex, Width = 30, Height = 26 };
         logo.SetState(state);
+        return LegendRowShell(logo, name, caption);
+    }
+
+    /// One legend row skeleton — a FIXED 30x26 icon slot + 14 gap (macOS
+    /// StatusGuideView), so all three text blocks share one left edge no
+    /// matter how each state's icon renders.
+    private static UIElement LegendRowShell(UIElement icon, string name, string caption)
+    {
         var host = new Grid();
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetColumn(logo, 0);
-        host.Children.Add(logo);
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var iconHost = new Grid
+        {
+            Width = 30,
+            Height = 26,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        iconHost.Children.Add(icon);
+        Grid.SetColumn(iconHost, 0);
+        host.Children.Add(iconHost);
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
         text.Children.Add(new TextBlock
         {
             Text = L10n.Tr(name),
             FontFamily = IslandFonts.Ui,
-            FontSize = 12,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
+            FontSize = 13,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.White(0.92)),
         });
         text.Children.Add(new TextBlock
         {
             Text = L10n.Tr(caption),
             FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            Foreground = IslandColors.Brush(IslandColors.White(0.45)),
+            FontSize = 11.5,
+            Foreground = IslandColors.Brush(IslandColors.White(0.62)),
             TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 2, 0, 0),
         });
         Grid.SetColumn(text, 1);
         host.Children.Add(text);
         return new Border
         {
             Child = host,
-            Padding = new Thickness(10, 8, 10, 8),
+            Padding = new Thickness(10, 9, 10, 9),
         };
     }
 }
