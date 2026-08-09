@@ -26,12 +26,20 @@ enum TurnAlarmNavigator {
             // Claude falls back to when its CLI is missing.
             bringForward(appNamed: "Grok")
         case .antigravity:
-            // Verified against antigravity --help (2026-08-08): --resume takes
-            // "latest" or an index, never a session id. Same cwd argument
-            // as grok: latest-in-this-directory is the finished thread.
+            // Verified against the real binary (agy 1.1.11, 2026-08-08): the
+            // executable is `agy`, there is no --resume, and --conversation
+            // takes the conversation id — which is exactly the brain/<id>
+            // directory the scanner reports. Confirmed to append to the same
+            // transcript rather than start a new thread, so Antigravity is
+            // the one guest that lands on the precise conversation.
+            //
+            // This said `gemini --resume latest` before, a leftover from the
+            // Gemini era: no tool matches the name "gemini", so it fell
+            // through to a PATH lookup and would have started the unrelated
+            // Gemini CLI that is still installed alongside.
             if let thread, openCLIResume(
-                executable: "gemini",
-                arguments: ["--resume", "latest"],
+                executable: "agy",
+                arguments: ["--conversation", thread.sessionId],
                 thread: thread,
                 fallbackBundleID: nil
             ) { return }
