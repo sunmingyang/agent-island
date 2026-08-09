@@ -186,9 +186,13 @@ public sealed class AgentReminderCenter
         // the user is watching. Park it; the focus-change watch below fires
         // it the moment they switch away with the turn still open. Sessions
         // whose host can't be resolved (daemons, containers) fail open.
-        if (AgentHostAppResolver.IsHostAppFrontmost(provider, thread.Cwd))
+        if (!AgentReminderStore.Shared.AlarmWhenFrontmost
+            && AgentHostAppResolver.IsHostAppFrontmost(provider, thread.Cwd))
         {
             _heldAlarms[deliveryKey] = (provider, thread);
+            // Opt-in: one chime marks the moment instead of total silence —
+            // "the app is frontmost" doesn't always mean "the user noticed".
+            if (AgentReminderStore.Shared.FrontmostSoundOnly) PlayFrontmostChime();
             return;
         }
         _deliveredNeedsYouKeys[deliveryKey] = DateTimeOffset.Now;
@@ -273,6 +277,32 @@ public sealed class AgentReminderCenter
             kv => kv.Key,
             kv => (double)kv.Value.ToUnixTimeMilliseconds());
         Preferences.Set(AcknowledgedPrefsKey, stored);
+    }
+
+    /// Retained so the chime isn't garbage-collected mid-play.
+    private System.Windows.Media.MediaPlayer? _frontmostChime;
+
+    private void PlayFrontmostChime()
+    {
+        var store = AgentReminderStore.Shared;
+        if (!store.SoundEnabled) return;
+        if (store.ResolveSoundFile() is not { } file) return;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        dispatcher?.BeginInvoke(() =>
+        {
+            try
+            {
+                _frontmostChime ??= new System.Windows.Media.MediaPlayer();
+                _frontmostChime.Stop();
+                _frontmostChime.Open(new Uri(file));
+                _frontmostChime.Volume = store.Volume;
+                _frontmostChime.Play();
+            }
+            catch
+            {
+                // A missing codec only costs the chime.
+            }
+        });
     }
 
     private void Deliver(TriggerTool provider, ActivityMonitor.ActiveThread? thread, string deliveryKey)

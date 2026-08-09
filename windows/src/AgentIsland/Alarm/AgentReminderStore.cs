@@ -61,6 +61,8 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     private const string SoundChoiceKey = "AgentIsland.agentReminderSoundChoice";
     private const string CustomSoundKey = "AgentIsland.agentReminderCustomSound";
     private const string ShowDetailsKey = "AgentIsland.agentReminderShowSessionDetails";
+    private const string AlarmWhenFrontmostKey = "AgentIsland.agentReminderAlarmWhenFrontmost";
+    private const string FrontmostSoundOnlyKey = "AgentIsland.agentReminderFrontmostSoundOnly";
 
     public const string CustomSoundChoice = "Custom";
 
@@ -70,6 +72,8 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     private string _soundChoice;
     private string _customSoundPath;
     private bool _showSessionDetails;
+    private bool _alarmWhenFrontmost;
+    private bool _frontmostSoundOnly;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -105,6 +109,8 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
         }
         _customSoundPath = Preferences.Get<string?>(CustomSoundKey) ?? "";
         _showSessionDetails = Preferences.Get<bool?>(ShowDetailsKey) ?? false;
+        _alarmWhenFrontmost = Preferences.Get<bool?>(AlarmWhenFrontmostKey) ?? false;
+        _frontmostSoundOnly = Preferences.Get<bool?>(FrontmostSoundOnlyKey) ?? false;
     }
 
     public bool Enabled
@@ -141,6 +147,23 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     {
         get => _showSessionDetails;
         set { _showSessionDetails = value; Preferences.Set(ShowDetailsKey, value); Raise(nameof(ShowSessionDetails)); }
+    }
+
+    /// Whether a finished turn still raises its alarm while the session's
+    /// own app is frontmost. Off by default: watching the turn finish IS
+    /// the notification (macOS owner call, 2026-08-08).
+    public bool AlarmWhenFrontmost
+    {
+        get => _alarmWhenFrontmost;
+        set { _alarmWhenFrontmost = value; Preferences.Set(AlarmWhenFrontmostKey, value); Raise(nameof(AlarmWhenFrontmost)); }
+    }
+
+    /// The #9 chime: when the frontmost hold swallows an alarm, play one
+    /// chime at that moment instead of total silence. Opt-in.
+    public bool FrontmostSoundOnly
+    {
+        get => _frontmostSoundOnly;
+        set { _frontmostSoundOnly = value; Preferences.Set(FrontmostSoundOnlyKey, value); Raise(nameof(FrontmostSoundOnly)); }
     }
 
     /// Resolves the current choice to a playable file, or null when nothing

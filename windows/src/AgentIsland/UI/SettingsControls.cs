@@ -318,3 +318,99 @@ public sealed class SettingsRowControl : Border
         grid.Children.Add(trailingHost);
     }
 }
+
+/// WPF's default ComboBox is a light-theme control — white face, grey
+/// chrome — and it read as exactly that on the dark settings page (owner
+/// review, 2026-08-09: 质感太差). One dark template, parsed once, shared
+/// by every picker.
+public static class DarkComboStyle
+{
+    private const string TemplateXaml = """
+<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 TargetType="ComboBox">
+  <Grid>
+    <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press"
+                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+      <ToggleButton.Template>
+        <ControlTemplate TargetType="ToggleButton">
+          <Border x:Name="Face" CornerRadius="7" Background="#0DFFFFFF"
+                  BorderBrush="#1AFFFFFF" BorderThickness="1">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ContentPresenter Grid.Column="0" Margin="10,0,4,0"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"/>
+              <Path Grid.Column="1" Margin="0,0,9,0" VerticalAlignment="Center"
+                    Data="M 0 0 L 3.5 3.5 L 7 0" Stroke="#8CFFFFFF" StrokeThickness="1.4"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Face" Property="Background" Value="#1AFFFFFF"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </ToggleButton.Template>
+    </ToggleButton>
+    <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                      Margin="10,0,24,0" HorizontalAlignment="Left"
+                      VerticalAlignment="Center" IsHitTestVisible="False"
+                      TextBlock.Foreground="#F2FFFFFF"/>
+    <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
+           VerticalOffset="4" AllowsTransparency="True" Focusable="False"
+           PopupAnimation="Fade">
+      <Border Background="#FF15171C" CornerRadius="8" BorderBrush="#21FFFFFF"
+              BorderThickness="1" MinWidth="{TemplateBinding ActualWidth}"
+              MaxHeight="{TemplateBinding MaxDropDownHeight}" Padding="4">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <ItemsPresenter/>
+        </ScrollViewer>
+      </Border>
+    </Popup>
+  </Grid>
+</ControlTemplate>
+""";
+
+    private const string ItemXaml = """
+<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 TargetType="ComboBoxItem">
+  <Border x:Name="Row" CornerRadius="5" Padding="8,5,8,5" Background="Transparent">
+    <ContentPresenter TextBlock.Foreground="#DEFFFFFF"/>
+  </Border>
+  <ControlTemplate.Triggers>
+    <Trigger Property="IsHighlighted" Value="True">
+      <Setter TargetName="Row" Property="Background" Value="#1FFFFFFF"/>
+    </Trigger>
+    <Trigger Property="IsSelected" Value="True">
+      <Setter TargetName="Row" Property="Background" Value="#26FFFFFF"/>
+    </Trigger>
+  </ControlTemplate.Triggers>
+</ControlTemplate>
+""";
+
+    private static ControlTemplate? _template;
+    private static ControlTemplate? _itemTemplate;
+
+    public static ComboBox Apply(ComboBox box)
+    {
+        _template ??= (ControlTemplate)System.Windows.Markup.XamlReader.Parse(TemplateXaml);
+        _itemTemplate ??= (ControlTemplate)System.Windows.Markup.XamlReader.Parse(ItemXaml);
+        box.Template = _template;
+        box.Foreground = IslandColors.Brush(IslandColors.White(0.95));
+        box.FontFamily = Charts.IslandFonts.Ui;
+        box.FontSize = 12;
+        box.Height = 28;
+        var itemStyle = new Style(typeof(ComboBoxItem));
+        itemStyle.Setters.Add(new Setter(Control.TemplateProperty, _itemTemplate));
+        itemStyle.Setters.Add(new Setter(Control.FontFamilyProperty, Charts.IslandFonts.Ui));
+        itemStyle.Setters.Add(new Setter(Control.FontSizeProperty, 12.0));
+        box.ItemContainerStyle = itemStyle;
+        return box;
+    }
+}

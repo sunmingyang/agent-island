@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using AgentIsland.Core;
 using AgentIsland.UI.Theme;
 using AgentIsland.Usage;
+using AgentIsland.Model;
 
 namespace AgentIsland.UI;
 
@@ -28,6 +29,12 @@ public partial class IslandWindow : Window
     private ResetCardChip? _resetCards;
     private System.Windows.Controls.TextBlock? _claudeChip;
     private System.Windows.Controls.TextBlock? _codexChip;
+
+    /// What the two physical flanks currently carry. Any two of the five
+    /// providers can hold the slots (任选两家) — the elements keep their
+    /// historical Claude*/Codex* names but are retargeted per selection.
+    private TriggerTool? _leftTool = TriggerTool.Claude;
+    private TriggerTool? _rightTool = TriggerTool.Codex;
 
     public IslandWindow()
     {
@@ -194,17 +201,51 @@ public partial class IslandWindow : Window
     /// the balanced peek width is preserved by the model's fixed slots.
     private void ApplyProviderVisibility()
     {
-        var visibility = Model.ProviderVisibilityStore.Shared;
+        var slots = Model.ProviderVisibilityStore.Shared.Slots;
+        if (slots.Count >= 2)
+        {
+            _leftTool = slots[0].ToTriggerTool();
+            _rightTool = slots[1].ToTriggerTool();
+        }
+        else if (slots.Count == 1)
+        {
+            // Solo keeps the provider on its home flank (macOS
+            // SoloLogoFlankIsLeading): Claude/Antigravity/Cursor lead left,
+            // Codex/Grok sit right.
+            var only = slots[0];
+            _leftTool = only.SoloLogoFlankIsLeading() ? only.ToTriggerTool() : null;
+            _rightTool = only.SoloLogoFlankIsLeading() ? null : only.ToTriggerTool();
+        }
+        else
+        {
+            _leftTool = null;
+            _rightTool = null;
+        }
+
+        if (_leftTool is { } left) ClaudeLogo.Tool = left;
+        if (_rightTool is { } right) CodexLogo.Tool = right;
         // The logo's fixed grid column reserves its slot either way, so we
         // fade opacity (the macOS openMorph spring) rather than hard-toggle
         // Visibility — toggling a provider springs the mark in/out.
-        FadeLogo(ClaudeLogo, visibility.ClaudeShown);
-        FadeLogo(CodexLogo, visibility.CodexShown);
-        if (_claudeTitle is not null)
-            _claudeTitle.Visibility = visibility.ClaudeShown ? Visibility.Visible : Visibility.Collapsed;
-        if (_codexTitle is not null)
-            _codexTitle.Visibility = visibility.CodexShown ? Visibility.Visible : Visibility.Collapsed;
+        FadeLogo(ClaudeLogo, _leftTool is not null);
+        FadeLogo(CodexLogo, _rightTool is not null);
+        RetitleFlank(_claudeTitle, _leftTool);
+        RetitleFlank(_codexTitle, _rightTool);
+        ApplySoloSplit();
+        UpdatePlanChips();
         UpdatePills();
+    }
+
+    /// Expanded-panel flank title follows its slot's provider.
+    private static void RetitleFlank(System.Windows.Controls.StackPanel? title, TriggerTool? tool)
+    {
+        if (title is null) return;
+        title.Visibility = tool is not null ? Visibility.Visible : Visibility.Collapsed;
+        if (tool is { } t
+            && title.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault() is { } label)
+        {
+            label.Text = Model.ProviderIdentity.DisplayName(t);
+        }
     }
 
     private static void FadeLogo(UIElement logo, bool visible)
@@ -334,10 +375,20 @@ public partial class IslandWindow : Window
 
     private void UpdatePlanChips()
     {
-        var store = UsageStore.Shared;
-        UpdateChip(_claudeChip, store.Claude.Plan);
-        UpdateChip(_codexChip, store.Codex.Plan);
-        _resetCards?.Update(store.Codex.ResetCards, store.Codex.ResetCardDetails);
+        UpdateChip(_claudeChip, _leftTool is { } l ? UsagePage.UsageFor(l.ToDisplayProvider()).Plan : null);
+        UpdateChip(_codexChip, _rightTool is { } r ? UsagePage.UsageFor(r.ToDisplayProvider()).Plan : null);
+        if (_resetCards is not null)
+        {
+            // The banked-reset chip is Codex data living inside the right
+            // title panel; any other occupant collapses it.
+            var codexRight = _rightTool == TriggerTool.Codex;
+            _resetCards.Visibility = codexRight ? Visibility.Visible : Visibility.Collapsed;
+            if (codexRight)
+            {
+                var store = UsageStore.Shared;
+                _resetCards.Update(store.Codex.ResetCards, store.Codex.ResetCardDetails);
+            }
+        }
     }
 
     private static void UpdateChip(System.Windows.Controls.TextBlock? chip, string? plan)
@@ -829,13 +880,14 @@ public partial class IslandWindow : Window
     /// corners) everything returns to its home column.
     private void ApplySoloSplit()
     {
-        var solo = _model.SoloProvider;
+        var leftSolo = _leftTool is not null && _rightTool is null;
+        var rightSolo = _rightTool is not null && _leftTool is null;
         var slotted = _model.State == IslandState.Peek
             || (_model.State == IslandState.Compact && AlwaysShowUsageStore.Shared.Enabled);
 
         // Claude logo: home is column 1 (centered tab); solo puts it in the
         // left slot, tucked to the edge.
-        if (solo == TriggerTool.Claude && slotted)
+        if (leftSolo && slotted)
         {
             System.Windows.Controls.Grid.SetColumn(ClaudeLogo, 0);
             ClaudeLogo.HorizontalAlignment = HorizontalAlignment.Left;
@@ -848,7 +900,7 @@ public partial class IslandWindow : Window
             ClaudeLogo.Margin = new Thickness(0);
         }
 
-        if (solo == TriggerTool.Codex && slotted)
+        if (rightSolo && slotted)
         {
             System.Windows.Controls.Grid.SetColumn(CodexLogo, 4);
             CodexLogo.HorizontalAlignment = HorizontalAlignment.Right;
@@ -863,7 +915,7 @@ public partial class IslandWindow : Window
 
         // Pills: the solo provider's number crosses to the opposite flank;
         // duo keeps each pill outboard of its own logo.
-        if (solo == TriggerTool.Claude)
+        if (leftSolo)
         {
             System.Windows.Controls.Grid.SetColumn(ClaudePill, 4);
             ClaudePill.HorizontalAlignment = HorizontalAlignment.Right;
@@ -876,7 +928,7 @@ public partial class IslandWindow : Window
             ClaudePill.Margin = new Thickness(14, 0, 6, 0);
         }
 
-        if (solo == TriggerTool.Codex)
+        if (rightSolo)
         {
             System.Windows.Controls.Grid.SetColumn(CodexPill, 0);
             CodexPill.HorizontalAlignment = HorizontalAlignment.Left;
@@ -1027,17 +1079,15 @@ public partial class IslandWindow : Window
     private static bool AttentionShown()
     {
         var monitor = ActivityMonitor.Shared;
-        var visibility = Model.ProviderVisibilityStore.Shared;
-        return (visibility.ClaudeShown && monitor.Claude.IsAttentionState())
-            || (visibility.CodexShown && monitor.Codex.IsAttentionState());
+        return Model.ProviderVisibilityStore.Shared.Slots
+            .Any(provider => monitor.StateFor(provider.ToTriggerTool()).IsAttentionState());
     }
 
     private void UpdateHalo()
     {
         var monitor = ActivityMonitor.Shared;
-        var visibility = Model.ProviderVisibilityStore.Shared;
-        var pulsing = (visibility.ClaudeShown && monitor.Claude.PulsesAttention())
-            || (visibility.CodexShown && monitor.Codex.PulsesAttention());
+        var pulsing = Model.ProviderVisibilityStore.Shared.Slots
+            .Any(provider => monitor.StateFor(provider.ToTriggerTool()).PulsesAttention());
         var attention = AttentionShown();
         var severity = Model.AlertEngine.Shared.Severity;
         var mode = pulsing
@@ -1168,9 +1218,20 @@ public partial class IslandWindow : Window
     {
         var store = UsageStore.Shared;
         var engine = Model.AlertEngine.Shared;
-        var visibility = Model.ProviderVisibilityStore.Shared;
-        ClaudePill.Update(store.Claude.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Claude));
-        CodexPill.Update(store.Codex.FiveHour, store.Loading, engine.SeverityFor(TriggerTool.Codex));
+        if (_leftTool is { } leftTool)
+        {
+            ClaudePill.Update(
+                UsagePage.UsageFor(leftTool.ToDisplayProvider()).FiveHour,
+                store.Loading,
+                engine.SeverityFor(leftTool));
+        }
+        if (_rightTool is { } rightTool)
+        {
+            CodexPill.Update(
+                UsagePage.UsageFor(rightTool.ToDisplayProvider()).FiveHour,
+                store.Loading,
+                engine.SeverityFor(rightTool));
+        }
 
         // In compact, the pills normally hide. "Always show usage" keeps the
         // visible providers' 5h percent painted on the bare silhouette. A
@@ -1181,8 +1242,8 @@ public partial class IslandWindow : Window
         {
             ClaudePill.BeginAnimation(OpacityProperty, null);
             CodexPill.BeginAnimation(OpacityProperty, null);
-            ClaudePill.Opacity = visibility.ClaudeShown ? 1 : 0;
-            CodexPill.Opacity = visibility.CodexShown ? 1 : 0;
+            ClaudePill.Opacity = _leftTool is not null ? 1 : 0;
+            CodexPill.Opacity = _rightTool is not null ? 1 : 0;
         }
         else if (_model.State == IslandState.Compact)
         {

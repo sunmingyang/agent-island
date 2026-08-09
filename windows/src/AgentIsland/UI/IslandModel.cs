@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using AgentIsland.Core;
+using AgentIsland.Model;
 
 namespace AgentIsland.UI;
 
@@ -108,13 +109,8 @@ public sealed class IslandModel : INotifyPropertyChanged
     {
         get
         {
-            var visibility = Model.ProviderVisibilityStore.Shared;
-            return (visibility.ClaudeShown, visibility.CodexShown) switch
-            {
-                (true, false) => TriggerTool.Claude,
-                (false, true) => TriggerTool.Codex,
-                _ => null,
-            };
+            var slots = Model.ProviderVisibilityStore.Shared.Slots;
+            return slots.Count == 1 ? slots[0].ToTriggerTool() : null;
         }
     }
 

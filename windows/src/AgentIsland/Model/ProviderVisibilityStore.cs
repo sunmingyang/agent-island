@@ -157,6 +157,9 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
         set => SetEnabled(DisplayProvider.Codex, value);
     }
 
+    /// The providers occupying the island's two flanks, in slot order.
+    public IReadOnlyList<DisplayProvider> Slots => ComputeSlots();
+
     /// What the island actually renders.
     public bool ClaudeShown => IsShown(DisplayProvider.Claude);
     public bool CodexShown => IsShown(DisplayProvider.Codex);

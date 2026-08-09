@@ -96,7 +96,7 @@ public sealed class SettingsWindow : Window
 
     private static (string Label, string Glyph) TabFace(Tab tab) => tab switch
     {
-        Tab.Providers => ("Providers", "\uE71D"),
+        Tab.Providers => ("Providers", "\uE8A9"),
         Tab.Display => ("Display", "\uE7F4"),
         Tab.Alerts => ("Alerts", "\uEA8F"),
         Tab.General => ("General", "\uE713"),
@@ -568,7 +568,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Launch at Login", null, launch));
 
-        var language = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+        var language = DarkComboStyle.Apply(new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center });
         language.Items.Add(L10n.Tr("Auto (system)"));
         language.Items.Add("English");
         language.Items.Add("简体中文");
@@ -960,7 +960,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(SectionLabel("Top bar"));
         // Visual mode lives with the island-appearance controls, title +
         // picker only — no sentence (macOS design review).
-        var effects = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+        var effects = DarkComboStyle.Apply(new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center });
         effects.Items.Add(L10n.Tr("Calm"));
         effects.Items.Add(L10n.Tr("Vivid"));
         effects.SelectedIndex = LowPowerModeStore.Shared.Enabled ? 0 : 1;
@@ -988,7 +988,7 @@ public sealed class SettingsWindow : Window
         // Interface scale (macOS row order: Visual mode → Glow color →
         // Interface scale). Every Windows screen is notchless, so it just
         // applies — no "notchless only" caveat needed.
-        var scaleBox = new ComboBox { Width = 90, VerticalAlignment = VerticalAlignment.Center };
+        var scaleBox = DarkComboStyle.Apply(new ComboBox { Width = 90, VerticalAlignment = VerticalAlignment.Center });
         var scaleSteps = new[] { 1.0, 1.15, 1.3, 1.5 };
         foreach (var step in scaleSteps) scaleBox.Items.Add($"{Math.Round(step * 100)}%");
         var currentScale = IslandScaleStore.Shared.Scale;
@@ -1017,7 +1017,7 @@ public sealed class SettingsWindow : Window
         // always the wide layout.)
         stack.Children.Add(SectionLabel("Screen"));
         var screens = System.Windows.Forms.Screen.AllScreens;
-        var display = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
+        var display = DarkComboStyle.Apply(new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center });
         display.Items.Add(L10n.Tr("Auto"));
         foreach (var screen in screens)
         {
@@ -1044,7 +1044,7 @@ public sealed class SettingsWindow : Window
         var position = IslandPositionStore.Shared;
 
         var placements = new[] { IslandPlacement.TopBar, IslandPlacement.Floating };
-        var placementBox = new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center };
+        var placementBox = DarkComboStyle.Apply(new ComboBox { Width = 180, VerticalAlignment = VerticalAlignment.Center });
         foreach (var mode in placements) placementBox.Items.Add(PlacementLabel(mode));
         placementBox.SelectedIndex = Math.Max(0, Array.IndexOf(placements, position.Placement));
         placementBox.SelectionChanged += (_, _) =>
@@ -2035,10 +2035,24 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(SectionLabel("Reminders"));
         var enabled = new CobaltToggle(AgentReminderStore.Shared.Enabled);
         enabled.Toggled += value => AgentReminderStore.Shared.Enabled = value;
+        var alarmWhenFront = new CobaltToggle(AgentReminderStore.Shared.AlarmWhenFrontmost);
+        alarmWhenFront.Toggled += enabled => AgentReminderStore.Shared.AlarmWhenFrontmost = enabled;
+        var frontChime = new CobaltToggle(AgentReminderStore.Shared.FrontmostSoundOnly);
+        frontChime.Toggled += enabled => AgentReminderStore.Shared.FrontmostSoundOnly = enabled;
         stack.Children.Add(new SettingsRowControl(
             "Turn alarm",
             "Pop up a foreground alarm and system notification when a background run needs you.",
             enabled));
+
+        stack.Children.Add(new SettingsRowControl(
+            "Alarm even when in front",
+            "Alarm on a finished turn even while that session's own app is frontmost",
+            alarmWhenFront));
+
+        stack.Children.Add(new SettingsRowControl(
+            "Frontmost chime",
+            "Chime instead of staying silent when the session's app is frontmost",
+            frontChime));
 
         var details = new CobaltToggle(AgentReminderStore.Shared.ShowSessionDetails);
         details.Toggled += value => AgentReminderStore.Shared.ShowSessionDetails = value;
@@ -2064,7 +2078,7 @@ public sealed class SettingsWindow : Window
         var sound = new CobaltToggle(AgentReminderStore.Shared.SoundEnabled);
         stack.Children.Add(new SettingsRowControl(
             "Alarm sound",
-            "Choose a built-in sound or use your own file.",
+            null,
             sound));
 
         BuildSoundControls(soundHost);

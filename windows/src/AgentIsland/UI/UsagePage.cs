@@ -226,7 +226,9 @@ public sealed class UsagePage : Border
         element.Visibility = Visibility.Visible;
     }
 
-    private static AppUsage UsageFor(DisplayProvider provider) => provider switch
+    /// Shared with the island bar — the slots render whichever providers
+    /// hold them, through the same per-provider assembly the panel uses.
+    internal static AppUsage UsageFor(DisplayProvider provider) => provider switch
     {
         DisplayProvider.Claude => UsageStore.Shared.Claude,
         DisplayProvider.Codex => UsageStore.Shared.Codex,
