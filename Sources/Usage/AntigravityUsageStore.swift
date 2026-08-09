@@ -104,10 +104,13 @@ final class AntigravityUsageStore: ObservableObject {
         case .notRunning:
             // Antigravity keeps its quota in-process; with it closed there is
             // nothing to read anywhere on this machine. Keep the last good
-            // numbers and let the sync age say how old they are.
+            // numbers — the row's sync age already dates them, and the
+            // warning line this used to add both nagged and leaked a ghost
+            // "no data" tile through secondaryMissing (owner report,
+            // 2026-08-09). Only a truly empty state earns a caption.
             statusCaption = snapshot == nil
                 ? L10n.tr("start Antigravity to read quota")
-                : L10n.tr("Antigravity not running — last known")
+                : nil
         case .failed(let message):
             // Keep the last good numbers; the caption admits staleness.
             statusCaption = message

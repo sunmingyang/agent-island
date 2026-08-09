@@ -640,3 +640,7 @@
 "If you like it, share it, or leave a star on GitHub — that is the biggest help you can give me" = "如果你喜欢它，发到社交媒体，或者在 GitHub 点一颗 star，这就是对我最大的帮助";
 
 "Welcome back to Agent Island" = "欢迎继续使用 Agent Island";
+"start Antigravity to read quota" = "启动 Antigravity 后可读取配额";
+"Installed — run agy to sign in" = "已安装 — 运行 agy 登录";
+"Not detected — sign in with the antigravity CLI" = "未检测到 — 用 antigravity CLI 登录";
+"sessions monitored — quota reading not wired yet" = "会话已监控 — 配额读取尚未接通";

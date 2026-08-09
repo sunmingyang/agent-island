@@ -164,6 +164,39 @@ private func testSingleProviderSaveDoesNotRenewUnfetchedPeer() throws {
     try expect(updated?.codex.fiveHour.usedPercent == 0.18, "fetched provider should be updated")
 }
 
+/// The second tile hides when the provider genuinely has one window. The
+/// old gate also required a clean primary, so any guest whose row carried a
+/// status caption resurrected the "no data" placeholder as a ghost "周 0%"
+/// tile beside the real one (owner report, 2026-08-09).
+private func testSecondaryMissingSurvivesPrimaryCaption() throws {
+    let missing = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data", periodSeconds: nil)
+
+    let captioned = AppUsage(
+        fiveHour: WindowUsage(usedPercent: 0.12, resetAt: nil,
+                              error: "start Antigravity to read quota",
+                              periodSeconds: 7 * 86400),
+        weekly: missing, plan: nil)
+    try expect(captioned.secondaryMissing,
+               "a caption on the primary must not resurrect the placeholder tile")
+
+    let healthy = AppUsage(
+        fiveHour: WindowUsage(usedPercent: 0.12, resetAt: nil, error: nil,
+                              periodSeconds: 7 * 86400),
+        weekly: missing, plan: nil)
+    try expect(healthy.secondaryMissing, "single-window provider hides the ghost")
+
+    let coldStart = AppUsage(fiveHour: .unknown, weekly: .unknown, plan: nil)
+    try expect(!coldStart.secondaryMissing,
+               "cold start still shows both unknown tiles")
+
+    let fetchFailure = AppUsage(
+        fiveHour: WindowUsage(usedPercent: 0, resetAt: nil, error: "HTTP 500"),
+        weekly: WindowUsage(usedPercent: 0, resetAt: nil, error: "HTTP 500"),
+        plan: nil)
+    try expect(!fetchFailure.secondaryMissing,
+               "a two-window provider's shared fetch error keeps both tiles")
+}
+
 @main
 private enum UsageCachePolicyTestRunner {
     static func main() {
@@ -172,7 +205,8 @@ private enum UsageCachePolicyTestRunner {
             ("plan-only no-data is not cacheable", testPlanOnlyNoDataIsNotCacheableOrRestorable),
             ("real usage caches only when fresh", testRealUsageCachesAndStripsOnlyFreshNoErrorUsage),
             ("mixed provider preserve policy", testMixedProviderPreservesExistingOnlyWhenPeerIsFresh),
-            ("single-provider save does not renew peer", testSingleProviderSaveDoesNotRenewUnfetchedPeer)
+            ("single-provider save does not renew peer", testSingleProviderSaveDoesNotRenewUnfetchedPeer),
+            ("secondary missing survives a primary caption", testSecondaryMissingSurvivesPrimaryCaption)
         ]
 
         do {

@@ -60,9 +60,12 @@ struct AppUsage: Codable {
     /// True when the provider reported only ONE window on a healthy fetch —
     /// Codex's July 2026 shape (a single weekly quota, secondary_window
     /// gone). The UI hides the empty tile instead of pinning "no data".
-    /// Cold start (both unknown) and fetch failures (both carry the same
-    /// error) don't qualify, because the primary slot has an error too.
-    var secondaryMissing: Bool { weekly.error == "no data" && fiveHour.error == nil }
+    /// Cold start (both slots unknown) still shows both tiles. But a mere
+    /// CAPTION on the primary — "start Antigravity to read quota" — must
+    /// not resurrect the placeholder: requiring a clean primary here is
+    /// what leaked a ghost "周 0%" tile beside every single-pool guest
+    /// whose row carried a status line (owner report, 2026-08-09).
+    var secondaryMissing: Bool { weekly.error == "no data" && fiveHour.error != "no data" }
 
     /// Placeholder values shown when a provider is toggled off. Non-zero
     /// so the chart vocabulary stays visible (a 0% ring reads as broken,
