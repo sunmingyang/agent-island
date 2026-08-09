@@ -73,8 +73,11 @@ func drawBackground(scale: CGFloat) -> NSImage {
     let groupX = w / 2 - groupW / 2
     let rowCenterY = h - 78
     // The five-blade mark (2026-08-09 brand). The old Assets/ path had
-    // gone stale, which shipped a background with no mark at all.
-    if let logo = NSImage(contentsOfFile: "Resources/agentisland_logo.png") {
+    // gone stale, which shipped a background with no mark at all. The
+    // small-optimized variant — at 34pt the main mark's graphite blade
+    // sinks into the coat.
+    if let logo = NSImage(contentsOfFile: "Resources/agentisland_logo_small.png")
+        ?? NSImage(contentsOfFile: "Resources/agentisland_logo.png") {
         logo.draw(in: CGRect(x: groupX, y: rowCenterY - logoSide / 2, width: logoSide, height: logoSide),
                   from: .zero, operation: .sourceOver, fraction: 1.0)
     }

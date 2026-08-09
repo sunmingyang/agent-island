@@ -16,6 +16,10 @@ import AppKit
 let fullMark = NSImage(contentsOfFile: "Resources/agentisland_logo.png")!
 let smallMark = NSImage(contentsOfFile: "Resources/agentisland_logo_small.png")
     ?? fullMark
+/// GPT-painted icon artwork (appicon-art.png, opaque full-bleed square) —
+/// when present it IS the plate for the large slots; the compose path
+/// below stays the fallback and still builds the tiny slots.
+let iconArt = NSImage(contentsOfFile: "Resources/appicon-art.png")
 
 func drawIcon(pixels: Int) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(
@@ -31,32 +35,40 @@ func drawIcon(pixels: Int) -> NSBitmapImageRep {
     let plate = CGRect(x: 100 * s, y: 100 * s, width: 824 * s, height: 824 * s)
     let path = NSBezierPath(roundedRect: plate, xRadius: 185 * s, yRadius: 185 * s)
 
-    NSGraphicsContext.current?.saveGraphicsState()
-    path.addClip()
-    NSGradient(colors: [
-        NSColor(red: 0x1A/255.0, green: 0x1E/255.0, blue: 0x26/255.0, alpha: 1),
-        NSColor(red: 0x0A/255.0, green: 0x0C/255.0, blue: 0x10/255.0, alpha: 1),
-    ])!.draw(in: plate, angle: -90)
-    NSGraphicsContext.current?.restoreGraphicsState()
+    // ≤64px Finder rows are where painted art turns to mud — those slots
+    // are composed from the bolder small-variant mark on a matching plate.
+    let tiny = pixels <= 64
+
+    if !tiny, let iconArt {
+        NSGraphicsContext.current?.saveGraphicsState()
+        path.addClip()
+        iconArt.draw(in: plate, from: .zero, operation: .sourceOver, fraction: 1.0)
+        NSGraphicsContext.current?.restoreGraphicsState()
+    } else {
+        NSGraphicsContext.current?.saveGraphicsState()
+        path.addClip()
+        NSGradient(colors: [
+            NSColor(red: 0x1A/255.0, green: 0x1E/255.0, blue: 0x26/255.0, alpha: 1),
+            NSColor(red: 0x0A/255.0, green: 0x0C/255.0, blue: 0x10/255.0, alpha: 1),
+        ])!.draw(in: plate, angle: -90)
+        NSGraphicsContext.current?.restoreGraphicsState()
+
+        // GLYPH share: the normalized mark PNGs carry the glyph at ~96%
+        // of their canvas, hence the divide.
+        let mark = tiny ? smallMark : fullMark
+        let share: CGFloat = (tiny ? 0.86 : 0.80) / 0.96
+        let markSide = plate.width * share
+        mark.draw(
+            in: CGRect(x: plate.midX - markSide / 2, y: plate.midY - markSide / 2,
+                       width: markSide, height: markSide),
+            from: .zero, operation: .sourceOver, fraction: 1.0
+        )
+    }
 
     // Hairline edge — scales with the canvas, floors at one device pixel.
     path.lineWidth = max(1, 3 * s)
     NSColor(white: 1, alpha: 0.16).setStroke()
     path.stroke()
-
-    // ≤64px Finder rows are where the graphite blades dissolve — the
-    // bolder small-variant plus a larger share of the plate keeps the
-    // pinwheel a pinwheel. Shares are GLYPH shares: the normalized mark
-    // PNGs carry the glyph at 96% of their canvas, hence the divide.
-    let tiny = pixels <= 64
-    let mark = tiny ? smallMark : fullMark
-    let share: CGFloat = (tiny ? 0.86 : 0.80) / 0.96
-    let markSide = plate.width * share
-    mark.draw(
-        in: CGRect(x: plate.midX - markSide / 2, y: plate.midY - markSide / 2,
-                   width: markSide, height: markSide),
-        from: .zero, operation: .sourceOver, fraction: 1.0
-    )
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
