@@ -22,6 +22,10 @@ public static class SnapshotSweep
     {
         Directory.CreateDirectory(dir);
 
+        // The cost page hides by default; the sweep must SEE it (runner-local
+        // prefs, nothing leaks to a user machine).
+        Try(() => ScreenPref.Shared.ShowCostPage = true);
+
         // A wedged sweep must never leave the runner hanging for the job
         // timeout.
         var kill = new DispatcherTimer { Interval = TimeSpan.FromSeconds(150) };
