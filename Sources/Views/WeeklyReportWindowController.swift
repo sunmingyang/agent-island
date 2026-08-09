@@ -186,10 +186,17 @@ private struct WeeklyReportSheet: View {
     @State private var anchorDate: Date?
     @State private var datePopoverShown = false
     @State private var anchoredData: WeeklyReportData?
+    /// The live page, reassembled from ONE anchored interval slice when the
+    /// scan anchor trails the wall clock. `current()` mixes two windows —
+    /// bars anchored to the freshest scanned day, model rows and dollars to
+    /// the store's wall-clock week — and on a machine whose logs stopped
+    /// days ago the hero reads rich while the donut sits empty.
+    @State private var alignedCurrent: WeeklyReportData?
 
     private var displayData: WeeklyReportData {
         if let anchoredData { return anchoredData }
-        return pageOffset == 0 ? .current() : (pagedData ?? .current())
+        if pageOffset == 0 { return alignedCurrent ?? .current() }
+        return pagedData ?? .current()
     }
 
     private var renderKey: String {
@@ -275,12 +282,14 @@ private struct WeeklyReportSheet: View {
             // A fresh scan self-heals a stale launch snapshot within seconds;
             // the observed store re-renders the card when it commits.
             CostStore.shared.refresh()
+            alignCurrentWeek()
         }
         .onReceive(cost.objectWillChange) { _ in
             WeeklyReportRenderer.invalidateCache()
             // Re-warm off the click path once the new values have landed.
             DispatchQueue.main.async {
                 WeeklyReportRenderer.warmCache(data: displayData, key: renderKey)
+                alignCurrentWeek()
             }
         }
         .onReceive(tokenMode.objectWillChange) { _ in
@@ -404,9 +413,32 @@ private struct WeeklyReportSheet: View {
             pagedData = nil
             pageLoading = false
             DispatchQueue.main.async { WeeklyReportRenderer.warmCache() }
+            alignCurrentWeek()
             return
         }
         loadPage(target)
+    }
+
+    /// When the scan anchor trails the wall clock, rebuild the live page
+    /// from one interval slice so bars, totals, model rows, and dollars all
+    /// share that window by construction. On a daily-driven machine the
+    /// anchored week IS the wall-clock week and this stays a no-op.
+    private func alignCurrentWeek() {
+        guard !AppEnvironment.isDemo else { return }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let interval = ReportPeriods.weekInterval(offset: 0)
+        guard interval.end <= cal.startOfDay(for: Date()) else {
+            alignedCurrent = nil
+            return
+        }
+        Task {
+            let slices = await ReportPeriods.slices(for: interval)
+            guard pageOffset == 0, anchorDate == nil else { return }
+            alignedCurrent = WeeklyReportData.forInterval(interval, slices: slices)
+            WeeklyReportRenderer.invalidateCache()
+            WeeklyReportRenderer.warmCache(data: displayData, key: renderKey)
+        }
     }
 
     private func loadPage(_ target: Int) {
