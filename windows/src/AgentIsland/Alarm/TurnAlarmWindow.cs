@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using AgentIsland.Core;
+using AgentIsland.Model;
 using AgentIsland.UI;
 using AgentIsland.UI.Charts;
 using AgentIsland.UI.Theme;
@@ -357,18 +358,30 @@ public sealed class TurnAlarmWindow : Window
             Margin = new Thickness(0, 0, 0, 20),
         };
 
-        var glow = new System.Windows.Shapes.Ellipse
+        // Antigravity's halo sweeps all four Google hues and drifts a slow
+        // full turn (macOS TurnAlarmProviderMark); every other provider
+        // breathes the same disc in its single colour.
+        FrameworkElement glow;
+        if (Provider == TriggerTool.Antigravity)
         {
-            Width = 138,
-            Height = 138,
-            Fill = IslandColors.Brush(tint),
-            Opacity = 0.20,
-            Effect = new BlurEffect { Radius = 18 },
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
+            glow = GoogleWheel(138);
+            IslandMotion.Breathe(glow, UIElement.OpacityProperty, 0.38, 0.26, 1.7);
+        }
+        else
+        {
+            glow = new System.Windows.Shapes.Ellipse
+            {
+                Width = 138,
+                Height = 138,
+                Fill = IslandColors.Brush(tint),
+                Opacity = 0.20,
+            };
+            IslandMotion.Breathe(glow, UIElement.OpacityProperty, 0.20, 0.12, 1.7);
+        }
+        glow.Effect = new BlurEffect { Radius = 18 };
+        glow.HorizontalAlignment = HorizontalAlignment.Center;
+        glow.VerticalAlignment = VerticalAlignment.Center;
         cluster.Children.Add(glow);
-        IslandMotion.Breathe(glow, UIElement.OpacityProperty, 0.20, 0.12, 1.7);
         IslandMotion.Breathe((BlurEffect)glow.Effect, BlurEffect.RadiusProperty, 18, 28, 1.7);
         IslandMotion.BreatheScale(glow, 0.92, 1.12, 1.7);
 
@@ -400,15 +413,14 @@ public sealed class TurnAlarmWindow : Window
         IslandMotion.Breathe(ringInner, UIElement.OpacityProperty, 0.14, 0.30, 1.7);
         IslandMotion.BreatheScale(ringInner, 1.08, 0.96, 1.7);
 
-        var mark = new System.Windows.Shapes.Path
+        // The provider's REAL mark — the old path hardwired "not Claude →
+        // OpenAI knot", crowning Grok/Cursor/Antigravity alarms with
+        // Codex's mark.
+        var mark = new System.Windows.Controls.ContentControl
         {
-            Data = Geometry.Parse("F1 " + (Provider == TriggerTool.Claude
-                ? BrandGeometry.ClaudePath
-                : BrandGeometry.OpenAiPath)),
-            Fill = IslandColors.Brush(tint),
+            Content = UI.ProviderMarks.Mark(Provider.ToDisplayProvider(), 76, tintOpacity: 1),
             Width = 76,
             Height = 76,
-            Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Effect = new DropShadowEffect
@@ -426,6 +438,49 @@ public sealed class TurnAlarmWindow : Window
         IslandMotion.BreatheScale(mark, 0.985, 1.025, 0.72);
 
         return cluster;
+    }
+
+    /// The Google colour wheel: eight wedges cycling the four hues, turned
+    /// slowly by a GPU transform — animating gradient stops instead would
+    /// re-rasterize per frame (island conic-glow postmortem).
+    private static FrameworkElement GoogleWheel(double side)
+    {
+        var wedges = new Grid { Width = side, Height = side };
+        var hues = new[]
+        {
+            Color.FromRgb(66, 133, 244),
+            Color.FromRgb(52, 168, 83),
+            Color.FromRgb(251, 188, 5),
+            Color.FromRgb(234, 67, 53),
+        };
+        for (var i = 0; i < 8; i++)
+        {
+            var wedge = new System.Windows.Shapes.Path
+            {
+                Data = UI.ChartStylePickerControl.PieSliceGeometry(side, 0.125),
+                Fill = IslandColors.Brush(hues[i % hues.Length]),
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                RenderTransform = new RotateTransform(i * 45),
+            };
+            wedges.Children.Add(wedge);
+        }
+        var spin = new RotateTransform();
+        var host = new Grid
+        {
+            Width = side,
+            Height = side,
+            RenderTransformOrigin = new Point(0.5, 0.5),
+            RenderTransform = spin,
+            Clip = new EllipseGeometry(new Point(side / 2, side / 2), side / 2, side / 2),
+        };
+        host.Children.Add(wedges);
+        var turn = new System.Windows.Media.Animation.DoubleAnimation(0, 360, new Duration(TimeSpan.FromSeconds(14)))
+        {
+            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+        };
+        System.Windows.Media.Animation.Timeline.SetDesiredFrameRate(turn, 24);
+        spin.BeginAnimation(RotateTransform.AngleProperty, turn);
+        return host;
     }
 
     private Grid BuildMetadata(ActivityMonitor.ActiveThread thread, Color tint)

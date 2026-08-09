@@ -36,14 +36,26 @@ jobs:
           $env:AGENTISLAND_SNAPSHOT_DIR = "$env:GITHUB_WORKSPACE\shots\en"
           Start-Process -Wait -FilePath $exe.FullName
 
-      - name: Snapshot sweep (guest slots island)
+      - name: Snapshot sweep (antigravity + grok island)
         shell: pwsh
         run: |
           $exe = Get-ChildItem -Recurse windows/src/AgentIsland/bin/Release -Filter AgentIsland.exe | Select-Object -First 1
           $env:AGENTISLAND_DEMO = "1"
+          $env:AGENTISLAND_DEMO_GUESTS = "1"
+          $env:AGENTISLAND_LANG = "zh"
+          $env:AGENTISLAND_DEMO_PROVIDERS = "antigravity,grok"
+          $env:AGENTISLAND_SNAPSHOT_DIR = "$env:GITHUB_WORKSPACE\shots\guests-ag"
+          Start-Process -Wait -FilePath $exe.FullName
+
+      - name: Snapshot sweep (claude + cursor island)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse windows/src/AgentIsland/bin/Release -Filter AgentIsland.exe | Select-Object -First 1
+          $env:AGENTISLAND_DEMO = "1"
+          $env:AGENTISLAND_DEMO_GUESTS = "1"
           $env:AGENTISLAND_LANG = "zh"
           $env:AGENTISLAND_DEMO_PROVIDERS = "claude,cursor"
-          $env:AGENTISLAND_SNAPSHOT_DIR = "$env:GITHUB_WORKSPACE\shots\guests"
+          $env:AGENTISLAND_SNAPSHOT_DIR = "$env:GITHUB_WORKSPACE\shots\guests-cursor"
           Start-Process -Wait -FilePath $exe.FullName
 
       - uses: actions/upload-artifact@v4
