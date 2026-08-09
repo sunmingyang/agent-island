@@ -71,10 +71,11 @@ final class AntigravityUsageStore: ObservableObject {
         lastUpdated = cached.updatedAt
     }
 
-    /// Tier chip for the Settings row / strip ("FREE", "PAID", or Google's
-    /// own paid-tier name uppercased).
+    /// Tier chip for the Settings row / strip — compacted to sit beside
+    /// PRO and MAX ("ANTIGRAVITY STARTER QUOTA" → "STARTER").
     var tierBadge: String? {
-        snapshot?.tierLabel?.uppercased()
+        AntigravityQuotaParser.compactTierBadge(
+            label: snapshot?.tierLabel, tierID: snapshot?.tierID)
     }
 
     func kickRefresh() {

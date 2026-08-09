@@ -152,6 +152,51 @@ enum AntigravityLanguageServer {
         return String(cString: buffer)
     }
 
+    /// The process's current working directory, kernel-resolved (so /tmp
+    /// reads as /private/tmp). Used to match a running agy to the
+    /// conversation an alarm points at.
+    static func currentWorkingDirectory(_ pid: pid_t) -> String? {
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) > 0 else { return nil }
+        let path = withUnsafeBytes(of: info.pvi_cdir.vip_path) { raw -> String in
+            guard let base = raw.bindMemory(to: CChar.self).baseAddress else { return "" }
+            return String(cString: base)
+        }
+        return path.isEmpty ? nil : path
+    }
+
+    /// Walks up the process tree to the GUI application that owns this
+    /// process's terminal session — Terminal, iTerm, VS Code, whatever the
+    /// user runs agy inside. The `.app/Contents/MacOS/` marker separates an
+    /// application from the shells in between (agy ← zsh ← login ←
+    /// Terminal). A headless agy (launchd, CI) never reaches one and
+    /// returns nil, which is exactly the "nothing to front" answer.
+    ///
+    /// The parent hop uses sysctl, not proc_pidinfo: Terminal's `login`
+    /// intermediary runs as root, proc_pidinfo denies it to a user process,
+    /// and the walk died right there on the owner's machine (2026-08-09).
+    /// The kinfo_proc table is world-readable.
+    static func owningGUIApplication(_ pid: pid_t) -> pid_t? {
+        var current = pid
+        for _ in 0..<12 {
+            if executablePath(current).contains(".app/Contents/MacOS/") { return current }
+            guard let parent = parentPID(current), parent > 1, parent != current else {
+                return nil
+            }
+            current = parent
+        }
+        return nil
+    }
+
+    private static func parentPID(_ pid: pid_t) -> pid_t? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        return info.kp_eproc.e_ppid
+    }
+
     static func listeningPorts(_ pid: pid_t) -> [UInt16] {
         let size = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
         guard size > 0 else { return [] }

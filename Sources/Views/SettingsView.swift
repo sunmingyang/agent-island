@@ -1188,12 +1188,13 @@ struct SettingsView: View {
         var parts: [String] = [guestSyncCaption(antigravityStore.lastUpdated)]
         if let caption = antigravityStore.statusCaption {
             parts.append("⚠ \(caption)")
-        }
-        // Pools are independent, so both are named rather than summed.
-        if let snapshot = antigravityStore.snapshot {
-            for bucket in [snapshot.primary, snapshot.secondary].compactMap({ $0 }) {
-                parts.append("\(bucket.shortLabel) \(Int((bucket.usedPercent * 100).rounded()))%")
-            }
+        } else if let bucket = antigravityStore.snapshot?.primary {
+            // One number, phrased exactly like Grok's row: the pool closest
+            // to its limit. Naming both pools here ("Gemini 4% · Claude·GPT
+            // 0%") read as a glitch — Claude and GPT are provider names one
+            // row over (owner review, 2026-08-09). The per-pool split lives
+            // in the usage panel.
+            parts.append(L10n.tr("week %d%%", Int((bucket.usedPercent * 100).rounded())))
         }
         return parts.joined(separator: " · ")
     }

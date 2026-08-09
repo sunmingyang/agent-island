@@ -143,6 +143,21 @@ enum AntigravityQuotaParser {
         )
     }
 
+    /// The tier chip has to read like its neighbours — Codex says PRO,
+    /// Claude says MAX — and Google's tier names are sentences:
+    /// "Antigravity Starter Quota", "Google AI Ultra". Dropping the filler
+    /// words leaves the part that identifies the plan ("STARTER",
+    /// "AI ULTRA"); the full name is still shown where there is room.
+    static func compactTierBadge(label: String?, tierID: String?) -> String? {
+        guard let label, !label.isEmpty else { return nil }
+        let filler: Set<String> = ["antigravity", "google", "quota", "plan", "tier"]
+        let words = label.split(separator: " ").filter { !filler.contains($0.lowercased()) }
+        guard !words.isEmpty else {
+            return tierID == "free-tier" ? "FREE" : label.uppercased()
+        }
+        return words.joined(separator: " ").uppercased()
+    }
+
     /// `remainingFraction` arrives as a plain 0...1 number, but the same
     /// field has been seen oneof-expanded into an object by other Connect
     /// clients, so both are accepted. Anything else is a missing value, not

@@ -26,17 +26,19 @@ enum TurnAlarmNavigator {
             // Claude falls back to when its CLI is missing.
             bringForward(appNamed: "Grok")
         case .antigravity:
+            // The owner's real flow: agy stays open in its terminal, the
+            // turn ends, the alarm fires. Spawning a fresh terminal running
+            // `agy --conversation <id>` — the generic resume gesture — put a
+            // SECOND copy of a session that was already on screen one window
+            // over (owner repro, 2026-08-09). So a running interactive agy
+            // gets its own terminal fronted first; the new-terminal resume
+            // is the fallback for when nothing is running.
+            if let thread, frontRunningAntigravity(conversationId: thread.sessionId) { return }
             // Verified against the real binary (agy 1.1.11, 2026-08-08): the
             // executable is `agy`, there is no --resume, and --conversation
             // takes the conversation id — which is exactly the brain/<id>
             // directory the scanner reports. Confirmed to append to the same
-            // transcript rather than start a new thread, so Antigravity is
-            // the one guest that lands on the precise conversation.
-            //
-            // This said `gemini --resume latest` before, a leftover from the
-            // Gemini era: no tool matches the name "gemini", so it fell
-            // through to a PATH lookup and would have started the unrelated
-            // Gemini CLI that is still installed alongside.
+            // transcript rather than start a new thread.
             if let thread, openCLIResume(
                 executable: "agy",
                 arguments: ["--conversation", thread.sessionId],
@@ -238,6 +240,61 @@ enum TurnAlarmNavigator {
     /// `openApplication` is an asynchronous request to the workspace that
     /// survives our window teardown, and hiding ourselves right after removes
     /// us from the running order so focus cannot snap back.
+    /// Fronts the terminal (or IDE) that already hosts a live Antigravity
+    /// session instead of spawning a duplicate.
+    ///
+    /// Match order: an agy whose cwd maps to the alarm's conversation in
+    /// `cache/last_conversations.json` wins outright. That file is not
+    /// written continuously by an interactive session though (verified
+    /// 2026-08-09 — a live agy's conversation was absent while a finished
+    /// --print run's was present), so when exactly one interactive agy is
+    /// running it is taken as the session that raised the alarm. Two or
+    /// more with no map match stays ambiguous and falls through to the
+    /// new-terminal resume.
+    private static func frontRunningAntigravity(conversationId: String) -> Bool {
+        let interactive: [(app: pid_t, cwd: String?)] =
+            AntigravityLanguageServer.antigravityProcesses().compactMap { pid in
+                guard let app = AntigravityLanguageServer.owningGUIApplication(pid) else {
+                    return nil
+                }
+                return (app, AntigravityLanguageServer.currentWorkingDirectory(pid))
+            }
+        guard !interactive.isEmpty else { return false }
+
+        let mapped = interactive.first { session in
+            guard let cwd = session.cwd else { return false }
+            return antigravityConversation(forWorkspace: cwd) == conversationId
+        }
+        guard let target = mapped ?? (interactive.count == 1 ? interactive[0] : nil),
+              let app = NSRunningApplication(processIdentifier: target.app),
+              let bundleURL = app.bundleURL else { return false }
+
+        // Same cooperative-activation route as bringForward: opening an
+        // already-running app activates it reliably on macOS 14+, where
+        // plain activate() can lose the race.
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration) { _, _ in
+            DispatchQueue.main.async { NSApp.hide(nil) }
+        }
+        return true
+    }
+
+    /// `cache/last_conversations.json` maps a workspace path to the
+    /// conversation last run there.
+    private static func antigravityConversation(forWorkspace cwd: String) -> String? {
+        for root in SessionScanner.antigravityRoots() {
+            let url = URL(fileURLWithPath: root)
+                .appendingPathComponent("cache/last_conversations.json")
+            guard let data = try? Data(contentsOf: url),
+                  let map = try? JSONSerialization.jsonObject(with: data) as? [String: String]
+            else { continue }
+            if let id = map[cwd] { return id }
+            if let id = map[(cwd as NSString).standardizingPath] { return id }
+        }
+        return nil
+    }
+
     static func bringForward(bundleIdentifier: String) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
             activate(bundleIdentifier: bundleIdentifier)

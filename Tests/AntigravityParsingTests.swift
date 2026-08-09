@@ -183,6 +183,25 @@ private func testQuotaDegradesWithoutInventingHeadroom() throws {
                "a disabled pool is one the account cannot use — showing it as full invents headroom")
 }
 
+/// The chip must sit beside PRO and MAX — "ANTIGRAVITY STARTER QUOTA" spans
+/// the whole row (owner review, 2026-08-09).
+private func testTierBadgeCompaction() throws {
+    try expect(AntigravityQuotaParser.compactTierBadge(
+                label: "Antigravity Starter Quota", tierID: "free-tier") == "STARTER",
+               "the free tier compacts to STARTER")
+    try expect(AntigravityQuotaParser.compactTierBadge(
+                label: "Google AI Ultra", tierID: "g1-ultra-tier") == "AI ULTRA",
+               "paid tiers keep the words that identify the plan")
+    try expect(AntigravityQuotaParser.compactTierBadge(
+                label: "Google AI Pro", tierID: nil) == "AI PRO",
+               "AI Pro compacts")
+    try expect(AntigravityQuotaParser.compactTierBadge(
+                label: "Antigravity Quota", tierID: "free-tier") == "FREE",
+               "all-filler names on the free tier fall back to FREE, never an empty chip")
+    try expect(AntigravityQuotaParser.compactTierBadge(label: nil, tierID: "free-tier") == nil,
+               "no label, no chip")
+}
+
 /// Envelope and number shapes this server has been seen to vary.
 private func testQuotaToleratesShapeVariants() throws {
     let bare = Data(#"{"groups":[{"displayName":"G","buckets":[{"bucketId":"x-weekly","window":"weekly","remainingFraction":0.5}]}]}"#.utf8)
@@ -397,6 +416,7 @@ private enum GeminiParsingTestRunner {
             ("user status prefers userTier over planName", testUserStatusPrefersUserTierOverPlanName),
             ("quota degrades without inventing headroom", testQuotaDegradesWithoutInventingHeadroom),
             ("quota tolerates shape variants", testQuotaToleratesShapeVariants),
+            ("tier badge compacts to chip length", testTierBadgeCompaction),
             ("creds parse fields and email", testLoadCredsParsesFieldsAndEmail),
             ("needsRefresh honors skew", testNeedsRefreshHonorsSkew),
             ("refresh writeback rewrites atomically", testApplyRefreshRewritesAtomicallyAndPreservesEverythingElse),
