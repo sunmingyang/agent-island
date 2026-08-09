@@ -19,6 +19,13 @@
     <Resource Include="Assets\*.ico" />
   </ItemGroup>
 
+  <!-- Antigravity's conversation_summaries.db (generated titles +
+       workspaces). The bundled native sqlite rides the single-file
+       publish via IncludeNativeLibrariesForSelfExtract. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+  </ItemGroup>
+
   <!-- Let the console test suite reach internal validation/parse helpers. -->
   <ItemGroup>
     <InternalsVisibleTo Include="AgentIsland.Tests" />

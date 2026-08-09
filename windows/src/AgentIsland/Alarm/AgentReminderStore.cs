@@ -20,6 +20,39 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
         "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink",
     };
 
+    /// Windows' own alarm library — the platform mirror of the macOS
+    /// Apple-ringtone tier (2.1.2). C:\Windows\Media ships the ten
+    /// Alarm01–Alarm10 tones the Clock app uses; they are referenced in
+    /// place at runtime and never bundled — they are Microsoft's audio,
+    /// and they are already on the disk. If a future Windows moves them
+    /// the tier simply disappears and the synthesized presets remain.
+    public static class SystemTones
+    {
+        public const string StoragePrefix = "SystemTone:";
+
+        public static string Directory =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Media");
+
+        /// Chimes (Alarm01) leads — the Clock app's default alarm, the one
+        /// everyone knows. Names are the Clock app's own labels for the
+        /// ten files, in file order.
+        public static readonly (string Key, string Label)[] Curated =
+        {
+            ("Alarm01", "Chimes"), ("Alarm02", "Xylophone"), ("Alarm03", "Chords"),
+            ("Alarm04", "Taps"), ("Alarm05", "Jingle"), ("Alarm06", "Transition"),
+            ("Alarm07", "Descent"), ("Alarm08", "Bounce"), ("Alarm09", "Echo"),
+            ("Alarm10", "Serenity"),
+        };
+
+        public static string PathFor(string key) => Path.Combine(Directory, key + ".wav");
+
+        public static IEnumerable<(string Key, string Label)> Available =>
+            Curated.Where(tone => File.Exists(PathFor(tone.Key)));
+
+        public static string? LabelFor(string key) =>
+            Curated.FirstOrDefault(tone => tone.Key == key).Label;
+    }
+
     public static AgentReminderStore Shared { get; } = new();
 
     private const string EnabledKey = "AgentIsland.agentReminders";
@@ -45,12 +78,30 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
         _enabled = Preferences.Get<bool?>(EnabledKey) ?? true;
         _soundEnabled = Preferences.Get<bool?>(SoundEnabledKey) ?? true;
         _volume = Math.Clamp(Preferences.Get<double?>(VolumeKey) ?? 0.8, 0, 1);
-        _soundChoice = Preferences.Get<string?>(SoundChoiceKey) ?? "Glass";
-        // Early builds referenced Windows Media names; fold them into the
-        // synthesized palette.
-        if (_soundChoice != CustomSoundChoice && !SoundPresets.Contains(_soundChoice))
+        var stored = Preferences.Get<string?>(SoundChoiceKey);
+        if (stored is null)
+        {
+            // Fresh install: the system alarm tier leads, Chimes first —
+            // the alarm should sound like the platform's own (the macOS
+            // build defaults to Radar for the same reason).
+            _soundChoice = SystemTones.Available.FirstOrDefault() is { Key.Length: > 0 } first
+                ? SystemTones.StoragePrefix + first.Key
+                : "Glass";
+        }
+        else if (stored.StartsWith(SystemTones.StoragePrefix, StringComparison.Ordinal))
+        {
+            // A tone this system lacks (synced prefs, OS change) must not
+            // resolve — fall back rather than ring silent.
+            var key = stored[SystemTones.StoragePrefix.Length..];
+            _soundChoice = File.Exists(SystemTones.PathFor(key)) ? stored : "Glass";
+        }
+        else if (stored != CustomSoundChoice && !SoundPresets.Contains(stored))
         {
             _soundChoice = "Glass";
+        }
+        else
+        {
+            _soundChoice = stored;
         }
         _customSoundPath = Preferences.Get<string?>(CustomSoundKey) ?? "";
         _showSessionDetails = Preferences.Get<bool?>(ShowDetailsKey) ?? false;
@@ -101,6 +152,11 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
         {
             return File.Exists(_customSoundPath) ? _customSoundPath : null;
         }
+        if (_soundChoice.StartsWith(SystemTones.StoragePrefix, StringComparison.Ordinal))
+        {
+            var path = SystemTones.PathFor(_soundChoice[SystemTones.StoragePrefix.Length..]);
+            return File.Exists(path) ? path : SoundSynth.EnsurePreset("Glass");
+        }
         return SoundSynth.EnsurePreset(_soundChoice);
     }
 
@@ -108,6 +164,11 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     /// macOS sound list (低音, 吹气, 瓶子, …).
     public static string PresetLabel(string key)
     {
+        if (key.StartsWith(SystemTones.StoragePrefix, StringComparison.Ordinal))
+        {
+            var toneKey = key[SystemTones.StoragePrefix.Length..];
+            return SystemTones.LabelFor(toneKey) ?? toneKey;
+        }
         if (!Localization.L10n.IsChinese) return key;
         return key switch
         {

@@ -488,6 +488,7 @@ public static class SessionScanner
             var root = Path.Combine(home, rootName);
             var brain = Path.Combine(root, "brain");
             if (!Directory.Exists(brain)) continue;
+            var summaries = AntigravitySummaries(root);
             foreach (var conversationDir in SafeEnumerateDirectories(brain))
             {
                 var conversation = Path.GetFileName(conversationDir);
@@ -496,8 +497,11 @@ public static class SessionScanner
                 if (!File.Exists(path)) continue;
                 var state = SessionState(
                     path, now, lastWorking, null, SessionTurnState.Antigravity, quietMeansDone: true);
-                var cwd = AntigravityWorkspace(root, conversation) ?? "";
-                var label = AntigravityTitle(path)
+                var summary = summaries.TryGetValue(conversation, out var s) ? s : default;
+                var cwd = summary.Workspace
+                    ?? AntigravityWorkspace(root, conversation) ?? "";
+                var label = summary.Title
+                    ?? AntigravityTitle(path)
                     ?? (conversation.Length > 8 ? conversation[..8] : conversation);
                 output.Add(new ScannedSession(
                     TriggerTool.Antigravity,
@@ -514,10 +518,95 @@ public static class SessionScanner
         return output;
     }
 
+    /// One row per conversation in `conversation_summaries.db`, the plain
+    /// SQLite index the CLI keeps beside `brain/`. The db is WAL-mode: a
+    /// read-only open needs the -shm file, which only exists while agy
+    /// holds the db open — with agy closed the plain open fails, so the
+    /// immutable URI (which skips the WAL entirely) is the fallback. Safe:
+    /// a cleanly closed db is fully checkpointed, and a stale miss only
+    /// costs a nicer label.
+    private static Dictionary<string, (string? Title, string? Workspace)> AntigravitySummaries(string root)
+    {
+        var dbPath = Path.Combine(root, "conversation_summaries.db");
+        if (!File.Exists(dbPath)) return new();
+        return AntigravitySummaryRows($"Data Source={dbPath};Mode=ReadOnly")
+            ?? AntigravitySummaryRows(
+                $"Data Source=file:{Uri.EscapeDataString(dbPath).Replace("%5C", "/").Replace("%3A", ":")}?immutable=1;Mode=ReadOnly")
+            ?? new();
+    }
+
+    /// null means this open failed and the caller should try the other
+    /// mode; an empty dictionary means the table really had nothing.
+    private static Dictionary<string, (string? Title, string? Workspace)>? AntigravitySummaryRows(
+        string connectionString)
+    {
+        try
+        {
+            using var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT conversation_id, title, preview, workspace_uris FROM conversation_summaries";
+            using var reader = command.ExecuteReader();
+            var output = new Dictionary<string, (string?, string?)>(StringComparer.Ordinal);
+            while (reader.Read())
+            {
+                var id = reader.IsDBNull(0) ? null : reader.GetString(0);
+                if (string.IsNullOrEmpty(id)) continue;
+                // title is usually blank; preview carries the generated name.
+                var title = NonEmpty(reader.IsDBNull(1) ? null : reader.GetString(1))
+                    ?? NonEmpty(reader.IsDBNull(2) ? null : reader.GetString(2));
+                if (title is { Length: > 48 }) title = title[..48];
+                var workspace = NonEmpty(reader.IsDBNull(3) ? null : reader.GetString(3)) is { } uris
+                    ? AntigravityWorkspaceUri(uris)
+                    : null;
+                output[id] = (title, workspace);
+            }
+            return output;
+        }
+        catch
+        {
+            return null;
+        }
+
+        static string? NonEmpty(string? raw)
+        {
+            var trimmed = raw?.Trim();
+            return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+        }
+    }
+
+    /// `workspace_uris` is a JSON array of file:// URIs; the first one is
+    /// the session's directory. Empty for sessions started outside a
+    /// project.
+    private static string? AntigravityWorkspaceUri(string raw)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return null;
+            foreach (var entry in doc.RootElement.EnumerateArray())
+            {
+                if (entry.ValueKind != System.Text.Json.JsonValueKind.String) continue;
+                var text = entry.GetString();
+                if (string.IsNullOrEmpty(text)) continue;
+                if (Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.IsFile)
+                {
+                    return uri.LocalPath;
+                }
+                return text;
+            }
+        }
+        catch
+        {
+            // Malformed JSON only costs the cwd nicety.
+        }
+        return null;
+    }
+
     /// The first user message, unwrapped from the `<USER_REQUEST>` envelope
-    /// the CLI writes. (The nicer generated titles live in
-    /// conversation_summaries.db — a SQLite dependency this port doesn't
-    /// carry, so the first message is the honest fallback.)
+    /// the CLI writes — the fallback when the summaries table has no row
+    /// yet (it is written asynchronously).
     private static string? AntigravityTitle(string path)
     {
         try

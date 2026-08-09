@@ -248,6 +248,13 @@ public sealed class SettingsWindow : Window
             Background = IslandColors.Brush(IslandColors.White(0.04)),
             Padding = new Thickness(9, 4, 9, 4),
             VerticalAlignment = VerticalAlignment.Center,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = L10n.Tr("What's new in this version"),
+        };
+        version.MouseLeftButtonUp += (_, args) =>
+        {
+            args.Handled = true;
+            WhatsNewWindow.Open();
         };
         Grid.SetColumn(version, 2);
         grid.Children.Add(version);
@@ -1908,6 +1915,12 @@ public sealed class SettingsWindow : Window
         void RebuildList()
         {
             list.Children.Clear();
+            foreach (var tone in AgentReminderStore.SystemTones.Available)
+            {
+                list.Children.Add(SoundChoiceRow(
+                    AgentReminderStore.SystemTones.StoragePrefix + tone.Key,
+                    isCustom: false, RebuildList, headerLabel));
+            }
             foreach (var preset in AgentReminderStore.SoundPresets)
             {
                 list.Children.Add(SoundChoiceRow(preset, isCustom: false, RebuildList, headerLabel));

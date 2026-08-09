@@ -37,8 +37,9 @@ public static class TurnAlarmNavigator
             // working directory — which, launched from the thread's own cwd,
             // is the thread that just finished.
             return System.Threading.Tasks.Task.Run(() =>
-                Trigger.CLILocator.Locate("grok") is { } grok
-                    && RunResumeInTerminal(grok, "--continue", cwd, "Grok continue"));
+                LiveSessionWindow.TryFocus("grok")
+                || (Trigger.CLILocator.Locate("grok") is { } grok
+                    && RunResumeInTerminal(grok, "--continue", cwd, "Grok continue")));
         }
         if (provider == TriggerTool.Antigravity)
         {
@@ -46,10 +47,14 @@ public static class TurnAlarmNavigator
             // <id>` reopens the exact thread and appends to it — the one
             // guest with true per-id resume. The session id IS the
             // conversation id the scanner read from brain/.
+            // The session is often still alive in its own terminal — land
+            // there first (macOS 2.1.2 parity); spawn the exact-thread
+            // resume only when nothing is running.
             return System.Threading.Tasks.Task.Run(() =>
-                Trigger.CLILocator.Locate("agy") is { } agy
+                LiveSessionWindow.TryFocus("agy", "antigravity")
+                || (Trigger.CLILocator.Locate("agy") is { } agy
                     && RunResumeInTerminal(
-                        agy, $"--conversation {sessionId}", cwd, "Antigravity resume"));
+                        agy, $"--conversation {sessionId}", cwd, "Antigravity resume")));
         }
         if (provider == TriggerTool.Cursor)
         {
@@ -98,6 +103,9 @@ public static class TurnAlarmNavigator
             }
             return System.Threading.Tasks.Task.Run(() =>
             {
+                // A single live claude process = the session is still open
+                // in its terminal; front it instead of spawning a twin.
+                if (LiveSessionWindow.TryFocus("claude")) return true;
                 if (Trigger.CLILocator.Locate("claude") is { } claude)
                 {
                     return RunResumeInTerminal(claude, $"--resume {sessionId}", cwd, "Claude resume");
@@ -116,6 +124,9 @@ public static class TurnAlarmNavigator
         // when no codex:// handler exists.
         return System.Threading.Tasks.Task.Run(() =>
         {
+            // Same live-window-first rule as macOS: an open TUI session
+            // beats both the desktop deep link and a fresh terminal.
+            if (LiveSessionWindow.TryFocus("codex")) return true;
             if (TryOpenUri($"codex://threads/{sessionId}"))
             {
                 FocusAppWindow("Codex");   // best effort; the URI already landed

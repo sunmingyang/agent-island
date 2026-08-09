@@ -92,6 +92,8 @@ public partial class IslandWindow : Window
         _teardown.Add(() =>
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged);
 
+        StartVisibilityWatchdog();
+
         System.ComponentModel.PropertyChangedEventHandler onTargetDisplay =
             (_, _) => Dispatcher.BeginInvoke(PositionOnScreen);
         Model.IslandTargetDisplayStore.Shared.PropertyChanged += onTargetDisplay;
@@ -409,6 +411,50 @@ public partial class IslandWindow : Window
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
         Dispatcher.BeginInvoke(PositionOnScreen);
+
+    /// The island must never stay gone (macOS 2.1.2 parity — the same
+    /// belt-and-suspenders rule that fixed "the island randomly
+    /// disappears" there). On Windows the vanish paths are z-order theft
+    /// (a fullscreen or topmost app parks itself above; explorer restarts
+    /// drop the band) and a stray Hide. A slow sweep re-asserts both.
+    /// SetWindowPos with NOACTIVATE never steals focus, so the sweep is
+    /// invisible when nothing was wrong.
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    private static readonly IntPtr HwndTopmost = new(-1);
+    private const uint SwpNoMove = 0x2;
+    private const uint SwpNoSize = 0x1;
+    private const uint SwpNoActivate = 0x10;
+
+    /// Set when the user hid the island through the tray toggle — the
+    /// watchdog must never fight a deliberate hide.
+    public bool DeliberatelyHidden;
+
+    private void StartVisibilityWatchdog()
+    {
+        var sweep = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(20),
+        };
+        sweep.Tick += (_, _) =>
+        {
+            if (!IsVisible && !DeliberatelyHidden)
+            {
+                Show();
+                PositionOnScreen();
+            }
+            var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (handle != IntPtr.Zero)
+            {
+                SetWindowPos(handle, HwndTopmost, 0, 0, 0, 0,
+                    SwpNoMove | SwpNoSize | SwpNoActivate);
+            }
+        };
+        sweep.Start();
+        _teardown.Add(sweep.Stop);
+    }
 
     /// Top bar sits flush against the screen edge, so only its bottom
     /// corners round; a floating island rounds all four.
