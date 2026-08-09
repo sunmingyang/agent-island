@@ -567,7 +567,6 @@ public sealed class ChartTile : StackPanel
     private readonly CapsuleMeter _capsule;
     private readonly RingMeter _ring;
     private readonly NumericMeter _numeric;
-    private readonly SparkMeter _spark;
     private readonly string _labelKey;
 
     public ChartTile(Color color, string labelKey, int seed = 1)
@@ -579,13 +578,11 @@ public sealed class ChartTile : StackPanel
         _capsule = new CapsuleMeter(color) { Margin = new Thickness(0, 12, 0, 12) };
         _ring = new RingMeter(color) { Margin = new Thickness(0, 4, 0, 4) };
         _numeric = new NumericMeter(color) { Margin = new Thickness(0, 2, 0, 2) };
-        _spark = new SparkMeter(color, seed) { Margin = new Thickness(0, 6, 0, 6) };
         Children.Add(_head);
         Children.Add(_stepped);
         Children.Add(_capsule);
         Children.Add(_ring);
         Children.Add(_numeric);
-        Children.Add(_spark);
         Children.Add(_foot);
     }
 
@@ -597,14 +594,13 @@ public sealed class ChartTile : StackPanel
 
         // Ring and Numeric render their own heads; the shared head serves
         // the three label+number styles.
-        _head.Visibility = style is ChartStyle.Bar or ChartStyle.Stepped or ChartStyle.Spark
+        _head.Visibility = style is ChartStyle.Bar or ChartStyle.Stepped
             ? Visibility.Visible
             : Visibility.Collapsed;
         _stepped.Visibility = style == ChartStyle.Stepped ? Visibility.Visible : Visibility.Collapsed;
         _capsule.Visibility = style == ChartStyle.Bar ? Visibility.Visible : Visibility.Collapsed;
         _ring.Visibility = style == ChartStyle.Ring ? Visibility.Visible : Visibility.Collapsed;
         _numeric.Visibility = style == ChartStyle.Numeric ? Visibility.Visible : Visibility.Collapsed;
-        _spark.Visibility = style == ChartStyle.Spark ? Visibility.Visible : Visibility.Collapsed;
 
         switch (style)
         {
@@ -621,10 +617,6 @@ public sealed class ChartTile : StackPanel
                 break;
             case ChartStyle.Numeric:
                 _numeric.Update(label, value);
-                break;
-            case ChartStyle.Spark:
-                _head.Update(label, value);
-                _spark.Update(value);
                 break;
         }
         _foot.Text = SubCaption(window, style);

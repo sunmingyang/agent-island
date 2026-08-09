@@ -147,7 +147,7 @@ public sealed class AntigravityUsageStore : INotifyPropertyChanged
                 // source. Keep the last good numbers; the caption explains
                 // why they aren't moving.
                 StatusCaption = Snapshot is null
-                    ? L10n.Tr("start Antigravity to read its quota")
+                    ? L10n.Tr("Installed — run agy to sign in")
                     : null;
                 break;
             case AntigravityUsageFetcher.Outcome.Failed failed:

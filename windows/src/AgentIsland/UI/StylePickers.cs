@@ -97,11 +97,10 @@ public sealed class ChartStylePickerControl : Grid
 
     public static string StyleLabel(ChartStyle style) => Localization.L10n.Tr(style switch
     {
-        ChartStyle.Ring => "Ring",
-        ChartStyle.Bar => "Bar",
         ChartStyle.Stepped => "Stepped",
+        ChartStyle.Bar => "Bar",
+        ChartStyle.Ring => "Pie",
         ChartStyle.Numeric => "Numeric",
-        ChartStyle.Spark => "Sparkline",
         _ => style.ToString(),
     });
 
@@ -191,22 +190,10 @@ public sealed class ChartStylePickerControl : Grid
                 });
                 return text;
             }
-            case ChartStyle.Spark:
             default:
             {
-                var line = new Polyline
-                {
-                    Stroke = IslandColors.Brush(tint),
-                    StrokeThickness = 2,
-                    StrokeLineJoin = PenLineJoin.Round,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                double[] ys = { 14, 8, 12, 5, 10, 4, 9, 3 };
-                for (var i = 0; i < ys.Length; i++)
-                {
-                    line.Points.Add(new Point(i * 8, ys[i]));
-                }
-                return line;
+                // Unreachable — every ChartStyle has its own case above.
+                return new Grid();
             }
         }
     }

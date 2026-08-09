@@ -3,13 +3,14 @@ using AgentIsland.Core;
 
 namespace AgentIsland.UI;
 
+/// macOS ChartStyle mirror — same four styles, same order (the line
+/// style died there; a stored "Spark" falls back to Stepped on parse).
 public enum ChartStyle
 {
-    Ring,
-    Bar,
     Stepped,
+    Bar,
+    Ring,
     Numeric,
-    Spark,
 }
 
 /// Usage chart visualization. Defaults to Stepped — the segmented style the

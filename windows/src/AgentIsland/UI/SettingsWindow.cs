@@ -416,11 +416,11 @@ public sealed class SettingsWindow : Window
         grid.Children.Add(guide);
 
         var share = new StackPanel { Orientation = Orientation.Horizontal };
-        var weekly = new PillButtonControl(L10n.Tr("Weekly"));
+        var weekly = new PillButtonControl(L10n.Tr("Weekly")) { ToolTip = L10n.Tr("Share weekly report") };
         weekly.Clicked += () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly);
         weekly.Margin = new Thickness(0, 0, 8, 0);
         share.Children.Add(weekly);
-        var monthly = new PillButtonControl(L10n.Tr("Monthly"));
+        var monthly = new PillButtonControl(L10n.Tr("Monthly")) { ToolTip = L10n.Tr("Share monthly report") };
         monthly.Clicked += () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Monthly);
         share.Children.Add(monthly);
         Grid.SetColumn(share, 3);
@@ -904,16 +904,6 @@ public sealed class SettingsWindow : Window
         usageLabel.Margin = new Thickness(0);
         Grid.SetColumn(usageLabel, 0);
         usageHeader.Children.Add(usageLabel);
-        var hint = new TextBlock
-        {
-            Text = L10n.Tr("click to cycle"),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 10,
-            Foreground = IslandColors.Brush(IslandColors.White(0.18)),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetColumn(hint, 1);
-        usageHeader.Children.Add(hint);
         stack.Children.Add(usageHeader);
 
         var stylePicker = new ChartStylePickerControl(StylePreferenceStore.Shared.Style)
@@ -1034,7 +1024,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Show on",
             choice == "auto"
-                ? L10n.TrFormat("Auto — showing on {0}.", L10n.Tr("the primary display"))
+                ? L10n.Tr("Auto — picks the best available screen.")
                 : L10n.Tr("Pinned to a specific display. Falls back to Auto if unplugged."),
             display));
 
@@ -1519,7 +1509,7 @@ public sealed class SettingsWindow : Window
         var store = AntigravityUsageStore.Shared;
         if (!ProviderVisibilityStore.Shared.AntigravityDetected)
         {
-            return L10n.Tr("Not detected — install and run the agy CLI");
+            return L10n.Tr("Not detected — sign in with the antigravity CLI");
         }
         var parts = new List<string> { GuestSync(store.LastUpdated) };
         if (store.StatusCaption is { } caption)
