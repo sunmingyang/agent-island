@@ -1,6 +1,5 @@
 import AppKit
 
-let teal = NSColor(red: 0x20/255.0, green: 0xC0/255.0, blue: 0xB0/255.0, alpha: 1)
 let claudeOrange = NSColor(red: 0xCC/255.0, green: 0x78/255.0, blue: 0x5C/255.0, alpha: 1)
 let codexBlue = NSColor(red: 0x5A/255.0, green: 0xA8/255.0, blue: 0xF0/255.0, alpha: 1)
 
@@ -47,11 +46,12 @@ func drawBackground(scale: CGFloat) -> NSImage {
                      startAngle: 270, endAngle: 360, clockwise: false)
     island.line(to: CGPoint(x: ix + islandW, y: h))
     island.close()
-    // Soft teal glow under the silhouette: stacked strokes, fading out.
-    for (inset, alpha) in [(CGFloat(0), 0.28), (1.5, 0.14), (3.0, 0.07), (5.0, 0.035)] {
+    // Soft rim light under the silhouette — white since the 2026-08-09
+    // de-branding: the app carries no accent of its own.
+    for (inset, alpha) in [(CGFloat(0), 0.22), (1.5, 0.11), (3.0, 0.055), (5.0, 0.03)] {
         let glow = island.copy() as! NSBezierPath
         glow.lineWidth = 1 + inset
-        teal.withAlphaComponent(alpha).setStroke()
+        NSColor(white: 1, alpha: alpha).setStroke()
         glow.stroke()
     }
     NSColor.black.setFill()
@@ -72,7 +72,9 @@ func drawBackground(scale: CGFloat) -> NSImage {
     let groupW = logoSide + gap + titleSize.width
     let groupX = w / 2 - groupW / 2
     let rowCenterY = h - 78
-    if let logo = NSImage(contentsOfFile: "Assets/agent-island-logo.png") {
+    // The five-blade mark (2026-08-09 brand). The old Assets/ path had
+    // gone stale, which shipped a background with no mark at all.
+    if let logo = NSImage(contentsOfFile: "Resources/agentisland_logo.png") {
         logo.draw(in: CGRect(x: groupX, y: rowCenterY - logoSide / 2, width: logoSide, height: logoSide),
                   from: .zero, operation: .sourceOver, fraction: 1.0)
     }

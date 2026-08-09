@@ -463,6 +463,7 @@ private struct VersionHero: View {
 /// (owner spec, 2026-07-18: 教程也要海报级设计感).
 private struct BrandHero: View {
     let siblings: [PagedCardPage]
+    @State private var settled = false
 
     private var logo: NSImage? {
         Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
@@ -503,6 +504,16 @@ private struct BrandHero: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 58, height: 58)
                             .shadow(color: .black.opacity(0.5), radius: 8)
+                            // The pinwheel settles in by one blade — a
+                            // single spring on appear, GPU rotation only
+                            // (the conic-glow lesson: never animate paint).
+                            .rotationEffect(.degrees(settled ? 0 : -72))
+                            .opacity(settled ? 1 : 0)
+                            .onAppear {
+                                withAnimation(.spring(response: 0.9, dampingFraction: 0.72)) {
+                                    settled = true
+                                }
+                            }
                     }
                     Text("Agent Island")
                         .font(.system(size: 25, weight: .black, design: .rounded))

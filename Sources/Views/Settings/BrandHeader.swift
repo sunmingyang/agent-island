@@ -12,11 +12,6 @@ struct BrandHeader: View {
     let version: String
     @State private var versionHovered = false
 
-    private var logo: NSImage? {
-        Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
-            .flatMap { NSImage(contentsOf: $0) }
-    }
-
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             mark
@@ -61,24 +56,10 @@ struct BrandHeader: View {
         .padding(.bottom, 22)
     }
 
-    @ViewBuilder
     private var mark: some View {
-        if let logo {
-            Image(nsImage: logo)
-                .renderingMode(.original)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 26, height: 26)
-                .shadow(color: .black.opacity(0.4), radius: 5)
-        } else {
-            // Fallback if the resource is missing in the bundle: a plain
-            // cobalt-glowing dot so the header layout doesn't collapse.
-            Circle()
-                .fill(IslandColor.chrome)
-                .frame(width: 10, height: 10)
-                .shadow(color: IslandColor.chrome.opacity(0.85), radius: 5)
-                .frame(width: 26, height: 26)
-        }
+        // The lifted tile keeps the five-blade mark legible at this size
+        // (owner report, 2026-08-09); BrandMarkTile handles the missing-
+        // resource case by showing the bare tile.
+        BrandMarkTile(side: 30, corner: 7)
     }
 }

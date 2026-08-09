@@ -130,15 +130,13 @@ struct SettingsView: View {
             // Clears the traffic lights, which float over the sidebar.
             Color.clear.frame(height: 30)
 
-            HStack(spacing: 7) {
-                if let logo = Bundle.main.url(forResource: "agentisland_logo", withExtension: "png")
-                    .flatMap({ NSImage(contentsOf: $0) }) {
-                    Image(nsImage: logo)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 19, height: 19)
-                }
+            HStack(spacing: 8) {
+                // The five-blade mark muddies on a bare dark field at this
+                // size (owner report, 2026-08-09) — the brand book's menu-bar
+                // treatment fixes it: the mark sits on a faintly lifted tile.
+                // Hovering clicks the pinwheel one blade over (72°, GPU
+                // rotation, one-shot).
+                SidebarBrandMark()
                 Text("Agent Island")
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.92))
