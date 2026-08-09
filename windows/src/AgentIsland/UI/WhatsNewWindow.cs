@@ -36,7 +36,9 @@ public static class WhatsNewGate
 
 public sealed class WhatsNewWindow : Window
 {
-    private sealed record Page(string? ImageName, string Title, string Body, bool IsClosing = false);
+    private sealed record Page(
+        string? ImageName, string Title, string Body,
+        bool IsClosing = false, bool BrandHero = false);
 
     /// 2.1.2 pages — the macOS set with the two platform-specific pages
     /// speaking Windows: the terminal page describes the live-window jump
@@ -57,8 +59,30 @@ public sealed class WhatsNewWindow : Window
             "Welcome back to Agent Island", IsClosing: true),
     };
 
+    /// The global product tour (指南) — the whole product, not one release.
+    /// Screenshots are the macOS captures (owner call, 2026-08-09: 用 Mac
+    /// 的真机截屏，没有任何关系); the features they show are the same five.
+    private static Page[] GuidePages => new[]
+    {
+        new Page(null, "Live status and quota, together",
+            "Five agents on one island — each read from the records it already writes on your Mac",
+            BrandHero: true),
+        new Page("guide-status", "Monitor",
+            "All five agents carry live session state — Claude, Codex, Grok, Antigravity, and Cursor. Spinning means working, a bell means it's your turn, and steady red means it needs you"),
+        new Page("guide-usage", "Usage",
+            "Claude, Codex, Antigravity, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page"),
+        new Page("guide-cost", "Cost & history",
+            "Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine"),
+        new Page("guide-cards", "Report cards",
+            "One click renders a shareable battle card — copy it or send it to your phone, and the arrows flip back to any past week or month"),
+        new Page("guide-personalize", "Personalization",
+            "Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings",
+            IsClosing: true),
+    };
+
     private static WhatsNewWindow? _open;
 
+    private readonly Page[] _pages;
     private readonly Grid _pageHost = new();
     private readonly StackPanel _dots = new() { Orientation = Orientation.Horizontal };
     private readonly Button _back;
@@ -72,7 +96,7 @@ public sealed class WhatsNewWindow : Window
             existing.Activate();
             return;
         }
-        _open = new WhatsNewWindow();
+        _open = new WhatsNewWindow(Pages, showChip: true);
         _open.Closed += (_, _) =>
         {
             _open = null;
@@ -82,8 +106,24 @@ public sealed class WhatsNewWindow : Window
         _open.Activate();
     }
 
-    private WhatsNewWindow()
+    /// The guide reuses the card wholesale; closing it never marks the
+    /// release notes as seen.
+    public static void OpenGuide()
     {
+        if (_open is { } existing)
+        {
+            existing.Activate();
+            return;
+        }
+        _open = new WhatsNewWindow(GuidePages, showChip: false);
+        _open.Closed += (_, _) => _open = null;
+        _open.Show();
+        _open.Activate();
+    }
+
+    private WhatsNewWindow(Page[] pages, bool showChip)
+    {
+        _pages = pages;
         Title = "Agent Island";
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
@@ -97,12 +137,12 @@ public sealed class WhatsNewWindow : Window
         _back = Pill(L10n.Tr("Back"), primary: false, (_, _) => Flip(_page - 1));
         _next = Pill(L10n.Tr("Next"), primary: true, (_, _) =>
         {
-            if (_page >= Pages.Length - 1) Close();
+            if (_page >= _pages.Length - 1) Close();
             else Flip(_page + 1);
         });
 
         var column = new StackPanel { Width = 470 - 48 };
-        column.Children.Add(Header());
+        column.Children.Add(Header(showChip));
         column.Children.Add(_pageHost);
         column.Children.Add(FooterRow());
 
@@ -133,7 +173,7 @@ public sealed class WhatsNewWindow : Window
         Flip(0);
     }
 
-    private UIElement Header()
+    private UIElement Header(bool showChip)
     {
         var row = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 14) };
         var brand = new StackPanel { Orientation = Orientation.Horizontal };
@@ -181,19 +221,23 @@ public sealed class WhatsNewWindow : Window
                 Foreground = IslandColors.Brush(Colors.White),
             },
         };
-        DockPanel.SetDock(chip, Dock.Right);
-        row.Children.Add(chip);
+        if (showChip)
+        {
+            DockPanel.SetDock(chip, Dock.Right);
+            row.Children.Add(chip);
+        }
         return row;
     }
 
     private void Flip(int target)
     {
-        _page = Math.Clamp(target, 0, Pages.Length - 1);
-        var page = Pages[_page];
+        _page = Math.Clamp(target, 0, _pages.Length - 1);
+        var page = _pages[_page];
 
         _pageHost.Children.Clear();
         var stack = new StackPanel();
-        if (Poster(page.ImageName) is { } poster) stack.Children.Add(poster);
+        if (page.BrandHero) stack.Children.Add(BrandHero());
+        else if (Poster(page.ImageName) is { } poster) stack.Children.Add(poster);
         stack.Children.Add(new TextBlock
         {
             Text = L10n.Tr(page.Title),
@@ -217,7 +261,7 @@ public sealed class WhatsNewWindow : Window
         _pageHost.Children.Add(stack);
 
         _dots.Children.Clear();
-        for (var i = 0; i < Pages.Length; i++)
+        for (var i = 0; i < _pages.Length; i++)
         {
             var active = i == _page;
             var index = i;
@@ -239,7 +283,7 @@ public sealed class WhatsNewWindow : Window
         }
 
         _back.Visibility = _page > 0 ? Visibility.Visible : Visibility.Collapsed;
-        ((TextBlock)_next.Content).Text = Pages[_page].IsClosing
+        ((TextBlock)_next.Content).Text = _pages[_page].IsClosing
             ? L10n.Tr("Get started")
             : L10n.Tr("Next");
     }
@@ -251,8 +295,7 @@ public sealed class WhatsNewWindow : Window
         {
             var image = new Image
             {
-                Source = new BitmapImage(new Uri(
-                    $"pack://application:,,,/Assets/{imageName}.png")),
+                Source = LoadPoster(imageName),
                 Stretch = Stretch.UniformToFill,
             };
             RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
@@ -275,6 +318,70 @@ public sealed class WhatsNewWindow : Window
         {
             return null;
         }
+    }
+
+    /// English UI prefers the -en capture when one exists; zh art is the
+    /// fallback so a missing translation never blanks the slot.
+    private static BitmapImage LoadPoster(string imageName)
+    {
+        if (!L10n.IsChinese)
+        {
+            try
+            {
+                return new BitmapImage(new Uri(
+                    $"pack://application:,,,/Assets/{imageName}-en.png"));
+            }
+            catch
+            {
+            }
+        }
+        return new BitmapImage(new Uri($"pack://application:,,,/Assets/{imageName}.png"));
+    }
+
+    /// The guide's opening spread: the atmosphere poster behind the mark
+    /// and wordmark, darkened just enough that the brand owns the frame.
+    private static UIElement BrandHero()
+    {
+        var frame = new Grid { Height = 226 };
+        if (Poster("guide-brand") is { } backdrop) frame.Children.Add(backdrop);
+        frame.Children.Add(new Border
+        {
+            CornerRadius = new CornerRadius(14),
+            Background = new SolidColorBrush(Color.FromArgb(0x59, 0, 0, 0)),
+        });
+        var overlay = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        try
+        {
+            var mark = new Image
+            {
+                Source = new BitmapImage(new Uri(
+                    "pack://application:,,,/Assets/agentisland_logo.png")),
+                Width = 52,
+                Height = 52,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10),
+            };
+            RenderOptions.SetBitmapScalingMode(mark, BitmapScalingMode.HighQuality);
+            overlay.Children.Add(mark);
+        }
+        catch
+        {
+        }
+        overlay.Children.Add(new TextBlock
+        {
+            Text = "Agent Island",
+            FontFamily = IslandFonts.Ui,
+            FontSize = 23,
+            FontWeight = FontWeights.Black,
+            Foreground = IslandColors.Brush(Colors.White),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        frame.Children.Add(overlay);
+        return frame;
     }
 
     private UIElement FooterRow()

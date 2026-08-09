@@ -256,8 +256,38 @@ public sealed class SettingsWindow : Window
             args.Handled = true;
             WhatsNewWindow.Open();
         };
-        Grid.SetColumn(version, 2);
-        grid.Children.Add(version);
+        var footerRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var guide = new Border
+        {
+            Child = new TextBlock
+            {
+                Text = L10n.Tr("Guide"),
+                FontFamily = IslandFonts.Ui,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = IslandColors.Brush(IslandColors.White(0.34)),
+            },
+            CornerRadius = new CornerRadius(11),
+            Background = IslandColors.Brush(IslandColors.White(0.04)),
+            Padding = new Thickness(9, 4, 9, 4),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 6, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = L10n.Tr("How Agent Island works"),
+        };
+        guide.MouseLeftButtonUp += (_, args) =>
+        {
+            args.Handled = true;
+            WhatsNewWindow.OpenGuide();
+        };
+        footerRow.Children.Add(guide);
+        footerRow.Children.Add(version);
+        Grid.SetColumn(footerRow, 2);
+        grid.Children.Add(footerRow);
         return grid;
     }
 
