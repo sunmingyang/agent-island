@@ -1327,15 +1327,14 @@ public sealed class SettingsWindow : Window
     /// whitespace (macOS owner call, 2026-08-08: 不喜欢卡片质感).
     private UIElement ProviderRow(DisplayProvider provider)
     {
-        var accent = ProviderIdentity.Accent(provider);
-
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         // The real brand mark leads the row (macOS providerCard: 20pt mark
-        // in a 24pt slot, 12pt gap) — the tinted rule era is over.
+        // in a 24pt slot, 12pt gap). The brand-tinted rule on the leading
+        // edge STAYS — rule + mark together are the row's identity.
         var markHost = new Grid
         {
             Width = 24,
@@ -1435,26 +1434,69 @@ public sealed class SettingsWindow : Window
         Grid.SetColumn(trailing, 2);
         grid.Children.Add(trailing);
 
-        var row = new Border
+        // macOS providerCard chrome: no boxes — a brand-gradient rule on the
+        // leading edge (Google's four hues for Antigravity), separation by a
+        // bottom hairline + whitespace, and hover breathing a faint brand
+        // wash across the row while the rule brightens and widens a hair.
+        var content = new Border
         {
             Child = grid,
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(10, 12, 10, 12),
+            Padding = new Thickness(14, 13, 4, 13),
             Background = Brushes.Transparent,
         };
-        // Hover breathes a faint brand wash across the row.
-        Brush wash = new LinearGradientBrush(
-            new GradientStopCollection
-            {
-                new GradientStop(IslandColors.Alpha(accent, 0.05), 0),
-                new GradientStop(Colors.Transparent, 1),
-            },
-            new Point(0, 0),
-            new Point(1, 0));
+        var washStops = new GradientStopCollection();
+        var stops = ProviderIdentity.BrandStops(provider);
+        for (var i = 0; i < stops.Count; i++)
+        {
+            washStops.Add(new GradientStop(
+                IslandColors.Alpha(stops[i], 0.05), 0.7 * i / Math.Max(1, stops.Count - 1)));
+        }
+        washStops.Add(new GradientStop(Colors.Transparent, 1));
+        var wash = new Border
+        {
+            Background = new LinearGradientBrush(washStops, new Point(0, 0), new Point(1, 0)),
+            Opacity = 0,
+            IsHitTestVisible = false,
+        };
+        var rule = new Border
+        {
+            Width = 2,
+            CornerRadius = new CornerRadius(1),
+            Margin = new Thickness(0, 6, 0, 6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            IsHitTestVisible = false,
+        };
+        var hairline = new Border
+        {
+            Height = 1,
+            Background = IslandColors.Brush(IslandColors.White(0.05)),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            IsHitTestVisible = false,
+        };
+        var row = new Grid { Background = Brushes.Transparent };
+        row.Children.Add(wash);
+        row.Children.Add(content);
+        row.Children.Add(rule);
+        row.Children.Add(hairline);
+
         var hovered = false;
         void Paint()
         {
-            row.Background = hovered ? wash : Brushes.Transparent;
+            var enabledNow = ProviderVisibilityStore.Shared.IsEnabled(provider);
+            var ruleOpacity = enabledNow ? (hovered ? 1.0 : 0.85) : (hovered ? 0.45 : 0.22);
+            rule.Background = ProviderIdentity.BrandGradient(
+                provider, 1, new Point(0, 0), new Point(0, 1));
+            var ease = new System.Windows.Media.Animation.QuadraticEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
+            };
+            var beat = new Duration(TimeSpan.FromMilliseconds(160));
+            wash.BeginAnimation(OpacityProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(hovered ? 1 : 0, beat) { EasingFunction = ease });
+            rule.BeginAnimation(OpacityProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(ruleOpacity, beat) { EasingFunction = ease });
+            rule.BeginAnimation(WidthProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(hovered ? 3 : 2, beat) { EasingFunction = ease });
         }
         row.MouseEnter += (_, _) =>
         {
@@ -1515,16 +1557,7 @@ public sealed class SettingsWindow : Window
 
         _providerRefreshers.Add(Refresh);
         Refresh();
-
-        var host = new StackPanel();
-        host.Children.Add(row);
-        host.Children.Add(new Border
-        {
-            Height = 1,
-            Margin = new Thickness(10, 0, 10, 0),
-            Background = IslandColors.Brush(IslandColors.White(0.05)),
-        });
-        return host;
+        return row;
     }
 
     /// A guest slot just turned on: fetch now instead of waiting out the next

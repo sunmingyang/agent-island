@@ -83,23 +83,42 @@ public static class SnapshotSweep
                                 {
                                     RenderOpenWindow<WhatsNewWindow>(At("guide.png"));
                                     CloseOpenWindows<WhatsNewWindow>();
-                                    Try(() => IslandDialog.Show(
-                                        TriggerTool.Claude,
-                                        Localization.L10n.Tr("Your turn"),
-                                        Localization.L10n.Tr("A thread finished — Agent Island opens an alarm window so you can reply."),
-                                        meta: new[]
-                                        {
-                                            (Localization.L10n.Tr("Alarm thread"), "Agent Island Windows"),
-                                            (Localization.L10n.Tr("Alarm project"), "Agent Island"),
-                                        },
-                                        primaryLabel: Localization.L10n.Tr("Open"),
-                                        secondaryLabel: Localization.L10n.Tr("I know")));
-                                    After(1.1, () =>
+                                    // Every provider's alarm dialog — each
+                                    // must wear its OWN mark and accent.
+                                    var tools = new[]
                                     {
-                                        RenderOpenWindow<IslandDialog>(At("dialog-alarm.png"));
-                                        CloseOpenWindows<IslandDialog>();
-                                        SettingsWindow.SnapshotAllTabs(dir, app.Shutdown);
-                                    });
+                                        TriggerTool.Claude, TriggerTool.Codex, TriggerTool.Antigravity,
+                                        TriggerTool.Grok, TriggerTool.Cursor,
+                                    };
+                                    var toolIndex = 0;
+                                    void NextDialog()
+                                    {
+                                        if (toolIndex >= tools.Length)
+                                        {
+                                            SettingsWindow.SnapshotAllTabs(dir, app.Shutdown);
+                                            return;
+                                        }
+                                        var tool = tools[toolIndex];
+                                        toolIndex++;
+                                        Try(() => IslandDialog.Show(
+                                            tool,
+                                            Localization.L10n.Tr("Your turn"),
+                                            Localization.L10n.Tr("A thread finished — Agent Island opens an alarm window so you can reply."),
+                                            meta: new[]
+                                            {
+                                                (Localization.L10n.Tr("Alarm thread"), "Agent Island Windows"),
+                                                (Localization.L10n.Tr("Alarm project"), "Agent Island"),
+                                            },
+                                            primaryLabel: Localization.L10n.Tr("Open"),
+                                            secondaryLabel: Localization.L10n.Tr("I know")));
+                                        After(1.1, () =>
+                                        {
+                                            RenderOpenWindow<IslandDialog>(At($"dialog-{tool}".ToLowerInvariant() + ".png"));
+                                            CloseOpenWindows<IslandDialog>();
+                                            NextDialog();
+                                        });
+                                    }
+                                    NextDialog();
                                 });
                             });
                         });

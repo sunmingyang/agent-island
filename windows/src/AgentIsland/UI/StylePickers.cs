@@ -230,14 +230,35 @@ internal static class StyleTileChrome
 
     public static void AttachHover(Border tile)
     {
+        // macOS StyleTile hover: an unselected tile lifts to 1.02 with a
+        // soft drop and a faint border, easing out over ~0.12s.
+        var scale = new ScaleTransform(1, 1);
+        tile.RenderTransform = scale;
+        tile.RenderTransformOrigin = new Point(0.5, 0.5);
+
+        void Ease(double target)
+        {
+            var beat = new Duration(TimeSpan.FromMilliseconds(120));
+            var ease = new System.Windows.Media.Animation.QuadraticEase
+            {
+                EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
+            };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(target, beat) { EasingFunction = ease });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(target, beat) { EasingFunction = ease });
+        }
+
         tile.MouseEnter += (_, _) =>
         {
             if (tile.Tag is true) return;
             tile.Background = IslandColors.Brush(IslandColors.White(0.05));
             tile.BorderBrush = IslandColors.Brush(IslandColors.White(0.10));
+            Ease(1.02);
         };
         tile.MouseLeave += (_, _) =>
         {
+            Ease(1.0);
             if (tile.Tag is true) return;
             tile.Background = IslandColors.Brush(IslandColors.White(0.025));
             tile.BorderBrush = Brushes.Transparent;

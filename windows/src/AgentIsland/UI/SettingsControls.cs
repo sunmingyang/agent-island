@@ -14,9 +14,17 @@ namespace AgentIsland.UI;
 /// white knob (macOS SettingsToggle: 34x19 track, 15pt knob).
 public sealed class CobaltToggle : Border
 {
+    // Track 34, knob 15, 2pt inset → the knob travels 15pt between rests.
+    private const double KnobTravel = 34 - 15 - 2 * 2;
+
     private readonly Ellipse _dot;
+    private readonly TranslateTransform _slide = new();
+    private readonly SolidColorBrush _track = new();
+    private readonly SolidColorBrush _rim = new();
+    private readonly SolidColorBrush _knob = new();
     private bool _isOn;
     private bool _hovered;
+    private bool _seeded;
 
     public event Action<bool>? Toggled;
 
@@ -27,12 +35,18 @@ public sealed class CobaltToggle : Border
         Height = 19;
         CornerRadius = new CornerRadius(9.5);
         BorderThickness = new Thickness(1);
+        Background = _track;
+        BorderBrush = _rim;
         Cursor = System.Windows.Input.Cursors.Hand;
         _dot = new Ellipse
         {
             Width = 15,
             Height = 15,
+            Fill = _knob,
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2, 0, 2, 0),
+            RenderTransform = _slide,
         };
         Child = _dot;
         MouseLeftButtonUp += (_, args) =>
@@ -57,17 +71,40 @@ public sealed class CobaltToggle : Border
         }
     }
 
+    /// The knob SLIDES and the washes crossfade (macOS SettingsToggle
+    /// spring ~0.3s) — the first paint lands instantly so a freshly built
+    /// settings page doesn't ripple with settling toggles.
     private void Render()
     {
-        Background = IslandColors.Brush(IslandColors.White(_isOn ? 0.34 : 0.07));
-        BorderBrush = IslandColors.Brush(IslandColors.White(
-            _isOn ? (_hovered ? 0.55 : 0.35) : (_hovered ? 0.22 : 0.13)));
-        _dot.Fill = _isOn ? Brushes.White : IslandColors.Brush(IslandColors.White(0.55));
+        var track = IslandColors.White(_isOn ? 0.34 : 0.07);
+        var rim = IslandColors.White(_isOn ? (_hovered ? 0.55 : 0.35) : (_hovered ? 0.22 : 0.13));
+        var knob = _isOn ? Colors.White : IslandColors.White(0.55);
+        var offset = _isOn ? KnobTravel : 0;
         _dot.Effect = _isOn
             ? new DropShadowEffect { ShadowDepth = 0, BlurRadius = 5, Color = Colors.White, Opacity = 0.32 }
             : new DropShadowEffect { ShadowDepth = 0.5, BlurRadius = 1.5, Color = Colors.Black, Opacity = 0.35 };
-        _dot.HorizontalAlignment = _isOn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-        _dot.Margin = new Thickness(2, 0, 2, 0);
+        if (!_seeded)
+        {
+            _seeded = true;
+            _track.Color = track;
+            _rim.Color = rim;
+            _knob.Color = knob;
+            _slide.X = offset;
+            return;
+        }
+        var beat = new Duration(TimeSpan.FromMilliseconds(180));
+        var ease = new System.Windows.Media.Animation.QuadraticEase
+        {
+            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut,
+        };
+        _track.BeginAnimation(SolidColorBrush.ColorProperty,
+            new System.Windows.Media.Animation.ColorAnimation(track, beat) { EasingFunction = ease });
+        _rim.BeginAnimation(SolidColorBrush.ColorProperty,
+            new System.Windows.Media.Animation.ColorAnimation(rim, beat) { EasingFunction = ease });
+        _knob.BeginAnimation(SolidColorBrush.ColorProperty,
+            new System.Windows.Media.Animation.ColorAnimation(knob, beat) { EasingFunction = ease });
+        _slide.BeginAnimation(TranslateTransform.XProperty,
+            new System.Windows.Media.Animation.DoubleAnimation(offset, beat) { EasingFunction = ease });
     }
 }
 

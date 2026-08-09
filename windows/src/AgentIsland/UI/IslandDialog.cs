@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using AgentIsland.Model;
 using AgentIsland.UI.Charts;
 using AgentIsland.UI.Theme;
 
@@ -26,7 +27,7 @@ public sealed class IslandDialog : Window
         string title,
         string message,
         Color tint,
-        Geometry mark,
+        UIElement markGlyph,
         IReadOnlyList<(string Caption, string Value)>? meta,
         string? primaryLabel,
         Action? primaryAction,
@@ -96,13 +97,15 @@ public sealed class IslandDialog : Window
         }
         else
         {
-            var glyph = new System.Windows.Shapes.Path
+            // The provider's REAL mark (masked bitmap or full-color art),
+            // carrying the breathing brand glow — the old path hardwired
+            // "not Claude → OpenAI knot", which crowned a Grok alarm with
+            // Codex's mark.
+            var glyph = new System.Windows.Controls.ContentControl
             {
-                Data = mark,
-                Fill = IslandColors.Brush(tint),
+                Content = markGlyph,
                 Width = 40,
                 Height = 40,
-                Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Effect = new DropShadowEffect
@@ -249,7 +252,7 @@ public sealed class IslandDialog : Window
         IslandMotion.AnimateEntrance(this, root);
     }
 
-    /// Provider-tinted dialog (spark for Claude, knot for Codex).
+    /// Provider-tinted dialog carrying that provider's REAL mark.
     public static void Show(
         Core.TriggerTool tool,
         string title,
@@ -259,12 +262,39 @@ public sealed class IslandDialog : Window
         Action? primaryAction = null,
         string? secondaryLabel = null)
     {
-        var mark = Geometry.Parse("F1 " + (tool == Core.TriggerTool.Claude
-            ? BrandGeometry.ClaudePath
-            : BrandGeometry.OpenAiPath));
         Present(new IslandDialog(
-            title, message, IslandColors.For(tool), mark, meta,
+            title, message, IslandColors.For(tool),
+            ProviderMarks.Mark(tool.ToDisplayProvider(), 40, tintOpacity: 1), meta,
             primaryLabel ?? Localization.L10n.Tr("I know"), primaryAction, secondaryLabel));
+    }
+
+    /// The five-blade app mark for provider-neutral dialogs (brand era —
+    /// the cobalt Claude spark stand-in is retired).
+    private static UIElement AppMark()
+    {
+        try
+        {
+            var image = new System.Windows.Controls.Image
+            {
+                Source = new System.Windows.Media.Imaging.BitmapImage(
+                    new Uri("pack://application:,,,/Assets/agentisland_logo_small.png")),
+                Width = 40,
+                Height = 40,
+                Stretch = Stretch.Uniform,
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            return image;
+        }
+        catch
+        {
+            return new System.Windows.Shapes.Ellipse
+            {
+                Width = 40,
+                Height = 40,
+                Stroke = IslandColors.Brush(IslandColors.White(0.8)),
+                StrokeThickness = 2,
+            };
+        }
     }
 
     /// App-branded dialog (Claude spark in cobalt) for provider-neutral
@@ -278,7 +308,7 @@ public sealed class IslandDialog : Window
     {
         Present(new IslandDialog(
             title, message, IslandColors.Cobalt,
-            Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
+            AppMark(), null,
             primaryLabel ?? Localization.L10n.Tr("I know"), primaryAction, secondaryLabel));
     }
 
@@ -305,7 +335,7 @@ public sealed class IslandDialog : Window
         }
         var dialog = new IslandDialog(
             title, message, IslandColors.Cobalt,
-            Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
+            AppMark(), null,
             primaryLabel, primaryAction, secondaryLabel,
             appIcon: icon, horizontalButtons: true, secondaryAction: secondaryAction);
         Present(dialog);
@@ -350,7 +380,7 @@ public sealed class IslandDialog : Window
     {
         var dialog = new IslandDialog(
             title, message, IslandColors.Cobalt,
-            Geometry.Parse("F1 " + BrandGeometry.ClaudePath), null,
+            AppMark(), null,
             primaryLabel: null, primaryAction: null, secondaryLabel: null);
         Present(dialog);
         return dialog;

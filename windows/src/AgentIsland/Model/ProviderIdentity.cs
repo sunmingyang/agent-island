@@ -59,6 +59,38 @@ public static class ProviderIdentity
         _ => ClaudeAccent,
     };
 
+    /// The brand RAMP (macOS brandStops): Antigravity carries Google's four
+    /// hues; everyone else is their accent as a flat two-stop ramp so every
+    /// consumer can treat "the brand color" as a gradient.
+    public static IReadOnlyList<Color> BrandStops(DisplayProvider provider) =>
+        provider == DisplayProvider.Antigravity ? GoogleRamp : new[] { Accent(provider), Accent(provider) };
+
+    private static readonly Color[] GoogleRamp =
+    {
+        Color.FromRgb(66, 133, 244),
+        Color.FromRgb(52, 168, 83),
+        Color.FromRgb(251, 188, 5),
+        Color.FromRgb(234, 67, 53),
+    };
+
+    /// macOS brandGradient: the ramp as a WPF brush at one opacity.
+    public static LinearGradientBrush BrandGradient(
+        DisplayProvider provider, double opacity,
+        System.Windows.Point start, System.Windows.Point end)
+    {
+        var stops = BrandStops(provider);
+        var collection = new GradientStopCollection();
+        for (var i = 0; i < stops.Count; i++)
+        {
+            collection.Add(new GradientStop(
+                Color.FromArgb((byte)Math.Round(opacity * 255), stops[i].R, stops[i].G, stops[i].B),
+                stops.Count == 1 ? 0 : (double)i / (stops.Count - 1)));
+        }
+        var brush = new LinearGradientBrush(collection, start, end);
+        brush.Freeze();
+        return brush;
+    }
+
     public static Color Accent(TriggerTool tool) => Accent(tool.ToDisplayProvider());
 
     /// Frozen and shared, so a repaint never allocates a brush and any
