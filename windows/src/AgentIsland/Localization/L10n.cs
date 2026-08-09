@@ -196,7 +196,6 @@ public static class L10n
         ["Both providers hidden"] = "两个服务都已隐藏",
         ["Re-enable in Settings → Providers"] = "在设置 → 服务中重新启用",
         // Settings window (macOS-parity copy)
-        ["A status companion for Claude Code and Codex"] = "Claude Code 和 Codex 的状态伴侣",
         ["Updates"] = "更新",
         ["Launch at Login"] = "登录时启动",
         ["Open AgentIsland when you sign in."] = "登录系统时打开 Agent Island",
@@ -205,7 +204,6 @@ public static class L10n
         ["Follows the system language."] = "跟随系统语言",
         ["Visual mode"] = "视觉模式",
         ["TOP Model"] = "TOP 模型",
-        ["Tokens"] = "TOKEN",
         // No second ["Cost"] entry: these are indexer assignments, so a repeat
         // silently overwrites the earlier one. "Cost" is already the island's
         // page tab above ("成本", macOS zh-Hans.lproj) — re-declaring it for a
@@ -351,6 +349,19 @@ public static class L10n
         ["Back"] = "上一页",
         ["What's new in this version"] = "查看本版更新",
         ["Guide"] = "指南",
+        ["Notes"] = "版本说明",
+        ["About"] = "关于",
+        ["View"] = "查看",
+        ["Product guide"] = "产品指南",
+        ["Full changelog on the website"] = "官网完整更新日志",
+        ["Quit AgentIsland"] = "退出 AgentIsland",
+        ["Agents are part of every builder's day now — Claude Code, Codex, Gemini, Grok, Cursor… and whatever ships next month. They run, you wait, and nobody tells you when it is your turn again"] = "Agent 已经是每个 builder 的日常——Claude Code、Codex、Antigravity、Grok、Cursor……以及下个月还会冒出来的那些。它们在跑，你在等，而没有人告诉你什么时候又轮到你",
+        ["Agent Island 2.0 puts them all on one island. Who is working, whose turn it is, how much quota is left, what it cost — one glance at the notch, no window switching, no terminal tabs to hunt through"] = "Agent Island 2.0 把它们全部放进同一座岛。谁在干活、谁在等你、额度还剩多少、这段时间烧了多少——抬眼看一下就够了，不用切窗口，不用在一堆终端标签里翻找",
+        ["Every number is computed on your own computer — Mac or Windows — from logs the agents already write. No account, no telemetry, nothing uploaded"] = "每一个数字都是在你自己的电脑上算出来的——Mac 或 Windows——读的是 Agent 本来就会写的日志。不用注册、没有埋点、什么都不上传",
+        ["If Agent Island helps you, a star on GitHub and a share with a friend are the two things that keep it going"] = "如果 Agent Island 帮到了你，去 GitHub 点一颗 Star，再分享给身边的朋友——这两件事就是对它最大的支持",
+        ["Made by"] = "作者",
+        ["Sponsor"] = "赞助",
+        ["Star on GitHub"] = "GitHub 点亮 Star",
         ["How Agent Island works"] = "Agent Island 使用指南",
         ["Live status and quota, together"] = "实时状态与额度，一个小岛看全",
         ["Five agents on one island — each read from the records it already writes on your Mac"] = "五家 Agent 同在一座岛——各自读它们本来就写在本机的记录",
@@ -489,7 +500,7 @@ public static class L10n
         ["Rate"] = "Usage check",
         ["network drop"] = "network drop — showing last data",
         ["TOP Model"] = "TOP MODEL",
-        ["Tokens"] = "TOKENS",
+        ["Tokens"] = "Token",
         // No ["Cost"] override: it is the island's page tab, which macOS
         // en.lproj renders "Cost". SectionLabel uppercases on its own, so a
         // report-card all-caps entry here bought nothing and renamed the tab.

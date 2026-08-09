@@ -80,16 +80,33 @@ public sealed class SettingsWindow : Window
         settle.Start();
     }
 
+    /// Declaration order IS the sidebar order (macOS 2.1.1 IA): the
+    /// providers page leads because it is what the app is about; alerts
+    /// stand alone instead of hiding at the bottom of General.
     private enum Tab
     {
-        General,
-        Display,
         Providers,
+        Display,
+        Alerts,
+        General,
         Status,
+        Notes,
+        About,
     }
 
-    private readonly StackPanel _tabBar = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(18, 4, 18, 10) };
-    private readonly List<(Tab Tab, Border Cell)> _tabCells = new();
+    private static (string Label, string Glyph) TabFace(Tab tab) => tab switch
+    {
+        Tab.Providers => ("Providers", "\uE71D"),
+        Tab.Display => ("Display", "\uE7F4"),
+        Tab.Alerts => ("Alerts", "\uEA8F"),
+        Tab.General => ("General", "\uE713"),
+        Tab.Status => ("Status", "\uE890"),
+        Tab.Notes => ("Notes", "\uE70B"),
+        Tab.About => ("About", "\uE946"),
+        _ => (tab.ToString(), "\uE713"),
+    };
+
+    private readonly List<(Tab Tab, Border Cell, TextBlock Glyph, TextBlock Label)> _navItems = new();
     private readonly ScrollViewer _scroll = new()
     {
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -107,10 +124,10 @@ public sealed class SettingsWindow : Window
     private SettingsWindow()
     {
         Title = "Agent Island — " + L10n.Tr("Settings");
-        Width = 480;
-        Height = 640;
-        MinWidth = 440;
-        MinHeight = 420;
+        Width = 680;
+        Height = 560;
+        MinWidth = 640;
+        MinHeight = 460;
         Background = IslandColors.Brush(IslandColors.AlarmBackground);
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         // Pixel-snapped glyphs: the 10-13px settings copy is blurry in WPF's
@@ -131,33 +148,42 @@ public sealed class SettingsWindow : Window
             UseAeroCaptionButtons = false,
         });
 
-        var root = new DockPanel();
-        var shell = new Grid();
-        shell.Children.Add(root);
-        shell.Children.Add(CaptionButtons.Build(this));
-        Content = shell;
+        // macOS 2.1.1 shell: full-height sidebar rail, hairline divider,
+        // then the content column with the footer parked at its bottom.
+        var main = new Grid();
+        main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(158) });
+        main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });
+        main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        var header = BuildBrandHeader();
-        DockPanel.SetDock(header, Dock.Top);
-        root.Children.Add(header);
+        var sidebar = BuildSidebar();
+        Grid.SetColumn(sidebar, 0);
+        main.Children.Add(sidebar);
 
-        BuildTabBar();
-        DockPanel.SetDock(_tabBar, Dock.Top);
-        root.Children.Add(_tabBar);
+        var divider = new Border { Background = IslandColors.Brush(IslandColors.White(0.05)) };
+        Grid.SetColumn(divider, 1);
+        main.Children.Add(divider);
 
-        var topHairline = Hairline();
-        DockPanel.SetDock(topHairline, Dock.Top);
-        root.Children.Add(topHairline);
+        var contentColumn = new DockPanel();
+        var captionSpacer = new Border { Height = 24 };
+        DockPanel.SetDock(captionSpacer, Dock.Top);
+        contentColumn.Children.Add(captionSpacer);
 
         var footer = BuildFooter();
         DockPanel.SetDock(footer, Dock.Bottom);
-        root.Children.Add(footer);
+        contentColumn.Children.Add(footer);
 
         var bottomHairline = Hairline();
         DockPanel.SetDock(bottomHairline, Dock.Bottom);
-        root.Children.Add(bottomHairline);
+        contentColumn.Children.Add(bottomHairline);
 
-        root.Children.Add(_scroll);
+        contentColumn.Children.Add(_scroll);
+        Grid.SetColumn(contentColumn, 2);
+        main.Children.Add(contentColumn);
+
+        var shell = new Grid();
+        shell.Children.Add(main);
+        shell.Children.Add(CaptionButtons.Build(this));
+        Content = shell;
 
         // Usage lands from background fetches and the guest stores publish on
         // their own schedule; the provider rows follow along instead of going
@@ -190,144 +216,155 @@ public sealed class SettingsWindow : Window
 
     // MARK: - Chrome
 
-    private UIElement BuildBrandHeader()
+    /// Left rail: compact brand up top, one item per page, the version
+    /// pill + Quit at the bottom (app-level controls live on the rail, not
+    /// in the page footer — macOS 2.1.1).
+    private UIElement BuildSidebar()
     {
-        var grid = new Grid { Margin = new Thickness(24, 16, 24, 22) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var rail = new DockPanel { Background = IslandColors.Brush(IslandColors.White(0.016)) };
 
-        var mark = new Image
+        var top = new StackPanel();
+        top.Children.Add(new Border { Height = 30 });
+        var brand = new StackPanel
         {
-            Width = 26,
-            Height = 26,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 12, 0),
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(14, 0, 14, 14),
         };
         try
         {
-            mark.Source = new BitmapImage(new Uri("pack://application:,,,/Assets/agentisland_logo.png"));
+            var mark = new Image
+            {
+                Width = 24,
+                Height = 24,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Source = new BitmapImage(new Uri(
+                    "pack://application:,,,/Assets/agentisland_logo_small.png")),
+            };
+            RenderOptions.SetBitmapScalingMode(mark, BitmapScalingMode.HighQuality);
+            brand.Children.Add(mark);
         }
         catch
         {
         }
-        Grid.SetColumn(mark, 0);
-        grid.Children.Add(mark);
-
-        var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        titles.Children.Add(new TextBlock
+        brand.Children.Add(new TextBlock
         {
             Text = "Agent Island",
             FontFamily = IslandFonts.Ui,
-            FontSize = 14,
+            FontSize = 12.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = IslandColors.Brush(IslandColors.White(0.92)),
+            VerticalAlignment = VerticalAlignment.Center,
         });
-        titles.Children.Add(new TextBlock
-        {
-            Text = L10n.Tr("A status companion for Claude Code and Codex"),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11,
-            Foreground = IslandColors.Brush(IslandColors.White(0.55)),
-            Margin = new Thickness(0, 2, 0, 0),
-        });
-        Grid.SetColumn(titles, 1);
-        grid.Children.Add(titles);
-
-        var version = new Border
-        {
-            Child = new TextBlock
-            {
-                Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0"),
-                FontFamily = IslandFonts.Mono,
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = IslandColors.Brush(IslandColors.White(0.34)),
-            },
-            CornerRadius = new CornerRadius(11),
-            Background = IslandColors.Brush(IslandColors.White(0.04)),
-            Padding = new Thickness(9, 4, 9, 4),
-            VerticalAlignment = VerticalAlignment.Center,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            ToolTip = L10n.Tr("What's new in this version"),
-        };
-        version.MouseLeftButtonUp += (_, args) =>
-        {
-            args.Handled = true;
-            WhatsNewWindow.Open();
-        };
-        var footerRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        var guide = new Border
-        {
-            Child = new TextBlock
-            {
-                Text = L10n.Tr("Guide"),
-                FontFamily = IslandFonts.Ui,
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = IslandColors.Brush(IslandColors.White(0.34)),
-            },
-            CornerRadius = new CornerRadius(11),
-            Background = IslandColors.Brush(IslandColors.White(0.04)),
-            Padding = new Thickness(9, 4, 9, 4),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 6, 0),
-            Cursor = System.Windows.Input.Cursors.Hand,
-            ToolTip = L10n.Tr("How Agent Island works"),
-        };
-        guide.MouseLeftButtonUp += (_, args) =>
-        {
-            args.Handled = true;
-            WhatsNewWindow.OpenGuide();
-        };
-        footerRow.Children.Add(guide);
-        footerRow.Children.Add(version);
-        Grid.SetColumn(footerRow, 2);
-        grid.Children.Add(footerRow);
-        return grid;
-    }
-
-    private void BuildTabBar()
-    {
-        _tabBar.Children.Clear();
-        _tabCells.Clear();
+        top.Children.Add(brand);
         foreach (var tab in Enum.GetValues<Tab>())
         {
-            var label = tab switch
-            {
-                Tab.General => L10n.Tr("General"),
-                Tab.Display => L10n.Tr("Display"),
-                Tab.Providers => L10n.Tr("Providers"),
-                    Tab.Status => L10n.Tr("Status"),
-                _ => tab.ToString(),
-            };
-            var cell = new Border
-            {
-                Child = new TextBlock
-                {
-                    Text = label,
-                    FontFamily = IslandFonts.Ui,
-                    FontSize = 12,
-                    FontWeight = FontWeights.Medium,
-                },
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(12, 6, 12, 6),
-                Margin = new Thickness(0, 0, 4, 0),
-                Cursor = System.Windows.Input.Cursors.Hand,
-            };
-            var captured = tab;
-            cell.MouseLeftButtonUp += (_, args) =>
-            {
-                Select(captured);
-                args.Handled = true;
-            };
-            _tabCells.Add((tab, cell));
-            _tabBar.Children.Add(cell);
+            top.Children.Add(NavItem(tab));
         }
+        DockPanel.SetDock(top, Dock.Top);
+        rail.Children.Add(top);
+
+        var bottom = new Grid { Margin = new Thickness(14, 8, 14, 14) };
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var version = RailPill(
+            "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "0"),
+            L10n.Tr("What's new in this version"),
+            WhatsNewWindow.Open);
+        Grid.SetColumn(version, 0);
+        bottom.Children.Add(version);
+
+        var quit = RailPill(L10n.Tr("Quit"), L10n.Tr("Quit AgentIsland"),
+            () => System.Windows.Application.Current.Shutdown());
+        Grid.SetColumn(quit, 2);
+        bottom.Children.Add(quit);
+
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        rail.Children.Add(bottom);
+        rail.Children.Add(new Border());
+        return rail;
+    }
+
+    private static Border RailPill(string text, string help, Action onClick)
+    {
+        var pill = new Border
+        {
+            Child = new TextBlock
+            {
+                Text = text,
+                FontFamily = IslandFonts.Ui,
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = IslandColors.Brush(IslandColors.White(0.45)),
+            },
+            CornerRadius = new CornerRadius(10),
+            Background = IslandColors.Brush(IslandColors.White(0.05)),
+            Padding = new Thickness(9, 4, 9, 4),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = help,
+        };
+        pill.MouseEnter += (_, _) => pill.Background = IslandColors.Brush(IslandColors.White(0.10));
+        pill.MouseLeave += (_, _) => pill.Background = IslandColors.Brush(IslandColors.White(0.05));
+        pill.MouseLeftButtonUp += (_, args) =>
+        {
+            args.Handled = true;
+            onClick();
+        };
+        return pill;
+    }
+
+    private UIElement NavItem(Tab tab)
+    {
+        var (label, glyph) = TabFace(tab);
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        var icon = new TextBlock
+        {
+            Text = glyph,
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 12,
+            Width = 16,
+            TextAlignment = TextAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        row.Children.Add(icon);
+        var text = new TextBlock
+        {
+            Text = L10n.Tr(label),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 12,
+            FontWeight = FontWeights.Medium,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        row.Children.Add(text);
+
+        var cell = new Border
+        {
+            Child = row,
+            CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(10, 7, 10, 7),
+            Margin = new Thickness(8, 1, 8, 1),
+            Background = Brushes.Transparent,
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        var captured = tab;
+        cell.MouseLeftButtonUp += (_, args) =>
+        {
+            Select(captured);
+            args.Handled = true;
+        };
+        cell.MouseEnter += (_, _) =>
+        {
+            if (_active != captured) cell.Background = IslandColors.Brush(IslandColors.White(0.04));
+        };
+        cell.MouseLeave += (_, _) =>
+        {
+            if (_active != captured) cell.Background = Brushes.Transparent;
+        };
+        _navItems.Add((tab, cell, icon, text));
+        return cell;
     }
 
     private static UIElement Hairline() => new Border
@@ -358,16 +395,36 @@ public sealed class SettingsWindow : Window
         Grid.SetColumn(github, 0);
         grid.Children.Add(github);
 
-        var license = new DottedLink("License", "https://github.com/tristan666666/agent-island/blob/main/LICENSE");
-        license.Margin = new Thickness(14, 0, 0, 0);
-        license.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(license, 1);
-        grid.Children.Add(license);
+        var guide = new TextBlock
+        {
+            Text = L10n.Tr("Guide"),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11.5,
+            Foreground = IslandColors.Brush(IslandColors.White(0.55)),
+            TextDecorations = null,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 0, 0, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = L10n.Tr("How Agent Island works"),
+        };
+        guide.MouseLeftButtonUp += (_, args) =>
+        {
+            args.Handled = true;
+            WhatsNewWindow.OpenGuide();
+        };
+        Grid.SetColumn(guide, 1);
+        grid.Children.Add(guide);
 
-        var quit = new PillButtonControl(L10n.Tr("Quit"));
-        quit.Clicked += () => System.Windows.Application.Current.Shutdown();
-        Grid.SetColumn(quit, 3);
-        grid.Children.Add(quit);
+        var share = new StackPanel { Orientation = Orientation.Horizontal };
+        var weekly = new PillButtonControl(L10n.Tr("Weekly"));
+        weekly.Clicked += () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly);
+        weekly.Margin = new Thickness(0, 0, 8, 0);
+        share.Children.Add(weekly);
+        var monthly = new PillButtonControl(L10n.Tr("Monthly"));
+        monthly.Clicked += () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Monthly);
+        share.Children.Add(monthly);
+        Grid.SetColumn(share, 3);
+        grid.Children.Add(share);
         return grid;
     }
 
@@ -392,20 +449,38 @@ public sealed class SettingsWindow : Window
         _providerRefreshers.Clear();
         _slotNotice = null;
         Preferences.Set("Settings.activeTab", tab.ToString());
-        foreach (var (cellTab, cell) in _tabCells)
+        foreach (var (cellTab, cell, glyph, label) in _navItems)
         {
             var isOn = cellTab == tab;
-            cell.Background = isOn ? IslandColors.Brush(IslandColors.White(0.08)) : Brushes.Transparent;
-            ((TextBlock)cell.Child!).Foreground = IslandColors.Brush(IslandColors.White(isOn ? 0.95 : 0.50));
+            cell.Background = isOn
+                ? IslandColors.Brush(IslandColors.White(0.13))
+                : Brushes.Transparent;
+            glyph.Foreground = IslandColors.Brush(IslandColors.White(isOn ? 0.95 : 0.48));
+            label.Foreground = IslandColors.Brush(IslandColors.White(isOn ? 0.95 : 0.55));
         }
-        _scroll.Content = tab switch
+        var body = tab switch
         {
-            Tab.General => BuildGeneral(),
-            Tab.Display => BuildDisplay(),
             Tab.Providers => BuildProviders(),
+            Tab.Display => BuildDisplay(),
+            Tab.Alerts => BuildAlerts(),
+            Tab.General => BuildGeneral(),
             Tab.Status => BuildStatus(),
-            _ => new StackPanel(),
+            Tab.Notes => BuildNotes(),
+            Tab.About => BuildAbout(),
+            _ => (UIElement)new StackPanel(),
         };
+        var pageColumn = new StackPanel();
+        pageColumn.Children.Add(new TextBlock
+        {
+            Text = L10n.Tr(TabFace(tab).Label),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 19,
+            FontWeight = FontWeights.Bold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.94)),
+            Margin = new Thickness(24, 6, 24, 2),
+        });
+        pageColumn.Children.Add(body);
+        _scroll.Content = pageColumn;
     }
 
     // MARK: - Section helpers
@@ -487,20 +562,11 @@ public sealed class SettingsWindow : Window
     private UIElement BuildGeneral()
     {
         var stack = TabStack();
-        stack.Children.Add(SectionLabel("General"));
 
         var launch = new CobaltToggle(LaunchAtLogin.IsEnabled);
         launch.Toggled += enabled => LaunchAtLogin.SetEnabled(enabled);
         stack.Children.Add(new SettingsRowControl(
-            "Launch at Login", "Open AgentIsland when you sign in.", launch));
-
-        var presets = RefreshIntervalStore.Presets;
-        var refresh = new Segmented(new[] { "5m", "15m", "30m" },
-            Math.Max(0, Array.IndexOf(presets, RefreshIntervalStore.Shared.Seconds)));
-        refresh.SelectionChanged += index => RefreshIntervalStore.Shared.Seconds = presets[index];
-        stack.Children.Add(new SettingsRowControl(
-            "Refresh interval", null, refresh));
-
+            "Launch at Login", null, launch));
 
         var language = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
         language.Items.Add(L10n.Tr("Auto (system)"));
@@ -534,7 +600,28 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(new SettingsRowControl(
             "Language", CurrentLanguageSubtitle(), language));
 
-        stack.Children.Add(SectionLabel("Alerts"));
+        stack.Children.Add(SectionLabel("Updates"));
+        var autoCheck = new CobaltToggle(Preferences.Get<bool?>("AgentIsland.autoCheckUpdates") ?? true);
+        autoCheck.Toggled += enabled => Preferences.Set("AgentIsland.autoCheckUpdates", enabled);
+        stack.Children.Add(new SettingsRowControl(
+            "Check for updates automatically",
+            null,
+            autoCheck));
+
+        var check = new PillButtonControl(L10n.Tr("Check"));
+        check.Clicked += () => _ = Update.UpdateChecker.Shared.CheckAsync(userInitiated: true);
+        stack.Children.Add(new SettingsRowControl(
+            "Check now", null, check));
+
+        return stack;
+    }
+
+    /// Alerts get their own page in the 2.1.1 IA — they were buried at the
+    /// bottom of General, which is where nobody looks for "why did the
+    /// island flash amber".
+    private UIElement BuildAlerts()
+    {
+        var stack = TabStack();
         var alertsHost = new StackPanel();
         var alerts = new CobaltToggle(AlertThresholdStore.Shared.Enabled);
         stack.Children.Add(new SettingsRowControl(
@@ -558,21 +645,149 @@ public sealed class SettingsWindow : Window
             alertsHost.IsEnabled = enabled;
         };
         stack.Children.Add(alertsHost);
-
-        stack.Children.Add(SectionLabel("Updates"));
-        var autoCheck = new CobaltToggle(Preferences.Get<bool?>("AgentIsland.autoCheckUpdates") ?? true);
-        autoCheck.Toggled += enabled => Preferences.Set("AgentIsland.autoCheckUpdates", enabled);
-        stack.Children.Add(new SettingsRowControl(
-            "Check for updates automatically",
-            "Check for new versions in the background and notify you when one's available.",
-            autoCheck));
-
-        var check = new PillButtonControl(L10n.Tr("Check"));
-        check.Clicked += () => _ = Update.UpdateChecker.Shared.CheckAsync(userInitiated: true);
-        stack.Children.Add(new SettingsRowControl(
-            "Check now", null, check));
-
         return stack;
+    }
+
+    private UIElement BuildNotes()
+    {
+        var stack = TabStack();
+        var view = new PillButtonControl(L10n.Tr("View"));
+        view.Clicked += WhatsNewWindow.Open;
+        stack.Children.Add(new SettingsRowControl("What's new in this version", null, view));
+
+        var guide = new PillButtonControl(L10n.Tr("Open"));
+        guide.Clicked += WhatsNewWindow.OpenGuide;
+        stack.Children.Add(new SettingsRowControl("Product guide", null, guide));
+
+        var changelog = new PillButtonControl(L10n.Tr("Open"));
+        changelog.Clicked += () => OpenUrl("https://agent-island.dev/changelog/");
+        stack.Children.Add(new SettingsRowControl("Full changelog on the website", null, changelog));
+        return stack;
+    }
+
+    /// The 关于 page — serif manifesto prose plus the open-source facts,
+    /// with the ghosted brand mark low-right (macOS 2.1.1 spec).
+    private UIElement BuildAbout()
+    {
+        var host = new Grid { MinHeight = 395, ClipToBounds = true };
+
+        try
+        {
+            var ghost = new Image
+            {
+                Source = new BitmapImage(new Uri(
+                    "pack://application:,,,/Assets/agentisland_logo.png")),
+                Width = 205,
+                Opacity = 0.07,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, -30, -60),
+                RenderTransform = new RotateTransform(-9),
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                Effect = new System.Windows.Media.Effects.BlurEffect { Radius = 2.5 },
+                IsHitTestVisible = false,
+            };
+            host.Children.Add(ghost);
+        }
+        catch
+        {
+        }
+
+        var stack = new StackPanel { Margin = new Thickness(24, 8, 24, 12) };
+        stack.Children.Add(new TextBlock
+        {
+            Text = "Agent Island",
+            FontFamily = IslandFonts.Ui,
+            FontSize = 26,
+            FontWeight = FontWeights.Bold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.95)),
+            Margin = new Thickness(0, 0, 0, 16),
+        });
+        foreach (var paragraph in new[]
+        {
+            "Agents are part of every builder's day now — Claude Code, Codex, Gemini, Grok, Cursor… and whatever ships next month. They run, you wait, and nobody tells you when it is your turn again",
+            "Agent Island 2.0 puts them all on one island. Who is working, whose turn it is, how much quota is left, what it cost — one glance at the notch, no window switching, no terminal tabs to hunt through",
+            "Every number is computed on your own computer — Mac or Windows — from logs the agents already write. No account, no telemetry, nothing uploaded",
+            "If Agent Island helps you, a star on GitHub and a share with a friend are the two things that keep it going",
+        })
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = L10n.Tr(paragraph),
+                FontFamily = IslandFonts.Ui,
+                FontSize = 12.5,
+                Foreground = IslandColors.Brush(IslandColors.White(0.74)),
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 20,
+                Margin = new Thickness(0, 0, 0, 12),
+            });
+        }
+        stack.Children.Add(new Border
+        {
+            Height = 0.5,
+            Background = IslandColors.Brush(IslandColors.White(0.07)),
+            Margin = new Thickness(0, 8, 0, 12),
+        });
+        stack.Children.Add(AboutFact(L10n.Tr("Made by"), "Tristan Tang", "https://tristan.media"));
+        stack.Children.Add(AboutFact(
+            L10n.Tr("Sponsor"), L10n.Tr("Star on GitHub"),
+            "https://github.com/tristan666666/agent-island"));
+        host.Children.Add(stack);
+        return host;
+    }
+
+    private static UIElement AboutFact(string label, string value, string url)
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 0, 0, 10),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        row.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11.5,
+            Foreground = IslandColors.Brush(IslandColors.White(0.40)),
+            Width = 74,
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = value,
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = IslandColors.Brush(IslandColors.White(0.80)),
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = " \uE8A7",
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 8,
+            Foreground = IslandColors.Brush(IslandColors.White(0.30)),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        row.MouseLeftButtonUp += (_, args) =>
+        {
+            args.Handled = true;
+            OpenUrl(url);
+        };
+        return row;
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+        }
     }
 
     private static string CurrentLanguageSubtitle() => AppLanguageStore.Load() switch
@@ -710,6 +925,16 @@ public sealed class SettingsWindow : Window
 
         // 成本显示 — toggle first; the picker tiles appear only when the
         // cost page is on, matching the macOS conditional.
+        var quotaMode = Model.QuotaDisplayModeStore.Shared;
+        var quotaSeg = new Segmented(
+            new[] { Localization.L10n.Tr("Remaining"), Localization.L10n.Tr("Used") },
+            quotaMode.ShowsRemaining ? 0 : 1);
+        quotaSeg.SelectionChanged += index => quotaMode.ShowsRemaining = index == 0;
+        stack.Children.Add(new SettingsRowControl(
+            "Quota shows",
+            null,
+            quotaSeg));
+
         stack.Children.Add(SectionLabel("Cost display"));
         var costPickerHost = new ContentControl { Margin = new Thickness(10, 2, 2, 8) };
         void RefreshCostPicker()
@@ -725,38 +950,14 @@ public sealed class SettingsWindow : Window
                 costPickerHost.Content = null;
             }
         }
-        var costPage = new CobaltToggle(ScreenPref.Shared.ShowCostPage);
-        costPage.Toggled += enabled =>
-        {
-            ScreenPref.Shared.ShowCostPage = enabled;
-            RefreshCostPicker();
-        };
-        stack.Children.Add(new SettingsRowControl(
-            "Show cost page in top panel",
-            null,
-            costPage));
+        // macOS has no cost-page toggle — the page is simply there. Pin
+        // the old Windows-only pref to shown so nobody is stranded hidden.
+        ScreenPref.Shared.ShowCostPage = true;
         RefreshCostPicker();
         stack.Children.Add(costPickerHost);
 
-        var quotaMode = Model.QuotaDisplayModeStore.Shared;
-        var quotaSeg = new Segmented(
-            new[] { Localization.L10n.Tr("Used"), Localization.L10n.Tr("Remaining") },
-            quotaMode.ShowsRemaining ? 1 : 0);
-        quotaSeg.SelectionChanged += index => quotaMode.ShowsRemaining = index == 1;
-        stack.Children.Add(new SettingsRowControl(
-            "Quota shows",
-            null,
-            quotaSeg));
-
         // 顶部条.
         stack.Children.Add(SectionLabel("Top bar"));
-        var alwaysShow = new CobaltToggle(AlwaysShowUsageStore.Shared.Enabled);
-        alwaysShow.Toggled += enabled => AlwaysShowUsageStore.Shared.Enabled = enabled;
-        stack.Children.Add(new SettingsRowControl(
-            "Always show usage in top bar",
-            null,
-            alwaysShow));
-
         // Visual mode lives with the island-appearance controls, title +
         // picker only — no sentence (macOS design review).
         var effects = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
@@ -802,6 +1003,14 @@ public sealed class SettingsWindow : Window
             "Interface scale",
             null,
             scaleBox));
+
+        var alwaysShow = new CobaltToggle(AlwaysShowUsageStore.Shared.Enabled);
+        alwaysShow.Toggled += enabled => AlwaysShowUsageStore.Shared.Enabled = enabled;
+        stack.Children.Add(new SettingsRowControl(
+            "Always show usage in top bar",
+            null,
+            alwaysShow));
+
 
         // 屏幕. (The macOS bar-style choice — Compact vs Notched Mac — is
         // meaningless on Windows, where no display has a notch; the bar is
@@ -880,7 +1089,14 @@ public sealed class SettingsWindow : Window
             stack.Children.Add(ProviderRow(provider));
         }
 
-        stack.Children.Add(SectionLabel("TOKEN"));
+        var refreshPresets = RefreshIntervalStore.Presets;
+        var refreshRow = new Segmented(new[] { "5m", "15m", "30m" },
+            Math.Max(0, Array.IndexOf(refreshPresets, RefreshIntervalStore.Shared.Seconds)));
+        refreshRow.SelectionChanged += index => RefreshIntervalStore.Shared.Seconds = refreshPresets[index];
+        stack.Children.Add(new SettingsRowControl(
+            "Refresh interval", null, refreshRow));
+
+        stack.Children.Add(SectionLabel("Tokens"));
         var mode = new Segmented(
             new[] { L10n.Tr("All tokens"), L10n.Tr("Input + output") },
             TokenCountModeStore.Shared.Mode == TokenCountMode.All ? 0 : 1);
