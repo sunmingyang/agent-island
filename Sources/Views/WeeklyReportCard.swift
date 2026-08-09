@@ -7,11 +7,12 @@ import CoreImage
 /// save it as a PNG and post it themselves; nothing is ever uploaded, which
 /// is what lets this exist at all under the no-telemetry promise.
 ///
-/// v3 (locked 2026-07-17): flat near-black coat — NO gradients (external
-/// design review: 底色渐变删掉, and gradients band badly under social-app
-/// compression) — app logo joins the wordmark up top, the API-value line
+/// v4 (2026-08-09): flat near-black coat — NO gradients (external design
+/// review: 底色渐变删掉, and gradients band badly under social-app
+/// compression) — brand mark joins the wordmark up top, the API-value line
 /// rides beside the hero number, the faction duel replaces the bare split
-/// bar, every model that ran, and the rank block closes the card.
+/// bar, and the model table closes on the TOP-3. The v3 rank block (酋长
+/// 段位) is gone — owner cut the feature outright.
 struct WeeklyReportData {
     struct ModelShare: Identifiable {
         let id = UUID()
@@ -30,9 +31,6 @@ struct WeeklyReportData {
     let dailyTokens: [Int]    // oldest → today, exactly 7
     let dayLetters: [String]
     let topModels: [ModelShare]
-    let lifetimeText: String
-    let tierEmoji: String?
-    let tierName: String?
 
     /// Assembles the last 7 calendar days from CostStore. All local.
     @MainActor
@@ -98,12 +96,6 @@ struct WeeklyReportData {
             letters = days.map { letterFmt.string(from: $0) }
         }
 
-        // Lifetime rank — recognition rides the card itself.
-        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
-            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
-        }
-        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
-
         return WeeklyReportData(
             rangeText: range,
             totalTokens: total,
@@ -111,10 +103,7 @@ struct WeeklyReportData {
             matchup: .from(totals: weekByProvider),
             dailyTokens: daily,
             dayLetters: letters,
-            topModels: models,
-            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
-            tierEmoji: tier?.emoji,
-            tierName: tier?.nameKey
+            topModels: models
         )
     }
 
@@ -123,11 +112,8 @@ struct WeeklyReportData {
     /// `current()` in shape; daily bars, totals, and per-model rows come
     /// from one full-scan slice instead of the live store windows, so the
     /// whole card sits on a single consistent window by construction.
-    /// Lifetime rank stays on the store's published history — the rank is
-    /// lifetime, not per-page.
     @MainActor
     static func forInterval(_ interval: DateInterval, slices: PeriodSlices) -> WeeklyReportData {
-        let cost = CostStore.shared
         let cal = Calendar.current
         let mode = TokenCountModeStore.shared.mode
         let zh = L10n.locale.identifier.hasPrefix("zh")
@@ -172,11 +158,6 @@ struct WeeklyReportData {
             letters = days.map { letterFmt.string(from: $0) }
         }
 
-        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
-            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
-        }
-        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
-
         return WeeklyReportData(
             rangeText: range,
             totalTokens: total,
@@ -184,10 +165,7 @@ struct WeeklyReportData {
             matchup: .from(totals: weekByProvider),
             dailyTokens: daily,
             dayLetters: letters,
-            topModels: models,
-            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
-            tierEmoji: tier?.emoji,
-            tierName: tier?.nameKey
+            topModels: models
         )
     }
 
@@ -206,9 +184,10 @@ struct WeeklyReportData {
         ]))
     }
 
-    /// EVERY model that carried real usage across ALL FIVE providers — the card
-    /// is the full ledger, not a highlight reel (owner call, 2026-08-08: 这东西
-    /// 是要看全部数据的). A Grok-and-Gemini-only week still fills the ring.
+    /// TOP-3 models across ALL FIVE providers (owner call, 2026-08-09: 只要写
+    /// 前三的模型就够了 — the full list buried the card in rows). The donut's
+    /// uncovered arc is everything below the cut, so the ring still tells the
+    /// truth about the long tail. A Grok-and-Gemini-only week still ranks.
     ///
     /// Segment SIZE and sorting are by TOKEN share, the one metric every
     /// provider defines: Cursor ships tokens with no price, Gemini nothing —
@@ -237,6 +216,7 @@ struct WeeklyReportData {
             }
             .filter { $0.percent >= 0.005 }
             .sorted { $0.percent > $1.percent }
+            .prefix(3)
 
         var seenPerProvider: [DisplayProvider: Int] = [:]
         return ranked.map { m in
@@ -291,8 +271,6 @@ struct WeeklyReportCard: View {
                 Spacer(minLength: 14)
                 ReportModelTable(models: data.topModels)
                 Spacer(minLength: 14)
-                ReportRankBlock(lifetimeText: data.lifetimeText,
-                                tierEmoji: data.tierEmoji, tierName: data.tierName)
             }
             .padding(28)
         }
@@ -417,20 +395,17 @@ struct WeeklyReportCard: View {
 
 // MARK: - v3 shared sections (weekly + monthly)
 
-/// App mark + wordmark left, period right — the logo moved up here from the
-/// old footer strip (owner, 2026-07-17), so the card closes on the rank.
+/// Brand mark + wordmark left, period right. The mark rides the tile, not
+/// the app icon: the icns is a near-black plate that vanished into the
+/// card's near-black coat (owner screenshot, 2026-08-09 — "上面那个logo
+/// 有问题").
 struct ReportCardHeader: View {
     let kind: String        // "WEEKLY" / "MONTHLY"
     let periodText: String
 
     var body: some View {
         HStack(alignment: .center, spacing: 9) {
-            if let icon = NSImage(named: NSImage.applicationIconName) {
-                Image(nsImage: icon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 22, height: 22)
-            }
+            BrandMarkTile(side: 22, corner: 6)
             (Text("AGENT ISLAND ")
                 .foregroundColor(.white.opacity(0.88))
              + Text(kind)
@@ -438,10 +413,12 @@ struct ReportCardHeader: View {
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(3.0)
             Spacer()
+            // Solid white — the 0.42 ghost text was unfindable on the card
+            // (owner, 2026-08-09: 要用白色的，不能用透明的).
             Text(periodText)
-                .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                .font(.system(size: 11, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(.white)
         }
     }
 }

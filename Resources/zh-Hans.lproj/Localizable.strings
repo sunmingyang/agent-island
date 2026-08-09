@@ -267,14 +267,6 @@
 "Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers" = "按记住的浏览器选择打开 Claude 登录页，可到 设置 → 服务 修改";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传";
 "Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "小技巧：隔空投送到 iPhone，图片直接进相册，随手就能发 📲";
-"Drifter" = "漂流者";
-"Islander" = "登岛者";
-"Settler" = "定居者";
-"Chieftain" = "酋长";
-"Island Lord" = "岛主";
-"Archipelago King" = "群岛之王";
-"Legendary Navigator" = "传奇航海家";
-"%@ rank · lifetime %@ tokens" = "%1$@段位 · 累计 %2$@ Token";
 "tokens this month" = "本月 Token 消耗量";
 "Past %d weeks" = "过去 %d 周";
 "%d-day streak 🔥" = "连续 %d 天 🔥";
@@ -458,9 +450,6 @@
 "Silver" = "银白";
 
 /* report card v3 rank block */
-"lifetime %@ tokens" = "累计 %@ Token";
-"Congrats, you've reached " = "恭喜你已获得 ";
-" rank" = " 段位";
 
 /* update nudge */
 "Update available" = "有新版本";

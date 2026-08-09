@@ -3,20 +3,17 @@ import AppKit
 import UniformTypeIdentifiers
 import CoreImage
 
-/// The monthly share card — the weekly card's big sibling. v3 (locked
-/// 2026-07-17): the 24-week heatmap is gone (owner's cut — it competed with
-/// the model table and duplicated the panel's own year view); the month
-/// reads hero → faction duel → every model → rank. Same no-upload rules:
-/// rendered from local logs only.
+/// The monthly share card — the weekly card's big sibling. v4 (2026-08-09):
+/// the 24-week heatmap is gone (owner's cut — it competed with the model
+/// table and duplicated the panel's own year view), and so is the rank
+/// block; the month reads hero → faction duel → top-3 models. Same
+/// no-upload rules: rendered from local logs only.
 struct MonthlyReportData {
     let monthText: String          // "2026年7月" / "July 2026"
     let totalTokens: Int           // calendar month to date, wire
     let totalDollars: Double
     let matchup: ReportMatchup     // TOP-2 duel / solo / none for the month
     let topModels: [WeeklyReportData.ModelShare]
-    let lifetimeText: String
-    let tierEmoji: String?
-    let tierName: String?
 
     @MainActor
     static func current() -> MonthlyReportData {
@@ -42,30 +39,20 @@ struct MonthlyReportData {
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "yyyy年M月" : "MMMM yyyy"
 
-        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
-            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
-        }
-        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
-
         return MonthlyReportData(
             monthText: df.string(from: today),
             totalTokens: totalTokens,
             totalDollars: totalDollars,
             matchup: .from(totals: monthByProvider),
-            topModels: models,
-            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
-            tierEmoji: tier?.emoji,
-            tierName: tier?.nameKey
+            topModels: models
         )
     }
 
     /// Assembles a PAST calendar month from interval slices (offset ≠ 0 —
     /// the current month keeps `current()`). Same accounting as the live
-    /// month window, sourced from one full-scan slice. Lifetime rank stays
-    /// on the store's published history.
+    /// month window, sourced from one full-scan slice.
     @MainActor
     static func forInterval(_ interval: DateInterval, slices: PeriodSlices) -> MonthlyReportData {
-        let cost = CostStore.shared
         let mode = TokenCountModeStore.shared.mode
         let zh = L10n.locale.identifier.hasPrefix("zh")
 
@@ -85,20 +72,12 @@ struct MonthlyReportData {
         df.locale = zh ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US_POSIX")
         df.dateFormat = zh ? "yyyy年M月" : "MMMM yyyy"
 
-        let lifetime = DisplayProvider.allCases.reduce(0) { sum, p in
-            sum + cost.cost(for: p).dailyTokens.reduce(0) { $0 + $1.tokens }
-        }
-        let tier = MilestoneLadder.tokenTier(lifetime: lifetime)
-
         return MonthlyReportData(
             monthText: df.string(from: interval.start),
             totalTokens: totalTokens,
             totalDollars: totalDollars,
             matchup: .from(totals: monthByProvider),
-            topModels: models,
-            lifetimeText: WeeklyReportCard.compactString(lifetime, zh: zh),
-            tierEmoji: tier?.emoji,
-            tierName: tier?.nameKey
+            topModels: models
         )
     }
 
@@ -134,8 +113,6 @@ struct MonthlyReportCard: View {
                 Spacer(minLength: 22)
                 ReportModelTable(models: data.topModels)
                 Spacer(minLength: 22)
-                ReportRankBlock(lifetimeText: data.lifetimeText,
-                                tierEmoji: data.tierEmoji, tierName: data.tierName)
             }
             .padding(28)
         }
@@ -442,10 +419,12 @@ private struct MonthlyReportSheet: View {
                              accessibilityKey: "Previous month") {
                 flip(to: anchorDate == nil ? pageOffset + 1 : 1)
             }
+            // Solid white when live — matches the weekly pager (owner,
+            // 2026-08-09: 不能用透明的).
             Text(displayData.monthText)
                 .font(.system(size: 11.5, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(.white.opacity(pageLoading ? 0.35 : 0.7))
+                .foregroundStyle(.white.opacity(pageLoading ? 0.45 : 1))
                 .frame(minWidth: 150)
             ReportPagerArrow(systemName: "chevron.right",
                              enabled: (pageOffset > 0 || anchorDate != nil) && !pageLoading,

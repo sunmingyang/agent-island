@@ -197,14 +197,6 @@
 "Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers" = "Opens the Claude sign-in page with your saved browser choice — change it in Settings → Providers";
 "Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word" = "Copied! Post it — bring a friend to the island 🏝️";
 "Tip: AirDrop it to your iPhone — it lands in Photos, ready to post 📲" = "Tip: AirDrop to your iPhone — straight into Photos 📲";
-"Drifter" = "Drifter";
-"Islander" = "Islander";
-"Settler" = "Settler";
-"Chieftain" = "Chieftain";
-"Island Lord" = "Island Lord";
-"Archipelago King" = "Archipelago King";
-"Legendary Navigator" = "Legendary Navigator";
-"%@ rank · lifetime %@ tokens" = "%1$@ rank · lifetime %2$@ tokens";
 "tokens this month" = "tokens this month";
 "Past %d weeks" = "Past %d weeks";
 "%d-day streak 🔥" = "%d-day streak 🔥";
@@ -376,9 +368,6 @@
 "Silver" = "Silver";
 
 /* report card v3 rank block */
-"lifetime %@ tokens" = "lifetime %@ tokens";
-"Congrats, you've reached " = "Congrats, you've reached ";
-" rank" = " rank";
 
 /* update nudge */
 "Update available" = "Update available";

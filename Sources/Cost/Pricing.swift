@@ -27,6 +27,14 @@ enum Pricing {
             inputPerMillion: 10, outputPerMillion: 50,
             cacheCreationPerMillion: 12.50, cacheReadPerMillion: 1.00
         ),
+        // Opus 5 launched at Opus 4.8's exact rates (drop-in upgrade tier).
+        // Missing from the 2026-08-05 snapshot — every Opus 5 session was
+        // silently pricing to $0 on the report cards (owner screenshot,
+        // 2026-08-09: "Opus 5 10.72亿 $0").
+        "claude-opus-5": Rates(
+            inputPerMillion: 5, outputPerMillion: 25,
+            cacheCreationPerMillion: 6.25, cacheReadPerMillion: 0.50
+        ),
         "claude-opus-4-8": Rates(
             inputPerMillion: 5, outputPerMillion: 25,
             cacheCreationPerMillion: 6.25, cacheReadPerMillion: 0.50

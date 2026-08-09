@@ -315,10 +315,12 @@ private struct WeeklyReportSheet: View {
                              accessibilityKey: "Previous week") {
                 flip(to: anchorDate == nil ? pageOffset + 1 : 1)
             }
+            // Solid white when live — the 0.7 ghost read as disabled next
+            // to the arrows (owner, 2026-08-09: 不能用透明的).
             Text(displayData.rangeText)
                 .font(.system(size: 11.5, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(.white.opacity(pageLoading ? 0.35 : 0.7))
+                .foregroundStyle(.white.opacity(pageLoading ? 0.45 : 1))
                 .frame(minWidth: 150)
             ReportPagerArrow(systemName: "chevron.right",
                              enabled: (pageOffset > 0 || anchorDate != nil) && !pageLoading,
