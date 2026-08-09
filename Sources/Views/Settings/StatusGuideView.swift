@@ -17,7 +17,7 @@ struct StatusGuideView: View {
             sectionLabel("Reminders").padding(.top, 14)
             SettingsRow(
                 title: "Turn alarm",
-                subtitle: nil
+                subtitle: "Pop up a foreground alarm and system notification when a background run needs you."
             ) {
                 SettingsToggle(isOn: reminders.enabled) { reminders.enabled.toggle() }
             }
