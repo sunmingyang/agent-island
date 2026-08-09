@@ -58,6 +58,38 @@ public static class ProviderMarks
         };
     }
 
+    /// Island-bar variant: the mark element shares the caller's LIVE fill
+    /// brush so the working→attention tint crossfade animates through the
+    /// mask exactly as it does through the vector paths. Antigravity keeps
+    /// its full-color art (macOS colorMark — the red states speak through
+    /// the glow halo instead).
+    public static UIElement IslandMark(DisplayProvider provider, double size, Brush fill)
+    {
+        if (provider == DisplayProvider.Antigravity)
+        {
+            return Mark(provider, size);
+        }
+        if (MaskFor(provider) is { } mask)
+        {
+            return new Rectangle
+            {
+                Width = size,
+                Height = size,
+                Fill = fill,
+                OpacityMask = mask,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+        }
+        return new Ellipse
+        {
+            Width = size,
+            Height = size,
+            Stroke = fill,
+            StrokeThickness = 1.5,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+    }
+
     private static ImageBrush? MaskFor(DisplayProvider provider)
     {
         if (MaskCache.TryGetValue(provider, out var cached)) return cached;

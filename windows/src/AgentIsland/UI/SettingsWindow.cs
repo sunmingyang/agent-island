@@ -80,6 +80,70 @@ public sealed class SettingsWindow : Window
         settle.Start();
     }
 
+    /// Snapshot-sweep entry: open the window, walk every tab, render the
+    /// WHOLE window (sidebar + content) per tab, then hand control back.
+    public static void SnapshotAllTabs(string dir, Action done)
+    {
+        Open();
+        if (_open is not { } window)
+        {
+            done();
+            return;
+        }
+        window.SnapshotTabs(dir, done);
+    }
+
+    private void SnapshotTabs(string dir, Action done)
+    {
+        var tabs = Enum.GetValues<Tab>();
+        var index = 0;
+        void Next()
+        {
+            if (index >= tabs.Length)
+            {
+                done();
+                return;
+            }
+            var tab = tabs[index];
+            index++;
+            Select(tab);
+            var settle = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(600),
+            };
+            settle.Tick += (_, _) =>
+            {
+                settle.Stop();
+                try
+                {
+                    RenderWindow(System.IO.Path.Combine(
+                        dir, $"settings-{index}-{tab}".ToLowerInvariant() + ".png"));
+                }
+                catch
+                {
+                }
+                Next();
+            };
+            settle.Start();
+        }
+        Next();
+    }
+
+    private void RenderWindow(string path)
+    {
+        if (Content is not FrameworkElement root) return;
+        var w = (int)Math.Ceiling(root.ActualWidth);
+        var h = (int)Math.Ceiling(root.ActualHeight);
+        if (w <= 0 || h <= 0) return;
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(root);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = System.IO.File.Create(path);
+        encoder.Save(stream);
+    }
+
     /// Declaration order IS the sidebar order (macOS 2.1.1 IA): the
     /// providers page leads because it is what the app is about; alerts
     /// stand alone instead of hiding at the bottom of General.

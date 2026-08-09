@@ -56,16 +56,28 @@ public sealed class ProviderLogo : Grid
             Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            RenderTransformOrigin = new Point(0.5, 0.5),
         };
+        // Spin/breath ride the HOST, not the mark element — so a provider
+        // whose mark is a masked bitmap (no extracted vector) animates
+        // exactly like the vector ones.
         var transforms = new TransformGroup();
         transforms.Children.Add(_scale);
         transforms.Children.Add(_rotate);
-        _path.RenderTransform = transforms;
+        _markHost = new Grid
+        {
+            Width = MarkSize,
+            Height = MarkSize,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            RenderTransformOrigin = new Point(0.5, 0.5),
+            RenderTransform = transforms,
+        };
         Children.Add(_glowBlob);
-        Children.Add(_path);
+        Children.Add(_markHost);
         ApplyTool();
     }
+
+    private readonly Grid _markHost;
 
     private void RetintBlob(Color color)
     {
@@ -98,28 +110,21 @@ public sealed class ProviderLogo : Grid
 
     private void ApplyTool()
     {
-        // Anything-that-isn't-Claude used to draw the OpenAI knot, so the
-        // moment TriggerTool grew past two members a Grok or Gemini slot
-        // would have rendered Codex's mark. A provider with no extracted
-        // vector gets the ring macOS ProviderMark falls back to instead.
-        _path.Data = BrandGeometry.PathData(_tool.ToDisplayProvider()) is { } data
-            ? Geometry.Parse("F1 " + data)
-            : RingMark;
+        // Every provider renders its REAL mark (macOS LogoOverlay →
+        // ProviderMark): extracted vectors where they exist, the rasterized
+        // brand masks elsewhere, Antigravity in its own colours.
+        _markHost.Children.Clear();
+        var provider = _tool.ToDisplayProvider();
+        if (BrandGeometry.PathData(provider) is { } data)
+        {
+            _path.Data = Geometry.Parse("F1 " + data);
+            _markHost.Children.Add(_path);
+        }
+        else
+        {
+            _markHost.Children.Add(ProviderMarks.IslandMark(provider, MarkSize, _fill));
+        }
         ApplyTint();
-    }
-
-    /// Outer circle minus inner: a ring expressed as GEOMETRY, not a stroke,
-    /// so the single animatable Fill brush still drives the tint crossfade.
-    private static readonly Geometry RingMark = BuildRingMark();
-
-    private static Geometry BuildRingMark()
-    {
-        var ring = new CombinedGeometry(
-            GeometryCombineMode.Exclude,
-            new EllipseGeometry(new Point(50, 50), 50, 50),
-            new EllipseGeometry(new Point(50, 50), 42, 42));
-        ring.Freeze();
-        return ring;
     }
 
     /// The attention tint is a brighter alarm red than the chart alertRed —

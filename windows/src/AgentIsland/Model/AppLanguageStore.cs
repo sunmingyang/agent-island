@@ -12,6 +12,13 @@ public static class AppLanguageStore
 
     public static L10n.Language Load()
     {
+        // Verification-rig override: the CI snapshot sweep renders the
+        // Chinese and English UIs on a machine whose prefs say neither.
+        switch (Environment.GetEnvironmentVariable("AGENTISLAND_LANG"))
+        {
+            case "zh": return L10n.Language.SimplifiedChinese;
+            case "en": return L10n.Language.English;
+        }
         var raw = Preferences.Get<string?>(Key) ?? "";
         return raw switch
         {

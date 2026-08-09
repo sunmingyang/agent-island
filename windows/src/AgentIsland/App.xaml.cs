@@ -208,6 +208,13 @@ public partial class App : System.Windows.Application
                 secondaryLabel: Localization.L10n.Tr("Version History"));
             if (updateDialogPreview != "1") dialog.SaveSnapshot(updateDialogPreview);
         }
+        // Full-surface CI sweep: renders reports + island + every settings
+        // tab into the directory, then exits (see UI.SnapshotSweep).
+        var snapshotDir = Environment.GetEnvironmentVariable("AGENTISLAND_SNAPSHOT_DIR");
+        if (!string.IsNullOrEmpty(snapshotDir) && _island is not null)
+        {
+            UI.SnapshotSweep.Run(this, _island, snapshotDir!);
+        }
         if (Environment.GetEnvironmentVariable("AGENTISLAND_DEBUG_DIALOG") == "1")
         {
             IslandDialog.Show(

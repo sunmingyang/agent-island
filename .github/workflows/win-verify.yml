@@ -1,0 +1,43 @@
+# Verification-only: renders every Windows surface to PNGs on a real
+# Windows runner so the port can be eyeballed without a hand install.
+# Never packages, never releases — release stays tag-driven.
+name: win-verify
+
+on:
+  push:
+    branches: [win-verify]
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: dotnet build windows/src/AgentIsland/AgentIsland.csproj -c Release -p:EnableWindowsTargeting=true
+
+      - name: Snapshot sweep (zh)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse windows/src/AgentIsland/bin/Release -Filter AgentIsland.exe | Select-Object -First 1
+          $env:AGENTISLAND_DEMO = "1"
+          $env:AGENTISLAND_LANG = "zh"
+          $env:AGENTISLAND_SNAPSHOT_DIR = "$env:GITHUB_WORKSPACE\shots\zh"
+          Start-Process -Wait -FilePath $exe.FullName
+
+      - name: Snapshot sweep (en)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse windows/src/AgentIsland/bin/Release -Filter AgentIsland.exe | Select-Object -First 1
+          $env:AGENTISLAND_DEMO = "1"
+          $env:AGENTISLAND_LANG = "en"
+          $env:AGENTISLAND_SNAPSHOT_DIR = "$env:GITHUB_WORKSPACE\shots\en"
+          Start-Process -Wait -FilePath $exe.FullName
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shots
+          path: shots
