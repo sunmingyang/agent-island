@@ -103,6 +103,105 @@ private func testDetectionStates() throws {
         "one good root among several must be enough")
 }
 
+// MARK: - Quota
+//
+// Captured verbatim from the local language server on a signed-in account
+// (agy 1.1.11, 2026-08-09). Two pools, both weekly — not the per-model
+// Pro/Flash split the cloud-era code assumed.
+
+private let realQuotaSummary = Data(#"""
+{"response":{"groups":[{"displayName":"Gemini Models", "description":"Models within this group: Gemini Flash, Gemini Pro", "buckets":[{"bucketId":"gemini-weekly", "displayName":"Weekly Limit Remaining", "window":"weekly", "remainingFraction":0.9586032, "resetTime":"2026-08-16T02:00:27Z"}]}, {"displayName":"Claude and GPT models", "description":"Models within this group: Claude Opus, Claude Sonnet, GPT-OSS", "buckets":[{"bucketId":"3p-weekly", "displayName":"Weekly Limit Remaining", "window":"weekly", "remainingFraction":1, "resetTime":"2026-08-16T07:33:07Z"}]}], "description":"Within each group, models share a weekly limit."}}
+"""#.utf8)
+
+private func testQuotaSummaryParsesRealPayload() throws {
+    guard let parsed = AntigravityQuotaParser.parseQuotaSummary(realQuotaSummary) else {
+        throw TestFailure.assertion("the real quota payload must parse")
+    }
+    try expect(parsed.buckets.count == 2, "both pools must survive, got \(parsed.buckets.count)")
+
+    guard let gemini = parsed.buckets.first(where: { $0.bucketId == "gemini-weekly" }) else {
+        throw TestFailure.assertion("gemini-weekly bucket missing")
+    }
+    // remainingFraction 0.9586032 is 4.14% consumed — the app speaks used%.
+    try expect(abs(gemini.usedPercent - 0.0413968) < 1e-6,
+               "remainingFraction must invert to used, got \(gemini.usedPercent)")
+    try expect(gemini.shortLabel == "Gemini", "gemini pool short label")
+    try expect(gemini.window == "weekly", "window must be carried")
+    try expect(gemini.periodSeconds == 7 * 24 * 60 * 60,
+               "a weekly bucket is a 7-day window — 24h was the Code Assist shape and made the island's elapsed arc wrong")
+    try expect(gemini.resetAt != nil, "resetTime must parse")
+
+    guard let third = parsed.buckets.first(where: { $0.bucketId == "3p-weekly" }) else {
+        throw TestFailure.assertion("3p-weekly bucket missing")
+    }
+    try expect(third.usedPercent == 0, "a full pool is 0% used")
+    try expect(third.shortLabel == "Claude·GPT", "3p pool gets a readable name, not the raw id")
+
+    let snapshot = AntigravityQuotaSnapshot(
+        buckets: parsed.buckets, tierID: nil, tierLabel: nil, note: parsed.note
+    )
+    try expect(snapshot.primary?.bucketId == "gemini-weekly",
+               "the pool closest to its limit leads — pools are independent, so there is nothing to sum")
+    try expect(snapshot.secondary?.bucketId == "3p-weekly", "the other pool trails")
+    try expect(snapshot.note?.isEmpty == false, "Google's own explanation is carried through verbatim")
+}
+
+/// The tier must come off `userTier.name`. On the owner's free account
+/// `planStatus.planInfo.planName` reads "Pro" — a field inherited from
+/// Windsurf — so reading that would badge a free account as paid.
+private func testUserStatusPrefersUserTierOverPlanName() throws {
+    let payload = Data(#"""
+    {"userStatus":{"name":"Tester","email":"tester@gmail.com",
+      "userTier":{"id":"free-tier","name":"Antigravity Starter Quota"},
+      "planStatus":{"planInfo":{"planName":"Pro","teamsTier":"TEAMS_TIER_PRO"}}}}
+    """#.utf8)
+    guard let profile = AntigravityQuotaParser.parseUserStatus(payload) else {
+        throw TestFailure.assertion("user status must parse")
+    }
+    try expect(profile.tierLabel == "Antigravity Starter Quota",
+               "tier must come from userTier.name, got \(profile.tierLabel ?? "nil")")
+    try expect(profile.tierLabel != "Pro", "planInfo.planName must never win — it says Pro on a free account")
+    try expect(profile.tierID == "free-tier", "tier id")
+    try expect(profile.email == "tester@gmail.com", "email")
+}
+
+/// A bucket we cannot price must vanish, never render as full. Claiming 100%
+/// headroom the account may not have is the exact dishonesty the publish gate
+/// forbids.
+private func testQuotaDegradesWithoutInventingHeadroom() throws {
+    try expect(AntigravityQuotaParser.parseQuotaSummary(Data("not json".utf8)) == nil,
+               "garbage must be nil, distinct from an empty answer")
+    try expect(AntigravityQuotaParser.parseQuotaSummary(Data("{}".utf8))?.buckets.isEmpty == true,
+               "a well-formed reply with no groups is zero buckets, not a failure")
+
+    let missingFraction = Data(#"{"response":{"groups":[{"displayName":"G","buckets":[{"bucketId":"a-weekly"}]}]}}"#.utf8)
+    try expect(AntigravityQuotaParser.parseQuotaSummary(missingFraction)?.buckets.isEmpty == true,
+               "a bucket with no remainingFraction must be dropped, never defaulted to 100% left")
+
+    let disabled = Data(#"{"response":{"groups":[{"displayName":"G","buckets":[{"bucketId":"a-weekly","disabled":true,"remainingFraction":1}]}]}}"#.utf8)
+    try expect(AntigravityQuotaParser.parseQuotaSummary(disabled)?.buckets.isEmpty == true,
+               "a disabled pool is one the account cannot use — showing it as full invents headroom")
+}
+
+/// Envelope and number shapes this server has been seen to vary.
+private func testQuotaToleratesShapeVariants() throws {
+    let bare = Data(#"{"groups":[{"displayName":"G","buckets":[{"bucketId":"x-weekly","window":"weekly","remainingFraction":0.5}]}]}"#.utf8)
+    try expect(AntigravityQuotaParser.parseQuotaSummary(bare)?.buckets.first?.usedPercent == 0.5,
+               "groups at the root, with no response envelope, must still parse")
+
+    let oneof = Data(#"{"response":{"groups":[{"displayName":"G","buckets":[{"bucketId":"gemini-5h","window":"5h","remainingFraction":{"case":"f","value":0.25}}]}]}}"#.utf8)
+    guard let bucket = AntigravityQuotaParser.parseQuotaSummary(oneof)?.buckets.first else {
+        throw TestFailure.assertion("oneof-expanded fraction must parse")
+    }
+    try expect(bucket.usedPercent == 0.75, "0.25 remaining is 75% used")
+    try expect(bucket.periodSeconds == 5 * 60 * 60,
+               "a 5h window (documented for paid tiers) must not be treated as weekly")
+
+    let unknownPool = Data(#"{"response":{"groups":[{"displayName":"Mystery models","buckets":[{"bucketId":"zzz-weekly","remainingFraction":1}]}]}}"#.utf8)
+    try expect(AntigravityQuotaParser.parseQuotaSummary(unknownPool)?.buckets.first?.shortLabel == "Mystery",
+               "an unseen pool falls back to Google's group name, never a raw id")
+}
+
 /// The CLI wraps every user message in a `<USER_REQUEST>` envelope and then
 /// appends metadata blocks; a raw label would show the tags and the machine's
 /// local time. Shapes taken from a real transcript (2026-08-08).
@@ -287,84 +386,6 @@ private func testClientEnvOverride() throws {
 
 // MARK: - Quota decode
 
-private let quotaFixture = Data("""
-{
-  "buckets": [
-    { "modelId": "gemini-2.5-pro", "remainingFraction": 0.82,
-      "resetTime": "2026-08-06T07:00:00Z" },
-    { "modelId": "gemini-3-pro-preview", "remainingFraction": 0.35,
-      "resetTime": "2026-08-06T07:00:00Z" },
-    { "modelId": "gemini-3-flash-preview", "remainingFraction": 0.91,
-      "resetTime": "2026-08-06T07:00:00Z" },
-    { "modelId": "unknown-experimental" }
-  ]
-}
-""".utf8)
-
-private func testQuotaDecodesBucketsAndPicksLowestRemaining() throws {
-    let buckets = AntigravityQuotaParser.parseQuota(quotaFixture)
-    try expect(buckets?.count == 4, "every named bucket must decode")
-    let snapshot = AntigravityQuotaSnapshot(buckets: buckets ?? [], tierID: nil, tierLabel: nil)
-    try expect(snapshot.primaryPro?.modelId == "gemini-3-pro-preview",
-               "the pro bucket with the lowest remaining must win the main bar")
-    if let used = snapshot.primaryPro?.usedPercent {
-        try expect(abs(used - 0.65) < 0.0001, "usedPercent must be 1 - remainingFraction")
-    }
-    try expect(snapshot.secondaryFlash?.modelId == "gemini-3-flash-preview",
-               "the flash bucket must win the secondary")
-    try expect(snapshot.primaryPro?.resetAt != nil, "resetTime must parse")
-    let missingFraction = buckets?.first { $0.modelId == "unknown-experimental" }
-    try expect(missingFraction?.usedPercent == 0,
-               "a bucket without remainingFraction must read as untouched, not exhausted")
-}
-
-private func testQuotaEmptyAndGarbage() throws {
-    let empty = AntigravityQuotaParser.parseQuota(Data("{}".utf8))
-    try expect(empty != nil && empty?.isEmpty == true,
-               "missing buckets must decode as an empty list, not a failure")
-    let explicit = AntigravityQuotaParser.parseQuota(Data(#"{"buckets":[]}"#.utf8))
-    try expect(explicit?.isEmpty == true, "an explicit empty buckets array must decode")
-    try expect(AntigravityQuotaParser.parseQuota(Data("not json".utf8)) == nil,
-               "non-JSON must be a parse failure")
-    let snapshot = AntigravityQuotaSnapshot(buckets: [], tierID: nil, tierLabel: nil)
-    try expect(snapshot.primaryPro == nil && snapshot.secondaryFlash == nil,
-               "an empty snapshot must expose no bars")
-}
-
-private func testLoadCodeAssistParsing() throws {
-    let paid = Data("""
-    { "currentTier": { "id": "standard-tier" },
-      "paidTier": { "id": "standard-tier", "name": "Google AI Pro" },
-      "cloudaicompanionProject": "gen-lang-client-0123" }
-    """.utf8)
-    let profile = AntigravityQuotaParser.parseLoadCodeAssist(paid)
-    try expect(profile?.tierID == "standard-tier", "currentTier.id must parse")
-    try expect(profile?.tierLabel == "Google AI Pro", "paidTier.name must win the label")
-    try expect(profile?.projectID == "gen-lang-client-0123", "companion project must parse")
-
-    let free = Data(#"{ "currentTier": { "id": "free-tier" } }"#.utf8)
-    let freeProfile = AntigravityQuotaParser.parseLoadCodeAssist(free)
-    try expect(freeProfile?.tierLabel == "Free", "free-tier must map to Free")
-    try expect(freeProfile?.projectID == nil, "missing project must read as nil")
-}
-
-private func testMigrationSignalDetection() throws {
-    let unsupported = Data("""
-    { "error": { "code": 403, "status": "PERMISSION_DENIED",
-      "message": "UNSUPPORTED_CLIENT: this client is no longer supported" } }
-    """.utf8)
-    try expect(AntigravityQuotaParser.isMigrationSignal(unsupported),
-               "UNSUPPORTED_CLIENT must read as the migration verdict")
-    let ineligible = Data(#"{ "error": { "message": "IneligibleTierError" } }"#.utf8)
-    try expect(AntigravityQuotaParser.isMigrationSignal(ineligible),
-               "IneligibleTierError must read as the migration verdict")
-    let antigravity = Data(#"{ "error": { "message": "Please migrate to Antigravity." } }"#.utf8)
-    try expect(AntigravityQuotaParser.isMigrationSignal(antigravity),
-               "Antigravity migration copy must read as the verdict")
-    try expect(!AntigravityQuotaParser.isMigrationSignal(quotaFixture),
-               "a healthy quota payload must not trip the migration signal")
-}
-
 @main
 private enum GeminiParsingTestRunner {
     static func main() {
@@ -372,6 +393,10 @@ private enum GeminiParsingTestRunner {
             ("detection states", testDetectionStates),
             ("data root names and order", testDataRootNamesAndOrder),
             ("request text unwraps the USER_REQUEST envelope", testAntigravityRequestTextUnwrapsEnvelope),
+            ("quota summary parses the real payload", testQuotaSummaryParsesRealPayload),
+            ("user status prefers userTier over planName", testUserStatusPrefersUserTierOverPlanName),
+            ("quota degrades without inventing headroom", testQuotaDegradesWithoutInventingHeadroom),
+            ("quota tolerates shape variants", testQuotaToleratesShapeVariants),
             ("creds parse fields and email", testLoadCredsParsesFieldsAndEmail),
             ("needsRefresh honors skew", testNeedsRefreshHonorsSkew),
             ("refresh writeback rewrites atomically", testApplyRefreshRewritesAtomicallyAndPreservesEverythingElse),
@@ -379,10 +404,6 @@ private enum GeminiParsingTestRunner {
             ("client extraction regex", testClientExtractionRegex),
             ("client extraction from fixture file", testClientExtractionFromFixtureFile),
             ("client env override", testClientEnvOverride),
-            ("quota decodes buckets, lowest remaining wins", testQuotaDecodesBucketsAndPicksLowestRemaining),
-            ("quota empty and garbage", testQuotaEmptyAndGarbage),
-            ("loadCodeAssist parsing", testLoadCodeAssistParsing),
-            ("migration signal detection", testMigrationSignalDetection)
         ]
 
         do {

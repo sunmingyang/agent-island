@@ -11,10 +11,19 @@ enum IslandColor {
     /// #5AA8F0 — OpenAI sky blue. Codex logo + ring/bar fills.
     static let codex = Color(red: 90/255, green: 168/255, blue: 240/255)
 
-    /// Antigravity's mark is monochrome on Google's dark chrome; a cool
-    /// near-white keeps it distinct from Grok's silver and Cursor's warm
-    /// white while sitting calmly beside terracotta and sky blue.
-    static let antigravity = Color(red: 168/255, green: 199/255, blue: 250/255)
+    /// Google's four brand hues, official values. Antigravity's mark is a
+    /// sweep through all four, so unlike every other provider its identity
+    /// is a gradient rather than a single swatch — see `IslandGradient`.
+    static let googleBlue = Color(red: 66/255, green: 133/255, blue: 244/255)
+    static let googleGreen = Color(red: 52/255, green: 168/255, blue: 83/255)
+    static let googleYellow = Color(red: 251/255, green: 188/255, blue: 5/255)
+    static let googleRed = Color(red: 234/255, green: 67/255, blue: 53/255)
+
+    /// Antigravity's stand-in for the places a gradient cannot go — shadow
+    /// colours, chart series, anything typed `Color`. Google's own blue
+    /// rather than the pale periwinkle this used to be, which read as a
+    /// washed-out tint of nothing (owner review, 2026-08-09).
+    static let antigravity = googleBlue
 
     /// #D8DEE4 — xAI monochrome. Grok strip fill + settings dot; a cool
     /// near-white so it sits beside terracotta and sky blue without
@@ -54,6 +63,38 @@ enum IslandColor {
     /// #E5484D — approaching-limit critical tint. Saturated enough to read
     /// as "stop, you're cooked" without going full red-alert pure.
     static let alertRed = Color(red: 229/255, green: 72/255, blue: 77/255)
+}
+
+/// Provider identity as a colour *ramp* rather than a single swatch.
+///
+/// Four of the five providers own one colour, so their ramp is that colour
+/// twice and every call site can use the same gradient API. Antigravity is
+/// the exception: Google's mark sweeps blue → green → yellow → red, and
+/// painting it in one flat tint threw the brand away (owner review,
+/// 2026-08-09 — "它的那个弹窗不是淡蓝色，是那种也是彩色的").
+enum IslandGradient {
+    /// Blue → green → yellow → red, the order Antigravity's mark runs them.
+    static let google: [Color] = [
+        IslandColor.googleBlue,
+        IslandColor.googleGreen,
+        IslandColor.googleYellow,
+        IslandColor.googleRed,
+    ]
+
+    /// Closed loop for angular sweeps — without the repeated first stop an
+    /// AngularGradient hard-cuts from red back to blue at 0°.
+    static let googleWheel: [Color] = google + [IslandColor.googleBlue]
+
+    static func linear(_ stops: [Color],
+                       opacity: Double = 1,
+                       from start: UnitPoint = .topLeading,
+                       to end: UnitPoint = .bottomTrailing) -> LinearGradient {
+        LinearGradient(
+            colors: stops.map { $0.opacity(opacity) },
+            startPoint: start,
+            endPoint: end
+        )
+    }
 }
 
 /// Shared chrome for the floating card windows (report cards, turn alarms).

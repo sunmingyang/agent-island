@@ -22,7 +22,8 @@ struct SoloProviderBadge: View {
             if let image {
                 Image(nsImage: image)
                     .resizable()
-                    .renderingMode(.template)
+                    .renderingMode(provider.logoRendering)
+                    .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(color.opacity(0.95))
                     .frame(width: 30, height: 30)

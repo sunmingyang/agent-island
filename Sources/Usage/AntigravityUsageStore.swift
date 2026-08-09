@@ -21,7 +21,7 @@ final class AntigravityUsageStore: ObservableObject {
     let detection: AntigravityAuthDetection
 
     private var lastAttempt: Date?
-    private static let cacheKey = "AntigravityUsageStore.lastSnapshot.v1"
+    private static let cacheKey = "AntigravityUsageStore.lastSnapshot.v2"
     private static let cacheMaxAge: TimeInterval = 24 * 60 * 60
     private static let minAttemptGap: TimeInterval = 120
 
@@ -37,19 +37,23 @@ final class AntigravityUsageStore: ObservableObject {
                 detection = .signedIn
                 snapshot = AntigravityQuotaSnapshot(
                     buckets: [
-                        AntigravityModelBucket(
-                            modelId: "gemini-3-pro-preview",
+                        AntigravityQuotaBucket(
+                            bucketId: "gemini-weekly",
+                            groupLabel: "Gemini Models",
+                            window: "weekly",
                             usedPercent: 0.43,
-                            resetAt: now.addingTimeInterval(7 * 3600 + 24 * 60)
+                            resetAt: now.addingTimeInterval(4 * 24 * 3600)
                         ),
-                        AntigravityModelBucket(
-                            modelId: "gemini-3-flash-preview",
+                        AntigravityQuotaBucket(
+                            bucketId: "3p-weekly",
+                            groupLabel: "Claude and GPT models",
+                            window: "weekly",
                             usedPercent: 0.18,
-                            resetAt: now.addingTimeInterval(7 * 3600 + 24 * 60)
+                            resetAt: now.addingTimeInterval(4 * 24 * 3600)
                         ),
                     ],
-                    tierID: "standard-tier",
-                    tierLabel: "Paid"
+                    tierID: "free-tier",
+                    tierLabel: "Antigravity Starter Quota"
                 )
                 lastUpdated = now
             } else {
@@ -96,21 +100,13 @@ final class AntigravityUsageStore: ObservableObject {
             lastUpdated = Date()
             loadIdentity()
             persist(fresh)
-        case .reauthRequired:
-            statusCaption = L10n.tr("sign in again — run agy")
-        case .needsCLIInstall:
-            statusCaption = L10n.tr("needs a local gemini-cli install")
-        case .migratedToAntigravity:
-            // A verdict about the account, not a fetch error — drop any
-            // stale numbers so the strip doesn't imply a live quota.
-            snapshot = nil
-            statusCaption = L10n.tr("personal accounts moved to Antigravity — support coming in a later version")
-        case .unsupportedAuth:
-            snapshot = nil
-            statusCaption = L10n.tr("this sign-in method isn't supported yet")
-        case .quotaUnavailable:
-            snapshot = nil
-            statusCaption = L10n.tr("sessions monitored — quota reading not wired yet")
+        case .notRunning:
+            // Antigravity keeps its quota in-process; with it closed there is
+            // nothing to read anywhere on this machine. Keep the last good
+            // numbers and let the sync age say how old they are.
+            statusCaption = snapshot == nil
+                ? L10n.tr("start Antigravity to read quota")
+                : L10n.tr("Antigravity not running — last known")
         case .failed(let message):
             // Keep the last good numbers; the caption admits staleness.
             statusCaption = message
@@ -120,12 +116,21 @@ final class AntigravityUsageStore: ObservableObject {
         }
     }
 
+    /// The IDE roots write oauth_creds.json; the CLI keeps its token in the
+    /// keychain and writes no such file, so the email comes off the language
+    /// server instead. Reading the keychain would work too, but only by
+    /// asking for the secret itself — which raises the keychain dialog on
+    /// every refresh, for a hover-card caption.
     private func loadIdentity() {
-        guard let creds = AntigravityCredentials.loadCreds(from: AntigravityCredentials.credsURL()) else {
-            accountEmail = nil
+        if let creds = AntigravityCredentials.loadCreds(from: AntigravityCredentials.credsURL()) {
+            accountEmail = creds.email
             return
         }
-        accountEmail = creds.email
+        Task { [weak self] in
+            let email = await AntigravityUsageFetcher.accountEmail()
+            guard let self, let email else { return }
+            self.accountEmail = email
+        }
     }
 
     private func persist(_ fresh: AntigravityQuotaSnapshot) {

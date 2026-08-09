@@ -98,18 +98,22 @@ struct UsageView: View {
         let missing = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data", periodSeconds: nil)
         switch provider {
         case .antigravity:
-            let pro = antigravityStore.snapshot?.primaryPro
-            let flash = antigravityStore.snapshot?.secondaryFlash
+            // Two real pools — Gemini models and Claude/GPT models — so
+            // Antigravity fills both tiles rather than faking a second one.
+            // Each window comes off its own bucket; they are weekly, not the
+            // 24h this once hardcoded.
+            let leading = antigravityStore.snapshot?.primary
+            let trailing = antigravityStore.snapshot?.secondary
             return AppUsage(
                 fiveHour: WindowUsage(
-                    usedPercent: pro?.usedPercent ?? 0,
-                    resetAt: pro?.resetAt,
+                    usedPercent: leading?.usedPercent ?? 0,
+                    resetAt: leading?.resetAt,
                     error: antigravityStore.statusCaption,
-                    periodSeconds: 24 * 60 * 60
+                    periodSeconds: leading?.periodSeconds ?? AntigravityQuotaBucket.weekSeconds
                 ),
-                weekly: flash.map {
+                weekly: trailing.map {
                     WindowUsage(usedPercent: $0.usedPercent, resetAt: $0.resetAt,
-                                error: nil, periodSeconds: 24 * 60 * 60)
+                                error: nil, periodSeconds: $0.periodSeconds)
                 } ?? missing,
                 plan: antigravityStore.tierBadge?.lowercased()
             )

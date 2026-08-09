@@ -45,7 +45,7 @@ struct StatePreviewLogo: View {
                 ZStack(alignment: .bottomTrailing) {
                     if let image {
                         Image(nsImage: image)
-                            .renderingMode(.template)
+                            .renderingMode(provider.logoRendering)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .foregroundStyle(tint)
@@ -64,7 +64,7 @@ struct StatePreviewLogo: View {
                 .frame(width: 24, height: 22)
             } else if let image {
                 Image(nsImage: image)
-                    .renderingMode(.template)
+                    .renderingMode(provider.logoRendering)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(tint)

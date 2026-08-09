@@ -7,29 +7,32 @@ struct TurnAlarmProviderMark: View {
 
     @State private var glowPulse = false
     @State private var ringPulse = false
+    @State private var haloSpin = false
+
+    /// Antigravity's halo sweeps all four Google hues; every other provider
+    /// gets the same shape in its single colour.
+    private var isMulticolor: Bool { provider == .antigravity }
 
     var body: some View {
         ZStack {
-            Circle()
-                .fill(providerColor.opacity(glowPulse ? 0.12 : 0.20))
+            halo
                 .frame(width: 138, height: 138)
                 .blur(radius: glowPulse ? 28 : 18)
                 .scaleEffect(glowPulse ? 1.12 : 0.92)
 
             Circle()
-                .stroke(providerColor.opacity(glowPulse ? 0.10 : 0.28), lineWidth: 1)
+                .stroke(ringStyle(opacity: glowPulse ? 0.10 : 0.28), lineWidth: 1)
                 .frame(width: 124, height: 124)
                 .scaleEffect(glowPulse ? 1.16 : 0.82)
                 .opacity(glowPulse ? 0.32 : 0.90)
 
             Circle()
-                .stroke(providerColor.opacity(glowPulse ? 0.30 : 0.14), lineWidth: 0.75)
+                .stroke(ringStyle(opacity: glowPulse ? 0.30 : 0.14), lineWidth: 0.75)
                 .frame(width: 92, height: 92)
                 .scaleEffect(glowPulse ? 0.96 : 1.08)
 
             providerLogo
                 .frame(width: 76, height: 76)
-                .foregroundStyle(providerColor)
                 .scaleEffect(ringPulse ? 1.025 : 0.985)
                 .shadow(color: providerColor.opacity(glowPulse ? 0.86 : 0.48), radius: glowPulse ? 30 : 18)
         }
@@ -37,17 +40,51 @@ struct TurnAlarmProviderMark: View {
         .onAppear(perform: startAnimations)
     }
 
+    /// The colour wheel is built once and turned with `rotationEffect`, a GPU
+    /// transform. Animating the *stops* instead would re-rasterize the
+    /// gradient every frame — the same mistake that once made the island's
+    /// conic glow a per-frame CPU recolor (1.5.7 postmortem).
+    @ViewBuilder
+    private var halo: some View {
+        if isMulticolor {
+            Circle()
+                .fill(
+                    AngularGradient(
+                        colors: IslandGradient.googleWheel.map {
+                            $0.opacity(glowPulse ? 0.26 : 0.38)
+                        },
+                        center: .center
+                    )
+                )
+                .rotationEffect(.degrees(haloSpin ? 360 : 0))
+        } else {
+            Circle().fill(providerColor.opacity(glowPulse ? 0.12 : 0.20))
+        }
+    }
+
+    private func ringStyle(opacity: Double) -> AnyShapeStyle {
+        isMulticolor
+            ? AnyShapeStyle(AngularGradient(
+                colors: IslandGradient.googleWheel.map { $0.opacity(opacity * 2.2) },
+                center: .center
+              ))
+            : AnyShapeStyle(providerColor.opacity(opacity))
+    }
+
     @ViewBuilder
     private var providerLogo: some View {
         if let image = logoImage {
             Image(nsImage: image)
-                .renderingMode(.template)
+                .renderingMode(provider.logoRendering)
                 .resizable()
+                .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
+                .foregroundStyle(providerColor)
         } else {
             Image(systemName: provider == .claude ? "sparkle" : "circle.hexagongrid.fill")  // template fallback only
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+                .foregroundStyle(providerColor)
         }
     }
 
@@ -73,6 +110,11 @@ struct TurnAlarmProviderMark: View {
         withAnimation(.easeInOut(duration: 0.72).repeatForever(autoreverses: true)) {
             ringPulse = true
         }
+        guard isMulticolor else { return }
+        // Slow enough to read as drifting light rather than a spinner.
+        withAnimation(.linear(duration: 14).repeatForever(autoreverses: false)) {
+            haloSpin = true
+        }
     }
 }
 
@@ -81,6 +123,9 @@ struct TurnAlarmMetadata: View {
     let threadName: String
     let projectName: String?
     let providerColor: Color
+    /// The provider's full ramp — one stop repeated for single-colour
+    /// brands, all four Google hues for Antigravity.
+    let providerStops: [Color]
 
     var body: some View {
         HStack(spacing: 0) {
@@ -101,7 +146,9 @@ struct TurnAlarmMetadata: View {
             HStack(spacing: 7) {
                 if showsDot {
                     Circle()
-                        .fill(providerColor)
+                        .fill(IslandGradient.linear(providerStops))
+                        // .shadow has no ShapeStyle overload anywhere in the
+                        // SDK, so the halo stays a single representative hue.
                         .frame(width: 8, height: 8)
                         .shadow(color: providerColor.opacity(0.7), radius: 5)
                 }

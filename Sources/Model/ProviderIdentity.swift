@@ -24,6 +24,41 @@ extension TriggerTool {
 }
 
 extension AlertEngine.Provider {
+    /// Antigravity ships Google's four-colour gradient mark; every other
+    /// provider ships a silhouette that only shows up once tinted. Passing
+    /// `.original` also makes any `foregroundStyle` on that image a no-op,
+    /// which is the point — three separate views were repainting Google's
+    /// mark in one flat tint and erasing the brand (owner review,
+    /// 2026-08-09).
+    var logoRendering: Image.TemplateRenderingMode {
+        self == .antigravity ? .original : .template
+    }
+
+    /// The provider's colour ramp. Single-colour brands repeat their one
+    /// swatch so every consumer can render a gradient unconditionally
+    /// instead of branching on "is this the multicolour one".
+    var accentStops: [Color] {
+        self == .antigravity ? IslandGradient.google : [accent, accent]
+    }
+
+    func accentGradient(opacity: Double = 1,
+                        from start: UnitPoint = .topLeading,
+                        to end: UnitPoint = .bottomTrailing) -> LinearGradient {
+        IslandGradient.linear(accentStops, opacity: opacity, from: start, to: end)
+    }
+}
+
+extension DisplayProvider {
+    var brandStops: [Color] { alertProvider.accentStops }
+
+    func brandGradient(opacity: Double = 1,
+                       from start: UnitPoint = .topLeading,
+                       to end: UnitPoint = .bottomTrailing) -> LinearGradient {
+        IslandGradient.linear(brandStops, opacity: opacity, from: start, to: end)
+    }
+}
+
+extension AlertEngine.Provider {
     var displayName: String {
         switch self {
         case .claude: return "Claude Code"

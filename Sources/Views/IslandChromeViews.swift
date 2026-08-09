@@ -255,20 +255,24 @@ struct PeekPillOverlay: View {
         case .claude: return usageStore.claude.fiveHour
         case .codex: return usageStore.codex.fiveHour
         case .antigravity:
-            guard let bucket = antigravityStore.snapshot?.primaryPro
+            guard let bucket = antigravityStore.snapshot?.primary
                     ?? antigravityStore.snapshot?.buckets.first else {
                 return WindowUsage(
                     usedPercent: 0,
                     resetAt: nil,
                     error: antigravityStore.statusCaption,
-                    periodSeconds: 24 * 60 * 60
+                    periodSeconds: AntigravityQuotaBucket.weekSeconds
                 )
             }
             return WindowUsage(
                 usedPercent: bucket.usedPercent,
                 resetAt: bucket.resetAt,
+                // Antigravity pools are weekly, not daily — the 24h period
+                // hardcoded here was inherited from the Gemini Code Assist
+                // shape and made the pill's elapsed arc read four-fifths
+                // wrong.
                 error: antigravityStore.statusCaption,
-                periodSeconds: 24 * 60 * 60
+                periodSeconds: bucket.periodSeconds
             )
         case .grok:
             guard let snapshot = grokStore.snapshot else {

@@ -1,113 +1,157 @@
 import Foundation
 
-/// One `retrieveUserQuota` bucket, normalized to the app's used-percent
-/// vocabulary (the endpoint reports `remainingFraction`).
-struct AntigravityModelBucket: Codable, Equatable {
-    var modelId: String
+/// One quota bucket from `RetrieveUserQuotaSummary`, normalized to the app's
+/// used-percent vocabulary (the endpoint reports how much is *left*).
+///
+/// Antigravity pools by model family rather than by model: on a real account
+/// the summary returns exactly two buckets — `gemini-weekly` covering Gemini
+/// Flash and Pro, and `3p-weekly` covering Claude and GPT — so the old
+/// per-model Pro/Flash split this file used to carry never matches anything.
+/// Paid tiers are documented to add 5h windows, so `window` is kept and the
+/// count is never assumed.
+struct AntigravityQuotaBucket: Codable, Equatable {
+    var bucketId: String
+    /// Google's own group name, e.g. "Gemini Models".
+    var groupLabel: String
+    /// "weekly", "5h", … — nil when Google stops sending it.
+    var window: String?
     /// 0...1 consumed.
     var usedPercent: Double
     var resetAt: Date?
 
-    var isFlash: Bool { modelId.lowercased().contains("flash") }
-    var isPro: Bool {
-        let lowered = modelId.lowercased()
-        return lowered.contains("pro") && !lowered.contains("flash")
+    static let weekSeconds: TimeInterval = 7 * 24 * 60 * 60
+
+    /// How long this bucket's window runs, for the island pill's elapsed
+    /// arc. Every bucket a real account returns is `weekly`; paid tiers are
+    /// documented to add a 5h window, so that is handled rather than assumed
+    /// away, and anything unrecognized falls back to the weekly reality.
+    var periodSeconds: TimeInterval {
+        switch (window ?? "").lowercased() {
+        case "5h", "five_hour", "fivehour": return 5 * 60 * 60
+        case "daily", "1d": return 24 * 60 * 60
+        default: return Self.weekSeconds
+        }
+    }
+
+    /// Compact name for the island strip. Known pools get a short hand-set
+    /// label; anything new falls back to Google's group name so a bucket we
+    /// have never seen still reads as itself instead of a raw id.
+    var shortLabel: String {
+        let family = bucketId.split(separator: "-").first.map(String.init) ?? bucketId
+        switch family.lowercased() {
+        case "gemini": return "Gemini"
+        case "3p": return "Claude·GPT"
+        default:
+            let trimmed = groupLabel
+                .replacingOccurrences(of: " models", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: .whitespaces)
+            return trimmed.isEmpty ? family : trimmed
+        }
     }
 }
 
-/// What the island renders for Gemini: the Pro-family bucket closest to its
-/// limit as the main bar, Flash as the secondary, plus identity garnish.
-/// Codable so the last good values survive a relaunch via the cache.
+/// What the island renders for Antigravity: whichever pool is closest to its
+/// limit leads, the next one trails. Codable so the last good values survive
+/// a relaunch — and, more importantly, survive Antigravity not running, which
+/// is the only time its quota is unreadable at all.
 struct AntigravityQuotaSnapshot: Codable, Equatable {
-    var buckets: [AntigravityModelBucket]
-    /// Raw tier id from loadCodeAssist ("free-tier", "standard-tier"…).
+    var buckets: [AntigravityQuotaBucket]
+    /// Raw tier id from `GetUserStatus.userTier` ("free-tier", …).
     var tierID: String?
-    /// Display label — paidTier.name when Google provides one, else a
-    /// mapping of the tier id.
+    /// Google's own tier name, shown verbatim.
     var tierLabel: String?
+    /// Google's explanation of how the shared pools burn down. Displayed as
+    /// given rather than paraphrased — the rules are theirs, not ours.
+    var note: String?
 
-    /// Pro family, lowest remaining (= highest used) wins the main bar.
-    var primaryPro: AntigravityModelBucket? {
-        buckets.filter(\.isPro).max { $0.usedPercent < $1.usedPercent }
+    /// Pools share nothing, so there is no total to sum. The one closest to
+    /// running out is the one worth leading with.
+    var primary: AntigravityQuotaBucket? {
+        buckets.max { $0.usedPercent < $1.usedPercent }
     }
 
-    /// Flash family, same lowest-remaining rule, for the secondary caption.
-    var secondaryFlash: AntigravityModelBucket? {
-        buckets.filter(\.isFlash).max { $0.usedPercent < $1.usedPercent }
+    var secondary: AntigravityQuotaBucket? {
+        let rest = buckets.sorted { $0.usedPercent > $1.usedPercent }.dropFirst()
+        return rest.first
     }
 }
 
-/// Decoders for the two `cloudcode-pa.googleapis.com/v1internal` payloads.
+/// Decoders for the local language server's JSON replies.
 /// JSONSerialization-shaped like the other fetchers — absence is data here
 /// too (an account can legitimately report zero buckets).
 enum AntigravityQuotaParser {
-    struct CodeAssistProfile: Equatable {
+    struct UserProfile: Equatable {
+        var email: String?
         var tierID: String?
         var tierLabel: String?
-        var projectID: String?
     }
 
-    /// `POST v1internal:loadCodeAssist` — currentTier.id + the quota
-    /// project. Google's own paid-tier name wins the label when present.
-    static func parseLoadCodeAssist(_ data: Data) -> CodeAssistProfile? {
+    /// `RetrieveUserQuotaSummary` → `{response:{groups:[{displayName,
+    /// buckets:[{bucketId, window, remainingFraction, resetTime}]}],
+    /// description}}`.
+    ///
+    /// The envelope key is not stable across versions (`response`, `summary`,
+    /// or the groups sitting at the root), so all three are accepted.
+    static func parseQuotaSummary(_ data: Data) -> (buckets: [AntigravityQuotaBucket], note: String?)? {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
-        let currentTier = root["currentTier"] as? [String: Any]
-        let tierID = nonEmpty(currentTier?["id"])
-        let paidTier = root["paidTier"] as? [String: Any]
-        let label = nonEmpty(paidTier?["name"]) ?? tierLabel(forTierID: tierID)
-        return CodeAssistProfile(
-            tierID: tierID,
-            tierLabel: label,
-            projectID: nonEmpty(root["cloudaicompanionProject"])
+        let envelope = (root["response"] as? [String: Any])
+            ?? (root["summary"] as? [String: Any])
+            ?? root
+        guard let groups = envelope["groups"] as? [[String: Any]] else { return ([], nil) }
+
+        var out: [AntigravityQuotaBucket] = []
+        for group in groups {
+            let groupLabel = nonEmpty(group["displayName"]) ?? ""
+            guard let rows = group["buckets"] as? [[String: Any]] else { continue }
+            for row in rows {
+                // A disabled bucket is one the account cannot use at all;
+                // rendering it as "100% left" would invent headroom.
+                if let disabled = row["disabled"] as? Bool, disabled { continue }
+                guard let bucketId = nonEmpty(row["bucketId"]) else { continue }
+                guard let remaining = fraction(row["remainingFraction"]) else { continue }
+                out.append(AntigravityQuotaBucket(
+                    bucketId: bucketId,
+                    groupLabel: groupLabel,
+                    window: nonEmpty(row["window"]),
+                    usedPercent: min(1, max(0, 1 - remaining)),
+                    resetAt: timestamp(row["resetTime"])
+                ))
+            }
+        }
+        return (out, nonEmpty(envelope["description"]))
+    }
+
+    /// `GetUserStatus` → identity and tier.
+    ///
+    /// The tier comes from `userTier.name`, never `planStatus.planInfo
+    /// .planName`: on the owner's free account those read "Antigravity
+    /// Starter Quota" and "Pro" respectively, and planName is the wrong one
+    /// (a field inherited from Windsurf). Shown verbatim — Google keeps
+    /// minting tier names and mapping them to an enum would only go stale.
+    static func parseUserStatus(_ data: Data) -> UserProfile? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        let status = (root["userStatus"] as? [String: Any]) ?? root
+        let tier = status["userTier"] as? [String: Any]
+        return UserProfile(
+            email: nonEmpty(status["email"]),
+            tierID: nonEmpty(tier?["id"]),
+            tierLabel: nonEmpty(tier?["name"])
         )
     }
 
-    /// `POST v1internal:retrieveUserQuota` — buckets[{modelId,
-    /// remainingFraction, resetTime}]. An empty/missing buckets array is a
-    /// valid answer (fresh account), distinct from a decode failure.
-    static func parseQuota(_ data: Data) -> [AntigravityModelBucket]? {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-        guard let rows = root["buckets"] as? [[String: Any]] else { return [] }
-        return rows.compactMap { row in
-            guard let modelId = nonEmpty(row["modelId"]) else { return nil }
-            let remaining = number(row["remainingFraction"]) ?? 1
-            return AntigravityModelBucket(
-                modelId: modelId,
-                usedPercent: min(1, max(0, 1 - remaining)),
-                resetAt: timestamp(row["resetTime"])
-            )
-        }
-    }
-
-    /// Google's June-2026 consumer shutdown answers with one of these
-    /// instead of data. It's a account-state verdict, not an error.
-    static func isMigrationSignal(_ data: Data) -> Bool {
-        guard let text = String(data: data, encoding: .utf8) else { return false }
-        let lowered = text.lowercased()
-        return lowered.contains("unsupported_client")
-            || lowered.contains("ineligibletier")
-            || lowered.contains("antigravity")
-    }
-
-    static func tierLabel(forTierID tierID: String?) -> String? {
-        switch tierID {
-        case "standard-tier", "g1-pro-tier": return "Paid"
-        case "enterprise-tier": return "Enterprise"
-        case "free-tier": return "Free"
-        case "legacy-tier": return "Legacy"
-        default:
-            // Unknown paid tiers (Google keeps minting names — ultra, AI Pro
-            // bundles) still deserve a badge: prettify the raw id rather than
-            // hiding a subscription the user pays for. "some-new-tier" →
-            // "Some New".
-            guard let tierID, tierID.hasSuffix("-tier") else { return nil }
-            let words = tierID.dropLast(5).split(separator: "-").map { $0.capitalized }
-            return words.isEmpty ? nil : words.joined(separator: " ")
-        }
+    /// `remainingFraction` arrives as a plain 0...1 number, but the same
+    /// field has been seen oneof-expanded into an object by other Connect
+    /// clients, so both are accepted. Anything else is a missing value, not
+    /// a full bucket — returning nil drops the row rather than claiming
+    /// 100% headroom.
+    static func fraction(_ value: Any?) -> Double? {
+        if let direct = number(value) { return direct }
+        guard let wrapper = value as? [String: Any] else { return nil }
+        return number(wrapper["value"]) ?? number(wrapper["remainingFraction"])
     }
 
     private static func nonEmpty(_ value: Any?) -> String? {
@@ -123,7 +167,10 @@ enum AntigravityQuotaParser {
     }
 
     private static func timestamp(_ value: Any?) -> Date? {
-        guard let raw = value as? String else { return nil }
-        return GrokTimestamp.parse(raw)
+        if let raw = value as? String { return GrokTimestamp.parse(raw) }
+        if let seconds = number(value) {
+            return Date(timeIntervalSince1970: seconds > 1e11 ? seconds / 1000 : seconds)
+        }
+        return nil
     }
 }

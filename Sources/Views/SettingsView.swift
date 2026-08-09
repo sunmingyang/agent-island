@@ -1002,15 +1002,20 @@ struct SettingsView: View {
         // across the row and widens the rule a hair.
         .background {
             LinearGradient(
-                colors: [provider.brandColor.opacity(isHovered ? 0.05 : 0), .clear],
+                colors: provider.brandStops.map { $0.opacity(isHovered ? 0.05 : 0) } + [.clear],
                 startPoint: .leading, endPoint: .trailing
             )
         }
         .overlay(alignment: .leading) {
+            // The rule IS the row's identity, so it carries the provider's
+            // full ramp: one hue top-to-bottom for four of them, Google's
+            // blue→green→yellow→red for Antigravity.
             RoundedRectangle(cornerRadius: 1)
-                .fill(provider.brandColor.opacity(
-                    visibility.isEnabled(provider) ? (isHovered ? 1 : 0.85)
-                                                   : (isHovered ? 0.45 : 0.22)))
+                .fill(provider.brandGradient(
+                    opacity: visibility.isEnabled(provider) ? (isHovered ? 1 : 0.85)
+                                                            : (isHovered ? 0.45 : 0.22),
+                    from: .top, to: .bottom
+                ))
                 .frame(width: isHovered ? 3 : 2)
                 .padding(.vertical, 6)
         }
@@ -1183,12 +1188,11 @@ struct SettingsView: View {
         var parts: [String] = [guestSyncCaption(antigravityStore.lastUpdated)]
         if let caption = antigravityStore.statusCaption {
             parts.append("⚠ \(caption)")
-        } else if let snapshot = antigravityStore.snapshot {
-            if let pro = snapshot.primaryPro {
-                parts.append(L10n.tr("pro %d%%", Int((pro.usedPercent * 100).rounded())))
-            }
-            if let flash = snapshot.secondaryFlash {
-                parts.append(L10n.tr("flash %d%%", Int((flash.usedPercent * 100).rounded())))
+        }
+        // Pools are independent, so both are named rather than summed.
+        if let snapshot = antigravityStore.snapshot {
+            for bucket in [snapshot.primary, snapshot.secondary].compactMap({ $0 }) {
+                parts.append("\(bucket.shortLabel) \(Int((bucket.usedPercent * 100).rounded()))%")
             }
         }
         return parts.joined(separator: " · ")

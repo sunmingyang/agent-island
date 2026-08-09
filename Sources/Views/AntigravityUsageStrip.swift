@@ -6,7 +6,7 @@ struct AntigravityUsageStrip: View {
     @ObservedObject private var quotaMode = QuotaDisplayModeStore.shared
     @State private var hovered = false
 
-    private static let quotaURL = URL(string: "https://developers.google.com/gemini-code-assist/resources/quotas")
+    private static let quotaURL = URL(string: "https://antigravity.google")
 
     var body: some View {
         HStack(spacing: 10) {
@@ -22,8 +22,8 @@ struct AntigravityUsageStrip: View {
                 }
             }
 
-            if let bucket = store.snapshot?.primaryPro {
-                Text(L10n.tr("Pro"))
+            if let bucket = store.snapshot?.primary {
+                Text(bucket.shortLabel)
                     .font(Typography.micro)
                     .foregroundStyle(.white.opacity(0.40))
                 let value = quotaMode.displayValue(usedPercent: bucket.usedPercent)
@@ -48,9 +48,9 @@ struct AntigravityUsageStrip: View {
 
             Spacer(minLength: 8)
 
-            if let flash = store.snapshot?.secondaryFlash {
-                let value = quotaMode.displayValue(usedPercent: flash.usedPercent)
-                Text(L10n.tr("flash %d%%", Int(value.rounded())))
+            if let other = store.snapshot?.secondary {
+                let value = quotaMode.displayValue(usedPercent: other.usedPercent)
+                Text("\(other.shortLabel) \(Int(value.rounded()))%")
                     .font(Typography.label)
                     .foregroundStyle(.white.opacity(0.50))
                     .lineLimit(1)
@@ -79,7 +79,7 @@ struct AntigravityUsageStrip: View {
         .help(detailTooltip)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
-        .accessibilityHint(L10n.tr("Open Gemini quota details"))
+        .accessibilityHint(L10n.tr("Open Antigravity quota details"))
         .zIndex(hovered ? 20 : 0)
         .animation(.easeOut(duration: 0.12), value: hovered)
     }
@@ -110,14 +110,15 @@ struct AntigravityUsageStrip: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(.white.opacity(0.07))
                 Capsule()
-                    .fill(IslandColor.antigravity.opacity(0.85))
+                    .fill(IslandGradient.linear(IslandGradient.google, opacity: 0.9,
+                                                from: .leading, to: .trailing))
                     .frame(width: max(0, geo.size.width * min(1, max(0, fraction))))
             }
         }
         .frame(width: 132, height: 5)
     }
 
-    private func caption(for bucket: AntigravityModelBucket) -> String {
+    private func caption(for bucket: AntigravityQuotaBucket) -> String {
         if let status = store.statusCaption { return status }
         guard let resetAt = bucket.resetAt,
               resetAt.timeIntervalSinceNow > 0 else { return "" }
@@ -125,13 +126,14 @@ struct AntigravityUsageStrip: View {
     }
 
     private var detailTooltip: String {
-        var lines = [L10n.tr("Gemini quota by model")]
+        var lines = [L10n.tr("Antigravity quota by pool")]
         if let email = store.accountEmail { lines.append(email) }
         if let status = store.statusCaption { lines.append("⚠ \(status)") }
-        let buckets = store.snapshot?.buckets.sorted { $0.modelId < $1.modelId } ?? []
+        if let note = store.snapshot?.note { lines.append(note) }
+        let buckets = store.snapshot?.buckets.sorted { $0.bucketId < $1.bucketId } ?? []
         for bucket in buckets {
             let value = Int(quotaMode.displayValue(usedPercent: bucket.usedPercent).rounded())
-            var line = "\(bucket.modelId): \(value)%"
+            var line = "\(bucket.groupLabel): \(value)%"
             if let resetAt = bucket.resetAt {
                 line += " · \(L10n.tr("resets in %@", Duration.compact(max(0, resetAt.timeIntervalSinceNow))))"
             }
@@ -142,10 +144,10 @@ struct AntigravityUsageStrip: View {
     }
 
     private var accessibilitySummary: String {
-        guard let bucket = store.snapshot?.primaryPro else {
-            return store.statusCaption ?? L10n.tr("Gemini quota")
+        guard let bucket = store.snapshot?.primary else {
+            return store.statusCaption ?? L10n.tr("Antigravity quota")
         }
         let percent = Int((bucket.usedPercent * 100).rounded())
-        return L10n.tr("%@: %d percent used", L10n.tr("Gemini Pro quota"), percent)
+        return L10n.tr("%@: %d percent used", bucket.groupLabel, percent)
     }
 }

@@ -51,7 +51,7 @@ struct TurnAlarmView: View {
 
                     Text(waitingTitle)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(providerColor)
+                        .foregroundStyle(provider.accentGradient(from: .leading, to: .trailing))
                         .lineLimit(1)
 
                     Text(detailText)
@@ -67,7 +67,8 @@ struct TurnAlarmView: View {
                         providerName: providerName,
                         threadName: threadName,
                         projectName: projectName,
-                        providerColor: providerColor
+                        providerColor: providerColor,
+                        providerStops: providerStops
                     )
                         .padding(.bottom, 22)
                 }
@@ -130,11 +131,8 @@ struct TurnAlarmView: View {
         ZStack {
             CardWindow.base
             RadialGradient(
-                colors: [
-                    providerColor.opacity(glowPulse ? 0.34 : 0.20),
-                    providerColor.opacity(glowPulse ? 0.11 : 0.05),
-                    .clear
-                ],
+                colors: providerStops.map { $0.opacity(glowPulse ? 0.30 : 0.18) }
+                    + [providerColor.opacity(glowPulse ? 0.09 : 0.04), .clear],
                 center: UnitPoint(x: 0.5, y: 0.15),
                 startRadius: 16,
                 endRadius: glowPulse ? 285 : 220
@@ -143,11 +141,8 @@ struct TurnAlarmView: View {
                 Rectangle()
                     .fill(
                         LinearGradient(
-                            colors: [
-                                providerColor.opacity(glowPulse ? 0.28 : 0.15),
-                                providerColor.opacity(0.02),
-                                .clear
-                            ],
+                            colors: providerStops.map { $0.opacity(glowPulse ? 0.24 : 0.13) }
+                                + [providerColor.opacity(0.02), .clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -168,11 +163,18 @@ struct TurnAlarmView: View {
         provider.accent
     }
 
+    /// Antigravity's four Google hues; one repeated swatch for everyone else.
+    private var providerStops: [Color] {
+        provider.accentStops
+    }
+
     private var buttonGradient: LinearGradient {
         LinearGradient(
-            colors: [providerColor.opacity(0.96), providerColor.opacity(0.72)],
-            startPoint: .top,
-            endPoint: .bottom
+            colors: providerStops.count > 2
+                ? providerStops.map { $0.opacity(0.88) }
+                : [providerColor.opacity(0.96), providerColor.opacity(0.72)],
+            startPoint: providerStops.count > 2 ? .leading : .top,
+            endPoint: providerStops.count > 2 ? .trailing : .bottom
         )
     }
 
