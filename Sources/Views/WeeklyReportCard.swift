@@ -395,17 +395,16 @@ struct WeeklyReportCard: View {
 
 // MARK: - v3 shared sections (weekly + monthly)
 
-/// Brand mark + wordmark left, period right. The mark rides the tile, not
-/// the app icon: the icns is a near-black plate that vanished into the
-/// card's near-black coat (owner screenshot, 2026-08-09 — "上面那个logo
-/// 有问题").
+/// Brand mark + wordmark left, period right. The bare transparent mark —
+/// neither the app icon (a near-black plate that vanished into the card's
+/// near-black coat) nor the boxed tile (owner review ×2, 2026-08-09).
 struct ReportCardHeader: View {
     let kind: String        // "WEEKLY" / "MONTHLY"
     let periodText: String
 
     var body: some View {
         HStack(alignment: .center, spacing: 9) {
-            BrandMarkTile(side: 22, corner: 6)
+            BrandMark(side: 22)
             (Text("AGENT ISLAND ")
                 .foregroundColor(.white.opacity(0.88))
              + Text(kind)

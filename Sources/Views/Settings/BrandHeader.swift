@@ -57,9 +57,8 @@ struct BrandHeader: View {
     }
 
     private var mark: some View {
-        // The lifted tile keeps the five-blade mark legible at this size
-        // (owner report, 2026-08-09); BrandMarkTile handles the missing-
-        // resource case by showing the bare tile.
-        BrandMarkTile(side: 30, corner: 7)
+        // Bare transparent mark — the boxed tile read as an app icon
+        // (owner review, 2026-08-09).
+        BrandMark(side: 30)
     }
 }
