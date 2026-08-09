@@ -91,16 +91,16 @@ public sealed class CostStore : INotifyPropertyChanged
         // and committed together so a slow scan never blocks a fast one twice.
         var claudeTask = Task.Run(() => CostSummarizer.Summarize(ClaudeLogReader.Scan(lookback), now));
         var codexTask = Task.Run(() => CostSummarizer.Summarize(CodexLogReader.Scan(lookback), now));
-        var geminiTask = Task.Run(() => CostSummarizer.Summarize(GeminiLogReader.Scan(lookback), now));
+        var antigravityTask = Task.Run(() => CostSummarizer.Summarize(AntigravityLogReader.Scan(lookback), now));
         var grokTask = Task.Run(() => CostSummarizer.Summarize(GrokLogReader.Scan(lookback), now));
         var cursorTask = Task.Run(() => CostSummarizer.Summarize(CursorLogReader.Scan(lookback), now));
-        _ = Task.WhenAll(claudeTask, codexTask, geminiTask, grokTask, cursorTask).ContinueWith(_ =>
+        _ = Task.WhenAll(claudeTask, codexTask, antigravityTask, grokTask, cursorTask).ContinueWith(_ =>
         {
             dispatcher.BeginInvoke(() =>
             {
                 if (claudeTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Claude, claudeTask.Result);
                 if (codexTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Codex, codexTask.Result);
-                if (geminiTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Gemini, geminiTask.Result);
+                if (antigravityTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Antigravity, antigravityTask.Result);
                 if (grokTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Grok, grokTask.Result);
                 if (cursorTask.IsCompletedSuccessfully) SetSummary(DisplayProvider.Cursor, cursorTask.Result);
                 LastUpdated = DateTimeOffset.Now;

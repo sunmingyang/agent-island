@@ -167,7 +167,7 @@ public sealed class UsageStore : INotifyPropertyChanged
         // no-op when the provider is undetected or when kicked again inside
         // their own attempt floors.
         GrokUsageStore.Shared.KickRefresh();
-        GeminiUsageStore.Shared.KickRefresh();
+        AntigravityUsageStore.Shared.KickRefresh();
         CursorUsageStore.Shared.KickRefresh();
         _refreshCts?.Cancel();
         var cts = new CancellationTokenSource();

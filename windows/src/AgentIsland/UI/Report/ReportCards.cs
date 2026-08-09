@@ -32,10 +32,7 @@ public static class ReportCards
     public const double CardHeight = 560;
 
     private static readonly Color Base = Color.FromRgb(0x0D, 0x0F, 0x13);
-    private static readonly Color BrandTeal = Color.FromRgb(0x20, 0xC0, 0xB0);
-    private static readonly Color BrandTealLight = Color.FromRgb(0x7D, 0xF0, 0xE3);
     private static readonly Color LiveTeal = Color.FromRgb(0x3D, 0xD6, 0x8C);
-    private static readonly Color RankGold = Color.FromRgb(0xE3, 0xB3, 0x4F);
 
     public static FrameworkElement Weekly(WeeklyReportData data, bool rounded = true)
     {
@@ -46,7 +43,7 @@ public static class ReportCards
             (FaceoffStage(data.Providers, zh), 12),
             (WeekBars(data, zh), 14),
             (ModelTable(data.TopModels, zh), 14));
-        return Card(body, RankFooter(data.Rank, zh), rounded);
+        return Card(body, rounded);
     }
 
     public static FrameworkElement Monthly(MonthlyReportData data, bool rounded = true)
@@ -57,7 +54,7 @@ public static class ReportCards
             (Hero(Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, zh), 14),
             (FaceoffStage(data.Providers, zh), 16),
             (ModelTable(data.TopModels, zh), 18));
-        return Card(body, RankFooter(data.Rank, zh), rounded);
+        return Card(body, rounded);
     }
 
     /// Sections interleaved with star-sized spacer rows carrying a minimum
@@ -87,7 +84,7 @@ public static class ReportCards
 
     // MARK: - Scaffold
 
-    private static FrameworkElement Card(UIElement body, UIElement footer, bool rounded)
+    private static FrameworkElement Card(UIElement body, bool rounded)
     {
         var radius = rounded ? 26.0 : 0.0;
         var root = new Grid { Width = CardWidth, Height = CardHeight };
@@ -104,12 +101,8 @@ public static class ReportCards
 
         var content = new Grid { Margin = new Thickness(28) };
         content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(body, 0);
-        Grid.SetRow(footer, 1);
-        ((FrameworkElement)footer).Margin = new Thickness(0, 10, 0, 0);
         content.Children.Add(body);
-        content.Children.Add(footer);
         root.Children.Add(content);
 
         root.Clip = new RectangleGeometry(new Rect(0, 0, CardWidth, CardHeight), radius, radius);
@@ -133,37 +126,25 @@ public static class ReportCards
     {
         var row = new DockPanel { LastChildFill = false };
         var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        // v3: the APP ICON joins the wordmark. macOS drops in its plated
-        // applicationIcon; the Windows .ico is the bare mark, so the plate
-        // (rounded dark square + hairline) is drawn here around it.
-        var plate = new Border
-        {
-            Width = 22,
-            Height = 22,
-            CornerRadius = new CornerRadius(5.5),
-            Background = IslandColors.Brush(Color.FromRgb(0x15, 0x17, 0x1C)),
-            BorderBrush = IslandColors.Brush(IslandColors.White(0.10)),
-            BorderThickness = new Thickness(0.5),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 9, 0),
-        };
+        // v4: the BARE transparent five-blade mark — neither a plate nor
+        // the app icon (owner review ×2, 2026-08-09). The small-optimized
+        // variant keeps the blades separable at 22px.
         try
         {
             var logo = new Image
             {
-                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/agentisland_logo.png")),
-                Width = 15,
-                Height = 15,
-                HorizontalAlignment = HorizontalAlignment.Center,
+                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/agentisland_logo_small.png")),
+                Width = 22,
+                Height = 22,
                 VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 9, 0),
             };
             RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
-            plate.Child = logo;
+            brand.Children.Add(logo);
         }
         catch
         {
         }
-        brand.Children.Add(plate);
         brand.Children.Add(new TextBlock
         {
             Text = Track("AGENT ISLAND"),
@@ -179,7 +160,7 @@ public static class ReportCards
             FontFamily = IslandFonts.Ui,
             FontSize = 11,
             FontWeight = FontWeights.ExtraBold,
-            Foreground = IslandColors.Brush(BrandTeal),
+            Foreground = IslandColors.Brush(Colors.White),
             VerticalAlignment = VerticalAlignment.Center,
         });
         DockPanel.SetDock(brand, Dock.Left);
@@ -188,9 +169,9 @@ public static class ReportCards
         {
             Text = rangeText,
             FontFamily = IslandFonts.Ui,
-            FontSize = 10.5,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.42)),
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            Foreground = IslandColors.Brush(Colors.White),
             VerticalAlignment = VerticalAlignment.Center,
         });
         DockPanel.SetDock(range, Dock.Right);
@@ -248,7 +229,7 @@ public static class ReportCards
                 FontFamily = IslandFonts.Ui,
                 FontSize = 12.5,
                 FontWeight = FontWeights.ExtraBold,
-                Foreground = IslandColors.Brush(BrandTeal),
+                Foreground = IslandColors.Brush(Colors.White),
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Margin = new Thickness(12, 0, 0, 7),
             }));
@@ -595,7 +576,7 @@ public static class ReportCards
                 FontFamily = IslandFonts.Ui,
                 FontSize = 9,
                 FontWeight = FontWeights.ExtraBold,
-                Foreground = IslandColors.Brush(BrandTeal),
+                Foreground = IslandColors.Brush(Colors.White),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 5),
             }));
@@ -603,7 +584,7 @@ public static class ReportCards
             {
                 Height = Math.Max(5, 58.0 * tokens / peak),
                 CornerRadius = new CornerRadius(4),
-                Background = IslandColors.Brush(isPeak ? BrandTeal : IslandColors.White(tokens > 0 ? 0.16 : 0.07)),
+                Background = IslandColors.Brush(isPeak ? Colors.White : IslandColors.White(tokens > 0 ? 0.16 : 0.07)),
             });
             cell.Children.Add(new TextBlock
             {
@@ -611,7 +592,7 @@ public static class ReportCards
                 FontFamily = IslandFonts.Ui,
                 FontSize = 9.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = IslandColors.Brush(isPeak ? BrandTeal : IslandColors.White(0.32)),
+                Foreground = IslandColors.Brush(isPeak ? Colors.White : IslandColors.White(0.32)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 5, 0, 0),
             });
@@ -780,63 +761,4 @@ public static class ReportCards
         };
     }
 
-    // MARK: - Rank footer
-
-    /// The v3 rank block — bottom of both cards, centered. Line one: the
-    /// lifetime total as one quiet 12pt caption. Line two: the
-    /// congratulation in achievement gold with the rank name oversized
-    /// (23px zh / 19px en heavy). No plate, no divider (owner: 金框很丑).
-    private static UIElement RankFooter(RankInfo? rank, bool zh)
-    {
-        var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-        if (rank is null) return stack;
-
-        stack.Children.Add(Numeric(new TextBlock
-        {
-            Text = Localization.L10n.TrFormat(
-                "lifetime {0} tokens", ReportFormat.CompactString(rank.LifetimeTokens, zh)),
-            FontFamily = IslandFonts.Ui,
-            FontSize = 12,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.62)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-        }));
-
-        var congrats = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Margin = new Thickness(0, 7, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        var gold = IslandColors.Brush(RankGold);
-        var nameSize = zh ? 23.0 : 19.0;
-        void Add(string text, double size, FontWeight weight, double bottomPad = 0)
-        {
-            congrats.Children.Add(new TextBlock
-            {
-                Text = text,
-                FontFamily = IslandFonts.Ui,
-                FontSize = size,
-                FontWeight = weight,
-                Foreground = gold,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                LineHeight = size + 3,
-                LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
-                Margin = new Thickness(0, 0, 0, bottomPad),
-            });
-        }
-        Add(rank.TierEmoji + " " + Localization.L10n.Tr("Congrats, you've reached "), 14, FontWeights.ExtraBold, 2);
-        Add(rank.TierName, nameSize, FontWeights.Black);
-        Add(Localization.L10n.Tr(" rank"), 14, FontWeights.ExtraBold, 2);
-        // Overflow guard for long tier names ("Legendary Navigator").
-        stack.Children.Add(new Viewbox
-        {
-            Child = congrats,
-            Stretch = Stretch.Uniform,
-            StretchDirection = StretchDirection.DownOnly,
-            MaxWidth = CardWidth - 60,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-        return stack;
-    }
 }

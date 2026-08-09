@@ -164,14 +164,14 @@ public sealed class SettingsWindow : Window
         // stale until the next tab switch.
         UsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
         ProviderVisibilityStore.Shared.PropertyChanged += OnProviderStoreChanged;
-        GeminiUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
+        AntigravityUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
         GrokUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
         CursorUsageStore.Shared.PropertyChanged += OnProviderStoreChanged;
         Closed += (_, _) =>
         {
             UsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
             ProviderVisibilityStore.Shared.PropertyChanged -= OnProviderStoreChanged;
-            GeminiUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
+            AntigravityUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
             GrokUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
             CursorUsageStore.Shared.PropertyChanged -= OnProviderStoreChanged;
         };
@@ -1183,8 +1183,8 @@ public sealed class SettingsWindow : Window
     {
         switch (provider)
         {
-            case DisplayProvider.Gemini:
-                GeminiUsageStore.Shared.KickRefresh();
+            case DisplayProvider.Antigravity:
+                AntigravityUsageStore.Shared.KickRefresh();
                 break;
             case DisplayProvider.Grok:
                 GrokUsageStore.Shared.KickRefresh();
@@ -1201,7 +1201,7 @@ public sealed class SettingsWindow : Window
     {
         DisplayProvider.Claude => ClaudeStatus(),
         DisplayProvider.Codex => ProviderSubtitle(UsageStore.Shared.Codex),
-        DisplayProvider.Gemini => GeminiStatus(),
+        DisplayProvider.Antigravity => AntigravityStatus(),
         DisplayProvider.Grok => GrokStatus(),
         DisplayProvider.Cursor => CursorStatus(),
         _ => string.Empty,
@@ -1216,8 +1216,8 @@ public sealed class SettingsWindow : Window
             DisplayProvider.Codex => UsageStore.Shared.Codex.Plan?.ToUpperInvariant(),
             // A badge for a provider with no login on this machine would be a
             // leftover from a cached snapshot, not a fact about this machine.
-            DisplayProvider.Gemini => GeminiUsageStore.Shared.UnsupportedAuthType?.ToUpperInvariant()
-                ?? (visibility.GeminiDetected ? GeminiUsageStore.Shared.TierBadge : null),
+            DisplayProvider.Antigravity =>
+                visibility.AntigravityDetected ? AntigravityUsageStore.Shared.TierBadge : null,
             DisplayProvider.Grok => visibility.GrokDetected ? GrokUsageStore.Shared.AuthModeBadge : null,
             DisplayProvider.Cursor => visibility.CursorDetected ? CursorUsageStore.Shared.PlanBadge : null,
             _ => null,
@@ -1261,37 +1261,24 @@ public sealed class SettingsWindow : Window
     /// the quota numbers. The account email deliberately stays out of the line:
     /// a row leading with a bare email read as a glitch (macOS owner report,
     /// 2026-08-08); identity lives in the usage-strip hover instead.
-    private static string GeminiStatus()
+    private static string AntigravityStatus()
     {
-        var store = GeminiUsageStore.Shared;
-        // An api-key / vertex-ai login IS detected but can never be read, so
-        // saying "not detected" would send people hunting for a broken CLI.
-        if (store.UnsupportedAuthType is { } authType)
+        var store = AntigravityUsageStore.Shared;
+        if (!ProviderVisibilityStore.Shared.AntigravityDetected)
         {
-            // Not a dead end: sessions are monitored locally either way; only
-            // the quota numbers live server-side where this auth mode has no
-            // readable endpoint.
-            return L10n.TrFormat("{0} mode — sessions monitored here, quota lives in Google AI Studio", authType);
-        }
-        if (!ProviderVisibilityStore.Shared.GeminiDetected)
-        {
-            return L10n.Tr("Not detected — sign in with the gemini CLI");
+            return L10n.Tr("Not detected — install and run the agy CLI");
         }
         var parts = new List<string> { GuestSync(store.LastUpdated) };
         if (store.StatusCaption is { } caption)
         {
             parts.Add("⚠ " + ErrorDisplay.Localize(caption));
         }
-        else if (store.Snapshot is { } snapshot)
+        else if (store.Snapshot?.Primary is { } pool)
         {
-            if (snapshot.PrimaryPro is { } pro)
-            {
-                parts.Add(L10n.TrFormat("pro {0}%", Percent(pro.UsedPercent)));
-            }
-            if (snapshot.SecondaryFlash is { } flash)
-            {
-                parts.Add(L10n.TrFormat("flash {0}%", Percent(flash.UsedPercent)));
-            }
+            // Only the Gemini pool: Claude and GPT are other providers'
+            // rows in this app, and showing their shared pool here read as
+            // cross-wiring (owner call, 2026-08-09).
+            parts.Add(L10n.TrFormat("{0} {1}%", pool.ShortLabel, Percent(pool.UsedPercent)));
         }
         return string.Join(" · ", parts);
     }

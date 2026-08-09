@@ -15,6 +15,7 @@ public static class Pricing
         // Anthropic
         ["claude-fable-5"] = new(10, 50, 12.5, 1.0),
         ["claude-mythos-5"] = new(10, 50, 12.5, 1.0),
+        ["claude-opus-5"] = new(5, 25, 6.25, 0.5),
         ["claude-opus-4-8"] = new(5, 25, 6.25, 0.5),
         ["claude-opus-4-7"] = new(5, 25, 6.25, 0.5),
         ["claude-opus-4-6"] = new(5, 25, 6.25, 0.5),

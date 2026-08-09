@@ -20,7 +20,7 @@ public static class AgentHostAppResolver
     /// Executable basenames that can be the CLI process itself. The npm
     /// shims run the CLIs under node (or bun); matching by cwd does the real
     /// discrimination, these names just keep the PEB reads cheap.
-    private static readonly string[] CliNames = { "claude", "codex", "gemini", "grok", "node", "bun" };
+    private static readonly string[] CliNames = { "claude", "codex", "agy", "antigravity", "grok", "node", "bun" };
 
     /// Provider-aware entry point. Cursor is the editor AND the agent host,
     /// so a finished turn is already visible in the pane the user is looking

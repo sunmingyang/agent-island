@@ -17,8 +17,10 @@ public static class ProviderIdentity
     /// Codex sky blue.
     public static readonly Color CodexAccent = Color.FromRgb(0x5A, 0xA8, 0xF0);
 
-    /// Gemini periwinkle.
-    public static readonly Color GeminiAccent = Color.FromRgb(0x7E, 0x93, 0xFF);
+    /// Google blue — Antigravity's mark is a sweep through Google's four
+    /// hues, so the flat stand-in is their blue rather than the washed-out
+    /// periwinkle the Gemini era used (owner review, 2026-08-09).
+    public static readonly Color AntigravityAccent = Color.FromRgb(0x42, 0x85, 0xF4);
 
     /// Grok cool steel — near-white, so it needs a dark backing to read.
     public static readonly Color GrokAccent = Color.FromRgb(0xD8, 0xDE, 0xE4);
@@ -31,7 +33,7 @@ public static class ProviderIdentity
     {
         DisplayProvider.Claude => "Claude",
         DisplayProvider.Codex => "Codex",
-        DisplayProvider.Gemini => "Gemini",
+        DisplayProvider.Antigravity => "Antigravity",
         DisplayProvider.Grok => "Grok",
         DisplayProvider.Cursor => "Cursor",
         _ => "Claude",
@@ -51,7 +53,7 @@ public static class ProviderIdentity
     {
         DisplayProvider.Claude => ClaudeAccent,
         DisplayProvider.Codex => CodexAccent,
-        DisplayProvider.Gemini => GeminiAccent,
+        DisplayProvider.Antigravity => AntigravityAccent,
         DisplayProvider.Grok => GrokAccent,
         DisplayProvider.Cursor => CursorAccent,
         _ => ClaudeAccent,
@@ -65,7 +67,7 @@ public static class ProviderIdentity
     {
         DisplayProvider.Claude => AccentBrushes.Claude,
         DisplayProvider.Codex => AccentBrushes.Codex,
-        DisplayProvider.Gemini => AccentBrushes.Gemini,
+        DisplayProvider.Antigravity => AccentBrushes.Antigravity,
         DisplayProvider.Grok => AccentBrushes.Grok,
         DisplayProvider.Cursor => AccentBrushes.Cursor,
         _ => AccentBrushes.Claude,
@@ -79,7 +81,7 @@ public static class ProviderIdentity
     {
         DisplayProvider.Claude => "claude",
         DisplayProvider.Codex => "codex",
-        DisplayProvider.Gemini => "gemini",
+        DisplayProvider.Antigravity => "agy",
         DisplayProvider.Grok => "grok",
         DisplayProvider.Cursor => null,
         _ => null,
@@ -101,7 +103,7 @@ public static class ProviderIdentity
     {
         internal static readonly SolidColorBrush Claude = Frozen(ClaudeAccent);
         internal static readonly SolidColorBrush Codex = Frozen(CodexAccent);
-        internal static readonly SolidColorBrush Gemini = Frozen(GeminiAccent);
+        internal static readonly SolidColorBrush Antigravity = Frozen(AntigravityAccent);
         internal static readonly SolidColorBrush Grok = Frozen(GrokAccent);
         internal static readonly SolidColorBrush Cursor = Frozen(CursorAccent);
     }

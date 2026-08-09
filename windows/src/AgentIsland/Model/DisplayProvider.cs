@@ -10,7 +10,7 @@ public enum DisplayProvider
 {
     Claude,
     Codex,
-    Gemini,
+    Antigravity,
     Grok,
     Cursor,
 }
@@ -24,7 +24,7 @@ public static class DisplayProviders
     {
         DisplayProvider.Claude,
         DisplayProvider.Codex,
-        DisplayProvider.Gemini,
+        DisplayProvider.Antigravity,
         DisplayProvider.Grok,
         DisplayProvider.Cursor,
     };
@@ -39,7 +39,7 @@ public static class DisplayProviders
     /// Quota-badge providers, in the order the panel appends their rows.
     public static readonly DisplayProvider[] Guests =
     {
-        DisplayProvider.Gemini,
+        DisplayProvider.Antigravity,
         DisplayProvider.Grok,
         DisplayProvider.Cursor,
     };
@@ -48,7 +48,10 @@ public static class DisplayProviders
     {
         "claude" => DisplayProvider.Claude,
         "codex" => DisplayProvider.Codex,
-        "gemini" => DisplayProvider.Gemini,
+        "antigravity" => DisplayProvider.Antigravity,
+        // Legacy spelling from the Gemini era — persisted slot picks keep
+        // resolving to the same seat.
+        "gemini" => DisplayProvider.Antigravity,
         "grok" => DisplayProvider.Grok,
         "cursor" => DisplayProvider.Cursor,
         _ => null,
@@ -63,7 +66,7 @@ public static class DisplayProviderExtensions
     {
         DisplayProvider.Claude => "claude",
         DisplayProvider.Codex => "codex",
-        DisplayProvider.Gemini => "gemini",
+        DisplayProvider.Antigravity => "antigravity",
         DisplayProvider.Grok => "grok",
         DisplayProvider.Cursor => "cursor",
         _ => provider.ToString().ToLowerInvariant(),
@@ -81,7 +84,7 @@ public static class DisplayProviderExtensions
     /// the right; the guests get stable assignments so the layout never
     /// flips between launches.
     public static bool SoloLogoFlankIsLeading(this DisplayProvider provider) =>
-        provider is DisplayProvider.Claude or DisplayProvider.Gemini or DisplayProvider.Cursor;
+        provider is DisplayProvider.Claude or DisplayProvider.Antigravity or DisplayProvider.Cursor;
 
     /// Position in canonical slot order; the enum's declaration order is it.
     public static int SlotOrder(this DisplayProvider provider) => (int)provider;
@@ -90,7 +93,7 @@ public static class DisplayProviderExtensions
     {
         DisplayProvider.Claude => TriggerTool.Claude,
         DisplayProvider.Codex => TriggerTool.Codex,
-        DisplayProvider.Gemini => TriggerTool.Gemini,
+        DisplayProvider.Antigravity => TriggerTool.Antigravity,
         DisplayProvider.Grok => TriggerTool.Grok,
         DisplayProvider.Cursor => TriggerTool.Cursor,
         _ => TriggerTool.Claude,
@@ -100,7 +103,7 @@ public static class DisplayProviderExtensions
     {
         TriggerTool.Claude => DisplayProvider.Claude,
         TriggerTool.Codex => DisplayProvider.Codex,
-        TriggerTool.Gemini => DisplayProvider.Gemini,
+        TriggerTool.Antigravity => DisplayProvider.Antigravity,
         TriggerTool.Grok => DisplayProvider.Grok,
         TriggerTool.Cursor => DisplayProvider.Cursor,
         _ => DisplayProvider.Claude,

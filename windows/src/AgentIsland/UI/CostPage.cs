@@ -34,7 +34,7 @@ public sealed class CostPage : Border
 
     private static CostFace FaceOf(DisplayProvider provider) => provider switch
     {
-        DisplayProvider.Gemini => CostFace.Cold,
+        DisplayProvider.Antigravity => CostFace.Cold,
         DisplayProvider.Cursor => CostFace.TokensOnly,
         _ => CostFace.Dollars,
     };

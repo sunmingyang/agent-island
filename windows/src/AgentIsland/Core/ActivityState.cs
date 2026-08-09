@@ -42,7 +42,7 @@ public enum TriggerTool
 {
     Claude,
     Codex,
-    Gemini,
+    Antigravity,
     Grok,
     Cursor,
 }
@@ -53,7 +53,7 @@ public static class TriggerToolExtensions
     {
         TriggerTool.Claude,
         TriggerTool.Codex,
-        TriggerTool.Gemini,
+        TriggerTool.Antigravity,
         TriggerTool.Grok,
         TriggerTool.Cursor,
     };
@@ -64,7 +64,7 @@ public static class TriggerToolExtensions
     {
         TriggerTool.Claude => "claude",
         TriggerTool.Codex => "codex",
-        TriggerTool.Gemini => "gemini",
+        TriggerTool.Antigravity => "antigravity",
         TriggerTool.Grok => "grok",
         TriggerTool.Cursor => "cursor",
         _ => tool.ToString().ToLowerInvariant(),
@@ -74,7 +74,9 @@ public static class TriggerToolExtensions
     {
         "claude" => TriggerTool.Claude,
         "codex" => TriggerTool.Codex,
-        "gemini" => TriggerTool.Gemini,
+        "antigravity" => TriggerTool.Antigravity,
+        // Legacy spelling from the Gemini era.
+        "gemini" => TriggerTool.Antigravity,
         "grok" => TriggerTool.Grok,
         "cursor" => TriggerTool.Cursor,
         _ => null,

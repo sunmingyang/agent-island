@@ -29,7 +29,10 @@ public static class SessionScanner
     private const int MonitoringCodexLimit = 120;
 
     private static string GrokSessionsRoot => Path.Combine(IslandPaths.Home, ".grok", "sessions");
-    private static string GeminiTmpRoot => Path.Combine(IslandPaths.Home, ".gemini", "tmp");
+    /// Google has renamed the data directory twice already (1.x
+    /// `antigravity`, 2.x `antigravity-ide`, plus the separate
+    /// `antigravity-cli` root), so every known variant is probed.
+    private static readonly string[] AntigravityRootNames = { "antigravity", "antigravity-ide", "antigravity-cli" };
 
     // MARK: - Entry points
 
@@ -44,7 +47,7 @@ public static class SessionScanner
             .Where(s => !known.Contains(s.SessionId)));
         output.AddRange(ScanCodex(now, lastWorking, limit: 30, dedupeProjects: true));
         output.AddRange(ScanGrok(now, lastWorking));
-        output.AddRange(ScanGemini(now, lastWorking));
+        output.AddRange(ScanAntigravity(now, lastWorking));
         output.AddRange(ScanCursor(now, lastWorking));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         // Dedupe by session: the Claude Desktop store commonly holds the SAME
@@ -68,7 +71,7 @@ public static class SessionScanner
         var output = ScanClaudeTranscripts(now, lastWorking, excludeArchived: false);
         output.AddRange(ScanCodex(now, lastWorking, limit: MonitoringCodexLimit, dedupeProjects: false));
         output.AddRange(ScanGrok(now, lastWorking));
-        output.AddRange(ScanGemini(now, lastWorking));
+        output.AddRange(ScanAntigravity(now, lastWorking));
         output.AddRange(ScanCursor(now, lastWorking));
         output.Sort((a, b) => b.Modified.CompareTo(a.Modified));
         return output;
@@ -470,25 +473,37 @@ public static class SessionScanner
     }
 
 
-    public static List<ScannedSession> ScanGemini(
+    /// Antigravity keeps a readable transcript per conversation at
+    /// `<root>/brain/<conversation-id>/.system_generated/logs/transcript_full.jsonl`
+    /// — the desktop IDE and the `agy` CLI write the same shape into their
+    /// own roots. Always `transcript_full`, never `transcript` (truncated).
+    public static List<ScannedSession> ScanAntigravity(
         DateTimeOffset now,
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking)
     {
         var output = new List<ScannedSession>();
-        foreach (var projectDir in SafeEnumerateDirectories(GeminiTmpRoot))
+        var home = Path.Combine(IslandPaths.Home, ".gemini");
+        foreach (var rootName in AntigravityRootNames)
         {
-            var chats = Path.Combine(projectDir, "chats");
-            if (!Directory.Exists(chats)) continue;
-            var project = Path.GetFileName(projectDir);
-            foreach (var path in SafeEnumerateFiles(chats, "*.jsonl"))
+            var root = Path.Combine(home, rootName);
+            var brain = Path.Combine(root, "brain");
+            if (!Directory.Exists(brain)) continue;
+            foreach (var conversationDir in SafeEnumerateDirectories(brain))
             {
-                var sid = GeminiSessionId(path) ?? Path.GetFileNameWithoutExtension(path);
-                var state = SessionState(path, now, lastWorking, null, SessionTurnState.MtimeOnly, quietMeansDone: true);
+                var conversation = Path.GetFileName(conversationDir);
+                var path = Path.Combine(
+                    conversationDir, ".system_generated", "logs", "transcript_full.jsonl");
+                if (!File.Exists(path)) continue;
+                var state = SessionState(
+                    path, now, lastWorking, null, SessionTurnState.Antigravity, quietMeansDone: true);
+                var cwd = AntigravityWorkspace(root, conversation) ?? "";
+                var label = AntigravityTitle(path)
+                    ?? (conversation.Length > 8 ? conversation[..8] : conversation);
                 output.Add(new ScannedSession(
-                    TriggerTool.Gemini,
-                    sid,
-                    project,
-                    Fallback(project, sid),
+                    TriggerTool.Antigravity,
+                    conversation,
+                    cwd,
+                    label,
                     state.Modified,
                     state.Status,
                     path,
@@ -499,22 +514,70 @@ public static class SessionScanner
         return output;
     }
 
-    private static string? GeminiSessionId(string path)
+    /// The first user message, unwrapped from the `<USER_REQUEST>` envelope
+    /// the CLI writes. (The nicer generated titles live in
+    /// conversation_summaries.db — a SQLite dependency this port doesn't
+    /// carry, so the first message is the honest fallback.)
+    private static string? AntigravityTitle(string path)
     {
         try
         {
             using var stream = new FileStream(
                 path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var reader = new StreamReader(stream, Encoding.UTF8);
-            if (reader.ReadLine() is not { } header) return null;
-            using var doc = Jsonl.TryParseLine(header);
-            if (doc is null) return null;
-            return Jsonl.GetString(doc.RootElement, "sessionId") is { Length: > 0 } sid ? sid : null;
+            for (var i = 0; i < 40 && reader.ReadLine() is { } line; i++)
+            {
+                using var doc = Jsonl.TryParseLine(line);
+                if (doc is null) continue;
+                if (Jsonl.GetString(doc.RootElement, "type") != "USER_INPUT") continue;
+                if (Jsonl.GetString(doc.RootElement, "content") is not { Length: > 0 } content) continue;
+                return AntigravityRequestText(content);
+            }
         }
         catch
         {
-            return null;
+            // Unreadable transcript — the id-prefix fallback covers it.
         }
+        return null;
+    }
+
+    internal static string? AntigravityRequestText(string content)
+    {
+        var body = content;
+        var start = content.IndexOf("<USER_REQUEST>", StringComparison.Ordinal);
+        var end = content.IndexOf("</USER_REQUEST>", StringComparison.Ordinal);
+        if (start >= 0 && end > start)
+        {
+            body = content[(start + "<USER_REQUEST>".Length)..end];
+        }
+        var first = body.Trim().Split('\n').FirstOrDefault()?.Trim() ?? "";
+        if (first.Length == 0) return null;
+        return first.Length > 48 ? first[..48] : first;
+    }
+
+    /// `history.jsonl` maps conversationId to its workspace.
+    private static string? AntigravityWorkspace(string root, string conversation)
+    {
+        try
+        {
+            var historyPath = Path.Combine(root, "history.jsonl");
+            if (!File.Exists(historyPath)) return null;
+            foreach (var line in File.ReadLines(historyPath))
+            {
+                using var doc = Jsonl.TryParseLine(line);
+                if (doc is null) continue;
+                if (Jsonl.GetString(doc.RootElement, "conversationId") != conversation) continue;
+                if (Jsonl.GetString(doc.RootElement, "workspace") is { Length: > 0 } workspace)
+                {
+                    return workspace;
+                }
+            }
+        }
+        catch
+        {
+            // A torn history file only costs the cwd nicety.
+        }
+        return null;
     }
 
     // MARK: - Indexes

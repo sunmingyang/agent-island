@@ -40,14 +40,16 @@ public static class TurnAlarmNavigator
                 Trigger.CLILocator.Locate("grok") is { } grok
                     && RunResumeInTerminal(grok, "--continue", cwd, "Grok continue"));
         }
-        if (provider == TriggerTool.Gemini)
+        if (provider == TriggerTool.Antigravity)
         {
-            // Verified against gemini --help (2026-08-08): --resume takes
-            // "latest" or an index, never a session id. Same cwd trick as
-            // grok: latest-in-this-directory is the finished thread.
+            // Verified on a real install (2026-08-08): `agy --conversation
+            // <id>` reopens the exact thread and appends to it — the one
+            // guest with true per-id resume. The session id IS the
+            // conversation id the scanner read from brain/.
             return System.Threading.Tasks.Task.Run(() =>
-                Trigger.CLILocator.Locate("gemini") is { } gemini
-                    && RunResumeInTerminal(gemini, "--resume latest", cwd, "Gemini resume"));
+                Trigger.CLILocator.Locate("agy") is { } agy
+                    && RunResumeInTerminal(
+                        agy, $"--conversation {sessionId}", cwd, "Antigravity resume"));
         }
         if (provider == TriggerTool.Cursor)
         {

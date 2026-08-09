@@ -165,14 +165,6 @@ public static class L10n
         ["≈ ${0} API value"] = "≈ 相当于 ${0} 的 API 费用",
         ["Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"] = "已复制!发出去带朋友一起上岛 🏝️ 感谢你帮 Agent Island 宣传",
         ["Others"] = "其他",
-        ["{0} rank · lifetime {1} tokens"] = "{0}段位 · 累计 {1} Token",
-        ["Drifter"] = "漂流者",
-        ["Islander"] = "登岛者",
-        ["Settler"] = "定居者",
-        ["Chieftain"] = "酋长",
-        ["Island Lord"] = "岛主",
-        ["Archipelago King"] = "群岛之王",
-        ["Legendary Navigator"] = "传奇航海家",
         ["Past {0} weeks"] = "过去 {0} 周",
         ["{0}-day streak 🔥"] = "连续 {0} 天 🔥",
         ["Active {0} days · peak {1}"] = "活跃 {0} 天 · 单日峰值 {1}",
@@ -212,9 +204,6 @@ public static class L10n
         ["How often to refresh."] = "刷新频率",
         ["Follows the system language."] = "跟随系统语言",
         ["Visual mode"] = "视觉模式",
-        ["lifetime {0} tokens"] = "累计 {0} Token",
-        ["Congrats, you've reached "] = "恭喜你已获得 ",
-        [" rank"] = " 段位",
         ["TOP Model"] = "TOP 模型",
         ["Tokens"] = "TOKEN",
         // No second ["Cost"] entry: these are indexer assignments, so a repeat
@@ -345,11 +334,11 @@ public static class L10n
         // Five-provider settings rows (2.x). The %d/%@ holes of the macOS
         // strings become {0} here; the copy itself is byte-identical.
         ["Pick at most two — turn one off first"] = "最多同时显示两个，先关一个再开",
-        ["Not detected — sign in with the gemini CLI"] = "未检测到 gemini CLI 登录",
+        ["start Antigravity to read its quota"] = "启动 Antigravity 后可读取额度",
+        ["Not detected — install and run the agy CLI"] = "未检测到——安装并运行 agy 命令行",
         ["Not detected — sign in with the grok CLI"] = "未检测到 grok CLI 登录",
         ["Not detected — sign in inside Cursor"] = "未检测到 — 请在 Cursor 里登录",
         ["Not available — {0} authentication isn't supported yet"] = "不可用 — 暂不支持 {0} 认证方式",
-        ["{0} mode — sessions monitored here, quota lives in Google AI Studio"] = "{0} 模式——会话状态照常监控，额度请在 Google AI Studio 查看",
         ["pro {0}%"] = "Pro {0}%",
         ["flash {0}%"] = "Flash {0}%",
         ["week {0}%"] = "本周 {0}%",
@@ -369,10 +358,7 @@ public static class L10n
         // strings; without these rows the guest strips fell back to English
         // inside an otherwise Chinese panel.
         ["sign in again — run grok login"] = "登录已失效，运行 grok login 重新登录",
-        ["sign in again — run gemini"] = "登录已失效，运行 gemini 重新登录",
         ["sign in again — open Cursor"] = "需要重新登录 — 打开 Cursor",
-        ["needs a local gemini-cli install"] = "需要本机安装 gemini-cli",
-        ["personal accounts moved to Antigravity — support coming in a later version"] = "个人账号已迁往 Antigravity，后续版本支持",
         ["this sign-in method isn't supported yet"] = "暂不支持该认证方式",
         ["Loading…"] = "加载中…",
         // Tile window labels the guests need: Gemini meters a daily bucket,
@@ -393,7 +379,6 @@ public static class L10n
     /// "Agent Island" spelled as two words).
     private static readonly Dictionary<string, string> EnglishTable = new()
     {
-        ["{0} mode — sessions monitored here, quota lives in Google AI Studio"] = "{0} mode — sessions monitored here, quota lives in Google AI Studio",
         ["stalled"] = "paused",
         ["rate limited"] = "usage check paused",
         ["auth required"] = "login required",

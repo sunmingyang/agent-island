@@ -138,7 +138,7 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
 
     public bool ClaudeDetected => IsDetected(DisplayProvider.Claude);
     public bool CodexDetected => IsDetected(DisplayProvider.Codex);
-    public bool GeminiDetected => IsDetected(DisplayProvider.Gemini);
+    public bool AntigravityDetected => IsDetected(DisplayProvider.Antigravity);
     public bool GrokDetected => IsDetected(DisplayProvider.Grok);
     public bool CursorDetected => IsDetected(DisplayProvider.Cursor);
 
@@ -166,7 +166,7 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
     /// but-unselected extra.
     public bool ClaudePanelShown => IsShown(DisplayProvider.Claude);
     public bool CodexPanelShown => IsShown(DisplayProvider.Codex);
-    public bool GeminiPanelShown => IsShown(DisplayProvider.Gemini);
+    public bool AntigravityPanelShown => IsShown(DisplayProvider.Antigravity);
     public bool GrokPanelShown => IsShown(DisplayProvider.Grok);
     public bool CursorPanelShown => IsShown(DisplayProvider.Cursor);
 
@@ -186,17 +186,11 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
         {
             DisplayProvider.Claude => HasDir(home, ".claude") || HasDir(home, ".config", "claude"),
             DisplayProvider.Codex => HasDir(home, ".codex"),
-            // The guests are probed by LOGIN, never by directory: a bare
-            // ~\.gemini or ~\.grok from an aborted install has nothing to
-            // show. An api-key / vertex-ai Gemini login IS a real user —
-            // session monitoring reads the same local chat files — only the
-            // Code Assist quota endpoint is out of reach, and Google ships
-            // no usage endpoint for API keys at all (their tracker:
-            // gemini-cli discussion #3096). So it counts as detected, and
-            // the settings row points at AI Studio for numbers instead of
-            // dead-ending on "not supported" (owner review, 2026-08-08).
-            DisplayProvider.Gemini => GeminiCredentials.Detect()
-                is GeminiAuthDetection.OauthPersonal or GeminiAuthDetection.UnsupportedAuth,
+            // Antigravity is probed by its data roots: running agy (or the
+            // IDE) once creates them, and sign-in state lives in the
+            // platform credential store where a presence probe proves
+            // nothing about the local quota server being reachable anyway.
+            DisplayProvider.Antigravity => Usage.AntigravityCredentials.Detected,
             DisplayProvider.Grok => GrokAuthFile.Exists(),
             // Cursor's editor state db is also where its session token lives,
             // so no db means no login worth a slot.
@@ -261,7 +255,7 @@ public sealed class ProviderVisibilityStore : INotifyPropertyChanged
             nameof(CodexShown),
             nameof(ClaudePanelShown),
             nameof(CodexPanelShown),
-            nameof(GeminiPanelShown),
+            nameof(AntigravityPanelShown),
             nameof(GrokPanelShown),
             nameof(CursorPanelShown),
             nameof(GuestPanelCount),

@@ -107,7 +107,7 @@ public sealed class UsagePage : Border
         UsageStore.Shared.PropertyChanged += onUpdate;
         StylePreferenceStore.Shared.PropertyChanged += onUpdate;
         ProviderVisibilityStore.Shared.PropertyChanged += onUpdate;
-        GeminiUsageStore.Shared.PropertyChanged += onUpdate;
+        AntigravityUsageStore.Shared.PropertyChanged += onUpdate;
         GrokUsageStore.Shared.PropertyChanged += onUpdate;
         CursorUsageStore.Shared.PropertyChanged += onUpdate;
         Unloaded += (_, _) =>
@@ -115,7 +115,7 @@ public sealed class UsagePage : Border
             UsageStore.Shared.PropertyChanged -= onUpdate;
             StylePreferenceStore.Shared.PropertyChanged -= onUpdate;
             ProviderVisibilityStore.Shared.PropertyChanged -= onUpdate;
-            GeminiUsageStore.Shared.PropertyChanged -= onUpdate;
+            AntigravityUsageStore.Shared.PropertyChanged -= onUpdate;
             GrokUsageStore.Shared.PropertyChanged -= onUpdate;
             CursorUsageStore.Shared.PropertyChanged -= onUpdate;
         };
@@ -150,7 +150,7 @@ public sealed class UsagePage : Border
     /// 30-day branch and would otherwise call Cursor's cycle a "week".
     private static string PrimaryLabelKey(DisplayProvider provider) => provider switch
     {
-        DisplayProvider.Gemini => "24h",
+        DisplayProvider.Antigravity => "week",
         DisplayProvider.Grok => "week",
         DisplayProvider.Cursor => "30d",
         _ => "5h",
@@ -158,9 +158,7 @@ public sealed class UsagePage : Border
 
     private static string SecondaryLabelKey(DisplayProvider provider) => provider switch
     {
-        // Gemini's second tile is the Flash bucket — the same daily window as
-        // Pro, not a weekly one.
-        DisplayProvider.Gemini => "24h",
+        DisplayProvider.Antigravity => "week",
         DisplayProvider.Grok => "week",
         DisplayProvider.Cursor => "30d",
         _ => "week",
@@ -232,27 +230,25 @@ public sealed class UsagePage : Border
     {
         DisplayProvider.Claude => UsageStore.Shared.Claude,
         DisplayProvider.Codex => UsageStore.Shared.Codex,
-        DisplayProvider.Gemini => GeminiUsage(),
+        DisplayProvider.Antigravity => AntigravityUsage(),
         DisplayProvider.Grok => GrokUsage(),
         DisplayProvider.Cursor => CursorUsage(),
         _ => AppUsage.Empty,
     };
 
-    /// Gemini is the one guest with two real windows: the Pro family bucket
-    /// closest to its limit leads, Flash follows. A missing Flash bucket
-    /// falls back to the "no data" sentinel, which is what marks a provider
-    /// single-window for the tile row.
-    private static AppUsage GeminiUsage()
+    /// Antigravity surfaces ONE pool — Gemini's weekly bucket. The shared
+    /// Claude/GPT pool is real data but belongs to other providers' tiles
+    /// (owner call, 2026-08-09: 只搞 Gemini). The secondary slot stays the
+    /// "no data" sentinel, which is what marks a provider single-window.
+    private static AppUsage AntigravityUsage()
     {
-        var gemini = GeminiUsageStore.Shared;
-        var pro = gemini.Snapshot?.PrimaryPro;
-        var flash = gemini.Snapshot?.SecondaryFlash;
+        var store = AntigravityUsageStore.Shared;
+        var pool = store.Snapshot?.Primary;
         return new AppUsage(
-            new WindowUsage(pro?.UsedPercent ?? 0, pro?.ResetAt, gemini.StatusCaption),
-            flash is null
-                ? WindowUsage.Unknown
-                : new WindowUsage(flash.UsedPercent, flash.ResetAt, null),
-            gemini.TierBadge?.ToLowerInvariant());
+            new WindowUsage(
+                pool?.UsedPercent ?? 0, pool?.ResetAt, store.StatusCaption, pool?.PeriodSeconds),
+            WindowUsage.Unknown,
+            store.TierBadge?.ToLowerInvariant());
     }
 
     /// Grok meters one weekly credit pool; the monthly dollar budget is a

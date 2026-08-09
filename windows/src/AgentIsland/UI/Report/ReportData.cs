@@ -28,8 +28,7 @@ public sealed record WeeklyReportData(
     IReadOnlyList<ProviderPeriodSlice> Providers,   // token desc, only providers that ran
     IReadOnlyList<long> DailyTokens,   // oldest → today, exactly 7, summed across all providers
     IReadOnlyList<string> DayLetters,
-    IReadOnlyList<ModelShare> TopModels,
-    RankInfo? Rank)
+    IReadOnlyList<ModelShare> TopModels)
 {
     public static WeeklyReportData Current()
     {
@@ -81,9 +80,9 @@ public sealed record WeeklyReportData(
             providers,
             daily,
             letters,
-            // v3 weekly ring: TOP 3 across every provider that ran.
-            ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.WeeklyModels), top: 3),
-            ReportFormat.Rank(cost));
+            // TOP 3 across every provider that ran (owner call,
+            // 2026-08-09: 只要写前三的模型就够了).
+            ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.WeeklyModels), top: 3));
     }
 }
 
@@ -94,8 +93,7 @@ public sealed record MonthlyReportData(
     long TotalTokens,
     double TotalDollars,
     IReadOnlyList<ProviderPeriodSlice> Providers,   // token desc, only providers that ran
-    IReadOnlyList<ModelShare> TopModels,
-    RankInfo? Rank)
+    IReadOnlyList<ModelShare> TopModels)
 {
     public static MonthlyReportData Current()
     {
@@ -118,13 +116,9 @@ public sealed record MonthlyReportData(
             totalTokens,
             totalDollars,
             providers,
-            ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.MonthModels), top: 5),
-            ReportFormat.Rank(cost));
+            ReportFormat.BuildTopModels(ReportFormat.ProviderModels(cost, s => s.MonthModels), top: 3));
     }
 }
-
-/// The rank footer's raw parts: lifetime total plus the earned tier.
-public sealed record RankInfo(long LifetimeTokens, string TierEmoji, string TierName);
 
 /// Shared number/caption formatting for both cards.
 public static class ReportFormat
@@ -178,19 +172,7 @@ public static class ReportFormat
     /// (no price) and Gemini ships no ledger. Mirrors CostPage.FaceOf so the
     /// overview shows "—" for Cursor, never a coined $0.
     public static bool ProvidesDollars(Model.DisplayProvider provider) =>
-        provider is not (Model.DisplayProvider.Cursor or Model.DisplayProvider.Gemini);
-
-    /// Lifetime total + earned tier for the rank footer; null until the
-    /// first tier (100M lifetime) is crossed. Lifetime is the full local
-    /// history CostStore holds across every provider, matching the macOS
-    /// accounting.
-    public static RankInfo? Rank(CostStore cost)
-    {
-        var lifetime = Model.DisplayProviders.All
-            .Sum(p => cost.Summary(p).DailyHistory.Sum(b => b.Tokens));
-        if (Model.MilestoneLadder.TokenTier(lifetime) is not { } tier) return null;
-        return new RankInfo(lifetime, tier.Emoji, Localization.L10n.Tr(tier.NameKey));
-    }
+        provider is not (Model.DisplayProvider.Cursor or Model.DisplayProvider.Antigravity);
 
     public static string CompactString(long n, bool zh)
     {

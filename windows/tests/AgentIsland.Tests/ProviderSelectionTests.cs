@@ -93,7 +93,7 @@ public static class ProviderSelectionTests
     private static void TestToggleOffAtCap()
     {
         // The cap gates ADDITION only — a full island must still be editable.
-        var current = new List<DisplayProvider> { DisplayProvider.Gemini, DisplayProvider.Cursor };
+        var current = new List<DisplayProvider> { DisplayProvider.Antigravity, DisplayProvider.Cursor };
         Expect(ProviderSelection.TryToggle(current, DisplayProvider.Cursor, out var next),
             "turning one off while full must succeed");
         Expect(Spell(next) == "gemini", $"wrong result at the cap: {Spell(next)}");

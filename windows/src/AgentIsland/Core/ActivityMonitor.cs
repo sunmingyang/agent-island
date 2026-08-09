@@ -38,7 +38,7 @@ public sealed class ActivityMonitor : INotifyPropertyChanged
         TriggerTool.Claude,
         TriggerTool.Codex,
         TriggerTool.Grok,
-        TriggerTool.Gemini,
+        TriggerTool.Antigravity,
         TriggerTool.Cursor,
     };
 

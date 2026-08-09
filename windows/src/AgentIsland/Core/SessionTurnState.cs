@@ -168,6 +168,73 @@ public static class SessionTurnState
     public static SessionTurnStatus MtimeOnly(IReadOnlyList<string> lines) =>
         new(false, null, null);
 
+    /// Antigravity transcript records are `{step_index, source, type,
+    /// status, created_at, content, tool_calls…}` where source is
+    /// USER_EXPLICIT / SYSTEM / MODEL. Tool steps are ALSO source:MODEL
+    /// (verified on real transcripts, 2026-08-08), so "MODEL last" alone
+    /// false-fires mid-run — the agent has spoken only when the last MODEL
+    /// step is a PLANNER_RESPONSE with real content and no tool_calls.
+    /// `status` is a per-step marker appended on completion and carries no
+    /// turn state; the caller's quiet gap still backstops a run that ends
+    /// on a tool call.
+    public static SessionTurnStatus Antigravity(IReadOnlyList<string> lines)
+    {
+        for (var i = lines.Count - 1; i >= 0; i--)
+        {
+            using var doc = Jsonl.TryParseLine(lines[i]);
+            if (doc is null) continue;
+            var root = doc.RootElement;
+            if (root.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+            if (Jsonl.GetString(root, "source") is not { } source) continue;
+
+            DateTimeOffset? stamp = null;
+            if (root.TryGetProperty("created_at", out var created))
+            {
+                if (created.ValueKind == System.Text.Json.JsonValueKind.String
+                    && DateTimeOffset.TryParse(created.GetString(), out var iso))
+                {
+                    stamp = iso;
+                }
+                else if (created.ValueKind == System.Text.Json.JsonValueKind.Number
+                    && created.TryGetDouble(out var seconds))
+                {
+                    stamp = seconds > 100_000_000_000d
+                        ? DateTimeOffset.FromUnixTimeMilliseconds((long)seconds)
+                        : DateTimeOffset.FromUnixTimeSeconds((long)seconds);
+                }
+            }
+            string? key = root.TryGetProperty("step_index", out var step)
+                && step.TryGetInt32(out var index)
+                ? "ag:" + index
+                : null;
+
+            switch (source)
+            {
+                case "MODEL":
+                    var spoke = Jsonl.GetString(root, "type") == "PLANNER_RESPONSE"
+                        && !AntigravityHasToolCalls(root)
+                        && Jsonl.GetString(root, "content") is { Length: > 0 };
+                    return new SessionTurnStatus(spoke, key, stamp);
+                case "USER_EXPLICIT":
+                    return new SessionTurnStatus(false, key, stamp);
+                default:
+                    continue;
+            }
+        }
+        return new SessionTurnStatus(false, null, null);
+    }
+
+    private static bool AntigravityHasToolCalls(System.Text.Json.JsonElement root)
+    {
+        if (!root.TryGetProperty("tool_calls", out var calls)) return false;
+        return calls.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.Null => false,
+            System.Text.Json.JsonValueKind.Array => calls.GetArrayLength() > 0,
+            _ => true,
+        };
+    }
+
     private static bool IsCodexUserOrStart(string? type)
     {
         if (type is null) return false;
