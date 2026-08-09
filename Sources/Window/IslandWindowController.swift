@@ -14,6 +14,8 @@ final class IslandWindowController {
     private var occlusionObserver: NSObjectProtocol?
     private var sessionResignObserver: NSObjectProtocol?
     private var sessionActiveObserver: NSObjectProtocol?
+    private var wakeObservers: [NSObjectProtocol] = []
+    private var recoveryTimer: Timer?
     private var subs: Set<AnyCancellable> = []
     private var hasSeenMouseEvent = false
     private var isMouseInsideIsland = false
@@ -61,6 +63,7 @@ final class IslandWindowController {
         observeOcclusion()
         observeSessionState()
         observeMissionControlPreference()
+        observeVisibilityRecovery()
     }
 
     /// `.stationary` pins the island through Exposé (fine on notched
@@ -69,10 +72,14 @@ final class IslandWindowController {
     /// the island covers it. The opt-in swaps in `.transient`, whose
     /// documented (and on-device verified) behavior is "hidden by Exposé";
     /// spaces behavior is unchanged either way.
+    /// `.fullScreenAuxiliary` keeps the island over fullscreen apps —
+    /// without it the island simply isn't on a fullscreen Space, which
+    /// read as "the island randomly disappears" (owner report,
+    /// 2026-08-09; the notch is physically there in fullscreen too).
     private static func collectionBehavior(hideInMissionControl: Bool) -> NSWindow.CollectionBehavior {
         hideInMissionControl
-            ? [.canJoinAllSpaces, .transient, .ignoresCycle]
-            : [.canJoinAllSpaces, .stationary, .ignoresCycle]
+            ? [.canJoinAllSpaces, .transient, .ignoresCycle, .fullScreenAuxiliary]
+            : [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
     }
 
     private func observeMissionControlPreference() {
@@ -97,10 +104,17 @@ final class IslandWindowController {
         if let observer = sessionActiveObserver {
             DistributedNotificationCenter.default().removeObserver(observer)
         }
+        // wakeObservers spans two centers (workspace + default); removing a
+        // token from the wrong one is a harmless no-op, so sweep both.
+        for observer in wakeObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            NotificationCenter.default.removeObserver(observer)
+        }
         if let m = globalMouseMonitor { NSEvent.removeMonitor(m) }
         if let m = localMouseMonitor { NSEvent.removeMonitor(m) }
         if let m = cmdQMonitor { NSEvent.removeMonitor(m) }
         trackingTimer?.invalidate()
+        recoveryTimer?.invalidate()
     }
 
     /// Click-through for everything outside the visible shape. We watch cursor
@@ -164,11 +178,18 @@ final class IslandWindowController {
             if inside {
                 NSApp.activate(ignoringOtherApps: true)
                 window.makeKey()
-                cmdQMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                cmdQMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                     if event.modifierFlags.contains(.command),
                        event.charactersIgnoringModifiers == "q" {
-                        NSApp.terminate(nil)
-                        return nil
+                        // Quit only when the island is deliberately engaged.
+                        // The pill steals key on hover-through, so a Cmd+Q
+                        // aimed at the app underneath was silently killing
+                        // AgentIsland — the other face of "the island just
+                        // disappears" (owner report, 2026-08-09).
+                        if let self, self.model.state == .expanded {
+                            NSApp.terminate(nil)
+                            return nil
+                        }
                     }
                     return event
                 }
@@ -240,6 +261,57 @@ final class IslandWindowController {
             guard let self else { return }
             Task { @MainActor in self.fadeIn() }
         }
+    }
+
+    /// The island must never stay gone. `fadeOut` on lock is the only
+    /// deliberate orderOut, and its undo rides a distributed notification
+    /// macOS delivers best-effort — one missed "screenIsUnlocked" (Touch ID
+    /// races, fast user switching) stranded the island until relaunch
+    /// (owner report, 2026-08-09: 经常莫名其妙就消失). Recovery is belt and
+    /// suspenders: wake/session notifications trigger an immediate check,
+    /// and a slow sweep catches whatever they miss. Ground truth for "may
+    /// I show?" is the session dictionary, not our own state — our state
+    /// is exactly what a missed notification corrupts.
+    private func observeVisibilityRecovery() {
+        let wc = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didWakeNotification,
+                     NSWorkspace.screensDidWakeNotification,
+                     NSWorkspace.sessionDidBecomeActiveNotification] {
+            wakeObservers.append(wc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                guard let self else { return }
+                Task { @MainActor in self.recoverIfStranded() }
+            })
+        }
+        // A hide (Cmd+H aimed at another app while the island held key)
+        // must be undone by the EVENT, not the sweep timer — a hidden app
+        // naps, and napping is precisely when timers stop firing.
+        wakeObservers.append(NotificationCenter.default.addObserver(
+            forName: NSApplication.didHideNotification,
+            object: NSApp,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in self.recoverIfStranded() }
+        })
+        let sweep = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in self.recoverIfStranded() }
+        }
+        sweep.tolerance = 5
+        recoveryTimer = sweep
+    }
+
+    private func recoverIfStranded() {
+        guard !window.isVisible, !Self.screenIsCurrentlyLocked else { return }
+        // A Cmd+H aimed at another app while the island held key hides the
+        // whole app — unhide quietly before re-ordering the window in.
+        if NSApp.isHidden { NSApp.unhideWithoutActivation() }
+        fadeIn()
+    }
+
+    private static var screenIsCurrentlyLocked: Bool {
+        guard let dict = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return dict["CGSSessionScreenIsLocked"] as? Bool ?? false
     }
 
     private func fadeOut() {
