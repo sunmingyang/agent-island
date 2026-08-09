@@ -524,7 +524,7 @@
 "Five agents on one island — each read from the records it already writes on your Mac" = "五家 Agent 同在一座岛——各自读它们本来就写在你 Mac 上的记录";
 "A guided tour of everything the island does" = "带你看懂小岛的全部能力";
 "Claude and Codex carry live session state: spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude 与 Codex 提供实时会话状态：旋转代表工作中，铃铛代表轮到你，常红代表需要处理";
-"Claude, Codex, Grok, and Antigravity carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude、Codex、Grok、Antigravity 显示实时状态；Cursor 只显示额度。\n旋转表示工作中，铃铛表示轮到你，常红表示需要处理";
+"All five agents carry live session state — Claude, Codex, Grok, Antigravity, and Cursor. Spinning means working, a bell means it's your turn, and steady red means it needs you" = "Claude、Codex、Grok、Antigravity、Cursor 五家全部显示实时状态：\n旋转表示工作中，铃铛表示轮到你，常红表示需要处理";
 "Reports that look back" = "能回看的报告";
 "Use the arrows to revisit earlier weekly or monthly cards — each page is rebuilt from that exact local window, with every model that ran" = "用箭头翻回更早的周报或月报；每一页都按对应的本地时间窗口重新计算，并列出跑过的全部模型";
 "April" = "4月";

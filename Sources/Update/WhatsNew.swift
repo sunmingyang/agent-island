@@ -59,7 +59,7 @@ enum WhatsNewContent {
         // "更新自己会说话"是错的).
         PagedCardPage(
             symbol: "sparkles",
-            imageName: nil,
+            imageName: "guide-brand",
             title: "At a glance",
             body: "The fifth seat changes hands: Antigravity replaces Gemini — Google's gradient, a real weekly quota, resume to the exact conversation — and every alarm now lands back in the terminal you actually use",
             hero: .version
@@ -115,7 +115,7 @@ enum GuideContent {
             symbol: "circle.hexagongrid.circle",
             imageName: "guide-status",
             title: "Monitor",
-            body: "Claude, Codex, Grok, and Antigravity carry live session state; Cursor joins the quota view. Spinning means working, a bell means it's your turn, and steady red means it needs you"
+            body: "All five agents carry live session state — Claude, Codex, Grok, Antigravity, and Cursor. Spinning means working, a bell means it's your turn, and steady red means it needs you"
         ),
         PagedCardPage(
             symbol: "gauge.with.needle",
