@@ -109,11 +109,13 @@ struct UsageView: View {
                     usedPercent: leading?.usedPercent ?? 0,
                     resetAt: leading?.resetAt,
                     error: antigravityStore.statusCaption,
-                    periodSeconds: leading?.periodSeconds ?? AntigravityQuotaBucket.weekSeconds
+                    periodSeconds: leading?.periodSeconds ?? AntigravityQuotaBucket.weekSeconds,
+                    poolLabel: leading?.shortLabel
                 ),
                 weekly: trailing.map {
                     WindowUsage(usedPercent: $0.usedPercent, resetAt: $0.resetAt,
-                                error: nil, periodSeconds: $0.periodSeconds)
+                                error: nil, periodSeconds: $0.periodSeconds,
+                                poolLabel: $0.shortLabel)
                 } ?? missing,
                 plan: antigravityStore.tierBadge?.lowercased()
             )
@@ -200,13 +202,14 @@ struct ChartsBlock: View {
                 // A single-window provider's tile is `wide` and centers its
                 // own content (see ChartTile's frame alignment).
                 ChartTile(style: style, color: color,
-                          labelKey: Self.windowLabelKey(usage.fiveHour),
+                          labelKey: usage.fiveHour.poolLabel ?? Self.windowLabelKey(usage.fiveHour),
                           window: usage.fiveHour, seed: seed,
                           wide: usage.secondaryMissing)
                 // A provider that reports only one window gets one tile — no
                 // permanent "no data" ghost for a window gone upstream.
                 if !usage.secondaryMissing {
-                    ChartTile(style: style, color: color, labelKey: "week",
+                    ChartTile(style: style, color: color,
+                              labelKey: usage.weekly.poolLabel ?? "week",
                               window: usage.weekly, seed: seed + 1)
                 }
             }

@@ -13,6 +13,11 @@ struct WindowUsage: Codable {
     /// 2026 — the tile relabels itself instead of lying under a hardcoded
     /// "5h". nil on old cached snapshots; labels fall back to the slot name.
     var periodSeconds: TimeInterval? = nil
+    /// Names the POOL when a provider meters by pool rather than by window
+    /// length. Antigravity reports two weekly pools (Gemini, Claude·GPT) —
+    /// labelling both tiles "week" read as a duplicated window (owner,
+    /// 2026-08-09). nil keeps the window-length label everyone else uses.
+    var poolLabel: String? = nil
 
     static let unknown = WindowUsage(usedPercent: 0, resetAt: nil, error: "no data")
 

@@ -56,6 +56,12 @@ enum TurnAlarmNavigator {
     private static let codexBundleID = "com.openai.codex"
 
     private static func openCodex(thread: ActivityMonitor.ActiveThread?) {
+        // The running form wins (owner rule, 2026-08-09): a session live in
+        // a terminal fronts that terminal, GUI sessions get the GUI. Unique
+        // match only — with two codex processes in one repo the desktop
+        // deep link is the safer landing, since it reaches the exact
+        // thread and a fronted terminal would be a coin flip.
+        if let thread, frontUniqueRunningCLI(executable: "codex", cwd: thread.cwd) { return }
         // Opt-in: CLI people can have their threads reopen in a terminal.
         if CodexJumpPreferenceStore.shared.prefersCLI {
             codexCLIFallback(thread: thread)
@@ -254,10 +260,10 @@ enum TurnAlarmNavigator {
     private static func frontRunningAntigravity(conversationId: String) -> Bool {
         let interactive: [(app: pid_t, cwd: String?)] =
             AntigravityLanguageServer.antigravityProcesses().compactMap { pid in
-                guard let app = AntigravityLanguageServer.owningGUIApplication(pid) else {
+                guard let app = ProcessTree.owningGUIApplication(pid) else {
                     return nil
                 }
-                return (app, AntigravityLanguageServer.currentWorkingDirectory(pid))
+                return (app, ProcessTree.currentWorkingDirectory(pid))
             }
         guard !interactive.isEmpty else { return false }
 
@@ -265,19 +271,10 @@ enum TurnAlarmNavigator {
             guard let cwd = session.cwd else { return false }
             return antigravityConversation(forWorkspace: cwd) == conversationId
         }
-        guard let target = mapped ?? (interactive.count == 1 ? interactive[0] : nil),
-              let app = NSRunningApplication(processIdentifier: target.app),
-              let bundleURL = app.bundleURL else { return false }
-
-        // Same cooperative-activation route as bringForward: opening an
-        // already-running app activates it reliably on macOS 14+, where
-        // plain activate() can lose the race.
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-        NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration) { _, _ in
-            DispatchQueue.main.async { NSApp.hide(nil) }
+        guard let target = mapped ?? (interactive.count == 1 ? interactive[0] : nil) else {
+            return false
         }
-        return true
+        return front(applicationPID: target.app)
     }
 
     /// `cache/last_conversations.json` maps a workspace path to the
@@ -335,6 +332,13 @@ enum TurnAlarmNavigator {
         fallbackBundleID: String?
     ) -> Bool {
         guard !thread.sessionId.isEmpty else { return false }
+        // A live interactive session beats any resume spawn: if the CLI
+        // that raised this alarm is still running in some terminal, that
+        // window IS the destination — spawning a fresh `grok --continue`
+        // beside a live grok duplicated the session (user report via the
+        // owner, 2026-08-09). Matching is by working directory, which every
+        // CLI here scopes its sessions to.
+        if frontRunningCLI(executable: executable, cwd: thread.cwd) { return true }
         let command = resumeCommand(executable: executable, arguments: arguments, cwd: thread.cwd)
         let sessionId = thread.sessionId
         // osascript blocks until Terminal handles the Apple Event — on the
@@ -342,11 +346,70 @@ enum TurnAlarmNavigator {
         // minutes. waitUntilExit on the main actor froze the whole app, so
         // the run happens off-main and the fallbacks hop back for AppKit.
         Task.detached(priority: .userInitiated) {
+            // The user's own terminal first (observed, not guessed — see
+            // TerminalLauncher); Terminal.app remains the guaranteed floor.
+            if await TerminalLauncher.spawnInPreferredTerminal(
+                command: command, executable: executable, sessionId: sessionId) { return }
             if runTerminalCommand(command) { return }
             await MainActor.run {
                 if openCommandFile(command: command, executable: executable, sessionId: sessionId) { return }
                 if let fallbackBundleID { activate(bundleIdentifier: fallbackBundleID) }
             }
+        }
+        return true
+    }
+
+    /// Fronts the terminal (or IDE) hosting a running CLI whose working
+    /// directory is the alarm thread's.
+    private static func frontRunningCLI(executable: String, cwd: String) -> Bool {
+        for appPID in liveCLIHosts(executable: executable, cwd: cwd) {
+            if front(applicationPID: appPID) { return true }
+        }
+        return false
+    }
+
+    private static func frontUniqueRunningCLI(executable: String, cwd: String) -> Bool {
+        let hosts = liveCLIHosts(executable: executable, cwd: cwd)
+        guard hosts.count == 1, let only = hosts.first else { return false }
+        return front(applicationPID: only)
+    }
+
+    /// GUI apps hosting a live `executable` process whose working directory
+    /// is the alarm thread's. Name-exact process match; the agy symlink's
+    /// real binary is `antigravity`, so both names count.
+    private static func liveCLIHosts(executable: String, cwd: String) -> [pid_t] {
+        guard !cwd.isEmpty else { return [] }
+        let names: Set<String> = executable == "agy" ? ["agy", "antigravity"] : [executable]
+        let wanted = canonicalPath(cwd)
+        var hosts: [pid_t] = []
+        for pid in ProcessTree.pids(named: names) {
+            guard let processCwd = ProcessTree.currentWorkingDirectory(pid),
+                  canonicalPath(processCwd) == wanted,
+                  let appPID = ProcessTree.owningGUIApplication(pid) else { continue }
+            if !hosts.contains(appPID) { hosts.append(appPID) }
+        }
+        return hosts
+    }
+
+    /// The kernel reports cwds symlink-resolved (/private/tmp); scanner
+    /// cwds may not be. Canonicalize both sides before comparing.
+    private static func canonicalPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+    }
+
+    /// Same cooperative-activation route as bringForward: opening an
+    /// already-running app activates it reliably on macOS 14+, where plain
+    /// activate() can lose the race. Also the observation point that feeds
+    /// TerminalLauncher — whatever terminal we front here is the terminal
+    /// the user actually lives in.
+    private static func front(applicationPID pid: pid_t) -> Bool {
+        guard let app = NSRunningApplication(processIdentifier: pid),
+              let bundleURL = app.bundleURL else { return false }
+        TerminalLauncher.remember(bundleID: app.bundleIdentifier)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration) { _, _ in
+            DispatchQueue.main.async { NSApp.hide(nil) }
         }
         return true
     }
@@ -373,25 +436,9 @@ enum TurnAlarmNavigator {
     }
 
     private static func openCommandFile(command: String, executable: String, sessionId: String) -> Bool {
-        guard let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return false
-        }
-        let dir = root
-            .appendingPathComponent("AgentIsland", isDirectory: true)
-            .appendingPathComponent("ResumeCommands", isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent("resume-\(safeFileComponent(executable))-\(safeFileComponent(sessionId)).command")
-            let body = """
-            #!/bin/zsh
-            \(command)
-            """
-            try body.write(to: url, atomically: true, encoding: .utf8)
-            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
-            return NSWorkspace.shared.open(url)
-        } catch {
-            return false
-        }
+        guard let url = TerminalLauncher.writeCommandFile(
+            command: command, executable: executable, sessionId: sessionId) else { return false }
+        return NSWorkspace.shared.open(url)
     }
 
     private static func resumeCommand(executable: String, arguments: [String], cwd: String) -> String {
@@ -436,10 +483,4 @@ enum TurnAlarmNavigator {
             .replacingOccurrences(of: "\n", with: "\\n")
     }
 
-    private static func safeFileComponent(_ raw: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        let scalars = raw.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
-        let text = String(scalars)
-        return text.isEmpty ? "session" : String(text.prefix(80))
-    }
 }
