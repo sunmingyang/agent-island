@@ -32,6 +32,15 @@ public static class IslandColors
 
     public static Color White(double opacity) => Color.FromArgb((byte)(opacity * 255), 0xFF, 0xFF, 0xFF);
 
+    /// Label color for text sitting ON an accent-filled control: near-white
+    /// accents (Grok steel, Cursor bone) need a dark label — white-on-bone
+    /// made the alarm CTA unreadable (macOS accentIsLight twin).
+    public static Color LabelOn(Color accent)
+    {
+        var luminance = (0.299 * accent.R + 0.587 * accent.G + 0.114 * accent.B) / 255.0;
+        return luminance > 0.7 ? Color.FromArgb(0xD9, 0x00, 0x00, 0x00) : Colors.White;
+    }
+
     /// Percent readout tint ladder (UrgencyColor.swift): white below 70%,
     /// amber 70-89%, red at 90%+.
     public static Color Urgency(double usedPercent) => usedPercent switch

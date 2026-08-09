@@ -196,7 +196,7 @@ public sealed class IslandDialog : Window
 
         if (primaryLabel is not null)
         {
-            var primary = MakeButton(primaryLabel, Colors.White, tint, bold: true);
+            var primary = MakeButton(primaryLabel, IslandColors.LabelOn(tint), tint, bold: true);
             primary.Click += (_, _) =>
             {
                 Close();

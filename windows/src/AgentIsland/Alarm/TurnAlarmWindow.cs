@@ -521,7 +521,7 @@ public sealed class TurnAlarmWindow : Window
             FontFamily = IslandFonts.Ui,
             FontSize = 18,
             FontWeight = FontWeights.Bold,
-            Foreground = Brushes.White,
+            Foreground = IslandColors.Brush(IslandColors.LabelOn(tint)),
             Width = 396,
             Height = 48,
             Cursor = Cursors.Hand,

@@ -41,6 +41,12 @@ extension AlertEngine.Provider {
         self == .antigravity ? IslandGradient.google : [accent, accent]
     }
 
+    /// Near-white accents (Grok steel, Cursor bone) need a DARK label on
+    /// accent-filled controls — white-on-bone made the alarm CTA unreadable.
+    var accentIsLight: Bool {
+        self == .grok || self == .cursor
+    }
+
     func accentGradient(opacity: Double = 1,
                         from start: UnitPoint = .topLeading,
                         to end: UnitPoint = .bottomTrailing) -> LinearGradient {

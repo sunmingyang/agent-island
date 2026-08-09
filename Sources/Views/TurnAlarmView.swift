@@ -79,7 +79,7 @@ struct TurnAlarmView: View {
                     } label: {
                         Text(L10n.tr("Open thread"))
                             .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(provider.accentIsLight ? Color.black.opacity(0.85) : .white)
                             .frame(width: 396, height: 48)
                             .background {
                                 RoundedRectangle(cornerRadius: 12)
