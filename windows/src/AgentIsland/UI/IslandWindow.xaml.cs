@@ -380,12 +380,15 @@ public partial class IslandWindow : Window
         if (_resetCards is not null)
         {
             // The banked-reset chip is Codex data living inside the right
-            // title panel; any other occupant collapses it.
+            // title panel; any other occupant collapses it — and it only
+            // exists at all when a card is actually banked (macOS
+            // PanelHeader: resetCards > 0; a permanent ×0 was noise).
+            var store = UsageStore.Shared;
             var codexRight = _rightTool == TriggerTool.Codex;
-            _resetCards.Visibility = codexRight ? Visibility.Visible : Visibility.Collapsed;
-            if (codexRight)
+            var banked = (store.Codex.ResetCards ?? 0) > 0;
+            _resetCards.Visibility = codexRight && banked ? Visibility.Visible : Visibility.Collapsed;
+            if (codexRight && banked)
             {
-                var store = UsageStore.Shared;
                 _resetCards.Update(store.Codex.ResetCards, store.Codex.ResetCardDetails);
             }
         }

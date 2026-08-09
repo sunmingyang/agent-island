@@ -528,25 +528,8 @@ public static class ReportCards
         return row;
     }
 
-    private static UIElement ProviderMark(DisplayProvider provider, double side = DuelMarkSide)
-    {
-        var color = ProviderIdentity.Accent(provider);
-        var path = BrandGeometry.PathData(provider);
-        if (path is null)
-        {
-            // No vector extracted yet (Gemini/Grok/Cursor): macOS falls back
-            // to a filled disc in the accent — mirror that missing-asset ring.
-            return new Ellipse { Width = side, Height = side, Fill = IslandColors.Brush(color) };
-        }
-        return new System.Windows.Shapes.Path
-        {
-            Data = Geometry.Parse("F1 " + path),
-            Fill = IslandColors.Brush(color),
-            Width = side,
-            Height = side,
-            Stretch = Stretch.Uniform,
-        };
-    }
+    private static UIElement ProviderMark(DisplayProvider provider, double side = DuelMarkSide) =>
+        ProviderMarks.Mark(provider, side, tintOpacity: 1);
 
     // MARK: - Weekly bars
 

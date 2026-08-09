@@ -597,8 +597,10 @@ public sealed class SettingsWindow : Window
             Close();
             Open();
         };
+        // Title + picker only — the picker already SHOWS the choice, an
+        // echoing subtitle was noise (owner, repeatedly, on macOS).
         stack.Children.Add(new SettingsRowControl(
-            "Language", CurrentLanguageSubtitle(), language));
+            "Language", null, language));
 
         stack.Children.Add(SectionLabel("Updates"));
         var autoCheck = new CobaltToggle(Preferences.Get<bool?>("AgentIsland.autoCheckUpdates") ?? true);
@@ -789,13 +791,6 @@ public sealed class SettingsWindow : Window
         {
         }
     }
-
-    private static string CurrentLanguageSubtitle() => AppLanguageStore.Load() switch
-    {
-        L10n.Language.English => "English",
-        L10n.Language.SimplifiedChinese => "简体中文",
-        _ => L10n.Tr("Follows the system language."),
-    };
 
     /// Threshold row: glowing severity dot, label, numeric %-field. The
     /// stores clamp so warning stays below critical.
@@ -1205,27 +1200,8 @@ public sealed class SettingsWindow : Window
             marks.Children.Clear();
             foreach (var provider in ProviderVisibilityStore.Shared.Enabled)
             {
-                // Real brand marks at 12px (macOS ProviderMark), not
-                // anonymous dots; providers without an extracted vector
-                // keep the accent disc fallback.
-                var accent = IslandColors.Brush(IslandColors.Alpha(ProviderIdentity.Accent(provider), 0.9));
-                UIElement mark = BrandGeometry.PathData(provider) is { } path
-                    ? new System.Windows.Shapes.Path
-                    {
-                        Data = Geometry.Parse("F1 " + path),
-                        Fill = accent,
-                        Width = 12,
-                        Height = 12,
-                        Stretch = Stretch.Uniform,
-                        VerticalAlignment = VerticalAlignment.Center,
-                    }
-                    : new System.Windows.Shapes.Ellipse
-                    {
-                        Width = 9,
-                        Height = 9,
-                        Fill = accent,
-                        VerticalAlignment = VerticalAlignment.Center,
-                    };
+                // Real brand marks at 12px (macOS ProviderMark).
+                var mark = ProviderMarks.Mark(provider, 12, tintOpacity: 0.9);
                 ((FrameworkElement)mark).Margin = new Thickness(0, 0, 7, 0);
                 marks.Children.Add(mark);
             }
@@ -1258,14 +1234,18 @@ public sealed class SettingsWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var rule = new Border
+        // The real brand mark leads the row (macOS providerCard: 20pt mark
+        // in a 24pt slot, 12pt gap) — the tinted rule era is over.
+        var markHost = new Grid
         {
-            Width = 2,
-            CornerRadius = new CornerRadius(1),
-            Margin = new Thickness(0, 6, 12, 6),
+            Width = 24,
+            Height = 24,
+            Margin = new Thickness(0, 0, 12, 0),
+            VerticalAlignment = VerticalAlignment.Center,
         };
-        Grid.SetColumn(rule, 0);
-        grid.Children.Add(rule);
+        markHost.Children.Add(ProviderMarks.Mark(provider, 20));
+        Grid.SetColumn(markHost, 0);
+        grid.Children.Add(markHost);
 
         var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
         titleRow.Children.Add(new TextBlock
@@ -1362,8 +1342,7 @@ public sealed class SettingsWindow : Window
             Padding = new Thickness(10, 12, 10, 12),
             Background = Brushes.Transparent,
         };
-        // Hover breathes a faint brand wash across the row and widens the
-        // rule a hair; the rule itself dims when the provider holds no slot.
+        // Hover breathes a faint brand wash across the row.
         Brush wash = new LinearGradientBrush(
             new GradientStopCollection
             {
@@ -1375,11 +1354,7 @@ public sealed class SettingsWindow : Window
         var hovered = false;
         void Paint()
         {
-            var occupied = ProviderVisibilityStore.Shared.IsEnabled(provider);
             row.Background = hovered ? wash : Brushes.Transparent;
-            rule.Width = hovered ? 3 : 2;
-            rule.Background = IslandColors.Brush(IslandColors.Alpha(
-                accent, occupied ? (hovered ? 1 : 0.85) : (hovered ? 0.45 : 0.22)));
         }
         row.MouseEnter += (_, _) =>
         {

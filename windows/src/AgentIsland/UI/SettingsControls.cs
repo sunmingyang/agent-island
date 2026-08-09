@@ -307,6 +307,9 @@ public sealed class SettingsRowControl : Border
                 Margin = new Thickness(0, 2, 0, 0),
                 TextWrapping = TextWrapping.Wrap,
                 MaxWidth = 380,
+                // Stretch + MaxWidth centers the box in WPF — the subtitle
+                // must sit flush with the title's left edge.
+                HorizontalAlignment = HorizontalAlignment.Left,
             });
         }
         Grid.SetColumn(text, 0);
