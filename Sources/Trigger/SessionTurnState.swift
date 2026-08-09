@@ -123,35 +123,49 @@ enum SessionTurnState {
     }
 
     /// Antigravity transcript records carry `source`: USER_EXPLICIT (the
-    /// human), SYSTEM, or MODEL (the agent). MODEL speaking last is the same
-    /// boundary Claude's stop_reason gives us. There IS a `status` field on
-    /// every record but its value set is undocumented and no open-source
-    /// parser reads it, so it is not trusted here — the caller's quiet gap
-    /// separates "still streaming" from "finished" until a real install
-    /// proves what status contains.
+    /// human), SYSTEM, or MODEL (the agent).
+    ///
+    /// "MODEL spoke last" is NOT the turn boundary, which a real install made
+    /// obvious (2026-08-08): every tool step is source MODEL too. A working
+    /// agent writes `PLANNER_RESPONSE` carrying `tool_calls` (deciding to
+    /// act, no content) followed by a `VIEW_FILE`/`RUN_COMMAND` record (the
+    /// result, content but no call) — treating either as finished fires the
+    /// alarm in the middle of a run. Only a PLANNER_RESPONSE that actually
+    /// speaks — content, no tool_calls — hands the turn back.
+    ///
+    /// SYSTEM records are skipped rather than read: `CHECKPOINT` lands both
+    /// mid-run and after the final reply, so it marks nothing.
+    ///
+    /// The `status` field is present on every record and was always `DONE`,
+    /// including on records sampled while the agent was still running —
+    /// lines are appended only once complete, so status is a per-step marker
+    /// and carries no turn state. The caller's quiet gap still backstops a
+    /// run that ends on a tool call.
     static func antigravity(_ lines: [String]) -> SessionTurnStatus {
         for line in lines.reversed() {
             guard let object = json(line),
                   let source = object["source"] as? String else { continue }
             let stamp = object["created_at"].flatMap(antigravityDate)
+            let key = (object["step_index"] as? Int).map { "ag:\($0)" }
             switch source {
             case "MODEL":
-                return SessionTurnStatus(
-                    isDone: true,
-                    key: (object["step_index"] as? Int).map { "ag:\($0)" },
-                    activityDate: stamp
-                )
+                let spoke = object["type"] as? String == "PLANNER_RESPONSE"
+                    && !antigravityHasToolCalls(object)
+                    && !((object["content"] as? String) ?? "").isEmpty
+                return SessionTurnStatus(isDone: spoke, key: key, activityDate: stamp)
             case "USER_EXPLICIT":
-                return SessionTurnStatus(
-                    isDone: false,
-                    key: (object["step_index"] as? Int).map { "ag:\($0)" },
-                    activityDate: stamp
-                )
+                return SessionTurnStatus(isDone: false, key: key, activityDate: stamp)
             default:
                 continue
             }
         }
         return SessionTurnStatus(isDone: false, key: nil, activityDate: nil)
+    }
+
+    private static func antigravityHasToolCalls(_ object: [String: Any]) -> Bool {
+        guard let raw = object["tool_calls"], !(raw is NSNull) else { return false }
+        if let list = raw as? [Any] { return !list.isEmpty }
+        return true
     }
 
     private static func antigravityDate(_ raw: Any) -> Date? {

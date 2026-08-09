@@ -18,7 +18,12 @@ enum AntigravityUsageFetcher {
         case failed(String)
         /// settings.json declares api-key / vertex-ai.
         case unsupportedAuth(String)
-        /// No oauth_creds.json — Gemini CLI never signed in on this machine.
+        /// Signed in, but through the CLI — which keeps its token in the
+        /// keychain and writes no oauth_creds.json, so this HTTP path has
+        /// nothing to authenticate with. Sessions still work; only the quota
+        /// numbers are out of reach until the keychain path lands.
+        case quotaUnavailable
+        /// No credential anywhere — Antigravity never signed in here.
         case notInstalled
     }
 
@@ -31,12 +36,12 @@ enum AntigravityUsageFetcher {
     static func fetch() async -> Outcome {
         switch AntigravityCredentials.detect() {
         case .notInstalled: return .notInstalled
-        case .unsupportedAuth(let type): return .unsupportedAuth(type)
-        case .oauthPersonal: break
+        case .signedOut: return .notInstalled
+        case .signedIn: break
         }
         let credsURL = AntigravityCredentials.credsURL()
         guard var creds = AntigravityCredentials.loadCreds(from: credsURL) else {
-            return .notInstalled
+            return .quotaUnavailable
         }
 
         // Proactive refresh near expiry (Google access tokens live ~1h).

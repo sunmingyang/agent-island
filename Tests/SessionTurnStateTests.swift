@@ -243,6 +243,74 @@ private func testClaudeApiErrorLineIsNotNeedsYou() throws {
     try expect(state.isDone == false, "an API-error / rate-limit assistant line must not count as a finished turn")
 }
 
+// MARK: - Antigravity
+//
+// Record shapes below are copied from real transcripts captured on a signed-in
+// install (agy 1.1.11, 2026-08-08), not invented.
+
+private let agUserInput =
+    #"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-08-09T02:00:22Z","content":"<USER_REQUEST> write a haiku"}"#
+private let agHistory =
+    #"{"step_index":1,"source":"SYSTEM","type":"CONVERSATION_HISTORY","status":"DONE","created_at":"2026-08-09T02:00:22Z"}"#
+private let agToolCall =
+    #"{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-08-09T02:00:22Z","tool_calls":[{"tool_name":"view_file"}]}"#
+private let agToolResult =
+    #"{"step_index":3,"source":"MODEL","type":"VIEW_FILE","status":"DONE","created_at":"2026-08-09T02:00:24Z","content":"hello\n"}"#
+private let agCheckpoint =
+    #"{"step_index":4,"source":"SYSTEM","type":"CHECKPOINT","status":"DONE","created_at":"2026-08-09T02:00:24Z","content":"{{ CHECKPOINT 0 }}"}"#
+private let agReply =
+    #"{"step_index":5,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-08-09T02:00:25Z","content":"Unseen silent force,"}"#
+
+/// The whole point: every tool step is source MODEL too, so "MODEL spoke
+/// last" would fire the alarm mid-run. Both halves of a tool round-trip must
+/// read as working.
+private func testAntigravityToolStepsAreNotFinished() throws {
+    let deciding = SessionTurnState.antigravity([agUserInput, agHistory, agToolCall])
+    try expect(deciding.isDone == false,
+               "a PLANNER_RESPONSE carrying tool_calls is the agent acting, not finishing")
+
+    let result = SessionTurnState.antigravity([agUserInput, agHistory, agToolCall, agToolResult])
+    try expect(result.isDone == false,
+               "a VIEW_FILE record is a tool result — content, but not the agent speaking")
+
+    let mid = SessionTurnState.antigravity(
+        [agUserInput, agHistory, agToolCall, agToolResult, agCheckpoint])
+    try expect(mid.isDone == false,
+               "CHECKPOINT lands mid-run too and must never be read as a boundary")
+}
+
+private func testAntigravityReplyFinishesTurn() throws {
+    let state = SessionTurnState.antigravity([agUserInput, agHistory, agReply])
+    try expect(state.isDone, "a PLANNER_RESPONSE with content and no tool_calls hands the turn back")
+    try expect(state.key == "ag:5", "the turn key must come from the replying step")
+
+    // A real finished run ends with CHECKPOINT after the reply.
+    let trailing = SessionTurnState.antigravity([agUserInput, agHistory, agReply, agCheckpoint])
+    try expect(trailing.isDone, "a trailing SYSTEM CHECKPOINT must not hide the finished reply")
+    try expect(trailing.key == "ag:5", "the key must still be the reply's, not the checkpoint's")
+}
+
+private func testAntigravityUserInputIsWorking() throws {
+    let state = SessionTurnState.antigravity([agUserInput, agHistory])
+    try expect(state.isDone == false, "the user having just spoken means the agent owes a reply")
+    try expect(state.key == "ag:0", "the key must come from the user step")
+}
+
+/// An empty-content PLANNER_RESPONSE would otherwise sneak through as a reply.
+private func testAntigravityEmptyReplyIsNotFinished() throws {
+    let blank =
+        #"{"step_index":6,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-08-09T02:00:25Z","content":""}"#
+    try expect(SessionTurnState.antigravity([agUserInput, blank]).isDone == false,
+               "an empty PLANNER_RESPONSE says nothing and finishes nothing")
+}
+
+/// `status` was `DONE` on every record even while the agent was still running
+/// — lines are appended only once complete — so it must not gate anything.
+private func testAntigravityIgnoresStatusField() throws {
+    try expect(SessionTurnState.antigravity([agUserInput, agHistory, agToolCall]).isDone == false,
+               "status DONE on an in-flight tool call must not read as a finished turn")
+}
+
 @main
 private enum SessionTurnStateTestRunner {
     static func main() {
@@ -260,7 +328,12 @@ private enum SessionTurnStateTestRunner {
             ("desktop bookkeeping write does not suppress fresh end_turn", testDesktopBookkeepingWriteDoesNotSuppressFreshEndTurn),
             ("desktop activity well after end_turn still suppresses", testDesktopActivityWellAfterEndTurnStillSuppresses),
             ("claude streaming assistant is working", testClaudeStreamingAssistantIsWorking),
-            ("claude api-error / rate-limit line is not needs-you", testClaudeApiErrorLineIsNotNeedsYou)
+            ("claude api-error / rate-limit line is not needs-you", testClaudeApiErrorLineIsNotNeedsYou),
+            ("antigravity tool steps are not a finished turn", testAntigravityToolStepsAreNotFinished),
+            ("antigravity reply finishes the turn", testAntigravityReplyFinishesTurn),
+            ("antigravity user input is working", testAntigravityUserInputIsWorking),
+            ("antigravity empty reply is not finished", testAntigravityEmptyReplyIsNotFinished),
+            ("antigravity ignores the status field", testAntigravityIgnoresStatusField)
         ]
 
         do {

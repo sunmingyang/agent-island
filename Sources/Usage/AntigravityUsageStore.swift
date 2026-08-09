@@ -34,7 +34,7 @@ final class AntigravityUsageStore: ObservableObject {
         if AppEnvironment.isDemo {
             if AppEnvironment.demoGuestFixturesEnabled {
                 let now = Date()
-                detection = .oauthPersonal
+                detection = .signedIn
                 snapshot = AntigravityQuotaSnapshot(
                     buckets: [
                         AntigravityModelBucket(
@@ -58,7 +58,7 @@ final class AntigravityUsageStore: ObservableObject {
             return
         }
         detection = AntigravityCredentials.detect()
-        guard detection == .oauthPersonal else { return }
+        guard detection == .signedIn else { return }
         loadIdentity()
         guard let data = UserDefaults.standard.data(forKey: Self.cacheKey),
               let cached = try? JSONDecoder().decode(CachedSnapshot.self, from: data),
@@ -75,7 +75,7 @@ final class AntigravityUsageStore: ObservableObject {
 
     func kickRefresh() {
         guard !AppEnvironment.isDemo,
-              detection == .oauthPersonal,
+              detection == .signedIn,
               ProviderVisibilityStore.shared.antigravityPanelShown,
               !loading else { return }
         if let last = lastAttempt, Date().timeIntervalSince(last) < Self.minAttemptGap { return }
@@ -108,6 +108,9 @@ final class AntigravityUsageStore: ObservableObject {
         case .unsupportedAuth:
             snapshot = nil
             statusCaption = L10n.tr("this sign-in method isn't supported yet")
+        case .quotaUnavailable:
+            snapshot = nil
+            statusCaption = L10n.tr("sessions monitored — quota reading not wired yet")
         case .failed(let message):
             // Keep the last good numbers; the caption admits staleness.
             statusCaption = message

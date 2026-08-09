@@ -36,14 +36,15 @@ final class ProviderVisibilityStore: ObservableObject {
     /// Grok counts as installed only with a login on disk (`auth.json`) —
     /// a bare ~/.grok from an aborted install has nothing to show.
     @Published private(set) var grokDetected: Bool
-    /// Gemini counts as installed only on the oauth-personal path with
-    /// creds on disk; api-key/vertex logins surface as a Settings caption
-    /// (`antigravityAuthUnsupported`), never as a slot candidate.
+    /// Antigravity counts as installed once a credential exists (keychain for
+    /// the CLI, oauth_creds.json for the IDE). A data root with no credential
+    /// is a real install awaiting sign-in — surfaced as a Settings caption
+    /// (`antigravitySignedOut`), never as a slot candidate.
     @Published private(set) var antigravityDetected: Bool
     /// Cursor counts as installed when the editor's state db exists — that
     /// db is also where its session token lives, so no db means no login.
     @Published private(set) var cursorDetected: Bool
-    @Published private(set) var antigravityAuthUnsupported: String?
+    @Published private(set) var antigravitySignedOut: Bool
 
     private init() {
         // Demo shares the real user's defaults — pin the recording rig to
@@ -83,7 +84,7 @@ final class ProviderVisibilityStore: ObservableObject {
         self.grokDetected = false
         self.cursorDetected = false
         self.antigravityDetected = false
-        self.antigravityAuthUnsupported = nil
+        self.antigravitySignedOut = false
         redetectGuests()
 
         if !AppEnvironment.isDemo, UserDefaults.standard.data(forKey: Self.enabledKey) == nil {
@@ -104,7 +105,7 @@ final class ProviderVisibilityStore: ObservableObject {
             if grokDetected != onForDemo { grokDetected = onForDemo }
             if cursorDetected != onForDemo { cursorDetected = onForDemo }
             if antigravityDetected != onForDemo { antigravityDetected = onForDemo }
-            if antigravityAuthUnsupported != nil { antigravityAuthUnsupported = nil }
+            if antigravitySignedOut { antigravitySignedOut = false }
             return
         }
         let grok = GrokAuthFile.exists()
@@ -113,23 +114,23 @@ final class ProviderVisibilityStore: ObservableObject {
         if cursorDetected != cursor { cursorDetected = cursor }
 
         let antigravity: Bool
-        let unsupported: String?
+        let signedOut: Bool
         switch AntigravityCredentials.detect() {
-        case .oauthPersonal:
+        case .signedIn:
             antigravity = true
-            unsupported = nil
-        case .unsupportedAuth(let type):
-            // API-key / Vertex logins are REAL Gemini users — session
-            // monitoring works for them (the CLI writes the same local chat
-            // files), only the Code Assist quota endpoint is out of reach.
-            antigravity = true
-            unsupported = type
+            signedOut = false
+        case .signedOut:
+            // The CLI is installed and simply hasn't been through its sign-in
+            // wizard — a fixable state, not an absence. Say so rather than
+            // claiming Antigravity isn't here.
+            antigravity = false
+            signedOut = true
         case .notInstalled:
             antigravity = false
-            unsupported = nil
+            signedOut = false
         }
         if antigravityDetected != antigravity { antigravityDetected = antigravity }
-        if antigravityAuthUnsupported != unsupported { antigravityAuthUnsupported = unsupported }
+        if antigravitySignedOut != signedOut { antigravitySignedOut = signedOut }
     }
 
     // MARK: - Toggling

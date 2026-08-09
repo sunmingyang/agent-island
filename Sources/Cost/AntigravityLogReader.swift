@@ -53,7 +53,8 @@ enum AntigravityLogReader {
 
     private static func tmpRoot() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".antigravity", isDirectory: true)
+            .appendingPathComponent(".gemini", isDirectory: true)
+            .appendingPathComponent("antigravity-cli", isDirectory: true)
             .appendingPathComponent("tmp", isDirectory: true)
     }
 

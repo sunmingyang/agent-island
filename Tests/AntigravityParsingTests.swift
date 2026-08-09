@@ -67,50 +67,80 @@ private func makeTempGeminiHome(
 
 // MARK: - Settings / detection
 
-private func testAuthTypeAcceptsAllThreeSpellings() throws {
-    let top = Data(#"{"authType":"oauth-personal"}"#.utf8)
-    try expect(AntigravityCredentials.authType(fromSettings: top) == "oauth-personal",
-               "top-level authType must parse")
-    let classic = Data(#"{"selectedAuthType":"gemini-api-key"}"#.utf8)
-    try expect(AntigravityCredentials.authType(fromSettings: classic) == "gemini-api-key",
-               "classic selectedAuthType must parse")
-    let nested = Data(#"{"security":{"auth":{"selectedType":"vertex-ai"}}}"#.utf8)
-    try expect(AntigravityCredentials.authType(fromSettings: nested) == "vertex-ai",
-               "nested security.auth.selectedType must parse")
-    try expect(AntigravityCredentials.authType(fromSettings: Data("{}".utf8)) == nil,
-               "silent settings must read as nil (defaults to oauth-personal)")
-    try expect(AntigravityCredentials.authType(fromSettings: Data("not json".utf8)) == nil,
-               "garbage settings must read as nil")
-}
-
+/// The CLI ships no `oauth_creds.json` — its token lives in the keychain —
+/// so a data root alone must read as signed-out, and the keychain item alone
+/// (no creds file anywhere) must still read as signed-in. Getting this
+/// backwards is exactly what left a freshly signed-in install showing "not
+/// detected" (repro, 2026-08-08).
 private func testDetectionStates() throws {
     let missing = FileManager.default.temporaryDirectory
         .appendingPathComponent("gemini-tests-missing-\(UUID().uuidString)", isDirectory: true)
-    try expect(AntigravityCredentials.detect(home: missing) == .notInstalled,
-               "no ~/.antigravity must read as notInstalled")
+    try expect(
+        AntigravityCredentials.detect(roots: [missing], keychainCredential: false) == .notInstalled,
+        "no data root and no keychain item must read as notInstalled")
 
     let bare = try makeTempGeminiHome(credsExpiryMs: nil)
     defer { try? FileManager.default.removeItem(at: bare) }
-    try expect(AntigravityCredentials.detect(home: bare) == .notInstalled,
-               "a bare ~/.antigravity without creds must stay undetected")
+    try expect(
+        AntigravityCredentials.detect(roots: [bare], keychainCredential: false) == .signedOut,
+        "a CLI data root without any credential must read as signedOut, not notInstalled")
+    try expect(
+        AntigravityCredentials.detect(roots: [bare], keychainCredential: true) == .signedIn,
+        "the keychain item alone must prove sign-in — the CLI writes no creds file")
 
-    let apiKey = try makeTempGeminiHome(
-        credsExpiryMs: nil,
-        settingsJSON: #"{"selectedAuthType":"gemini-api-key"}"#
-    )
-    defer { try? FileManager.default.removeItem(at: apiKey) }
-    try expect(AntigravityCredentials.detect(home: apiKey) == .unsupportedAuth("gemini-api-key"),
-               "api-key settings must read as unsupportedAuth even without creds")
+    let withFile = try makeTempGeminiHome()
+    defer { try? FileManager.default.removeItem(at: withFile) }
+    try expect(
+        AntigravityCredentials.detect(roots: [withFile], keychainCredential: false) == .signedIn,
+        "an IDE root carrying oauth_creds.json must detect without the keychain")
 
-    let oauth = try makeTempGeminiHome(settingsJSON: #"{"selectedAuthType":"oauth-personal"}"#)
-    defer { try? FileManager.default.removeItem(at: oauth) }
-    try expect(AntigravityCredentials.detect(home: oauth) == .oauthPersonal,
-               "oauth-personal settings + creds must detect")
+    try expect(
+        AntigravityCredentials.detect(roots: [], keychainCredential: true) == .signedIn,
+        "a credential with no surviving data root still means a signed-in account")
 
-    let silent = try makeTempGeminiHome()
-    defer { try? FileManager.default.removeItem(at: silent) }
-    try expect(AntigravityCredentials.detect(home: silent) == .oauthPersonal,
-               "missing settings must default to the oauth-personal path")
+    try expect(
+        AntigravityCredentials.detect(roots: [missing, withFile], keychainCredential: false) == .signedIn,
+        "one good root among several must be enough")
+}
+
+/// The CLI wraps every user message in a `<USER_REQUEST>` envelope and then
+/// appends metadata blocks; a raw label would show the tags and the machine's
+/// local time. Shapes taken from a real transcript (2026-08-08).
+private func testAntigravityRequestTextUnwrapsEnvelope() throws {
+    let request = "Write a haiku about gravity, then explain why apples fall."
+    let real = "<USER_REQUEST>\n\(request)\n"
+        + "</USER_REQUEST>\n<ADDITIONAL_METADATA>\nThe current local time is: 2026-08-08T22:01:06-04:00.\n"
+        + "</ADDITIONAL_METADATA>"
+    let label = SessionScanner.antigravityRequestText(real)
+    try expect(label == String(request.prefix(48)),
+               "the envelope and trailing metadata must be stripped, then clipped to 48")
+    try expect(!(label ?? "").contains("USER_REQUEST"),
+               "no envelope tag may leak into a label")
+    try expect(!(label ?? "").contains("local time"),
+               "the metadata block must never become the label")
+
+    try expect(SessionScanner.antigravityRequestText("<USER_REQUEST>\n--output-format\n</USER_REQUEST>")
+                == "--output-format",
+               "a short request must survive intact")
+    try expect(SessionScanner.antigravityRequestText("plain text, no envelope") == "plain text, no envelope",
+               "a record without the envelope must still yield its text")
+    try expect(SessionScanner.antigravityRequestText("<USER_REQUEST>\n\n</USER_REQUEST>") == nil,
+               "an empty request must yield nil so the caller falls back")
+    try expect(SessionScanner.antigravityRequestText("   \n  ") == nil,
+               "whitespace must yield nil, never a blank label")
+}
+
+/// The roots are probed under ~/.gemini, and the CLI root is preferred —
+/// pointing these at ~/.antigravity is what broke detection.
+private func testDataRootNamesAndOrder() throws {
+    try expect(AntigravityCredentials.rootNames.first == "antigravity-cli",
+               "the CLI root must be probed first — it is the one a brew install creates")
+    try expect(Set(AntigravityCredentials.rootNames)
+                == ["antigravity-cli", "antigravity-ide", "antigravity"],
+               "all three renamed roots must stay in the probe list")
+    let home = AntigravityCredentials.homeDirectory().path
+    try expect(home.contains("/.gemini/"),
+               "roots live under ~/.gemini, never ~/.antigravity")
 }
 
 // MARK: - Credentials
@@ -339,8 +369,9 @@ private func testMigrationSignalDetection() throws {
 private enum GeminiParsingTestRunner {
     static func main() {
         let tests: [(String, () throws -> Void)] = [
-            ("authType accepts all three spellings", testAuthTypeAcceptsAllThreeSpellings),
             ("detection states", testDetectionStates),
+            ("data root names and order", testDataRootNamesAndOrder),
+            ("request text unwraps the USER_REQUEST envelope", testAntigravityRequestTextUnwrapsEnvelope),
             ("creds parse fields and email", testLoadCredsParsesFieldsAndEmail),
             ("needsRefresh honors skew", testNeedsRefreshHonorsSkew),
             ("refresh writeback rewrites atomically", testApplyRefreshRewritesAtomicallyAndPreservesEverythingElse),

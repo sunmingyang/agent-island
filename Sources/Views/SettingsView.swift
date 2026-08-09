@@ -928,8 +928,7 @@ struct SettingsView: View {
             })
 
             providerCard(.antigravity, status: antigravitySubtitle,
-                         chip: visibility.antigravityAuthUnsupported.map { $0.uppercased() }
-                             ?? (visibility.antigravityDetected ? antigravityStore.tierBadge : nil))
+                         chip: visibility.antigravityDetected ? antigravityStore.tierBadge : nil)
             providerCard(.grok, status: grokSubtitle,
                          chip: visibility.grokDetected ? grokStore.authModeBadge : nil)
             providerCard(.cursor, status: cursorSubtitle,
@@ -1172,11 +1171,11 @@ struct SettingsView: View {
     /// visible line (owner report, 2026-08-08 — the row led with a bare
     /// email and read as a glitch); identity lives in the usage-strip hover.
     private var antigravitySubtitle: String {
-        if let authType = visibility.antigravityAuthUnsupported {
-            // Not a dead end: sessions are monitored locally either way; only
-            // the quota numbers live server-side where this auth mode has no
-            // readable endpoint.
-            return L10n.tr("%@ mode — sessions monitored here, quota lives in Google AI Studio", authType)
+        if visibility.antigravitySignedOut {
+            // Installed but never signed in — name the one command that fixes
+            // it instead of the flat "not detected" the owner hit after a
+            // successful login (repro, 2026-08-08).
+            return L10n.tr("Installed — run agy to sign in")
         }
         guard visibility.antigravityDetected else {
             return L10n.tr("Not detected — sign in with the antigravity CLI")

@@ -1,15 +1,22 @@
 import Foundation
+import Security
 
-/// How the Gemini CLI is signed in on this machine. Only the personal-OAuth
-/// path (`oauth-personal`) exposes the Code Assist quota API this app reads;
-/// api-key / vertex-ai logins have no quota endpoint we can speak to.
+/// How Antigravity is signed in on this machine.
+///
+/// This is NOT the Gemini CLI's file layout, which is what the first cut of
+/// this file assumed. Verified against a real install (2026-08-08): the
+/// Antigravity CLI keeps its data under `~/.gemini/antigravity-cli/` and
+/// stores the OAuth token in the **login keychain** (service `gemini`,
+/// account `antigravity`) — it writes no `oauth_creds.json` at all. The
+/// `~/.gemini/oauth_creds.json` that may sit alongside belongs to the
+/// separate Gemini CLI product and must not be read as Antigravity's.
 enum AntigravityAuthDetection: Equatable {
-    /// No usable ~/.antigravity footprint — zero-intrusion, show nothing.
+    /// No Antigravity footprint at all — zero-intrusion, show nothing.
     case notInstalled
-    /// settings.json declares a non-OAuth auth type (api-key, vertex-ai…).
-    case unsupportedAuth(String)
-    /// oauth_creds.json present on the oauth-personal path.
-    case oauthPersonal
+    /// A data root exists but no credential — installed, sign-in not done.
+    case signedOut
+    /// A credential is present.
+    case signedIn
 }
 
 /// Parsed `~/.gemini/antigravity-ide/oauth_creds.json`. `expiry_date` is epoch milliseconds
@@ -29,49 +36,76 @@ struct AntigravityOAuthCreds: Equatable {
 /// same directory, then rename(2)), and every field this app doesn't
 /// understand is preserved.
 enum AntigravityCredentials {
+    /// Google has renamed this directory twice (1.x `antigravity`, 2.x
+    /// `antigravity-ide`) and the CLI keeps a third root, so all three are
+    /// probed rather than one hardcoded guess. CLI first: it is the root
+    /// that exists on a plain `brew install antigravity-cli` machine.
+    static let rootNames = ["antigravity-cli", "antigravity-ide", "antigravity"]
+
+    static func dataRoots() -> [URL] {
+        let base = URL(fileURLWithPath: NSString("~/.gemini").expandingTildeInPath,
+                       isDirectory: true)
+        return rootNames
+            .map { base.appendingPathComponent($0, isDirectory: true) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
     static func homeDirectory() -> URL {
-        let home = NSString("~/.antigravity").expandingTildeInPath
-        return URL(fileURLWithPath: home, isDirectory: true)
+        dataRoots().first
+            ?? URL(fileURLWithPath: NSString("~/.gemini/antigravity-cli").expandingTildeInPath,
+                   isDirectory: true)
     }
 
     static func settingsURL(home: URL = homeDirectory()) -> URL {
         home.appendingPathComponent("settings.json")
     }
 
-    static func credsURL(home: URL = homeDirectory()) -> URL {
-        home.appendingPathComponent("oauth_creds.json")
+    /// Only the IDE roots have ever written this file; the CLI uses the
+    /// keychain. Returns the first root that actually has one so the quota
+    /// fetcher reads a real file instead of a guessed path.
+    static func credsURL(home: URL? = nil) -> URL {
+        if let home { return home.appendingPathComponent("oauth_creds.json") }
+        let named = dataRoots().map { $0.appendingPathComponent("oauth_creds.json") }
+        return named.first { FileManager.default.fileExists(atPath: $0.path) }
+            ?? homeDirectory().appendingPathComponent("oauth_creds.json")
     }
 
-    /// The configured auth type, or nil when settings.json is missing or
-    /// silent about it (the CLI defaults to oauth-personal in that case).
-    /// Accepts the three spellings the CLI has shipped: top-level
-    /// `selectedAuthType` (classic), top-level `authType`, and the nested
-    /// `security.auth.selectedType` (current).
-    static func authType(fromSettings data: Data) -> String? {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-        if let direct = nonEmpty(root["selectedAuthType"]) { return direct }
-        if let direct = nonEmpty(root["authType"]) { return direct }
-        guard let security = root["security"] as? [String: Any],
-              let auth = security["auth"] as? [String: Any] else { return nil }
-        return nonEmpty(auth["selectedType"])
+    /// Attributes-only keychain probe. Deliberately omits `kSecReturnData`:
+    /// asking for the secret itself triggers the "wants to access your
+    /// keychain" dialog, and this runs on every refresh tick. Measured at
+    /// 9ms with no prompt on the owner's machine (2026-08-08).
+    static func hasKeychainCredential(service: String = "gemini",
+                                      account: String = "antigravity") -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var out: CFTypeRef?
+        return SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess
     }
 
-    static func detect(home: URL = homeDirectory()) -> AntigravityAuthDetection {
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: home.path, isDirectory: &isDir),
-              isDir.boolValue else { return .notInstalled }
-        if let data = try? Data(contentsOf: settingsURL(home: home)),
-           let type = authType(fromSettings: data),
-           type != "oauth-personal" {
-            return .unsupportedAuth(type)
+    static func detect() -> AntigravityAuthDetection {
+        detect(roots: dataRoots(), keychainCredential: hasKeychainCredential())
+    }
+
+    /// Split out so tests can drive both inputs; the keychain half is not
+    /// reachable from a fixture directory.
+    static func detect(roots: [URL], keychainCredential: Bool) -> AntigravityAuthDetection {
+        let installed = roots.contains { url in
+            var isDir: ObjCBool = false
+            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                && isDir.boolValue
         }
-        // A bare ~/.antigravity from an aborted install has nothing to show.
-        guard FileManager.default.fileExists(atPath: credsURL(home: home).path) else {
-            return .notInstalled
+        // The IDE roots write oauth_creds.json; the CLI uses the keychain.
+        // Either one proves a signed-in account.
+        let fileCredential = roots.contains {
+            FileManager.default.fileExists(atPath: $0.appendingPathComponent("oauth_creds.json").path)
         }
-        return .oauthPersonal
+        if keychainCredential || fileCredential { return .signedIn }
+        return installed ? .signedOut : .notInstalled
     }
 
     static func loadCreds(from url: URL) -> AntigravityOAuthCreds? {

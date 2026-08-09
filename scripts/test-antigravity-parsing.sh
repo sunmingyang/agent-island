@@ -10,6 +10,9 @@ swiftc \
     Sources/Usage/GrokBilling.swift \
     Sources/Usage/AntigravityCredentials.swift \
     Sources/Usage/AntigravityQuota.swift \
+    Sources/Trigger/SessionTurnState.swift \
+    Tests/SessionScannerStubs.swift \
+    Sources/Trigger/SessionScanner.swift \
     Tests/AntigravityParsingTests.swift \
     -o "$tmpdir/gemini-parsing-tests"
 

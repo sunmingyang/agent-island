@@ -263,6 +263,7 @@ enum SessionScanner {
         for root in antigravityRoots() {
             let brain = root + "/brain"
             guard let conversations = try? fm.contentsOfDirectory(atPath: brain) else { continue }
+            let summaries = antigravitySummaries(root: root)
             for conversation in conversations {
                 let path = brain + "/" + conversation
                     + "/.system_generated/logs/transcript_full.jsonl"
@@ -272,11 +273,14 @@ enum SessionScanner {
                     quietMeansDone: true,
                     turnState: SessionTurnState.antigravity
                 )
+                let summary = summaries[conversation]
                 out.append(ScannedSession(
                     tool: .antigravity,
                     sessionId: conversation,
-                    cwd: antigravityWorkspace(root: root, conversation: conversation) ?? "",
-                    label: antigravityTitle(root: root, conversation: conversation)
+                    cwd: summary?.workspace
+                        ?? antigravityWorkspace(root: root, conversation: conversation) ?? "",
+                    label: summary?.title
+                        ?? antigravityTitle(root: root, conversation: conversation)
                         ?? String(conversation.prefix(8)),
                     modified: state.modified,
                     status: state.status,
@@ -299,20 +303,116 @@ enum SessionScanner {
             .filter { FileManager.default.fileExists(atPath: $0) }
     }
 
-    /// `brain/<id>/task.md` opens with a markdown heading that is the task
-    /// name — the closest thing to a conversation title without decoding the
-    /// protobuf blobs.
-    private static func antigravityTitle(root: String, conversation: String) -> String? {
-        let path = root + "/brain/" + conversation + "/task.md"
-        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
-        defer { try? handle.close() }
-        let data = handle.readData(ofLength: 4096)
-        let text = String(decoding: data, as: UTF8.self)
-        for line in text.split(separator: "\n", maxSplits: 8) {
-            let clean = line.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
-            if !clean.isEmpty { return String(clean.prefix(48)) }
+    /// One row per conversation in `conversation_summaries.db`, the plain
+    /// SQLite index the CLI keeps beside `brain/`. The IDE's `task.md` and
+    /// `history.jsonl` (which earlier recon assumed) are never written by the
+    /// CLI, so this table is the only place a real title or workspace lives.
+    /// Fields it leaves empty stay empty — the caller falls back rather than
+    /// inventing a value.
+    struct AntigravitySummary {
+        let title: String?
+        let workspace: String?
+    }
+
+    /// Read once per scan and shared across that root's conversations —
+    /// opening the db per conversation would be a needless connection each.
+    static func antigravitySummaries(root: String) -> [String: AntigravitySummary] {
+        let path = root + "/conversation_summaries.db"
+        guard FileManager.default.fileExists(atPath: path) else { return [:] }
+        // The db is WAL-mode. A read-only open needs the -shm file, which
+        // only exists while the CLI holds the db open; with agy not running,
+        // plain read-only fails at prepare with SQLITE_CANTOPEN. So: try the
+        // live path first (sees committed WAL frames), then fall back to
+        // immutable, which skips the WAL entirely — safe here because a
+        // cleanly closed db is fully checkpointed, and a stale miss only
+        // costs a nicer label.
+        if let rows = antigravitySummaryRows(uri: path, useURI: false) { return rows }
+        let escaped = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+        return antigravitySummaryRows(uri: "file:" + escaped + "?immutable=1", useURI: true) ?? [:]
+    }
+
+    /// nil means this open/prepare failed and the caller should try the other
+    /// mode; an empty dictionary means the table really had nothing.
+    private static func antigravitySummaryRows(uri: String, useURI: Bool) -> [String: AntigravitySummary]? {
+        var db: OpaquePointer?
+        let flags = SQLITE_OPEN_READONLY | (useURI ? SQLITE_OPEN_URI : 0)
+        guard sqlite3_open_v2(uri, &db, flags, nil) == SQLITE_OK, let db else {
+            sqlite3_close(db)
+            return nil
+        }
+        defer { sqlite3_close(db) }
+        sqlite3_busy_timeout(db, 150)
+
+        var statement: OpaquePointer?
+        let sql = "SELECT conversation_id, title, preview, workspace_uris FROM conversation_summaries"
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(statement) }
+
+        var out: [String: AntigravitySummary] = [:]
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let rawID = sqlite3_column_text(statement, 0) else { continue }
+            let id = String(cString: rawID)
+            guard !id.isEmpty else { continue }
+            // title is usually blank; preview carries the generated name.
+            let title = column(statement, 1) ?? column(statement, 2)
+            out[id] = AntigravitySummary(
+                title: title.map { String($0.prefix(48)) },
+                workspace: column(statement, 3).flatMap(antigravityWorkspacePath)
+            )
+        }
+        return out
+    }
+
+    private static func column(_ statement: OpaquePointer?, _ index: Int32) -> String? {
+        guard let raw = sqlite3_column_text(statement, index) else { return nil }
+        let value = String(cString: raw).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    /// `workspace_uris` is a JSON array of file:// URIs; the first one is the
+    /// session's directory. Empty for CLI sessions started outside a project.
+    private static func antigravityWorkspacePath(_ raw: String) -> String? {
+        guard let data = raw.data(using: .utf8),
+              let list = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return nil }
+        for entry in list {
+            guard let text = entry as? String, !text.isEmpty else { continue }
+            if let url = URL(string: text), url.isFileURL { return url.path }
+            return text
         }
         return nil
+    }
+
+    /// The first user message, unwrapped from the `<USER_REQUEST>` envelope
+    /// the CLI writes. Used when the summaries table has no name yet — it is
+    /// written asynchronously, so a brand-new conversation has no row.
+    private static func antigravityTitle(root: String, conversation: String) -> String? {
+        let path = root + "/brain/" + conversation
+            + "/.system_generated/logs/transcript_full.jsonl"
+        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? handle.close() }
+        let text = String(decoding: handle.readData(ofLength: 16_384), as: UTF8.self)
+        for line in text.split(separator: "\n") {
+            guard let object = try? JSONSerialization.jsonObject(
+                    with: Data(line.utf8)) as? [String: Any],
+                  object["type"] as? String == "USER_INPUT",
+                  let content = object["content"] as? String else { continue }
+            return antigravityRequestText(content)
+        }
+        return nil
+    }
+
+    static func antigravityRequestText(_ content: String) -> String? {
+        var body = content
+        if let start = content.range(of: "<USER_REQUEST>"),
+           let end = content.range(of: "</USER_REQUEST>"), start.upperBound <= end.lowerBound {
+            body = String(content[start.upperBound..<end.lowerBound])
+        }
+        let clean = body
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: "\n")
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return clean.isEmpty ? nil : String(clean.prefix(48))
     }
 
     /// `history.jsonl` maps conversationId to its workspace.
