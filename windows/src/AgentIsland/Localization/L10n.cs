@@ -147,6 +147,9 @@ public static class L10n
         ["Quota shows"] = "额度显示",
         ["Used"] = "已用",
         ["Remaining"] = "剩余",
+        // macOS zh-Hans: the Tokens section header reads "Token" (singular,
+        // capital T) — en keeps "Tokens".
+        ["Tokens"] = "Token",
         ["Usage tiles and top-bar percentages follow this."] = "用量图和顶栏百分比都跟随这里",
         ["Show remaining instead of used"] = "显示剩余而不是已用",
         ["Percent readouts count down what's left of each window rather than up what's spent."] = "百分比倒着数每个窗口还剩多少，而不是正着数用了多少",
@@ -509,7 +512,6 @@ public static class L10n
         ["Rate"] = "Usage check",
         ["network drop"] = "network drop — showing last data",
         ["TOP Model"] = "TOP MODEL",
-        ["Tokens"] = "Token",
         // No ["Cost"] override: it is the island's page tab, which macOS
         // en.lproj renders "Cost". SectionLabel uppercases on its own, so a
         // report-card all-caps entry here bought nothing and renamed the tab.
