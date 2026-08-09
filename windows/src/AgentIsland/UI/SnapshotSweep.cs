@@ -35,7 +35,9 @@ public static class SnapshotSweep
         string At(string name) => Path.Combine(dir, name);
 
         // Let demo data, layout, and the first paint settle; then walk the
-        // surfaces one settle-beat at a time.
+        // surfaces one settle-beat at a time. SaveVisualSnapshot captures
+        // ~0.6s AFTER the call — every island shot needs a full beat before
+        // the next state mutation, or the shutter catches the next page.
         After(4.0, () =>
         {
             Try(() =>
@@ -44,18 +46,26 @@ public static class SnapshotSweep
                 Report.ReportWindow.WritePng(Report.ReportWindow.Kind.Monthly, At("report-monthly.png"));
             });
             island.SaveVisualSnapshot(At("island-compact.png"));
+            After(1.0, () =>
+            {
             island.PopUp();
             After(1.6, () =>
             {
                 island.SaveVisualSnapshot(At("island-expanded.png"));
+                After(1.0, () =>
+                {
                 ScreenPref.Shared.ForceForVerification(IslandScreen.Cost);
                 After(0.9, () =>
                 {
                     island.SaveVisualSnapshot(At("island-cost.png"));
+                    After(1.0, () =>
+                    {
                     ScreenPref.Shared.ForceForVerification(IslandScreen.Overview);
                     After(1.0, () =>
                     {
                         island.SaveVisualSnapshot(At("island-overview.png"));
+                        After(1.0, () =>
+                        {
                         ScreenPref.Shared.ForceForVerification(IslandScreen.Usage);
                         Try(() => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly));
                         After(1.5, () =>
@@ -93,8 +103,12 @@ public static class SnapshotSweep
                                 });
                             });
                         });
+                        });
+                    });
                     });
                 });
+                });
+            });
             });
         });
     }
