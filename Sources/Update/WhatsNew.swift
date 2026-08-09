@@ -59,7 +59,9 @@ enum WhatsNewContent {
         // "更新自己会说话"是错的).
         PagedCardPage(
             symbol: "sparkles",
-            imageName: "guide-brand",
+            // Release-day poster with the version baked in — per-release
+            // art, replaced each cycle like the rest of the whatsnew set.
+            imageName: "whatsnew-overview",
             title: "At a glance",
             body: "The fifth seat changes hands: Antigravity replaces Gemini — Google's gradient, a real weekly quota, resume to the exact conversation — and every alarm now lands back in the terminal you actually use",
             hero: .version
@@ -439,20 +441,33 @@ struct PagedCardView: View {
     }
 }
 
-/// The release card's opening spread: the version number IS the visual,
-/// the feature icons preview the pages, the real screenshot grounds it.
+/// The release card's opening spread. With release-poster art bundled the
+/// poster IS the version visual (the number is baked into the art) and the
+/// 42pt text would say it a third time after the header chip; without art
+/// the type carries the spread, as before.
 private struct VersionHero: View {
     let page: PagedCardPage
     let siblings: [PagedCardPage]
 
+    private var hasPoster: Bool {
+        guard let name = page.imageName else { return false }
+        return Bundle.main.url(forResource: name, withExtension: "png") != nil
+    }
+
     var body: some View {
         VStack(spacing: 14) {
-            Text("v" + WhatsNewGate.currentVersion)
-                .font(.system(size: 42, weight: .black, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(.white)
+            if hasPoster {
+                PageIllustration(page: page, height: 196)
+            } else {
+                Text("v" + WhatsNewGate.currentVersion)
+                    .font(.system(size: 42, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+            }
             IconRow(symbols: siblings.filter { $0.hero == nil }.map(\.symbol))
-            PageIllustration(page: page, height: 138)
+            if !hasPoster {
+                PageIllustration(page: page, height: 138)
+            }
         }
         .frame(maxWidth: .infinity)
     }
