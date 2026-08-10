@@ -182,6 +182,8 @@ final class AgentReminderStore: ObservableObject {
     /// switch rather than a rule (owner call, 2026-08-08).
     @Published var alarmWhenFrontmost: Bool {
         didSet { UserDefaults.standard.set(alarmWhenFrontmost, forKey: Self.alarmWhenFrontmostKey) }
+    }
+
     @Published var defaultAction: TurnAlarmDefaultAction {
         didSet { UserDefaults.standard.set(defaultAction.rawValue, forKey: Self.defaultActionKey) }
     }

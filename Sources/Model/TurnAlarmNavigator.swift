@@ -321,12 +321,13 @@ enum TurnAlarmNavigator {
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration) { _, _ in
             DispatchQueue.main.async { NSApp.hide(nil) }
         }
+    }
+
     private static func activate(_ application: NSRunningApplication) {
         guard let url = application.bundleURL else { return }
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
         NSWorkspace.shared.openApplication(at: url, configuration: config)
-(fix: build with macOS 26 SDK — NSRunningApplication.activate signature change)
     }
 
     private static func activate(bundleIdentifier: String) {

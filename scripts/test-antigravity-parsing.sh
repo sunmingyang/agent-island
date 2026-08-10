@@ -11,6 +11,8 @@ swiftc \
     Sources/Usage/AntigravityCredentials.swift \
     Sources/Usage/AntigravityQuota.swift \
     Sources/Trigger/SessionTurnState.swift \
+    Sources/Model/RemoteSessionStore.swift \
+    Sources/Model/RemoteServerStore.swift \
     Tests/SessionScannerStubs.swift \
     Sources/Trigger/SessionScanner.swift \
     Tests/AntigravityParsingTests.swift \
