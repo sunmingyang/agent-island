@@ -7,7 +7,7 @@ import AppKit
 struct SettingsFooter: View {
     @State private var quitHovered = false
 
-    private static let githubURL = URL(string: "https://github.com/tristan666666/agent-island")!
+    private static let githubURL = URL(string: "https://github.com/sunmingyang/agent-island")!
 
     var body: some View {
         // GitHub + the guide on the left; the share CTAs right. Quit lives

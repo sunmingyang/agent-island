@@ -8,6 +8,21 @@ tag was cut.
 
 _Nothing yet._
 
+## [2.1.3] - 2026-09-27
+
+### Changed
+- **Updates are self-hosted.** Releases now publish from this fork's own GitHub Releases: the launch check, the Windows checker, and the Sparkle feed all point at `sunmingyang/agent-island`, and the Sparkle EdDSA keypair was rotated for the fork. Builds from before this release still check the retired upstream repository, so moving an existing install onto the new feed takes one manual install.
+- README, SPARKLE notes, and in-app GitHub/release links point at the fork.
+
+### Added
+- Remote servers: SSH targets managed in the UI (dropdown fed from `~/.ssh/config`), transcript sync in parallel with a one-shot directory probe, and remote usage folded into the cost ledger and monitoring.
+- CLI sessions reopen in the user's own terminal instead of being forced into Terminal.app.
+
+### Fixed
+- Builds against the macOS 26 SDK (`NSRunningApplication.activate` signature change).
+- Crash parsing an `~/.ssh/config` line that is exactly `#`.
+- Remote sync reliability: `openrsync` option handling, sync status persistence, and the server form's UX.
+
 ## [2.1.2] - 2026-08-09
 
 ### Added

@@ -18,4 +18,4 @@ tool stays small and reliable first.
 - Setapp distribution
 - Linux exploration (#19)
 
-Suggest something or vote in [Discussions](https://github.com/tristan666666/agent-island/discussions).
+Suggest something or vote in [Discussions](https://github.com/sunmingyang/agent-island/discussions).

@@ -8,42 +8,49 @@ EdDSA signature so a hijacked URL alone can't deliver malware.
 
 The feed URL is:
 ```
-https://github.com/tristan666666/agent-island/releases/latest/download/appcast.xml
+https://github.com/sunmingyang/agent-island/releases/latest/download/appcast.xml
 ```
 GitHub's `releases/latest/download/<asset>` endpoint always 302-redirects to
 the asset on the most recent non-prerelease release.
 
-## One-time maintainer setup
+## Key state
 
-1. Vendor Sparkle (idempotent):
-   ```sh
-   ./scripts/setup-sparkle.sh
-   ```
-2. Generate the EdDSA keypair (private key lands in your Keychain, public key
-   prints to stdout):
-   ```sh
-   ./Vendor/Sparkle/bin/generate_keys
-   ```
-3. The **public** key is hardcoded in `build.sh` as `SU_PUBLIC_KEY`. Public
-   keys are not secrets — they're meant to ship inside distributed apps so
-   Sparkle can verify update signatures. If you generate a new keypair,
-   replace the constant in `build.sh` and read the rotation warning below.
-4. Export the **private** key for CI use:
+This fork signs its own updates. The **public** EdDSA key is pinned in
+`build.sh` as `SU_PUBLIC_KEY` (public keys ship inside distributed apps so
+Sparkle can verify update signatures — they are not secrets). The matching
+**private** key lives in the maintainer's Keychain and, for CI, in the
+`SPARKLE_ED_PRIVATE_KEY` GitHub Actions secret of this repository:
+
+```
+https://github.com/sunmingyang/agent-island/settings/secrets/actions
+```
+
+Never commit the private key. Lose it and existing installs can no longer
+auto-update; you'd have to ship a new build with a fresh public key embedded,
+which existing installs can't migrate to.
+
+Installs built before 2.1.3 (including upstream 2.1.2 builds) still check the
+retired upstream repository — they need one manual install before the
+self-hosted feed works for them.
+
+## Rotating the key
+
+1. Vendor Sparkle if needed (idempotent): `./scripts/setup-sparkle.sh`
+2. Generate a new keypair (private key lands in your Keychain, public key
+   prints to stdout): `./Vendor/Sparkle/bin/generate_keys`
+3. Replace `SU_PUBLIC_KEY` in `build.sh` with the printed public key.
+4. Export the private key for CI and store it as the repository secret, then
+   delete the file:
    ```sh
    ./Vendor/Sparkle/bin/generate_keys -x sparkle_ed_priv
+   gh secret set SPARKLE_ED_PRIVATE_KEY --repo sunmingyang/agent-island < sparkle_ed_priv
+   rm sparkle_ed_priv
    ```
-   Open the file, copy its contents, and paste them into a new GitHub Actions
-   secret named `SPARKLE_ED_PRIVATE_KEY` at
-   `https://github.com/tristan666666/agent-island/settings/secrets/actions`.
-   Then **delete the file** — never commit it.
-
-The private key never leaves your Mac (and CI's runner). Lose it and existing
-installs can no longer auto-update; you'd have to ship a new build with a
-fresh public key embedded, which existing installs can't migrate to.
 
 ## Cutting a release
 
-1. Bump `VERSION`.
+1. Bump `VERSION` and add the matching `## [X.Y.Z]` section to `CHANGELOG.md`
+   (the workflow refuses to publish empty release notes).
 2. Commit + tag + push:
    ```sh
    git commit -am "chore(release): bump VERSION to X.Y.Z" && git tag vX.Y.Z
@@ -55,8 +62,10 @@ fresh public key embedded, which existing installs can't migrate to.
    - Generates `dist/appcast.xml` listing the new version
    - Uploads **both** as release assets
 
-Existing installs pick up the update on their next daily check (or via
-Settings → Updates → Check Now).
+   The Windows Release workflow attaches the Windows zip to the same release
+   once it appears.
+4. Existing installs pick up the update on their next daily check (or via
+   Settings → Updates → Check Now).
 
 ### Local dry-run
 

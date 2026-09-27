@@ -35,7 +35,7 @@ fi
 
 # Release builds carry the live Sparkle feed; dev builds default to none
 # (a dev instance once self-updated and trashed its own bundle).
-SU_FEED_URL="https://github.com/tristan666666/agent-island/releases/latest/download/appcast.xml" ./build.sh
+SU_FEED_URL="https://github.com/sunmingyang/agent-island/releases/latest/download/appcast.xml" ./build.sh
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
@@ -92,7 +92,7 @@ if [[ -x "$SIGN_TOOL" && $have_key -eq 1 ]]; then
     exit 1
   fi
 
-  RELEASE_URL="https://github.com/tristan666666/agent-island/releases/download/v${VERSION}/$(basename "$DMG")"
+  RELEASE_URL="https://github.com/sunmingyang/agent-island/releases/download/v${VERSION}/$(basename "$DMG")"
   PUBDATE="$(LC_TIME=en_US.UTF-8 date -u "+%a, %d %b %Y %H:%M:%S +0000")"
 
   cat > "$APPCAST" <<EOF
@@ -100,7 +100,7 @@ if [[ -x "$SIGN_TOOL" && $have_key -eq 1 ]]; then
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>AgentIsland</title>
-    <link>https://github.com/tristan666666/agent-island/releases/latest/download/appcast.xml</link>
+    <link>https://github.com/sunmingyang/agent-island/releases/latest/download/appcast.xml</link>
     <description>Most recent AgentIsland release.</description>
     <language>en</language>
     <item>
@@ -109,7 +109,7 @@ if [[ -x "$SIGN_TOOL" && $have_key -eq 1 ]]; then
       <sparkle:version>$VERSION</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/tristan666666/agent-island/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+      <sparkle:releaseNotesLink>https://github.com/sunmingyang/agent-island/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
       <enclosure url="$RELEASE_URL" sparkle:version="$VERSION" sparkle:shortVersionString="$VERSION" length="$DMG_SIZE_BYTES" type="application/octet-stream" sparkle:edSignature="$EDSIG" />
     </item>
   </channel>

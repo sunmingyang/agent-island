@@ -491,7 +491,7 @@ public sealed class SettingsWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var github = new DottedLink("GitHub", "https://github.com/tristan666666/agent-island");
+        var github = new DottedLink("GitHub", "https://github.com/sunmingyang/agent-island");
         github.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(github, 0);
         grid.Children.Add(github);
@@ -834,7 +834,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(AboutFact(L10n.Tr("Made by"), "Tristan Tang", "https://tristan.media"));
         stack.Children.Add(AboutFact(
             L10n.Tr("Sponsor"), L10n.Tr("Star on GitHub"),
-            "https://github.com/tristan666666/agent-island"));
+            "https://github.com/sunmingyang/agent-island"));
         host.Children.Add(stack);
         return host;
     }

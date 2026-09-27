@@ -10,11 +10,11 @@
 
 **[agent-island.dev](https://agent-island.dev/zh/)** · [English](README.md)
 
-[![最新版本](https://img.shields.io/github/v/release/tristan666666/agent-island?style=flat-square&color=0969da)](https://github.com/tristan666666/agent-island/releases/latest)
-[![下载量](https://img.shields.io/github/downloads/tristan666666/agent-island/total?style=flat-square&color=10b981)](https://github.com/tristan666666/agent-island/releases)
+[![最新版本](https://img.shields.io/github/v/release/sunmingyang/agent-island?style=flat-square&color=0969da)](https://github.com/sunmingyang/agent-island/releases/latest)
+[![下载量](https://img.shields.io/github/downloads/sunmingyang/agent-island/total?style=flat-square&color=10b981)](https://github.com/sunmingyang/agent-island/releases)
 [![支持平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS%2013%2B%20%7C%20Windows%2010%2F11-24292f?style=flat-square)](#macos-和-windows)
-[![构建状态](https://img.shields.io/github/actions/workflow/status/tristan666666/agent-island/macos-ci.yml?branch=main&style=flat-square&label=build)](https://github.com/tristan666666/agent-island/actions)
-[![许可证](https://img.shields.io/github/license/tristan666666/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
+[![构建状态](https://img.shields.io/github/actions/workflow/status/sunmingyang/agent-island/macos-ci.yml?branch=main&style=flat-square&label=build)](https://github.com/sunmingyang/agent-island/actions)
+[![许可证](https://img.shields.io/github/license/sunmingyang/agent-island?style=flat-square&color=8b5cf6)](LICENSE)
 
 [![收录于 awesome-mac](https://img.shields.io/badge/listed%20in-awesome--mac-0969da?style=flat-square)](https://github.com/jaywcjlove/awesome-mac/blob/master/README.md#menu-bar-tools)
 [![收录于 awesome-swift-macos-apps](https://img.shields.io/badge/listed%20in-awesome--swift--macOS-f97316?style=flat-square)](https://github.com/jaywcjlove/awesome-swift-macos-apps/blob/main/README.md#ai)
@@ -34,7 +34,7 @@
 
 <p>
   <a href="#快速开始"><strong>快速开始</strong></a> ·
-  <a href="https://github.com/tristan666666/agent-island/releases/latest">下载</a> ·
+  <a href="https://github.com/sunmingyang/agent-island/releases/latest">下载</a> ·
   <a href="https://agent-island.dev/zh/">官网</a> ·
   <a href="docs/how-agent-island-detects-session-state.md">工作原理</a> ·
   <a href="CONTRIBUTING.md">参与贡献</a>
@@ -46,47 +46,30 @@
 
 选择你的平台，直接安装当前版本：
 
-> `v2.1.2` **两个平台从同一个 tag 发布**——macOS 与 Windows 是同样的五家服务、同样的实时会话状态、同样的报告卡。
+> `v2.1.3` **两个平台从同一个 tag 发布**——macOS 与 Windows 是同样的五家服务、同样的实时会话状态、同样的报告卡。
 
 | 平台 | 推荐下载 | 系统要求 |
 |---|---|---|
-| macOS | [AgentIsland-2.1.2.dmg](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2.dmg) | macOS 13+，Apple silicon 或 Intel |
-| Windows | [AgentIsland-2.1.2-win-x64.zip](https://github.com/tristan666666/agent-island/releases/download/v2.1.2/AgentIsland-2.1.2-win-x64.zip) | Windows 10/11 x64 |
+| macOS | [AgentIsland-2.1.3.dmg](https://github.com/sunmingyang/agent-island/releases/download/v2.1.3/AgentIsland-2.1.3.dmg) | macOS 13+，Apple silicon 或 Intel |
+| Windows | [AgentIsland-2.1.3-win-x64.zip](https://github.com/sunmingyang/agent-island/releases/download/v2.1.3/AgentIsland-2.1.3-win-x64.zip) | Windows 10/11 x64 |
 
 macOS：把 Agent Island 拖入 Applications。应用目前是 ad-hoc 签名而非 notarize，首次启动需要在 Finder 中右键应用并选择 **打开**。
 
 Windows：解压下载包，运行 `AgentIsland.exe`。
 
-> **macOS 首次打开**（仅手动下载）：Gatekeeper 会提示「Apple 无法验证 AgentIsland」——应用没有购买 Apple 开发者证书，使用 ad-hoc 签名，更新完整性由 Sparkle 自己的 EdDSA 签名保障。右键点按应用选「打开」，或到 系统设置 → 隐私与安全性 → 点「仍要打开」。用 Homebrew 安装则完全没有这一步。
+> **macOS 首次打开**（仅手动下载）：Gatekeeper 会提示「Apple 无法验证 AgentIsland」——应用没有购买 Apple 开发者证书，使用 ad-hoc 签名，更新完整性由 Sparkle 自己的 EdDSA 签名保障。右键点按应用选「打开」，或到 系统设置 → 隐私与安全性 → 点「仍要打开」。
 
 <details>
-<summary>包管理器与源码构建</summary>
-
-Homebrew、WinGet 和 Scoop 的版本可能晚于 GitHub 最新 Release，安装前请先核对其版本号。
-
-```sh
-brew install tristan666666/tap/agentisland
-```
-
-```powershell
-winget install TristanTang.AgentIsland
-```
-
-```powershell
-scoop bucket add agent-island https://github.com/tristan666666/scoop-bucket
-scoop install agent-island/agentisland
-```
+<summary>源码构建</summary>
 
 从源码构建 macOS 应用：
 
 ```sh
-git clone https://github.com/tristan666666/agent-island.git
+git clone https://github.com/sunmingyang/agent-island.git
 cd agent-island
 ./scripts/verify.sh
 open build/AgentIsland.app
 ```
-
-Windows 构建与测试文档正在 [issue #10](https://github.com/tristan666666/agent-island/issues/10) 中完善。
 
 </details>
 
@@ -286,19 +269,13 @@ Agent Island 会读取实现这些页面所需的本地文件和凭据。与其�
 
 欢迎贡献 macOS、Windows、文档、测试和本地化。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [Code of Conduct](CODE_OF_CONDUCT.md)。
 
-当前适合首次参与的任务：
-
-- [#10：编写 Windows 贡献者构建与测试流程](https://github.com/tristan666666/agent-island/issues/10)
-- [#11：增加中英文本地化 key 一致性检查](https://github.com/tristan666666/agent-island/issues/11)
-- [#15：增加已退役功能公开文案检查](https://github.com/tristan666666/agent-island/issues/15)
-
 提交 macOS PR 前请运行 `./scripts/verify.sh`。Windows 改动由仓库中的 Windows CI 工作流检查。
 
 ## 路线图与版本
 
-- [最新版本](https://github.com/tristan666666/agent-island/releases/latest)
+- [最新版本](https://github.com/sunmingyang/agent-island/releases/latest)
 - [路线图](docs/roadmap.md)
-- [开放 Issues](https://github.com/tristan666666/agent-island/issues)
+- [开放 Issues](https://github.com/sunmingyang/agent-island/issues)
 
 ## 致谢与许可证
 

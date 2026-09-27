@@ -30,7 +30,7 @@ SPARKLE_FW="$SPARKLE_DIR/Sparkle.framework"
 # for CI). To rotate, see docs/SPARKLE.md — DO NOT change this lightly:
 # every existing install verifies updates against this exact public key, and
 # changing it strands them.
-SU_PUBLIC_KEY="6WJHeBVv3Ft3hRGnmsSEQ8T7AW8jurRQiBfTPtJ5gK0="
+SU_PUBLIC_KEY="wpcEXTvcTSuTnbBG/x1rl/rzcXYFfhVGsl0AoJS7Qz0="
 
 # Default EMPTY for local/dev builds: a dev instance with a live feed will
 # Sparkle-update ITSELF the moment a new release ships — it trashes its own

@@ -2,10 +2,10 @@ import AppKit
 
 /// "A new version is out" nudge backed by the GitHub Releases API.
 ///
-/// Sparkle stays wired for the day an appcast feed exists, but today
-/// `SUFeedURL` is empty — Sparkle finds nothing, and users sit on old
-/// versions forever (owner's call, 2026-07-16: the prompt must appear).
-/// This checks the latest release at launch and every 6 hours; when a newer
+/// Both checks point at this fork's own Releases. Release builds ship a live
+/// Sparkle feed too (`release.sh` passes `SU_FEED_URL`), while dev builds
+/// leave `SUFeedURL` empty — this nudge is the prompt that always surfaces:
+/// it checks the latest release at launch and every 6 hours; when a newer
 /// version exists it puts up a two-button alert — "Update" opens the release
 /// page, "I know" snoozes that version for 7 days. A release newer than the
 /// snoozed one prompts again immediately.
@@ -15,7 +15,7 @@ final class UpdateNudge {
 
     private static let snoozeVersionKey = "AgentIsland.updateNudgeVersion"
     private static let snoozeUntilKey = "AgentIsland.updateNudgeUntil"
-    private static let latestAPI = URL(string: "https://api.github.com/repos/tristan666666/agent-island/releases/latest")!
+    private static let latestAPI = URL(string: "https://api.github.com/repos/sunmingyang/agent-island/releases/latest")!
 
     private var timer: Timer?
     private var alertShowing = false
@@ -79,7 +79,7 @@ final class UpdateNudge {
         else { return nil }
         let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         let page = (json["html_url"] as? String).flatMap(URL.init(string:))
-            ?? URL(string: "https://github.com/tristan666666/agent-island/releases/latest")!
+            ?? URL(string: "https://github.com/sunmingyang/agent-island/releases/latest")!
         return Release(version: version, pageURL: page)
     }
 

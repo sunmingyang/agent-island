@@ -25,9 +25,9 @@ public sealed class UpdateChecker
     private UpdateChecker() { }
 
     private const string LatestApi =
-        "https://api.github.com/repos/tristan666666/agent-island/releases/latest";
+        "https://api.github.com/repos/sunmingyang/agent-island/releases/latest";
     internal const string ReleasesPage =
-        "https://github.com/tristan666666/agent-island/releases/latest";
+        "https://github.com/sunmingyang/agent-island/releases/latest";
     private const string AutoCheckKey = "AgentIsland.autoCheckUpdates";
     private const string DismissedKey = "AgentIsland.dismissedUpdateVersion";
     private const string DismissedAtKey = "AgentIsland.dismissedUpdateAt";

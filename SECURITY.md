@@ -12,7 +12,7 @@ Security fixes are handled for the latest public release of Agent Island.
 
 If you find a security issue, please report it privately through GitHub Security Advisories when available:
 
-https://github.com/tristan666666/agent-island/security/advisories/new
+https://github.com/sunmingyang/agent-island/security/advisories/new
 
 If that route is not available, open a GitHub issue with a minimal description and avoid posting sensitive logs, access tokens, OAuth data, or local transcript contents. I will ask for private details only if they are needed to reproduce the issue.
 
