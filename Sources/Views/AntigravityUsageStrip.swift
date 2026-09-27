@@ -9,6 +9,8 @@ struct AntigravityUsageStrip: View {
     private static let quotaURL = URL(string: "https://antigravity.google")
 
     var body: some View {
+        let bucket = store.snapshot?.primary
+
         HStack(spacing: 10) {
             HStack(spacing: 6) {
                 ProviderMark(provider: .antigravity, size: 13, tint: IslandColor.antigravity)
@@ -20,12 +22,18 @@ struct AntigravityUsageStrip: View {
                         .font(Typography.micro)
                         .foregroundStyle(.white.opacity(0.40))
                 }
+                if let bucket {
+                    // The pool label lives in the identity column, not before
+                    // the meter — outside it, this row's meter started ~46pt
+                    // right of Grok's and Cursor's, breaking the shared column.
+                    Text(bucket.shortLabel)
+                        .font(Typography.micro)
+                        .foregroundStyle(.white.opacity(0.40))
+                }
             }
+            .frame(width: GuestStripMetrics.leadingWidth, alignment: .leading)
 
-            if let bucket = store.snapshot?.primary {
-                Text(bucket.shortLabel)
-                    .font(Typography.micro)
-                    .foregroundStyle(.white.opacity(0.40))
+            if let bucket {
                 let value = quotaMode.displayValue(usedPercent: bucket.usedPercent)
                 meter(fraction: value / 100)
                 Text("\(Int(value.rounded()))%")
@@ -108,7 +116,7 @@ struct AntigravityUsageStrip: View {
                     .frame(width: max(0, geo.size.width * min(1, max(0, fraction))))
             }
         }
-        .frame(width: 132, height: 5)
+        .frame(width: GuestStripMetrics.meterWidth, height: 5)
     }
 
     private func caption(for bucket: AntigravityQuotaBucket) -> String {

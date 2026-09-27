@@ -23,36 +23,69 @@ struct UsageView: View {
 
     var body: some View {
         // Whoever holds a slot gets a REAL tile column — five providers,
-        // one rendering path. The old design gave guests a skinny bottom
-        // strip, which left the whole main area an empty void the moment a
-        // guests-only pair was selected (owner screenshot, 2026-08-08).
+        // one rendering path. Guests that lost the slot race (or were never
+        // picked) keep a one-row strip below the tiles: their quota stays
+        // visible without a third column, which the silhouette can't hold.
         let slots = visibility.slotProviders
 
-        HStack(spacing: 0) {
-            if slots.count == 2 {
-                providerBlock(slots[0], seed: 1)
-                hairline
-                providerBlock(slots[1], seed: 3)
-            } else if slots.count == 1 {
-                let solo = slots[0]
-                if solo.soloLogoFlankIsLeading {
-                    providerBlock(solo, seed: 1)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                if slots.count == 2 {
+                    providerBlock(slots[0], seed: 1)
                     hairline
-                    soloBadge(solo)
+                    providerBlock(slots[1], seed: 3)
+                } else if slots.count == 1 {
+                    let solo = slots[0]
+                    if solo.soloLogoFlankIsLeading {
+                        providerBlock(solo, seed: 1)
+                        hairline
+                        soloBadge(solo)
+                    } else {
+                        soloBadge(solo)
+                        hairline
+                        providerBlock(solo, seed: 3)
+                    }
                 } else {
-                    soloBadge(solo)
-                    hairline
-                    providerBlock(solo, seed: 3)
+                    BothHiddenPlaceholder()
+                        .transition(.opacity)
                 }
-            } else {
-                BothHiddenPlaceholder()
-                    .transition(.opacity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            guestStrips
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 22)
         .padding(.top, 12)
         .padding(.bottom, 6)
+    }
+
+    /// Signed-in guests outside the two slots, one 30pt strip each — quota
+    /// meter, reset countdown, and (Grok) the monthly dollar budget. The
+    /// panel grows by `IslandModel`'s guest-strip height while any is
+    /// visible; no login on this machine, no strip.
+    @ViewBuilder
+    private var guestStrips: some View {
+        let guests = visibility.stripGuests
+        if !guests.isEmpty {
+            VStack(spacing: 2) {
+                ForEach(guests, id: \.self) { provider in
+                    guestStrip(provider)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func guestStrip(_ provider: DisplayProvider) -> some View {
+        switch provider {
+        case .grok: GrokUsageStrip()
+        case .antigravity: AntigravityUsageStrip()
+        case .cursor: CursorUsageStrip()
+        case .claude, .codex: EmptyView()
+        }
     }
 
     @ViewBuilder

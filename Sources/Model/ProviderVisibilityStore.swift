@@ -41,6 +41,10 @@ final class ProviderVisibilityStore: ObservableObject {
     /// is a real install awaiting sign-in — surfaced as a Settings caption
     /// (`antigravitySignedOut`), never as a slot candidate.
     @Published private(set) var antigravityDetected: Bool
+    /// Guests that earn a strip under the usage/cost rows: signed in on this
+    /// machine and not holding one of the two island slots. Slots always win,
+    /// so a provider never renders twice; canonical order.
+    @Published private(set) var stripGuests: [DisplayProvider] = []
     /// Cursor counts as installed when the editor's state db exists — that
     /// db is also where its session token lives, so no db means no login.
     @Published private(set) var cursorDetected: Bool
@@ -106,6 +110,7 @@ final class ProviderVisibilityStore: ObservableObject {
             if cursorDetected != onForDemo { cursorDetected = onForDemo }
             if antigravityDetected != onForDemo { antigravityDetected = onForDemo }
             if antigravitySignedOut { antigravitySignedOut = false }
+            refreshStripGuests()
             return
         }
         let grok = GrokAuthFile.exists()
@@ -131,6 +136,24 @@ final class ProviderVisibilityStore: ObservableObject {
         }
         if antigravityDetected != antigravity { antigravityDetected = antigravity }
         if antigravitySignedOut != signedOut { antigravitySignedOut = signedOut }
+        refreshStripGuests()
+    }
+
+    /// Recomputes the guest strips: detected sign-ins minus the slot
+    /// occupants. Claude and Codex never take a strip — the tile rendering
+    /// path is their only shape, and they only leave the slots by hand.
+    private func refreshStripGuests() {
+        let slots = Set(enabled)
+        let guests = DisplayProvider.allCases.filter { provider in
+            guard !slots.contains(provider) else { return false }
+            switch provider {
+            case .grok: return grokDetected
+            case .antigravity: return antigravityDetected
+            case .cursor: return cursorDetected
+            case .claude, .codex: return false
+            }
+        }
+        if guests != stripGuests { stripGuests = guests }
     }
 
     // MARK: - Toggling
@@ -147,6 +170,7 @@ final class ProviderVisibilityStore: ObservableObject {
             enabled = next
             markTouched(provider)
             persist()
+            refreshStripGuests()
             return true
         }
     }

@@ -15,10 +15,7 @@ struct CursorUsageStrip: View {
     var body: some View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(IslandColor.cursor)
-                    .frame(width: 5, height: 5)
-                    .accessibilityHidden(true)
+                ProviderMark(provider: .cursor, size: 13, tint: IslandColor.cursor)
                 Text("Cursor")
                     .font(Typography.providerTitle)
                     .foregroundStyle(.white.opacity(0.88))
@@ -26,6 +23,7 @@ struct CursorUsageStrip: View {
                     .font(Typography.micro)
                     .foregroundStyle(.white.opacity(0.40))
             }
+            .frame(width: GuestStripMetrics.leadingWidth, alignment: .leading)
 
             if let snapshot = store.snapshot {
                 let value = quotaMode.displayValue(usedPercent: snapshot.usedPercent)
@@ -109,7 +107,7 @@ struct CursorUsageStrip: View {
                     .frame(width: max(0, geo.size.width * min(1, max(0, fraction))))
             }
         }
-        .frame(width: 150, height: 5)
+        .frame(width: GuestStripMetrics.meterWidth, height: 5)
     }
 
     /// Errors replace the reset countdown; an elapsed cycle boundary shows

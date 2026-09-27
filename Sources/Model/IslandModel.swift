@@ -46,6 +46,13 @@ final class IslandModel: ObservableObject {
     /// fixed host window height on standard notch/menu-bar sizes.
     private let overviewDetailContentHeight: CGFloat = 52
 
+    /// Guest strips under the usage/cost rows: a 30pt row per guest, a 2pt
+    /// gap between rows, 4pt of air above the first — 34pt for a single
+    /// strip, matching the pre-2.1.1 Grok-only strip.
+    private static let guestStripRowHeight: CGFloat = 30
+    private static let guestStripGap: CGFloat = 2
+    private static let guestStripTopInset: CGFloat = 4
+
 
     /// Detection-pure notch from `NotchInfo.detect`. Kept separate from
     /// `notch` (which has the user's spacing override applied) so
@@ -54,6 +61,12 @@ final class IslandModel: ObservableObject {
     private var rawNotch: NotchInfo
     private var activeScreen = ScreenPref.shared.screen
     private var overviewDayDetailVisible = false
+
+    /// Guest strip row count on the usage/cost pages. Mirrors the store
+    /// because @Published emits during willSet — the store read inside a
+    /// sink would still see the old value (same race the spacing-store
+    /// subscription documents).
+    private var guestStripCount = 0
 
     private var subs: Set<AnyCancellable> = []
 
@@ -67,10 +80,12 @@ final class IslandModel: ObservableObject {
         self.rawNotch = notch
         self.notch = Self.applyOverride(to: notch, width: IslandSpacingStore.shared.width)
         self.interfaceScale = InterfaceScaleStore.shared.factor
+        self.guestStripCount = ProviderVisibilityStore.shared.stripGuests.count
         recomputeSize()
         subscribeToSpacingStore()
         subscribeToScreenPref()
         subscribeToInterfaceScale()
+        subscribeToGuestStrips()
     }
 
 
@@ -180,6 +195,22 @@ final class IslandModel: ObservableObject {
             .store(in: &subs)
     }
 
+    /// A guest signing in (or a slot freeing up) adds a 30pt studio row to
+    /// the usage/cost pages; the panel grows with the same morph as a state
+    /// change so the silhouette never clips the new row mid-transition.
+    private func subscribeToGuestStrips() {
+        ProviderVisibilityStore.shared.$stripGuests
+            .dropFirst()
+            .sink { [weak self] guests in
+                guard let self, guests.count != self.guestStripCount else { return }
+                self.guestStripCount = guests.count
+                withAnimation(.openMorph) {
+                    self.recomputeSize()
+                }
+            }
+            .store(in: &subs)
+    }
+
     private func subscribeToScreenPref() {
         ScreenPref.shared.$screen
             .dropFirst()
@@ -232,7 +263,16 @@ final class IslandModel: ObservableObject {
         let detailHeight = activeScreen == .overview && overviewDayDetailVisible
             ? overviewDetailContentHeight
             : 0
-        return baseHeight + detailHeight
+        return baseHeight + detailHeight + guestStripHeight
+    }
+
+    /// Usage and cost grow for the guest strips; the overview owns its own
+    /// height and renders no strips.
+    private var guestStripHeight: CGFloat {
+        guard activeScreen != .overview, guestStripCount > 0 else { return 0 }
+        return CGFloat(guestStripCount) * Self.guestStripRowHeight
+            + CGFloat(guestStripCount - 1) * Self.guestStripGap
+            + Self.guestStripTopInset
     }
 
     private func shouldCollapseDetailBeforeShowing(_ screen: ScreenPref.Screen) -> Bool {

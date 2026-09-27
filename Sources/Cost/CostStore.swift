@@ -212,6 +212,83 @@ final class CostStore: ObservableObject {
                 175, 188, 201, 214, 228, 239, 254, 268, 282, 164,
             ], millionScale: 1_000_000)
         )
+        // Guests (recording rig only): small believable ledgers so the
+        // usage/cost guest strips have numbers next to Claude and Codex.
+        // Same switch the guest usage stores gate their fixtures on.
+        if AppEnvironment.demoGuestFixturesEnabled {
+            costs[.antigravity] = ProviderCost(
+                today: CostWindow(
+                    dollars: 1.35, tokens: 9_400_000, billableTokens: 940_000,
+                    series: [0, 0, 0, 0.2, 0.6, 0.9, 1.1, 1.35],
+                    label: "Today", error: nil, unknownModels: []
+                ),
+                month: CostWindow(
+                    dollars: 28.40, tokens: 198_000_000, billableTokens: 19_800_000,
+                    series: [1.2, 2.8, 4.6, 6.9, 9.5, 12.4, 15.8, 19.6, 23.9, 28.40],
+                    label: "April", error: nil, unknownModels: []
+                ),
+                recentByModel: Self.demoModelRows([
+                    ("gemini-3-pro", "Gemini 3 Pro", 940_000, 9_400_000, 1.35),
+                ]),
+                weekByModel: Self.demoModelRows([
+                    ("gemini-3-pro", "Gemini 3 Pro", 6_200_000, 62_000_000, 8.90),
+                ]),
+                monthByModel: Self.demoModelRows([
+                    ("gemini-3-pro", "Gemini 3 Pro", 19_800_000, 198_000_000, 28.40),
+                ]),
+                dailyTokens: Self.demoDailyBuckets([
+                    2, 4, 1, 6, 3, 5, 2, 7,
+                ], millionScale: 1_000_000)
+            )
+            costs[.grok] = ProviderCost(
+                today: CostWindow(
+                    dollars: 2.10, tokens: 14_600_000, billableTokens: 1_460_000,
+                    series: [0, 0, 0, 0, 0.4, 1.2, 1.8, 2.10],
+                    label: "Today", error: nil, unknownModels: []
+                ),
+                month: CostWindow(
+                    dollars: 41.20, tokens: 287_000_000, billableTokens: 28_700_000,
+                    series: [2.4, 5.1, 8.0, 11.4, 15.2, 19.6, 24.3, 29.5, 35.0, 41.20],
+                    label: "April", error: nil, unknownModels: []
+                ),
+                recentByModel: Self.demoModelRows([
+                    ("grok-5", "Grok 5", 1_460_000, 14_600_000, 2.10),
+                ]),
+                weekByModel: Self.demoModelRows([
+                    ("grok-5", "Grok 5", 8_900_000, 89_000_000, 12.80),
+                ]),
+                monthByModel: Self.demoModelRows([
+                    ("grok-5", "Grok 5", 28_700_000, 287_000_000, 41.20),
+                ]),
+                dailyTokens: Self.demoDailyBuckets([
+                    3, 2, 5, 4, 6, 3, 7, 4,
+                ], millionScale: 1_000_000)
+            )
+            costs[.cursor] = ProviderCost(
+                today: CostWindow(
+                    dollars: 0.80, tokens: 5_200_000, billableTokens: 520_000,
+                    series: [0, 0, 0.1, 0.3, 0.5, 0.8],
+                    label: "Today", error: nil, unknownModels: []
+                ),
+                month: CostWindow(
+                    dollars: 9.60, tokens: 64_000_000, billableTokens: 6_400_000,
+                    series: [0.6, 1.5, 2.7, 4.0, 5.6, 7.2, 8.4, 9.60],
+                    label: "April", error: nil, unknownModels: []
+                ),
+                recentByModel: Self.demoModelRows([
+                    ("composer-1", "Composer 1", 520_000, 5_200_000, 0.80),
+                ]),
+                weekByModel: Self.demoModelRows([
+                    ("composer-1", "Composer 1", 3_100_000, 31_000_000, 4.60),
+                ]),
+                monthByModel: Self.demoModelRows([
+                    ("composer-1", "Composer 1", 6_400_000, 64_000_000, 9.60),
+                ]),
+                dailyTokens: Self.demoDailyBuckets([
+                    1, 2, 1, 3, 2, 3, 1, 2,
+                ], millionScale: 1_000_000)
+            )
+        }
         self.lastUpdated = Date()
     }
 

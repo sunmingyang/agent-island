@@ -19,31 +19,53 @@ struct CostView: View {
     var body: some View {
         let slots = visibility.slotProviders
 
-        HStack(spacing: 0) {
-            if slots.count == 2 {
-                costColumn(slots[0], centered: false)
-                hairline
-                costColumn(slots[1], centered: false)
-            } else if slots.count == 1 {
-                let solo = slots[0]
-                if solo.soloLogoFlankIsLeading {
-                    costColumn(solo, centered: true)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                if slots.count == 2 {
+                    costColumn(slots[0], centered: false)
                     hairline
-                    soloBadge(solo)
+                    costColumn(slots[1], centered: false)
+                } else if slots.count == 1 {
+                    let solo = slots[0]
+                    if solo.soloLogoFlankIsLeading {
+                        costColumn(solo, centered: true)
+                        hairline
+                        soloBadge(solo)
+                    } else {
+                        soloBadge(solo)
+                        hairline
+                        costColumn(solo, centered: true)
+                    }
                 } else {
-                    soloBadge(solo)
-                    hairline
-                    costColumn(solo, centered: true)
+                    BothHiddenPlaceholder()
+                        .transition(.opacity)
                 }
-            } else {
-                BothHiddenPlaceholder()
-                    .transition(.opacity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            guestStrips
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, 22)
         .padding(.top, 6)
         .padding(.bottom, 4)
+    }
+
+    /// Signed-in guests outside the two slots, one 30pt strip each — today's
+    /// dollars and the calendar month to date. Same guest list as the usage
+    /// page, so both pages keep the same height while swiping.
+    @ViewBuilder
+    private var guestStrips: some View {
+        let guests = visibility.stripGuests
+        if !guests.isEmpty {
+            VStack(spacing: 2) {
+                ForEach(guests, id: \.self) { provider in
+                    GuestCostStrip(provider: provider)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.top, 4)
+        }
     }
 
     /// A provider's cost column: real tiles when it has a local ledger,

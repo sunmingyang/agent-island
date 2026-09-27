@@ -8,6 +8,24 @@ tag was cut.
 
 _Nothing yet._
 
+## [2.1.4] - 2026-09-27
+
+### Added
+- **Guest strips.** Providers signed in on this machine but outside the two
+  island slots — Grok, Antigravity, Cursor — keep a one-row readout under the
+  Claude/Codex columns: quota meter, reset countdown, and Grok's monthly
+  dollar budget on the usage page; today's dollars and the calendar month to
+  date on the cost page. The panel grows with the rows (34pt for the first,
+  32pt each after); a guest with no local ledger says "no local cost data"
+  rather than a fabricated $0. A guest that takes a slot drops its strip —
+  slots always win, nobody renders twice.
+- `AGENTISLAND_PANEL_SNAPSHOT=<dir>` renders the usage and cost pages
+  (usage.png + cost.png) for UI review without a screen-recording grant.
+
+### Changed
+- The recording rig's guest fixtures now include cost ledgers, so the strips
+  carry believable numbers in posters and clips.
+
 ## [2.1.3] - 2026-09-27
 
 ### Changed

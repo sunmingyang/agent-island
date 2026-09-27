@@ -16,10 +16,7 @@ struct GrokUsageStrip: View {
     var body: some View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(IslandColor.grok)
-                    .frame(width: 5, height: 5)
-                    .accessibilityHidden(true)
+                ProviderMark(provider: .grok, size: 13, tint: IslandColor.grok)
                 Text("Grok")
                     .font(Typography.providerTitle)
                     .foregroundStyle(.white.opacity(0.88))
@@ -27,6 +24,7 @@ struct GrokUsageStrip: View {
                     .font(Typography.micro)
                     .foregroundStyle(.white.opacity(0.40))
             }
+            .frame(width: GuestStripMetrics.leadingWidth, alignment: .leading)
 
             if let snapshot = store.snapshot {
                 let value = quotaMode.displayValue(usedPercent: snapshot.weeklyUsedPercent)
@@ -120,7 +118,7 @@ struct GrokUsageStrip: View {
                     .frame(width: max(0, geo.size.width * min(1, max(0, fraction))))
             }
         }
-        .frame(width: 150, height: 5)
+        .frame(width: GuestStripMetrics.meterWidth, height: 5)
     }
 
     /// Errors replace the reset countdown, same slot policy as the tiles —

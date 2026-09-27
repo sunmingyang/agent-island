@@ -278,6 +278,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+
+        // Panel snapshot: renders the usage and cost pages the way the panel
+        // ships them — island size straight from `IslandModel` (guest strips
+        // included) and the real chrome — so layout changes can be eyeballed
+        // without a screen-recording grant, and prints the rendered size for
+        // the record. Hero count-up figures may capture their first frame;
+        // the rows themselves render exact values.
+        // AGENTISLAND_PANEL_SNAPSHOT=/dir writes usage-panel.png +
+        // cost-panel.png there.
+        if let dir = ProcessInfo.processInfo.environment["AGENTISLAND_PANEL_SNAPSHOT"] {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                let model = IslandModel(notch: NotchInfo.detect(from: NSScreen.main))
+                model.setState(.expanded)
+                let original = ScreenPref.shared.screen
+                let width = model.size.width / model.uiScale - 2 * (18 + IslandShape.topCurl)
+                let height = model.size.height / model.uiScale - 28
+                let output = URL(fileURLWithPath: dir)
+                for screen in [ScreenPref.Screen.cost, .usage] {
+                    model.showScreen(screen)
+                    let view = ExpandedView(model: model)
+                        .frame(width: width, height: height)
+                        .background(Color(red: 0.035, green: 0.038, blue: 0.048))
+                    let renderer = ImageRenderer(content: view)
+                    renderer.scale = 2
+                    if let tiff = renderer.nsImage?.tiffRepresentation,
+                       let rep = NSBitmapImageRep(data: tiff),
+                       let png = rep.representation(using: .png, properties: [:]) {
+                        try? png.write(
+                            to: output.appendingPathComponent("\(screen.rawValue)-panel.png")
+                        )
+                    }
+                }
+                ScreenPref.shared.screen = original
+                print("AgentIsland panel snapshot: content \(Int(width))x\(Int(height))pt, "
+                    + "island \(Int(model.size.width))x\(Int(model.size.height))pt, "
+                    + "guests \(ProviderVisibilityStore.shared.stripGuests.count)")
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

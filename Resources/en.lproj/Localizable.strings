@@ -453,3 +453,7 @@
 "Choose from ~/.ssh/config" = "Choose from ~/.ssh/config";
 "Add a server above to start syncing" = "Add a server above to start syncing";
 "Syncing %@…" = "Syncing %@…";
+"Click to open %@" = "Click to open %@";
+"%@: %@ today, %@ this month" = "%@: %@ today, %@ this month";
+"No local cost data" = "No local cost data";
+"%@: no local cost data" = "%@: no local cost data";
